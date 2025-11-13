@@ -50,7 +50,7 @@ const Induction = () => {
       field: "firstName",
       headerName: "Name",
       flex: 1.2,
-      sortable: false,
+      sortable: true,
       valueGetter: (params) => {
         const firstName = params.row?.firstName || "";
         const lastName = params.row?.lastName || "";
@@ -85,7 +85,7 @@ const Induction = () => {
       field: "Slot Time",
       headerName: "Slot Time",
       flex: 1.2,
-      sortable: false,
+      sortable: true,
       valueGetter: (params) => {
         console.log(params.row);
         const startTime = params.row?.timeSlot?.startTime;
