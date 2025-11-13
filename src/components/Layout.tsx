@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "./Sidebar";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "../store/store";
+import { useDispatch } from "react-redux";
 import { logout as logoutAction } from "../store/auth/reducers";
 import { useNavigate } from "react-router-dom";
 
@@ -10,7 +9,6 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { loginResponse } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
