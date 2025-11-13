@@ -1,22 +1,25 @@
-import { useState, useEffect } from 'react';
-import { formatDate } from '../../utils/dateUtils';
-import SectionTitle from '../../components/SectionTitle';
-import { useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../../store/store';
-import { getInductionStepsDetails, updateInductionSteps } from '../../store/induction/api';
-import { SubStep } from '../../store/induction/types';
-import { toast } from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { formatDate } from "../../utils/dateUtils";
+import SectionTitle from "../../components/SectionTitle";
+import { useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState, AppDispatch } from "../../store/store";
+import {
+  getInductionStepsDetails,
+  updateInductionSteps,
+} from "../../store/induction/api";
+import { SubStep } from "../../store/induction/types";
+import { toast } from "react-hot-toast";
 
 // Helper function to convert camelCase to readable title
 const formatStepTitle = (id: string): string => {
   // Convert camelCase to Title Case with spaces
   return id
-    .replace(/([A-Z])/g, ' $1')
+    .replace(/([A-Z])/g, " $1")
     .replace(/^./, (str) => str.toUpperCase())
     .trim();
 };
- 
+
 interface AccordionItemProps {
   userId: string;
   email: string;
@@ -38,14 +41,18 @@ interface ConfirmationModalProps {
   isSaving: boolean;
 }
 
-const ConfirmationModal = ({ isOpen, onClose, onConfirm, isSaving }: ConfirmationModalProps) => {
+const ConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isSaving,
+}: ConfirmationModalProps) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="p-6">
-           
           <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
             Confirm Changes
           </h3>
@@ -87,7 +94,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, isSaving }: Confirmatio
                   ></path>
                 </svg>
               )}
-              <span>{isSaving ? 'Saving...' : 'Confirm'}</span>
+              <span>{isSaving ? "Saving..." : "Confirm"}</span>
             </button>
           </div>
         </div>
@@ -125,11 +132,17 @@ const AccordionItem = ({
           if (data) {
             setSteps(data?.data?.subSteps);
             setOriginalSteps(data?.data?.subSteps); // Store original API data
-            console.log(`Induction steps data for user ${userId}:`, data.subSteps);
+            console.log(
+              `Induction steps data for user ${userId}:`,
+              data.subSteps,
+            );
           }
         })
         .catch((error: any) => {
-          console.error(`Error fetching induction steps for user ${userId}:`, error);
+          console.error(
+            `Error fetching induction steps for user ${userId}:`,
+            error,
+          );
         })
         .finally(() => {
           setIsLoadingSteps(false);
@@ -143,12 +156,13 @@ const AccordionItem = ({
         step.id === stepId
           ? {
               ...step,
-              status: step.status === 'completed' ? 'pending' : 'completed',
-              completedAt: step.status === 'completed' ? null : new Date().toISOString(),
-              completedBy: step.status === 'completed' ? null : userId,
+              status: step.status === "completed" ? "pending" : "completed",
+              completedAt:
+                step.status === "completed" ? null : new Date().toISOString(),
+              completedBy: step.status === "completed" ? null : userId,
             }
-          : step
-      )
+          : step,
+      ),
     );
   };
 
@@ -166,7 +180,7 @@ const AccordionItem = ({
   };
 
   const fullName = `${firstName} ${lastName}`.trim();
-  const completedCount = steps?.filter((s) => s.status === 'completed').length;
+  const completedCount = steps?.filter((s) => s.status === "completed").length;
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
@@ -179,7 +193,7 @@ const AccordionItem = ({
           {/* User Avatar */}
           <div
             className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
-              isPrimary ? 'bg-blue-600' : 'bg-green-600'
+              isPrimary ? "bg-blue-600" : "bg-green-600"
             }`}
           >
             {firstName.charAt(0).toUpperCase()}
@@ -188,7 +202,9 @@ const AccordionItem = ({
           {/* User Info */}
           <div className="text-left flex-1">
             <div className="flex items-center space-x-2">
-              <h3 className="font-semibold text-gray-900">{fullName || 'N/A'}</h3>
+              <h3 className="font-semibold text-gray-900">
+                {fullName || "N/A"}
+              </h3>
               {isPrimary && (
                 <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
                   Primary
@@ -205,15 +221,15 @@ const AccordionItem = ({
                 {completedCount} / {steps.length} Steps
               </p>
               <p
-                className={`text-xs ${isInductionCompleted ? 'text-green-600' : 'text-orange-600'}`}
+                className={`text-xs ${isInductionCompleted ? "text-green-600" : "text-orange-600"}`}
               >
-                {isInductionCompleted ? 'Completed' : 'In Progress'}
+                {isInductionCompleted ? "Completed" : "In Progress"}
               </p>
             </div>
 
             {/* Chevron Icon */}
             <svg
-              className={`w-5 h-5 text-gray-500 transition-transform ${isOpen ? 'transform rotate-180' : ''}`}
+              className={`w-5 h-5 text-gray-500 transition-transform ${isOpen ? "transform rotate-180" : ""}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -236,7 +252,8 @@ const AccordionItem = ({
           <div className="space-y-2">
             <div className="flex justify-between items-center mb-3">
               <h4 className="text-sm font-semibold text-gray-700">
-                Induction Steps ({steps.length} {steps.length === 1 ? 'Step' : 'Steps'})
+                Induction Steps ({steps.length}{" "}
+                {steps.length === 1 ? "Step" : "Steps"})
               </h4>
             </div>
 
@@ -263,24 +280,33 @@ const AccordionItem = ({
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  <span className="text-sm text-gray-600">Loading induction steps...</span>
+                  <span className="text-sm text-gray-600">
+                    Loading induction steps...
+                  </span>
                 </div>
               </div>
             ) : steps.length === 0 ? (
               <div className="p-4 bg-white rounded-lg border border-gray-200">
-                <p className="text-sm text-gray-600 text-center">No induction steps found</p>
+                <p className="text-sm text-gray-600 text-center">
+                  No induction steps found
+                </p>
               </div>
             ) : (
               steps.map((step, index) => {
-                const isCompleted = step.status === 'completed';
+                const isCompleted = step.status === "completed";
                 // Check if the step was originally completed in the API response
-                const originalStep = originalSteps.find((s) => s.id === step.id);
-                const isOriginallyCompleted = originalStep?.status === 'completed';
+                const originalStep = originalSteps.find(
+                  (s) => s.id === step.id,
+                );
+                const isOriginallyCompleted =
+                  originalStep?.status === "completed";
                 return (
                   <div
                     key={step.id}
                     className={`p-4 rounded-lg border-2 transition-all ${
-                      isCompleted ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'
+                      isCompleted
+                        ? "bg-green-50 border-green-300"
+                        : "bg-white border-gray-200"
                     }`}
                   >
                     <div className="flex items-start space-x-3">
@@ -293,27 +319,29 @@ const AccordionItem = ({
                           disabled={isOriginallyCompleted}
                           onChange={() => toggleStep(step.id)}
                           className={`w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${
-                            isOriginallyCompleted ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                            isOriginallyCompleted
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer"
                           }`}
                         />
                       </div>
 
                       {/* Step Content */}
                       <div className="flex-1">
-                        <div className={isCompleted ? '' : 'cursor-pointer'}>
+                        <div className={isCompleted ? "" : "cursor-pointer"}>
                           <div className="flex items-center space-x-2 mb-1">
                             <span
                               className={`text-xs font-semibold px-2 py-0.5 rounded ${
                                 isCompleted
-                                  ? 'bg-green-200 text-green-800'
-                                  : 'bg-gray-200 text-gray-700'
+                                  ? "bg-green-200 text-green-800"
+                                  : "bg-gray-200 text-gray-700"
                               }`}
                             >
                               Step {index + 1}
                             </span>
                             <h5
                               className={`font-semibold ${
-                                isCompleted ? 'text-green-900' : 'text-gray-900'
+                                isCompleted ? "text-green-900" : "text-gray-900"
                               }`}
                             >
                               {formatStepTitle(step.id)}
@@ -321,13 +349,13 @@ const AccordionItem = ({
                           </div>
                           {step.completedAt && (
                             <p className="text-xs text-gray-500 mt-1">
-                              Completed:{' '}
+                              Completed:{" "}
                               {formatDate(step.completedAt, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
                               })}
                             </p>
                           )}
@@ -362,8 +390,8 @@ const AccordionItem = ({
               disabled={isSaving}
               className={`px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center space-x-2 ${
                 isSaving
-                  ? 'bg-blue-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg"
               }`}
             >
               {isSaving && (
@@ -388,7 +416,7 @@ const AccordionItem = ({
                   ></path>
                 </svg>
               )}
-              <span>{isSaving ? 'Saving...' : 'Save Induction'}</span>
+              <span>{isSaving ? "Saving..." : "Save Induction"}</span>
             </button>
           </div>
         </div>
@@ -406,23 +434,29 @@ const AccordionItem = ({
 };
 
 const ViewInduction = () => {
-  const { selectedInduction } = useSelector((state: RootState) => state.induction);
+  const { selectedInduction } = useSelector(
+    (state: RootState) => state.induction,
+  );
   const dispatch = useDispatch<AppDispatch>();
-  const [openAccordions, setOpenAccordions] = useState<string[]>([selectedInduction?.userId || '']);
+  const [openAccordions, setOpenAccordions] = useState<string[]>([
+    selectedInduction?.userId || "",
+  ]);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const data = selectedInduction;
   const navigate = useNavigate();
 
   const toggleAccordion = (userId: string) => {
     setOpenAccordions((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
     );
   };
 
   const handleSaveInduction = (userId: string, steps: SubStep[]) => {
     // Set loading state for this specific user
     setSavingUserId(userId);
-    
+
     // Filter steps to send only id and status fields
     const filteredSteps = steps.map(({ id, status }) => ({
       id,
@@ -433,7 +467,7 @@ const ViewInduction = () => {
     dispatch(updateInductionSteps({ userId, subSteps: filteredSteps }))
       .unwrap()
       .then((response) => {
-        toast.success('Induction steps saved successfully!');
+        toast.success("Induction steps saved successfully!");
       })
       .catch((error) => {
         toast.error(`Failed to save induction steps: ${error}`);
@@ -446,9 +480,9 @@ const ViewInduction = () => {
   };
 
   const formatOnboardingType = (type: string) => {
-    if (type === 'someoneelse') return 'Someone Else';
-    if (type === 'individual') return 'Individual';
-    if (type === 'family') return 'Family';
+    if (type === "someoneelse") return "Someone Else";
+    if (type === "individual") return "Individual";
+    if (type === "family") return "Family";
     return type;
   };
 
@@ -459,7 +493,7 @@ const ViewInduction = () => {
         title="View Induction"
         inputPlaceholder=""
         search={false}
-        onBackClick={() => navigate('/induction')}
+        onBackClick={() => navigate("/induction")}
         value=""
         onSearch={() => {}}
         description="Manage and track induction progress for all participants"
@@ -467,46 +501,53 @@ const ViewInduction = () => {
 
       {/* Booking Information Card */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Booking Information</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Booking Information
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Booking Code</p>
-            <p className="font-semibold text-gray-900">{data?.bookingCode || 'N/A'}</p>
+            <p className="font-semibold text-gray-900">
+              {data?.bookingCode || "N/A"}
+            </p>
           </div>
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Onboarding Type</p>
             <p className="font-semibold text-gray-900">
-              {formatOnboardingType(data?.onboardingType || '')}
+              {formatOnboardingType(data?.onboardingType || "")}
             </p>
           </div>
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Facility Code</p>
-            <p className="font-semibold text-gray-900">{data?.facilityCode || 'N/A'}</p>
+            <p className="font-semibold text-gray-900">
+              {data?.facilityCode || "N/A"}
+            </p>
           </div>
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Status</p>
             <span
               className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                data?.status === 'confirmed'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-yellow-100 text-yellow-800'
+                data?.status === "confirmed"
+                  ? "bg-green-100 text-green-800"
+                  : "bg-yellow-100 text-yellow-800"
               }`}
             >
-              {data?.status?.charAt(0).toUpperCase() + (data?.status?.slice(1) || '')}
+              {data?.status?.charAt(0).toUpperCase() +
+                (data?.status?.slice(1) || "")}
             </span>
           </div>
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Time Slot</p>
             <p className="font-semibold text-gray-900 text-sm">
-              {formatDate(data?.timeSlot?.startTime || '', {
-                hour: '2-digit',
-                minute: '2-digit',
+              {formatDate(data?.timeSlot?.startTime || "", {
+                hour: "2-digit",
+                minute: "2-digit",
                 hour12: true,
               })}
-              {' - '}
-              {formatDate(data?.timeSlot?.endTime || '', {
-                hour: '2-digit',
-                minute: '2-digit',
+              {" - "}
+              {formatDate(data?.timeSlot?.endTime || "", {
+                hour: "2-digit",
+                minute: "2-digit",
                 hour12: true,
               })}
             </p>
@@ -514,11 +555,11 @@ const ViewInduction = () => {
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Date</p>
             <p className="font-semibold text-gray-900">
-              {formatDate(data?.timeSlot?.startTime || '', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
+              {formatDate(data?.timeSlot?.startTime || "", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
               })}
             </p>
           </div>
@@ -540,14 +581,14 @@ const ViewInduction = () => {
             Primary User
           </h3>
           <AccordionItem
-            userId={data?.userId || ''}
-            email={data?.email || ''}
-            firstName={data?.firstName || ''}
-            lastName={data?.lastName || ''}
+            userId={data?.userId || ""}
+            email={data?.email || ""}
+            firstName={data?.firstName || ""}
+            lastName={data?.lastName || ""}
             isInductionCompleted={data?.isInductionCompleted || false}
             isPrimary={true}
-            isOpen={openAccordions.includes(data?.userId || '')}
-            onToggle={() => toggleAccordion(data?.userId || '')}
+            isOpen={openAccordions.includes(data?.userId || "")}
+            onToggle={() => toggleAccordion(data?.userId || "")}
             dispatch={dispatch}
             onSaveInduction={handleSaveInduction}
             isSaving={savingUserId === data?.userId}

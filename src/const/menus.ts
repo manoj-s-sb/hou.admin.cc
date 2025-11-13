@@ -10,11 +10,10 @@ const menus = [
   //   icon: '',
   // },
   {
-    path: '/induction',
-    label: 'Induction',
-    icon: '/assets/induction.svg',
+    path: "/induction",
+    label: "Induction",
+    icon: "/assets/induction.svg",
   },
-
 ];
 
 export default menus;

@@ -1,20 +1,21 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
-import { Login, Dashboard, UserList, Induction, ViewInduction } from './pages';
-import { Provider } from 'react-redux';
-import store from './store/store';
-import { Toaster } from 'react-hot-toast';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
+import { Login, Dashboard, UserList, Induction, ViewInduction } from "./pages";
+import { Provider } from "react-redux";
+import store from "./store/store";
+import { Toaster } from "react-hot-toast";
 
 const AppRoutes: React.FC = () => {
-
   return (
     <Routes>
-      <Route
-        path="/login"
-        element={ <Login />}
-      />
+      <Route path="/login" element={<Login />} />
       <Route
         path="/dashboard"
         element={
@@ -54,7 +55,7 @@ const AppRoutes: React.FC = () => {
             </Layout>
           </ProtectedRoute>
         }
-        />
+      />
       <Route path="/" element={<Navigate to="/induction" replace />} />
     </Routes>
   );

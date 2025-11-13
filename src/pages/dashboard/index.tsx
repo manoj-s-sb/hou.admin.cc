@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 const Dashboard: React.FC = () => {
   return (
@@ -25,7 +25,9 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
       <div className="bg-white p-8 rounded-lg shadow-md">
-        <p className="text-lg text-gray-600 m-0">Welcome to the Admin Portal Dashboard</p>
+        <p className="text-lg text-gray-600 m-0">
+          Welcome to the Admin Portal Dashboard
+        </p>
       </div>
     </div>
   );

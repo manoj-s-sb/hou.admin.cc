@@ -79,7 +79,7 @@ export interface InductionState {
 
 export const initialState: InductionState = {
   isLoading: false,
-  error: '',
+  error: "",
   inductionList: {
     bookings: [],
     total: 0,

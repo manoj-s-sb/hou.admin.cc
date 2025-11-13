@@ -1,10 +1,11 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
 // Create axios instance with default configuration
 const api = axios.create({
-  baseURL: 'https://adminportal-func-gxfraygwfuecb7fn.southindia-01.azurewebsites.net/',
+  baseURL:
+    "https://adminportal-func-gxfraygwfuecb7fn.southindia-01.azurewebsites.net/",
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   timeout: 10000, // 10 seconds timeout
 });
@@ -12,7 +13,7 @@ const api = axios.create({
 // Request interceptor - Add auth token to requests
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const tokensString = localStorage.getItem('tokens');
+    const tokensString = localStorage.getItem("tokens");
     if (tokensString && config.headers) {
       try {
         const tokens = JSON.parse(tokensString);
@@ -20,7 +21,7 @@ api.interceptors.request.use(
           config.headers.Authorization = `Bearer ${tokens.access_token}`;
         }
       } catch (error) {
-        console.error('Error parsing tokens from localStorage:', error);
+        console.error("Error parsing tokens from localStorage:", error);
       }
     }
     return config;
@@ -28,7 +29,7 @@ api.interceptors.request.use(
   (error: AxiosError) => {
     // Handle request error
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor - Handle errors globally
@@ -44,24 +45,24 @@ api.interceptors.response.use(
       const status = error.response.status;
 
       if (status === 401) {
-        console.error('Unauthorized');
+        console.error("Unauthorized");
       } else if (status === 403) {
         // Forbidden - user doesn't have permission
-        console.error('Access forbidden');
+        console.error("Access forbidden");
       } else if (status >= 500) {
         // Server error
-        console.error('Server error:', error.response.data);
+        console.error("Server error:", error.response.data);
       }
     } else if (error.request) {
       // Request was made but no response received (network error)
-      console.error('Network error: No response received');
+      console.error("Network error: No response received");
     } else {
       // Something else happened
-      console.error('Error:', error.message);
+      console.error("Error:", error.message);
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

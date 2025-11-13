@@ -1,7 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { safeDate, formatDate, INVALID_DATE_SORT_VALUE } from '../utils/dateUtils';
+import React, { useState, useMemo, useEffect } from "react";
+import {
+  safeDate,
+  formatDate,
+  INVALID_DATE_SORT_VALUE,
+} from "../utils/dateUtils";
 
-type SortDirection = 'asc' | 'desc';
+type SortDirection = "asc" | "desc";
 
 export interface ColumnDef {
   field: string;
@@ -9,9 +13,13 @@ export interface ColumnDef {
   width?: number;
   flex?: number;
   sortable?: boolean;
-  renderCell?: (params: { value: any; row: any; index: number }) => React.ReactNode;
+  renderCell?: (params: {
+    value: any;
+    row: any;
+    index: number;
+  }) => React.ReactNode;
   valueGetter?: (params: { value: any; row: any; index: number }) => any;
-  type?: 'string' | 'number' | 'date';
+  type?: "string" | "number" | "date";
 }
 
 interface TableProps {
@@ -27,54 +35,64 @@ interface TableProps {
   };
 }
 
-const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelectItem, loading = false, emptyState }) => {
-  const [sortField, setSortField] = useState<string>(columns[0]?.field || '');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+const UserTable: React.FC<TableProps> = ({
+  data,
+  columns,
+  selectedItem,
+  onSelectItem,
+  loading = false,
+  emptyState,
+}) => {
+  const [sortField, setSortField] = useState<string>(columns[0]?.field || "");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Ensure data is always an array
-  const safeData = Array.isArray(data) ? data : [];
-
   const handleSort = (field: string) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
   const sortedUsers = useMemo(() => {
+    // Ensure data is always an array
+    const safeData = Array.isArray(data) ? data : [];
     if (!sortField) return safeData;
-    
+
     return [...safeData].sort((a, b) => {
-      const column = columns.find(col => col.field === sortField);
+      const column = columns.find((col) => col.field === sortField);
       if (!column) return 0;
 
-      let aValue: any = column.valueGetter ? column.valueGetter({ value: a[sortField], row: a, index: 0 }) : a[sortField];
-      let bValue: any = column.valueGetter ? column.valueGetter({ value: b[sortField], row: b, index: 0 }) : b[sortField];
+      let aValue: any = column.valueGetter
+        ? column.valueGetter({ value: a[sortField], row: a, index: 0 })
+        : a[sortField];
+      let bValue: any = column.valueGetter
+        ? column.valueGetter({ value: b[sortField], row: b, index: 0 })
+        : b[sortField];
 
       // Handle different types
-      if (column.type === 'date') {
+      if (column.type === "date") {
         const aDate = safeDate(aValue);
         const bDate = safeDate(bValue);
         // Place invalid dates at the end
         aValue = aDate ? aDate.getTime() : INVALID_DATE_SORT_VALUE;
         bValue = bDate ? bDate.getTime() : INVALID_DATE_SORT_VALUE;
-      } else if (column.type === 'number') {
+      } else if (column.type === "number") {
         aValue = Number(aValue);
         bValue = Number(bValue);
-      } else if (typeof aValue === 'string') {
+      } else if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
       return 0;
     });
-  }, [safeData, sortField, sortDirection, columns]);
+  }, [data, sortField, sortDirection, columns]);
 
   const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -87,22 +105,15 @@ const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelect
     }
   }, [totalPages, currentPage]);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   // Calculate grid template columns based on column definitions
   const gridTemplateColumns = useMemo(() => {
-    return columns.map(col => {
-      if (col.flex) return `${col.flex}fr`;
-      if (col.width) return `${col.width}px`;
-      return '1fr';
-    }).join(' ');
+    return columns
+      .map((col) => {
+        if (col.flex) return `${col.flex}fr`;
+        if (col.width) return `${col.width}px`;
+        return "1fr";
+      })
+      .join(" ");
   }, [columns]);
 
   const SortIcon: React.FC<{ field: string }> = ({ field }) => {
@@ -124,7 +135,7 @@ const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelect
       );
     }
 
-    return sortDirection === 'asc' ? (
+    return sortDirection === "asc" ? (
       <svg
         className="w-3 h-3 text-gray-700 ml-1"
         fill="none"
@@ -164,9 +175,13 @@ const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelect
             <div
               key={column.field}
               className={`flex items-center min-w-0 ${
-                column.sortable !== false ? 'cursor-pointer hover:text-gray-900' : ''
+                column.sortable !== false
+                  ? "cursor-pointer hover:text-gray-900"
+                  : ""
               }`}
-              onClick={() => column.sortable !== false && handleSort(column.field)}
+              onClick={() =>
+                column.sortable !== false && handleSort(column.field)
+              }
             >
               <span className="font-semibold text-[14px] text-gray-600 uppercase tracking-wide">
                 {column.headerName}
@@ -190,15 +205,25 @@ const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelect
           <div className="text-center py-12">
             <div className="flex flex-col items-center justify-center">
               {emptyState?.icon || (
-                <svg className="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                <svg
+                  className="w-12 h-12 text-gray-300 mb-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
                 </svg>
               )}
               <p className="text-sm text-gray-600 mb-1">
-                {emptyState?.title || 'No users found'}
+                {emptyState?.title || "No users found"}
               </p>
               <p className="text-xs text-gray-400">
-                {emptyState?.subtitle || 'Try adjusting your search criteria'}
+                {emptyState?.subtitle || "Try adjusting your search criteria"}
               </p>
             </div>
           </div>
@@ -210,31 +235,48 @@ const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelect
                 key={row.id || paginatedIndex}
                 className={`grid gap-4 px-6 py-4 border-b border-gray-100 cursor-pointer transition-colors ${
                   selectedItem?.id === row.id
-                    ? 'bg-indigo-50 border-l-4 border-l-indigo-600'
-                    : 'hover:bg-gray-50'
-                } ${paginatedIndex === paginatedUsers.length - 1 ? 'border-b-0' : ''}`}
+                    ? "bg-indigo-50 border-l-4 border-l-indigo-600"
+                    : "hover:bg-gray-50"
+                } ${paginatedIndex === paginatedUsers.length - 1 ? "border-b-0" : ""}`}
                 style={{ gridTemplateColumns }}
                 onClick={() => onSelectItem(row)}
               >
                 {columns.map((column) => {
-                  const value = column.valueGetter 
-                    ? column.valueGetter({ value: row[column.field], row, index: absoluteIndex }) 
+                  const value = column.valueGetter
+                    ? column.valueGetter({
+                        value: row[column.field],
+                        row,
+                        index: absoluteIndex,
+                      })
                     : row[column.field];
-                  
+
                   let cellContent;
                   if (column.renderCell) {
-                    cellContent = column.renderCell({ value, row, index: absoluteIndex });
-                  } else if (column.type === 'date' && value) {
+                    cellContent = column.renderCell({
+                      value,
+                      row,
+                      index: absoluteIndex,
+                    });
+                  } else if (column.type === "date" && value) {
                     // Safely handle date formatting
                     const dateObj = safeDate(value);
-                    cellContent = dateObj ? formatDate(dateObj.toISOString()) : 'Invalid Date';
+                    cellContent = dateObj
+                      ? formatDate(dateObj.toISOString())
+                      : "Invalid Date";
                   } else {
                     cellContent = value;
                   }
 
                   return (
-                    <div key={column.field} className="flex items-center text-[15px] text-gray-700 min-w-0">
-                      {column.renderCell ? cellContent : <span className="truncate">{cellContent}</span>}
+                    <div
+                      key={column.field}
+                      className="flex items-center text-[15px] text-gray-700 min-w-0"
+                    >
+                      {column.renderCell ? (
+                        cellContent
+                      ) : (
+                        <span className="truncate">{cellContent}</span>
+                      )}
                     </div>
                   );
                 })}
@@ -249,11 +291,12 @@ const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelect
         <div className="bg-white border-t border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500">
-              Showing {startIndex + 1}-{Math.min(endIndex, sortedUsers.length)} of {sortedUsers.length}
+              Showing {startIndex + 1}-{Math.min(endIndex, sortedUsers.length)}{" "}
+              of {sortedUsers.length}
             </p>
             <div className="flex items-center space-x-1">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 className="px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -263,7 +306,9 @@ const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelect
                 Page {currentPage} of {totalPages}
               </span>
               <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
                 disabled={currentPage === totalPages}
                 className="px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -278,4 +323,3 @@ const UserTable: React.FC<TableProps> = ({ data, columns, selectedItem, onSelect
 };
 
 export default UserTable;
-

@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Sidebar from './Sidebar';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store/store';
-import { logout as logoutAction } from '../store/auth/reducers';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from "react";
+import Sidebar from "./Sidebar";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../store/store";
+import { logout as logoutAction } from "../store/auth/reducers";
+import { useNavigate } from "react-router-dom";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { loginResponse  } = useSelector((state: RootState) => state.auth);
+  const { loginResponse } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const user = loginResponse?.data?.user;
@@ -32,28 +32,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
 
     if (showProfileMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showProfileMenu]);
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
+      .split(" ")
       .map((n) => n[0])
-      .join('')
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
 
   const handleLogout = () => {
     dispatch(logoutAction());
-    navigate('/login');
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('tokens');
+    navigate("/login");
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("tokens");
   };
 
   // Handle sidebar state on resize
@@ -70,15 +70,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     // Check on mount
     checkDesktop();
 
-    window.addEventListener('resize', checkDesktop);
-    return () => window.removeEventListener('resize', checkDesktop);
+    window.addEventListener("resize", checkDesktop);
+    return () => window.removeEventListener("resize", checkDesktop);
   }, []);
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar 
-        isOpen={isSidebarOpen || isDesktop} 
-        onClose={() => setIsSidebarOpen(false)} 
+      <Sidebar
+        isOpen={isSidebarOpen || isDesktop}
+        onClose={() => setIsSidebarOpen(false)}
       />
       <div className="flex-1 flex flex-col w-full">
         <header className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between shadow-sm">
@@ -111,17 +111,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
-                {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'U'}
+                {user ? getInitials(`${user.firstName} ${user.lastName}`) : "U"}
               </div>
               <div className="hidden sm:flex flex-col items-start">
                 <span className="text-sm font-medium text-gray-800">
-                  {user ? `${user.firstName} ${user.lastName}` : 'User'}
+                  {user ? `${user.firstName} ${user.lastName}` : "User"}
                 </span>
-                <span className="text-xs text-gray-500">{user?.userType?.[0] || 'Admin'}</span>
+                <span className="text-xs text-gray-500">
+                  {user?.userType?.[0] || "Admin"}
+                </span>
               </div>
               <svg
                 className={`w-4 h-4 text-gray-500 transition-transform ${
-                  showProfileMenu ? 'rotate-180' : ''
+                  showProfileMenu ? "rotate-180" : ""
                 }`}
                 fill="none"
                 stroke="currentColor"
@@ -139,9 +141,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                 <div className="px-4 py-3 border-b border-gray-200">
                   <p className="text-sm font-medium text-gray-800">
-                    {user ? `${user.firstName} ${user.lastName}` : 'User'}
+                    {user ? `${user.firstName} ${user.lastName}` : "User"}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">{user?.email || 'admin@example.com'}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {user?.email || "admin@example.com"}
+                  </p>
                 </div>
                 <button
                   onClick={handleLogout}

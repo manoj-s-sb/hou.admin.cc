@@ -1,6 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit";
-import authReducer from './auth/reducers';
-import inductionReducer from './induction/reducers';
+import authReducer from "./auth/reducers";
+import inductionReducer from "./induction/reducers";
 
 const store = configureStore({
   reducer: {

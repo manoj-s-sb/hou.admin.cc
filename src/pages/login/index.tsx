@@ -1,17 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { login } from '../../store/auth/api';
-import { AppDispatch, RootState } from '../../store/store';
-import toast from 'react-hot-toast';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { login } from "../../store/auth/api";
+import { AppDispatch, RootState } from "../../store/store";
+import toast from "react-hot-toast";
 
 const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { isLoading: loading, isAuthenticated, error } = useSelector((state: RootState) => state.auth);
+  const {
+    isLoading: loading,
+    isAuthenticated,
+    error,
+  } = useSelector((state: RootState) => state.auth);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,12 +25,12 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      toast.success('Login Successful!', {
+      toast.success("Login Successful!", {
         duration: 4000,
       });
       // Small delay to ensure toast shows before navigation
       setTimeout(() => {
-        navigate('/induction');
+        navigate("/induction");
       }, 100);
     }
   }, [isAuthenticated, navigate]);
@@ -36,14 +40,25 @@ const Login: React.FC = () => {
       <div className="bg-white rounded-xl p-10 w-full max-w-md shadow-lg border border-gray-100">
         <div className="flex justify-center mb-6">
           <div className="bg-white rounded-lg p-4">
-            <img src="/assets/brand.svg" alt="Century Portal Logo" className="h-16 w-auto" />
+            <img
+              src="/assets/brand.svg"
+              alt="Century Portal Logo"
+              className="h-16 w-auto"
+            />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">Admin Portal</h1>
-        <h2 className="text-lg font-normal text-gray-600 mb-8 text-center">Sign In</h2>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">
+          Admin Portal
+        </h1>
+        <h2 className="text-lg font-normal text-gray-600 mb-8 text-center">
+          Sign In
+        </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label htmlFor="username" className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor="username"
+              className="text-sm font-medium text-gray-700"
+            >
               Username
             </label>
             <input
@@ -57,7 +72,10 @@ const Login: React.FC = () => {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label htmlFor="password" className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium text-gray-700"
+            >
               Password
             </label>
             <input
@@ -71,18 +89,22 @@ const Login: React.FC = () => {
             />
           </div>
           {error && (
-            <div className="text-red-600 text-sm p-2 bg-red-50 rounded text-center">{error}</div>
+            <div className="text-red-600 text-sm p-2 bg-red-50 rounded text-center">
+              {error}
+            </div>
           )}
           <button
             type="submit"
             disabled={loading}
             className="px-4 py-3 bg-indigo-600 text-white rounded-md text-base font-semibold cursor-pointer transition-all hover:bg-indigo-700 hover:shadow-lg active:translate-y-0 disabled:bg-indigo-400 disabled:cursor-not-allowed"
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
         <div className="mt-5 p-3 bg-gray-50 rounded-md text-center">
-          <p className="text-xs text-gray-600 m-0">Demo credentials: admin / admin123</p>
+          <p className="text-xs text-gray-600 m-0">
+            Demo credentials: admin / admin123
+          </p>
         </div>
       </div>
     </div>

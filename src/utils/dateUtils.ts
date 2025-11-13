@@ -19,7 +19,7 @@ export const isValidDate = (date: any): boolean => {
  */
 export const safeDate = (value: any): Date | null => {
   if (!value) return null;
-  
+
   const date = value instanceof Date ? value : new Date(value);
   return isValidDate(date) ? date : null;
 };
@@ -33,12 +33,16 @@ export const safeDate = (value: any): Date | null => {
  */
 export const formatDate = (
   dateValue: any,
-  options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' },
-  locale: string = 'en-US'
+  options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  },
+  locale: string = "en-US",
 ): string => {
   const date = safeDate(dateValue);
-  if (!date) return 'Invalid Date';
-  
+  if (!date) return "Invalid Date";
+
   return date.toLocaleDateString(locale, options);
 };
 
@@ -67,4 +71,3 @@ export const getTimestamp = (dateValue: any): number | null => {
  * Use this to place invalid dates at the end of a sorted list
  */
 export const INVALID_DATE_SORT_VALUE = Number.MAX_SAFE_INTEGER;
-

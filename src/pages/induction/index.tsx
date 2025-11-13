@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
-import SectionTitle from '../../components/SectionTitle';
-import UserTable, { ColumnDef } from '../../components/UserTable';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store/store';
-import { inductionList } from '../../store/induction/api';
-import { useNavigate } from 'react-router-dom';
-import { setSelectedInduction } from '../../store/induction/reducers';
+import { useEffect, useState } from "react";
+import SectionTitle from "../../components/SectionTitle";
+import UserTable, { ColumnDef } from "../../components/UserTable";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../../store/store";
+import { inductionList } from "../../store/induction/api";
+import { useNavigate } from "react-router-dom";
+import { setSelectedInduction } from "../../store/induction/reducers";
 
 const Induction = () => {
-  const { inductionList: inductionListData, isLoading } = useSelector((state: RootState) => state.induction);
+  const { inductionList: inductionListData, isLoading } = useSelector(
+    (state: RootState) => state.induction,
+  );
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   console.log(inductionListData);
@@ -16,22 +18,27 @@ const Induction = () => {
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    return today.toISOString().split("T")[0];
   };
 
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
 
   useEffect(() => {
     dispatch(
-      inductionList({ date: selectedDate, page: 1, type: 'inductionbooking', listLimit: 20 })
+      inductionList({
+        date: selectedDate,
+        page: 1,
+        type: "inductionbooking",
+        listLimit: 20,
+      }),
     );
   }, [dispatch, selectedDate]);
 
   // Define custom columns for the induction table
   const inductionColumns: ColumnDef[] = [
     {
-      field: 'S.No',
-      headerName: 'S.No',
+      field: "S.No",
+      headerName: "S.No",
       width: 80,
       sortable: false,
       valueGetter: (params: any) => {
@@ -40,81 +47,81 @@ const Induction = () => {
       },
     },
     {
-      field: 'firstName',
-      headerName: 'Name',
+      field: "firstName",
+      headerName: "Name",
       flex: 1.2,
       sortable: false,
       valueGetter: (params) => {
-        const firstName = params.row?.firstName || '';
-        const lastName = params.row?.lastName || '';
+        const firstName = params.row?.firstName || "";
+        const lastName = params.row?.lastName || "";
         return `${firstName} ${lastName}`.trim();
       },
     },
     {
-      field: 'email',
-      headerName: 'Email',
+      field: "email",
+      headerName: "Email",
       flex: 1.5,
       sortable: true,
       valueGetter: (params) => {
-        return params.row?.email || '';
+        return params.row?.email || "";
       },
     },
     {
-      field: 'bookingCode',
-      headerName: 'Booking Date',
+      field: "bookingCode",
+      headerName: "Booking Date",
       flex: 1.2,
       sortable: false,
       valueGetter: (params) => {
         const date = new Date(params.row?.timeSlot?.startTime);
-        return date.toLocaleDateString('en-US', { 
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
+        return date.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
         });
       },
     },
     {
-      field: 'Slot Time',
-      headerName: 'Slot Time',
+      field: "Slot Time",
+      headerName: "Slot Time",
       flex: 1.2,
       sortable: false,
       valueGetter: (params) => {
         console.log(params.row);
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
-        
-        if (!startTime || !endTime) return '';
-        
+
+        if (!startTime || !endTime) return "";
+
         // Format time from ISO string to HH:MM AM/PM
         const formatTime = (isoString: string) => {
           const date = new Date(isoString);
-          return date.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true 
+          return date.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
           });
         };
-        
+
         return `${formatTime(startTime)} - ${formatTime(endTime)}`;
       },
     },
     {
-      field: 'onboardingType',
-      headerName: 'Onboarding Type',
+      field: "onboardingType",
+      headerName: "Onboarding Type",
       flex: 1,
       sortable: true,
       valueGetter: (params) => {
-        const type = params.row?.onboardingType || '';
-        if (type === 'someoneelse') return 'Someone else';
-        if (type === 'individual') return 'Individual';
-        if (type === 'family') return 'Family';
+        const type = params.row?.onboardingType || "";
+        if (type === "someoneelse") return "Someone else";
+        if (type === "individual") return "Individual";
+        if (type === "family") return "Family";
         return type;
       },
     },
     {
-      field: 'actions',
-      headerName: 'Actions',
+      field: "actions",
+      headerName: "Actions",
       width: 100,
       sortable: false,
       renderCell: (params: any) => (
@@ -151,7 +158,7 @@ const Induction = () => {
     },
   ];
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   return (
     <div className="max-full">
@@ -163,10 +170,13 @@ const Induction = () => {
         value={searchTerm}
         onSearch={setSearchTerm}
       />
-      
+
       {/* Date Filter */}
       <div className="mb-4 flex items-center gap-3">
-        <label htmlFor="induction-date" className="text-sm font-medium text-gray-700">
+        <label
+          htmlFor="induction-date"
+          className="text-sm font-medium text-gray-700"
+        >
           Select Date:
         </label>
         <input
@@ -200,8 +210,8 @@ const Induction = () => {
               />
             </svg>
           ),
-          title: 'No induction found',
-          subtitle: 'Try adjusting your search criteria',
+          title: "No induction found",
+          subtitle: "Try adjusting your search criteria",
         }}
       />
     </div>
