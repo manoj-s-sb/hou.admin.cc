@@ -109,7 +109,7 @@ const Induction = () => {
     {
       field: "onboardingType",
       headerName: "Subscription Type",
-      flex: 1,
+      flex: 1.3,
       sortable: true,
       valueGetter: (params) => {
         const type = params.row?.onboardingType || "";
