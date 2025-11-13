@@ -167,10 +167,10 @@ const UserTable: React.FC<TableProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden min-w-[800px]">
       {/* Table Header */}
       <div className="bg-gray-50 border-b border-gray-200">
-        <div className="grid gap-4 px-6 py-4" style={{ gridTemplateColumns }}>
+        <div className="grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4" style={{ gridTemplateColumns }}>
           {columns.map((column) => (
             <div
               key={column.field}
@@ -183,7 +183,7 @@ const UserTable: React.FC<TableProps> = ({
                 column.sortable !== false && handleSort(column.field)
               }
             >
-              <span className="font-semibold text-[14px] text-gray-600 uppercase tracking-wide">
+              <span className="font-semibold text-[12px] sm:text-[14px] text-gray-600 uppercase tracking-wide">
                 {column.headerName}
               </span>
               {column.sortable !== false && <SortIcon field={column.field} />}
@@ -233,7 +233,7 @@ const UserTable: React.FC<TableProps> = ({
             return (
               <div
                 key={row.id || paginatedIndex}
-                className={`grid gap-4 px-6 py-4 border-b border-gray-100 cursor-pointer transition-colors ${
+                className={`grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 cursor-pointer transition-colors ${
                   selectedItem?.id === row.id
                     ? "bg-indigo-50 border-l-4 border-l-indigo-600"
                     : "hover:bg-gray-50"
@@ -270,7 +270,7 @@ const UserTable: React.FC<TableProps> = ({
                   return (
                     <div
                       key={column.field}
-                      className="flex items-center text-[15px] text-gray-700 min-w-0"
+                      className="flex items-center text-[13px] sm:text-[15px] text-gray-700 min-w-0"
                     >
                       {column.renderCell ? (
                         cellContent
@@ -288,9 +288,9 @@ const UserTable: React.FC<TableProps> = ({
 
       {/* Table Footer with Pagination */}
       {sortedUsers.length > 0 && (
-        <div className="bg-white border-t border-gray-200 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-500">
+        <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-gray-500 text-center sm:text-left">
               Showing {startIndex + 1}-{Math.min(endIndex, sortedUsers.length)}{" "}
               of {sortedUsers.length}
             </p>
@@ -298,11 +298,11 @@ const UserTable: React.FC<TableProps> = ({
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-2 sm:px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
-              <span className="px-3 py-1 text-xs text-gray-700">
+              <span className="px-2 sm:px-3 py-1 text-xs text-gray-700">
                 Page {currentPage} of {totalPages}
               </span>
               <button
@@ -310,7 +310,7 @@ const UserTable: React.FC<TableProps> = ({
                   setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                 }
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-2 sm:px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next
               </button>

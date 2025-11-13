@@ -158,7 +158,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             )}
           </div>
         </header>
-        <main className="flex-1 p-1 sm:p-5 lg:p-5 bg-gray-50">{children}</main>
+        <main className="flex-1 p-2 sm:p-5 lg:p-5 bg-gray-50">{children}</main>
       </div>
     </div>
   );

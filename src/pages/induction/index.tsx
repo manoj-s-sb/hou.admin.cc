@@ -143,7 +143,7 @@ const Induction = () => {
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={2} 
               d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             />
             <path
@@ -161,7 +161,7 @@ const Induction = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   return (
-    <div className="max-full">
+    <div className="w-full max-w-full">
       <SectionTitle
         title="Induction"
         search={false}
@@ -172,10 +172,10 @@ const Induction = () => {
       />
 
       {/* Date Filter */}
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
         <label
           htmlFor="induction-date"
-          className="text-sm font-medium text-gray-700"
+          className="text-sm font-medium text-gray-700 whitespace-nowrap"
         >
           Select Date:
         </label>
@@ -184,11 +184,13 @@ const Induction = () => {
           type="date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
 
-      <UserTable
+      {/* Table Wrapper for Horizontal Scroll on Mobile */}
+      <div className="overflow-x-auto">
+        <UserTable
         data={inductionListData?.bookings}
         columns={inductionColumns}
         selectedItem={null}
@@ -214,6 +216,7 @@ const Induction = () => {
           subtitle: "Try adjusting your search criteria",
         }}
       />
+      </div>
     </div>
   );
 };
