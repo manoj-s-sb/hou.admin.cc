@@ -187,12 +187,12 @@ const AccordionItem = ({
       {/* Accordion Header */}
       <button
         onClick={onToggle}
-        className="w-full px-6 py-4 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between"
+        className="w-full px-3 sm:px-6 py-3 sm:py-4 bg-white hover:bg-gray-50 transition-colors flex items-start sm:items-center justify-between"
       >
-        <div className="flex items-center space-x-4 flex-1">
+        <div className="flex items-start sm:items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
           {/* User Avatar */}
           <div
-            className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
+            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${
               isPrimary ? "bg-blue-600" : "bg-green-600"
             }`}
           >
@@ -200,22 +200,34 @@ const AccordionItem = ({
           </div>
 
           {/* User Info */}
-          <div className="text-left flex-1">
-            <div className="flex items-center space-x-2">
-              <h3 className="font-semibold text-gray-900">
+          <div className="text-left flex-1 min-w-0">
+            <div className="flex items-center space-x-2 flex-wrap">
+              <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
                 {fullName || "N/A"}
               </h3>
               {isPrimary && (
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                <span className="px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded whitespace-nowrap">
                   Primary
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-600">{email}</p>
+            <p className="text-xs sm:text-sm text-gray-600 truncate">{email}</p>
+            
+            {/* Mobile Progress - shown on small screens */}
+            <div className="mt-1 sm:hidden">
+              <p className="text-xs font-medium text-gray-700">
+                {completedCount} / {steps.length} Steps
+              </p>
+              <p
+                className={`text-xs ${isInductionCompleted ? "text-green-600" : "text-orange-600"}`}
+              >
+                {isInductionCompleted ? "Completed" : "In Progress"}
+              </p>
+            </div>
           </div>
 
-          {/* Progress Badge */}
-          <div className="flex items-center space-x-3">
+          {/* Progress Badge - hidden on mobile */}
+          <div className="hidden sm:flex items-center space-x-3">
             <div className="text-right">
               <p className="text-sm font-medium text-gray-700">
                 {completedCount} / {steps.length} Steps
@@ -243,15 +255,30 @@ const AccordionItem = ({
             </svg>
           </div>
         </div>
+        
+        {/* Chevron Icon - mobile only */}
+        <svg
+          className={`sm:hidden w-5 h-5 text-gray-500 transition-transform flex-shrink-0 mt-1 ${isOpen ? "transform rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
       </button>
 
       {/* Accordion Content */}
       {isOpen && (
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 bg-gray-50 border-t border-gray-200">
           {/* Induction Steps */}
           <div className="space-y-2">
             <div className="flex justify-between items-center mb-3">
-              <h4 className="text-sm font-semibold text-gray-700">
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-700">
                 Induction Steps ({steps.length}{" "}
                 {steps.length === 1 ? "Step" : "Steps"})
               </h4>
@@ -303,13 +330,13 @@ const AccordionItem = ({
                 return (
                   <div
                     key={step.id}
-                    className={`p-4 rounded-lg border-2 transition-all ${
+                    className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${
                       isCompleted
                         ? "bg-green-50 border-green-300"
                         : "bg-white border-gray-200"
                     }`}
                   >
-                    <div className="flex items-start space-x-3">
+                    <div className="flex items-start space-x-2 sm:space-x-3">
                       {/* Checkbox */}
                       <div className="flex-shrink-0 pt-1">
                         <input
@@ -318,7 +345,7 @@ const AccordionItem = ({
                           checked={isCompleted}
                           disabled={isOriginallyCompleted}
                           onChange={() => toggleStep(step.id)}
-                          className={`w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${
+                          className={`w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${
                             isOriginallyCompleted
                               ? "cursor-not-allowed opacity-60"
                               : "cursor-pointer"
@@ -327,11 +354,11 @@ const AccordionItem = ({
                       </div>
 
                       {/* Step Content */}
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className={isCompleted ? "" : "cursor-pointer"}>
-                          <div className="flex items-center space-x-2 mb-1">
+                          <div className="flex items-center space-x-2 mb-1 flex-wrap">
                             <span
-                              className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                              className={`text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap ${
                                 isCompleted
                                   ? "bg-green-200 text-green-800"
                                   : "bg-gray-200 text-gray-700"
@@ -340,7 +367,7 @@ const AccordionItem = ({
                               Step {index + 1}
                             </span>
                             <h5
-                              className={`font-semibold ${
+                              className={`text-sm sm:text-base font-semibold ${
                                 isCompleted ? "text-green-900" : "text-gray-900"
                               }`}
                             >
@@ -365,7 +392,7 @@ const AccordionItem = ({
                       {/* Completion Icon */}
                       {isCompleted && (
                         <svg
-                          className="w-6 h-6 text-green-600 flex-shrink-0"
+                          className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -384,11 +411,11 @@ const AccordionItem = ({
           </div>
 
           {/* Save Induction Button */}
-          <div className="mt-6 flex justify-end">
+          <div className="mt-4 sm:mt-6 flex justify-stretch sm:justify-end">
             <button
               onClick={handleSaveClick}
               disabled={isSaving}
-              className={`px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center space-x-2 ${
+              className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center space-x-2 ${
                 isSaving
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg"
@@ -487,7 +514,7 @@ const ViewInduction = () => {
   };
 
   return (
-    <div className="w-full mx-auto p-6">
+    <div className="w-full mx-auto p-3 sm:p-4 md:p-6">
       {/* Header Section */}
       <SectionTitle
         title="View Induction"
@@ -500,33 +527,33 @@ const ViewInduction = () => {
       />
 
       {/* Booking Information Card */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
           Booking Information
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Booking Code</p>
-            <p className="font-semibold text-gray-900">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Booking Code</p>
+            <p className="font-semibold text-gray-900 text-sm sm:text-base break-all">
               {data?.bookingCode || "N/A"}
             </p>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Onboarding Type</p>
-            <p className="font-semibold text-gray-900">
+          <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Onboarding Type</p>
+            <p className="font-semibold text-gray-900 text-sm sm:text-base">
               {formatOnboardingType(data?.onboardingType || "")}
             </p>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Facility Code</p>
-            <p className="font-semibold text-gray-900">
+          <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Facility Code</p>
+            <p className="font-semibold text-gray-900 text-sm sm:text-base break-all">
               {data?.facilityCode || "N/A"}
             </p>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Status</p>
+          <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Status</p>
             <span
-              className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+              className={`inline-block px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium ${
                 data?.status === "confirmed"
                   ? "bg-green-100 text-green-800"
                   : "bg-yellow-100 text-yellow-800"
@@ -536,9 +563,9 @@ const ViewInduction = () => {
                 (data?.status?.slice(1) || "")}
             </span>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Time Slot</p>
-            <p className="font-semibold text-gray-900 text-sm">
+          <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Time Slot</p>
+            <p className="font-semibold text-gray-900 text-xs sm:text-sm">
               {formatDate(data?.timeSlot?.startTime || "", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -552,9 +579,9 @@ const ViewInduction = () => {
               })}
             </p>
           </div>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Date</p>
-            <p className="font-semibold text-gray-900">
+          <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Date</p>
+            <p className="font-semibold text-gray-900 text-xs sm:text-sm">
               {formatDate(data?.timeSlot?.startTime || "", {
                 weekday: "short",
                 month: "short",
@@ -567,17 +594,17 @@ const ViewInduction = () => {
       </div>
 
       {/* Participants Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Participants</h2>
-          <p className="text-sm text-gray-600 mt-1">
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+        <div className="mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Participants</h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
             Total: {1 + (data?.members?.length || 0)} participant(s)
           </p>
         </div>
 
         {/* Primary User Accordion */}
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
             Primary User
           </h3>
           <AccordionItem
@@ -598,7 +625,7 @@ const ViewInduction = () => {
         {/* Secondary Users (Members) */}
         {data?.members && data?.members?.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
+            <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
               Additional Members ({data?.members?.length || 0})
             </h3>
             {data.members.map((member) => (
