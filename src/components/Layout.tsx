@@ -13,9 +13,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { loginResponse } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const user = loginResponse?.data?.user;
 
-  console.log(loginResponse);
+  const user:any = JSON.parse(localStorage.getItem("user") || "{}");
+
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
