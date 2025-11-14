@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
-import { formatDateChicago, formatDateTimeChicago, formatTimeRangeChicago } from "../../utils/dateUtils";
+import {
+  formatDateChicago,
+  formatDateTimeChicago,
+  formatTimeRangeChicago,
+} from "../../utils/dateUtils";
 import SectionTitle from "../../components/SectionTitle";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../../store/store";
 import {
+  activateUserSubscription,
   getInductionStepsDetails,
   updateInductionSteps,
 } from "../../store/induction/api";
@@ -376,7 +381,8 @@ const AccordionItem = ({
                           </div>
                           {step.completedAt && (
                             <p className="text-xs text-gray-500 mt-1">
-                              Completed: {formatDateTimeChicago(step.completedAt)}
+                              Completed:{" "}
+                              {formatDateTimeChicago(step.completedAt)}
                             </p>
                           )}
                         </div>
@@ -465,6 +471,8 @@ const ViewInduction = () => {
   const data = selectedInduction;
   const navigate = useNavigate();
 
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   const toggleAccordion = (userId: string) => {
     setOpenAccordions((prev) =>
       prev.includes(userId)
@@ -489,8 +497,30 @@ const ViewInduction = () => {
       .then((response) => {
         toast.success("Induction steps saved successfully!");
         console.log(response);
-        if(response?.status === "success"){
-          
+        // Check if all 5 steps are completed
+        const completedSteps = response?.data?.subSteps?.filter(
+          (s: any) => s.status === "completed"
+        ).length;
+        const totalSteps = response?.data?.subSteps?.length;
+
+        if (
+          response?.status === "success" &&
+          completedSteps === 5 &&
+          completedSteps === totalSteps
+        ) {
+          dispatch(
+            activateUserSubscription({
+              userId,
+              adminId: user?.userId || "",
+              adminName: `${user?.firstName} ${user?.lastName}`,
+            })
+          )
+            .then((response) => {
+              toast.success("Subscription activated successfully!");
+            })
+            .catch((error) => {
+              toast.error(`Failed to activate subscription: ${error}`);
+            });
         }
       })
       .catch((error) => {
@@ -529,8 +559,11 @@ const ViewInduction = () => {
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
             Booking Information
           </h2>
-          {data?.status === 'completed' && (
-            <button className="text-xs sm:text-sm bg-blue-600 text-white px-2 py-1 rounded-md" onClick={()=>{}}>
+          {data?.status === "completed" && (
+            <button
+              className="text-xs sm:text-sm bg-blue-600 text-white px-2 py-1 rounded-md"
+              onClick={() => {}}
+            >
               Activate Subscription
             </button>
           )}
@@ -576,7 +609,10 @@ const ViewInduction = () => {
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">Time Slot</p>
             <p className="font-semibold text-gray-900 text-xs sm:text-sm">
-              {formatTimeRangeChicago(data?.timeSlot?.startTime, data?.timeSlot?.endTime)}
+              {formatTimeRangeChicago(
+                data?.timeSlot?.startTime,
+                data?.timeSlot?.endTime
+              )}
             </p>
           </div>
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
