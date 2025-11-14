@@ -71,12 +71,21 @@ export const updateInductionSteps = createAsyncThunk(
 
 export const activateUserSubscription = createAsyncThunk(
   "user/activateUserSubscription",
-  async ({ userId }: { userId: string }, { rejectWithValue }) => {
+  async (
+    {
+      userId,
+      adminId,
+      adminName,
+    }: { userId: string; adminId: string; adminName: string },
+    { rejectWithValue }
+  ) => {
     try {
       const response = await api.post(
         `${endpoints.induction.activateSubscription}`,
         {
           userId: userId,
+          adminId: adminId,
+          adminName: adminName,
         }
       );
       return response?.data;

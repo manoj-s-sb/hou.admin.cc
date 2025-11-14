@@ -488,6 +488,10 @@ const ViewInduction = () => {
       .unwrap()
       .then((response) => {
         toast.success("Induction steps saved successfully!");
+        console.log(response);
+        if(response?.status === "success"){
+          
+        }
       })
       .catch((error) => {
         toast.error(`Failed to save induction steps: ${error}`);

@@ -20,8 +20,8 @@ const menus = [
     icon: "/assets/tour.svg",
   },
   {
-    path: "/subscription",
-    label: "Subscription",
+    path: "/members",
+    label: "Members",
     icon: "/assets/subscription.svg",
   },
 ];

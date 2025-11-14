@@ -67,7 +67,7 @@ const AppRoutes: React.FC = () => {
         }
       />
       <Route
-        path="/subscription"
+        path="/members"
         element={
           <ProtectedRoute>
             <Layout>
