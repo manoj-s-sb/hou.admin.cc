@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { formatDate } from "../../utils/dateUtils";
+import { formatDateChicago, formatDateTimeChicago, formatTimeRangeChicago } from "../../utils/dateUtils";
 import SectionTitle from "../../components/SectionTitle";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -376,14 +376,7 @@ const AccordionItem = ({
                           </div>
                           {step.completedAt && (
                             <p className="text-xs text-gray-500 mt-1">
-                              Completed:{" "}
-                              {formatDate(step.completedAt, {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              Completed: {formatDateTimeChicago(step.completedAt)}
                             </p>
                           )}
                         </div>
@@ -579,28 +572,13 @@ const ViewInduction = () => {
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">Time Slot</p>
             <p className="font-semibold text-gray-900 text-xs sm:text-sm">
-              {formatDate(data?.timeSlot?.startTime || "", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-              })}
-              {" - "}
-              {formatDate(data?.timeSlot?.endTime || "", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-              })}
+              {formatTimeRangeChicago(data?.timeSlot?.startTime, data?.timeSlot?.endTime)}
             </p>
           </div>
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">Date</p>
             <p className="font-semibold text-gray-900 text-xs sm:text-sm">
-              {formatDate(data?.timeSlot?.startTime || "", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {formatDateChicago(data?.timeSlot?.startTime)}
             </p>
           </div>
         </div>

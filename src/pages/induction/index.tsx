@@ -6,6 +6,11 @@ import { AppDispatch, RootState } from "../../store/store";
 import { inductionList } from "../../store/induction/api";
 import { useNavigate } from "react-router-dom";
 import { setSelectedInduction } from "../../store/induction/reducers";
+import { 
+  getTodayDateInChicago, 
+  formatDateChicago, 
+  formatTimeRangeChicago 
+} from "../../utils/dateUtils";
 
 const Induction = () => {
   const { inductionList: inductionListData, isLoading } = useSelector(
@@ -15,13 +20,7 @@ const Induction = () => {
   const navigate = useNavigate();
   console.log(inductionListData);
 
-  // Get today's date in YYYY-MM-DD format
-  const getTodayDate = () => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  };
-
-  const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const [selectedDate, setSelectedDate] = useState(getTodayDateInChicago());
 
   useEffect(() => {
     dispatch(
@@ -72,13 +71,7 @@ const Induction = () => {
       flex: 1.2,
       sortable: false,
       valueGetter: (params) => {
-        const date = new Date(params.row?.timeSlot?.startTime);
-        return date.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
+        return formatDateChicago(params.row?.timeSlot?.startTime);
       },
     },
     {
@@ -87,23 +80,12 @@ const Induction = () => {
       flex: 1.2,
       sortable: true,
       valueGetter: (params) => {
-        console.log(params.row);
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
 
         if (!startTime || !endTime) return "";
 
-        // Format time from ISO string to HH:MM AM/PM
-        const formatTime = (isoString: string) => {
-          const date = new Date(isoString);
-          return date.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          });
-        };
-
-        return `${formatTime(startTime)} - ${formatTime(endTime)}`;
+        return formatTimeRangeChicago(startTime, endTime);
       },
     },
     {
