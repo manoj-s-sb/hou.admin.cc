@@ -7,7 +7,7 @@ import {
 } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
-import { Login, Dashboard, UserList, Induction, ViewInduction } from "./pages";
+import { Login, Dashboard, UserList, Induction, ViewInduction, Tours, Members } from "./pages";
 import { Provider } from "react-redux";
 import store from "./store/store";
 import { Toaster } from "react-hot-toast";
@@ -52,6 +52,26 @@ const AppRoutes: React.FC = () => {
           <ProtectedRoute>
             <Layout>
               <ViewInduction />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tour"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Tours />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/subscription"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Members />
             </Layout>
           </ProtectedRoute>
         }

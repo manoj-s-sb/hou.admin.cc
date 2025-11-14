@@ -2,9 +2,10 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
 // Create axios instance with default configuration
 const api = axios.create({
+  //baseURL:
+  //"https://houston-facilityadmin-func-epcvgvfcesezf7dr.canadacentral-01.azurewebsites.net/",
   baseURL:
-    "https://houston-facilityadmin-func-epcvgvfcesezf7dr.canadacentral-01.azurewebsites.net/",
- // baseURL: "https://adminportal-func-gxfraygwfuecb7fn.southindia-01.azurewebsites.net",
+    "https://adminportal-func-gxfraygwfuecb7fn.southindia-01.azurewebsites.net",
   headers: {
     "Content-Type": "application/json",
   },
@@ -30,7 +31,7 @@ api.interceptors.request.use(
   (error: AxiosError) => {
     // Handle request error
     return Promise.reject(error);
-  },
+  }
 );
 
 // Response interceptor - Handle errors globally
@@ -63,7 +64,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
 export default api;
