@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import menus from "../const/menus";
+import menus from "../constants/menus";
 
 interface SidebarProps {
   isOpen?: boolean;

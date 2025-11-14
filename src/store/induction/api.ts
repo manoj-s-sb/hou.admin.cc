@@ -1,7 +1,13 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import endpoints from "../../const/endpoints";
+import endpoints from "../../constants/endpoints";
 import api from "../../services";
-import { InductionListRequest, InductionStepsDetailsRequest } from "./types";
+import {
+  InductionListRequest,
+  InductionStepsDetailsRequest,
+  UpdateInductionStepsRequest,
+  ActivateSubscriptionRequest,
+} from "./types";
+import { handleApiError } from "../../utils/errorUtils";
 
 export const inductionList = createAsyncThunk(
   "induction/inductionList",
@@ -11,15 +17,15 @@ export const inductionList = createAsyncThunk(
   ) => {
     try {
       const response = await api.post(`${endpoints.induction.list}`, {
-        date: date,
-        type: type,
-        page: page,
+        date,
+        type,
+        page,
         limit: listLimit,
       });
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || error.message || "Login failed"
+        handleApiError(error, "Failed to fetch induction list")
       );
     }
   }
@@ -30,15 +36,12 @@ export const getInductionStepsDetails = createAsyncThunk(
   async ({ userId }: InductionStepsDetailsRequest, { rejectWithValue }) => {
     try {
       const response = await api.post(`${endpoints.induction.search}`, {
-        userId: userId,
+        userId,
       });
-      console.log(response?.data);
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch induction steps details"
+        handleApiError(error, "Failed to fetch induction steps details")
       );
     }
   }
@@ -47,23 +50,18 @@ export const getInductionStepsDetails = createAsyncThunk(
 export const updateInductionSteps = createAsyncThunk(
   "induction/updateInductionSteps",
   async (
-    {
-      userId,
-      subSteps,
-    }: { userId: string; subSteps: { id: string; status: string }[] },
+    { userId, subSteps }: UpdateInductionStepsRequest,
     { rejectWithValue }
   ) => {
     try {
       const response = await api.post(`${endpoints.induction.update}`, {
-        userId: userId,
-        subSteps: subSteps,
+        userId,
+        subSteps,
       });
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to update induction steps"
+        handleApiError(error, "Failed to update induction steps")
       );
     }
   }
@@ -72,28 +70,22 @@ export const updateInductionSteps = createAsyncThunk(
 export const activateUserSubscription = createAsyncThunk(
   "user/activateUserSubscription",
   async (
-    {
-      userId,
-      adminId,
-      adminName,
-    }: { userId: string; adminId: string; adminName: string },
+    { userId, adminId, adminName }: ActivateSubscriptionRequest,
     { rejectWithValue }
   ) => {
     try {
       const response = await api.post(
         `${endpoints.induction.activateSubscription}`,
         {
-          userId: userId,
-          adminId: adminId,
-          adminName: adminName,
+          userId,
+          adminId,
+          adminName,
         }
       );
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to activate user subscription"
+        handleApiError(error, "Failed to activate user subscription")
       );
     }
   }

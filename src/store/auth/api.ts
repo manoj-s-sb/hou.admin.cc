@@ -1,6 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import endpoints from "../../const/endpoints";
+import endpoints from "../../constants/endpoints";
 import api from "../../services";
+import { handleApiError } from "../../utils/errorUtils";
 
 // Redux async thunk for state management
 export const login = createAsyncThunk(
@@ -17,7 +18,7 @@ export const login = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || error.message || "Login failed",
+        handleApiError(error, "Login failed"),
       );
     }
   },
