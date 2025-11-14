@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { initialState } from "./types";
-import { inductionList, getInductionStepsDetails } from "./api";
+import { inductionList, getInductionStepsDetails, activateUserSubscription } from "./api";
 
 const inductionSlice = createSlice({
   name: "induction",
@@ -44,6 +44,20 @@ const inductionSlice = createSlice({
       state.error =
         (action.payload as string) ||
         "Induction steps details failed. Please try again.";
+    });
+    builder.addCase(activateUserSubscription.pending, (state) => {
+      state.isLoading = true;
+      state.error = "";
+    });
+    builder.addCase(activateUserSubscription.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.error = "";
+    });
+    builder.addCase(activateUserSubscription.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error =
+        (action.payload as string) ||
+        "Failed to activate user subscription. Please try again.";
     });
   },
 });

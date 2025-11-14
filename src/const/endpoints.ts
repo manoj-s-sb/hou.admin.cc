@@ -4,6 +4,7 @@ const endpoints = {
     list: "/admin/bookings/list",
     search: "/admin/induction/search",
     update: "/admin/induction/status/update",
+    activateSubscription: "subscription/admin/activate",
   },
 };
 

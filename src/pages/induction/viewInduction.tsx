@@ -134,14 +134,14 @@ const AccordionItem = ({
             setOriginalSteps(data?.data?.subSteps); // Store original API data
             console.log(
               `Induction steps data for user ${userId}:`,
-              data.subSteps,
+              data.subSteps
             );
           }
         })
         .catch((error: any) => {
           console.error(
             `Error fetching induction steps for user ${userId}:`,
-            error,
+            error
           );
         })
         .finally(() => {
@@ -161,8 +161,8 @@ const AccordionItem = ({
                 step.status === "completed" ? null : new Date().toISOString(),
               completedBy: step.status === "completed" ? null : userId,
             }
-          : step,
-      ),
+          : step
+      )
     );
   };
 
@@ -212,7 +212,7 @@ const AccordionItem = ({
               )}
             </div>
             <p className="text-xs sm:text-sm text-gray-600 truncate">{email}</p>
-            
+
             {/* Mobile Progress - shown on small screens */}
             <div className="mt-1 sm:hidden">
               <p className="text-xs font-medium text-gray-700">
@@ -255,7 +255,7 @@ const AccordionItem = ({
             </svg>
           </div>
         </div>
-        
+
         {/* Chevron Icon - mobile only */}
         <svg
           className={`sm:hidden w-5 h-5 text-gray-500 transition-transform flex-shrink-0 mt-1 ${isOpen ? "transform rotate-180" : ""}`}
@@ -323,7 +323,7 @@ const AccordionItem = ({
                 const isCompleted = step.status === "completed";
                 // Check if the step was originally completed in the API response
                 const originalStep = originalSteps.find(
-                  (s) => s.id === step.id,
+                  (s) => s.id === step.id
                 );
                 const isOriginallyCompleted =
                   originalStep?.status === "completed";
@@ -462,7 +462,7 @@ const AccordionItem = ({
 
 const ViewInduction = () => {
   const { selectedInduction } = useSelector(
-    (state: RootState) => state.induction,
+    (state: RootState) => state.induction
   );
   const dispatch = useDispatch<AppDispatch>();
   const [openAccordions, setOpenAccordions] = useState<string[]>([
@@ -476,7 +476,7 @@ const ViewInduction = () => {
     setOpenAccordions((prev) =>
       prev.includes(userId)
         ? prev.filter((id) => id !== userId)
-        : [...prev, userId],
+        : [...prev, userId]
     );
   };
 
@@ -528,24 +528,37 @@ const ViewInduction = () => {
 
       {/* Booking Information Card */}
       <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
-          Booking Information
-        </h2>
+        <div className="flex justify-between items-center mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
+            Booking Information
+          </h2>
+          {data?.status === 'completed' && (
+            <button className="text-xs sm:text-sm bg-blue-600 text-white px-2 py-1 rounded-md" onClick={()=>{}}>
+              Activate Subscription
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 mb-1">Booking Code</p>
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">
+              Booking Code
+            </p>
             <p className="font-semibold text-gray-900 text-sm sm:text-base break-all">
               {data?.bookingCode || "N/A"}
             </p>
           </div>
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 mb-1">Onboarding Type</p>
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">
+              Onboarding Type
+            </p>
             <p className="font-semibold text-gray-900 text-sm sm:text-base">
               {formatOnboardingType(data?.onboardingType || "")}
             </p>
           </div>
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 mb-1">Facility Code</p>
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">
+              Facility Code
+            </p>
             <p className="font-semibold text-gray-900 text-sm sm:text-base break-all">
               {data?.facilityCode || "N/A"}
             </p>
@@ -596,7 +609,9 @@ const ViewInduction = () => {
       {/* Participants Section */}
       <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
         <div className="mb-3 sm:mb-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Participants</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+            Participants
+          </h2>
           <p className="text-xs sm:text-sm text-gray-600 mt-1">
             Total: {1 + (data?.members?.length || 0)} participant(s)
           </p>

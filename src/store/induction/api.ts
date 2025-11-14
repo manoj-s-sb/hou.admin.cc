@@ -7,7 +7,7 @@ export const inductionList = createAsyncThunk(
   "induction/inductionList",
   async (
     { date, page, type, listLimit }: InductionListRequest,
-    { rejectWithValue },
+    { rejectWithValue }
   ) => {
     try {
       const response = await api.post(`${endpoints.induction.list}`, {
@@ -19,10 +19,10 @@ export const inductionList = createAsyncThunk(
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || error.message || "Login failed",
+        error.response?.data?.message || error.message || "Login failed"
       );
     }
-  },
+  }
 );
 
 export const getInductionStepsDetails = createAsyncThunk(
@@ -38,10 +38,10 @@ export const getInductionStepsDetails = createAsyncThunk(
       return rejectWithValue(
         error.response?.data?.message ||
           error.message ||
-          "Failed to fetch induction steps details",
+          "Failed to fetch induction steps details"
       );
     }
-  },
+  }
 );
 
 export const updateInductionSteps = createAsyncThunk(
@@ -51,7 +51,7 @@ export const updateInductionSteps = createAsyncThunk(
       userId,
       subSteps,
     }: { userId: string; subSteps: { id: string; status: string }[] },
-    { rejectWithValue },
+    { rejectWithValue }
   ) => {
     try {
       const response = await api.post(`${endpoints.induction.update}`, {
@@ -63,8 +63,29 @@ export const updateInductionSteps = createAsyncThunk(
       return rejectWithValue(
         error.response?.data?.message ||
           error.message ||
-          "Failed to update induction steps",
+          "Failed to update induction steps"
       );
     }
-  },
+  }
+);
+
+export const activateUserSubscription = createAsyncThunk(
+  "user/activateUserSubscription",
+  async ({ userId }: { userId: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(
+        `${endpoints.induction.activateSubscription}`,
+        {
+          userId: userId,
+        }
+      );
+      return response?.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to activate user subscription"
+      );
+    }
+  }
 );
