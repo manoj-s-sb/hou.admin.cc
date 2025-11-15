@@ -279,7 +279,7 @@ const UserTable: React.FC<TableProps> = ({
                 key={row.id || paginatedIndex}
                 className={`grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 cursor-pointer transition-colors ${
                   selectedItem?.id === row.id
-                    ? "bg-indigo-50 border-l-4 border-l-indigo-600"
+                    ? "bg-indigo-50"
                     : "hover:bg-gray-50"
                 } ${paginatedIndex === paginatedUsers.length - 1 ? "border-b-0" : ""}`}
                 style={{ gridTemplateColumns }}

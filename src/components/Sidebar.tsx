@@ -68,9 +68,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         {/* Navigation */}
         <nav className="flex-1 py-4 overflow-y-auto">
           {menuItems.map((item) => {
+            // Check if current path matches menu item or is a child route
             const isActive =
               location.pathname === item.path ||
-              location.pathname === "/view-induction";
+              location.pathname.startsWith(item.path + "/") ||
+              (item.path === "/induction" && location.pathname.includes("view-induction")) ||
+              (item.path === "/members" && location.pathname.includes("view-members"));
+            
             return (
               <Link
                 key={item.path}
@@ -81,15 +85,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                     onClose();
                   }
                 }}
-                className={`flex items-center px-5 py-3 mx-2 my-1 rounded-lg no-underline transition-all ${
+                className={`flex items-center px-5 py-3 mx-2 my-1 rounded-lg no-underline transition-all duration-200 ${
                   isActive
-                    ? "bg-indigo-50 text-indigo-600 font-medium"
-                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-600 font-semibold shadow-sm border-l-4 border-indigo-600"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:translate-x-1"
                 }`}
               >
-                <span className="mr-3 flex items-center gap-2">
+                <span className="flex items-center gap-3 w-full">
                   {item.icon && (
-                    <img src={item.icon} alt={item.label} className="w-5 h-5" />
+                    <img 
+                      src={item.icon} 
+                      alt={item.label} 
+                      className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} 
+                    />
                   )}
                   <span className="text-sm">{item.label}</span>
                 </span>

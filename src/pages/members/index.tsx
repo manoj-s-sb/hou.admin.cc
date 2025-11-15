@@ -28,13 +28,13 @@ const Members = () => {
             <img
               src={imageUrl}
               alt="Profile"
-              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+              className="w-11 h-11 rounded-full object-cover border-2 border-indigo-200 shadow-sm ring-2 ring-indigo-50"
               onError={(e) => {
                 (e.target as HTMLImageElement).src =
                   "https://via.placeholder.com/40";
               }}
             />
-            <span>{fullName}</span>
+            <span className="font-semibold text-gray-900">{fullName}</span>
           </div>
         );
       },
@@ -76,11 +76,11 @@ const Members = () => {
               e.stopPropagation();
               navigate(`/members/${params.row.userId}`);
             }}
-            className="flex items-center justify-center p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-indigo-600 hover:text-white bg-indigo-50 hover:bg-indigo-600 rounded-lg transition-all duration-200 font-medium text-sm border border-indigo-200 hover:border-indigo-600 shadow-sm hover:shadow-md"
             title="View member details"
           >
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -98,6 +98,7 @@ const Members = () => {
                 d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
               />
             </svg>
+            <span className="hidden sm:inline">View</span>
           </button>
         );
       },
@@ -117,33 +118,34 @@ const Members = () => {
   return (
     <div className="w-full max-w-full">
       <SectionTitle
-        title="Subscriptions"
-        description="Manage your subscriptions."
-        inputPlaceholder="Search subscription..."
+        title="Members & Subscriptions"
+        description="View and manage all member subscriptions and account details"
+        inputPlaceholder="Search members by name or email..."
         value=""
         onSearch={() => {}}
       />
 
-      <UserTable
-        data={membersListData.members}
-        columns={membersColumns}
-        selectedItem={null}
-        onSelectItem={() => {}}
-        loading={isLoading}
-        totalItems={membersListData.total}
-        itemsPerPage={membersListData.limit}
-        currentPage={membersListData.skip}
-        onPageChange={(skip) => {
-          dispatch(
-            getMembers({
-              skip,
-              limit: membersListData.limit,
-              facilityCode: "HOU01",
-            }),
-          );
-        }}
-      />
-    </div>
+      
+        <UserTable
+          data={membersListData.members}
+          columns={membersColumns}
+          selectedItem={null}
+          onSelectItem={() => {}}
+          loading={isLoading}
+          totalItems={membersListData.total}
+          itemsPerPage={membersListData.limit}
+          currentPage={membersListData.skip}
+          onPageChange={(skip) => {
+            dispatch(
+              getMembers({
+                skip,
+                limit: membersListData.limit,
+                facilityCode: "HOU01",
+              }),
+            );
+          }}
+        />
+      </div>
   );
 };
 
