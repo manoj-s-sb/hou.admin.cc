@@ -143,14 +143,10 @@ const AccordionItem = ({
       dispatch(getInductionStepsDetails({ userId }))
         .unwrap()
         .then((data: any) => {
-          console.log(data);
           if (data) {
             setSteps(data?.data?.subSteps);
             setOriginalSteps(data?.data?.subSteps); // Store original API data
-            console.log(
-              `Induction steps data for user ${userId}:`,
-              data.subSteps
-            );
+            
           }
         })
         .catch((error: any) => {
@@ -521,7 +517,6 @@ const ViewInduction = () => {
       .unwrap()
       .then((response) => {
         toast.success("Induction steps saved successfully!");
-        console.log(response);
         // Check if all 5 steps are completed
         const completedSteps = response?.data?.subSteps?.filter(
           (s: any) => s.status === "completed"
@@ -541,7 +536,6 @@ const ViewInduction = () => {
             })
           )
             .then((response) => {
-              console.log(response?.payload?.status);
 
               if (response?.payload?.status === "error") {
                 toast.error(response?.payload?.message, { duration: 5000 });

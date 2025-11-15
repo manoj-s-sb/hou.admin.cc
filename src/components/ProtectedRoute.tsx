@@ -14,7 +14,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   const isAuth = isAuthenticated || isAuthenticatedFromLocalStorage === "true";
 
-  console.log(isAuth);
 
   if (!isAuth) {
     return <Navigate to="/login" replace />;

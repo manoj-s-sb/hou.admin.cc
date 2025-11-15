@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../store/store";
 import { getSingleMemberDetails } from "../../store/members/api";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, CreditCard, User, Users, CheckCircle, XCircle } from "lucide-react";
+import {  Calendar, CreditCard, User, Users, CheckCircle, XCircle } from "lucide-react";
 import SectionTitle from "../../components/SectionTitle";
 
 const ViewMembers = () => {

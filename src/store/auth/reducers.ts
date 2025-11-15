@@ -28,14 +28,12 @@ const authSlice = createSlice({
       );
       localStorage.setItem("isAuthenticated", JSON.stringify(true));
       localStorage.setItem("user", JSON.stringify(action.payload?.data?.user));
-      console.log(action.payload);
       state.isLoading = false;
       state.loginResponse = action.payload;
       state.isAuthenticated = true;
       state.error = null;
     });
     builder.addCase(login.rejected, (state, action) => {
-      console.log(action);
       state.isLoading = false;
       state.isAuthenticated = false;
       state.loginResponse = null;

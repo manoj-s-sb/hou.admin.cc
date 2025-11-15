@@ -36,7 +36,6 @@ const inductionSlice = createSlice({
     });
     builder.addCase(getInductionStepsDetails.fulfilled, (state, action) => {
       state.isLoading = false;
-      console.log(action.payload?.data);
       state.inductionStep = action.payload?.data || null;
     });
     builder.addCase(getInductionStepsDetails.rejected, (state, action) => {
