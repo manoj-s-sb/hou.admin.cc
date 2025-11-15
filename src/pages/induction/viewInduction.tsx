@@ -681,7 +681,7 @@ const ViewInduction = () => {
             onSaveInduction={handleSaveInduction}
             isSaving={savingUserId === data?.userId}
             isSubscriptionActivation={
-              members?.isSubscriptionActivation || false
+              members?.isSubscriptionActivation  
             }
           />
         </div>
@@ -707,7 +707,7 @@ const ViewInduction = () => {
                 onSaveInduction={handleSaveInduction}
                 isSaving={savingUserId === member.userId}
                 isSubscriptionActivation={
-                  members?.isSubscriptionActivation || false
+                  members?.isSubscriptionActivation  
                 }
               />
             ))}
