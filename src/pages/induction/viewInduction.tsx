@@ -38,6 +38,7 @@ interface AccordionItemProps {
   onSaveInduction: (userId: string, steps: SubStep[]) => void;
   isSaving: boolean;
   isSubscriptionActivation: boolean;
+  data: any;
 }
 
 interface ConfirmationModalProps {
@@ -70,14 +71,14 @@ const ConfirmationModal = ({
           <div className="flex space-x-3">
             <button
               onClick={onClose}
-              disabled={isSaving}
+              disabled={isSaving || isSubscriptionActivation}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              disabled={isSaving}
+              disabled={isSaving || isSubscriptionActivation}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               {isSaving && (
@@ -130,6 +131,7 @@ const AccordionItem = ({
   onSaveInduction,
   isSaving,
   isSubscriptionActivation,
+  data,
 }: AccordionItemProps) => {
   const [steps, setSteps] = useState<SubStep[]>([]);
   const [originalSteps, setOriginalSteps] = useState<SubStep[]>([]); // Track original API data
@@ -420,12 +422,13 @@ const AccordionItem = ({
           </div>
 
           {/* Save Induction Button */}
+          {data?.status !== "completed" && (
           <div className="mt-4 sm:mt-6 flex justify-stretch sm:justify-end">
             <button
               onClick={handleSaveClick}
               disabled={isSaving || isSubscriptionActivation}
               className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center space-x-2 ${
-                isSaving
+                isSaving || isSubscriptionActivation
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg"
               }`}
@@ -461,6 +464,7 @@ const AccordionItem = ({
               </span>
             </button>
           </div>
+          )}
         </div>
       )}
 
@@ -670,6 +674,7 @@ const ViewInduction = () => {
             onSaveInduction={handleSaveInduction}
             isSaving={savingUserId === data?.userId}
             isSubscriptionActivation={members?.isSubscriptionActivation}
+            data={data}
           />
         </div>
 
@@ -694,6 +699,7 @@ const ViewInduction = () => {
                 onSaveInduction={handleSaveInduction}
                 isSaving={savingUserId === member.userId}
                 isSubscriptionActivation={members?.isSubscriptionActivation}
+                data={data}
               />
             ))}
           </div>
