@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { isTokenExpired } from "../utils/tokenUtils";
 
 // Create axios instance with default configuration
 const api = axios.create({
@@ -12,9 +13,35 @@ const api = axios.create({
   timeout: 10000, // 10 seconds timeout
 });
 
-// Request interceptor - Add auth token to requests
+// Callback to trigger session expired modal
+let onSessionExpiredCallback: (() => void) | null = null;
+
+export const setSessionExpiredCallback = (callback: () => void) => {
+  onSessionExpiredCallback = callback;
+};
+
+const triggerSessionExpired = () => {
+  if (onSessionExpiredCallback) {
+    onSessionExpiredCallback();
+  }
+};
+
+// Request interceptor - Add auth token to requests and check expiration
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Skip token check for login endpoint
+    if (config.url?.includes("/login")) {
+      return config;
+    }
+
+    // Check if token is expired before making the request
+    if (isTokenExpired()) {
+      console.warn("Token expired - triggering session expired modal");
+      triggerSessionExpired();
+      // Reject the request to prevent API call with expired token
+      return Promise.reject(new Error("Token expired"));
+    }
+
     const tokensString = localStorage.getItem("tokens");
     if (tokensString && config.headers) {
       try {
@@ -55,7 +82,9 @@ api.interceptors.response.use(
           response: error.response.data,
         });
       } else if (status === 401) {
-        console.error("Unauthorized (401)");
+        console.error("Unauthorized (401) - Token may be invalid or expired");
+        // Trigger session expired modal for 401 errors
+        triggerSessionExpired();
       } else if (status === 403) {
         // Forbidden - user doesn't have permission
         console.error("Access forbidden (403)");
@@ -67,8 +96,14 @@ api.interceptors.response.use(
       // Request was made but no response received (network error)
       console.error("Network error: No response received");
     } else {
-      // Something else happened
-      console.error("Error:", error.message);
+      // Check if error is due to token expiration (from request interceptor)
+      if (error.message === "Token expired") {
+        // Token expired error from request interceptor
+        console.error("Request blocked - Token expired");
+      } else {
+        // Something else happened
+        console.error("Error:", error.message);
+      }
     }
 
     return Promise.reject(error);

@@ -6,11 +6,13 @@ import { useEffect } from "react";
 import { getMembers } from "../../store/members/api";
 import { useNavigate } from "react-router-dom";
 
+const user_svg = "/assets/user.svg";
+
 const Members = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { membersList: membersListData, isLoading } = useSelector(
-    (state: RootState) => state.members,
+    (state: RootState) => state.members
   );
 
   const membersColumns: ColumnDef[] = [
@@ -18,9 +20,10 @@ const Members = () => {
       field: "name",
       headerName: "Name",
       flex: 2,
-      sortable: true,
+      sortable: false,
       renderCell: (params: any) => {
-        const imageUrl = params.row?.profileImageUrl;
+        const imageUrl = params.row?.profileImageUrl || user_svg;
+        const isDefaultImage = !params.row?.profileImageUrl;
         const fullName =
           `${params.row?.firstName} ${params.row?.lastName}`.trim();
         return (
@@ -28,7 +31,7 @@ const Members = () => {
             <img
               src={imageUrl}
               alt="Profile"
-              className="w-11 h-11 rounded-full object-cover border-2 border-indigo-200 shadow-sm ring-2 ring-indigo-50"
+              className={`w-11 h-11 rounded-full object-cover border-2 border-indigo-200 shadow-sm ring-2 ring-indigo-50 ${isDefaultImage ? "p-2" : ""}`}
               onError={(e) => {
                 (e.target as HTMLImageElement).src =
                   "https://via.placeholder.com/40";
@@ -111,7 +114,7 @@ const Members = () => {
         skip: 0,
         limit: 15,
         facilityCode: "HOU01",
-      }),
+      })
     );
   }, [dispatch]);
 
@@ -125,7 +128,7 @@ const Members = () => {
         onSearch={() => {}}
       />
 
-      
+      <div className="overflow-x-auto">
         <UserTable
           data={membersListData.members}
           columns={membersColumns}
@@ -141,11 +144,12 @@ const Members = () => {
                 skip,
                 limit: membersListData.limit,
                 facilityCode: "HOU01",
-              }),
+              })
             );
           }}
         />
       </div>
+    </div>
   );
 };
 

@@ -277,15 +277,15 @@ const UserTable: React.FC<TableProps> = ({
             return (
               <div
                 key={row.id || paginatedIndex}
-                className={`grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 cursor-pointer transition-colors ${
+                className={`grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 cursor-pointer transition-colors ${
                   selectedItem?.id === row.id
-                    ? "bg-indigo-50"
+                    ? "bg-indigo-50 border-indigo-200"
                     : "hover:bg-gray-50"
-                } ${paginatedIndex === paginatedUsers.length - 1 ? "border-b-0" : ""}`}
+                }`}
                 style={{ gridTemplateColumns }}
                 onClick={() => onSelectItem(row)}
               >
-                {columns.map((column) => {
+                {columns.map((column, colIndex) => {
                   const value = column.valueGetter
                     ? column.valueGetter({
                         value: row[column.field],
@@ -314,7 +314,9 @@ const UserTable: React.FC<TableProps> = ({
                   return (
                     <div
                       key={column.field}
-                      className="flex items-center text-[13px] sm:text-[15px] text-gray-700 min-w-0"
+                      className={`flex items-center text-[13px] sm:text-[15px] text-gray-700 min-w-0 ${
+                        colIndex < columns.length - 1 ? "border-r border-gray-100 pr-2 sm:pr-4" : ""
+                      }`}
                     >
                       {column.renderCell ? (
                         cellContent
