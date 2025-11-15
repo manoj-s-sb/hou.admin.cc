@@ -49,11 +49,17 @@ export interface MemberDetailsResponse {
   members: AdditionalMemberDetails[];
 }
 
+export interface ActivateSubscriptionRequest {
+  userId: string;
+  adminId: string;
+  adminName: string;
+}
 export interface MembersInitialState {
   isLoading: boolean;
   error: string | null | any;
   membersList: MemberListResponse;
   memberDetails: MemberDetailsResponse | null;
+  isSubscriptionActivation:boolean
 }
 
 export const initialState: MembersInitialState = {
@@ -66,4 +72,5 @@ export const initialState: MembersInitialState = {
     total: 0,
   },
   memberDetails: null,
+  isSubscriptionActivation:false
 };

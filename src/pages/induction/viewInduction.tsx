@@ -9,12 +9,12 @@ import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../../store/store";
 import {
-  activateUserSubscription,
   getInductionStepsDetails,
   updateInductionSteps,
 } from "../../store/induction/api";
 import { SubStep } from "../../store/induction/types";
 import { toast } from "react-hot-toast";
+import { activateUserSubscription } from "../../store/members/api";
 
 // Helper function to convert camelCase to readable title
 const formatStepTitle = (id: string): string => {
@@ -37,6 +37,7 @@ interface AccordionItemProps {
   dispatch: any;
   onSaveInduction: (userId: string, steps: SubStep[]) => void;
   isSaving: boolean;
+  isSubscriptionActivation: boolean;
 }
 
 interface ConfirmationModalProps {
@@ -44,6 +45,7 @@ interface ConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   isSaving: boolean;
+  isSubscriptionActivation: boolean;
 }
 
 const ConfirmationModal = ({
@@ -51,6 +53,7 @@ const ConfirmationModal = ({
   onClose,
   onConfirm,
   isSaving,
+  isSubscriptionActivation,
 }: ConfirmationModalProps) => {
   if (!isOpen) return null;
 
@@ -99,7 +102,13 @@ const ConfirmationModal = ({
                   ></path>
                 </svg>
               )}
-              <span>{isSaving ? "Saving..." : "Confirm"}</span>
+              <span>
+                {isSaving && isSubscriptionActivation
+                  ? "Activating..."
+                  : isSaving
+                    ? "Saving..."
+                    : "Confirm"}
+              </span>
             </button>
           </div>
         </div>
@@ -120,6 +129,7 @@ const AccordionItem = ({
   dispatch,
   onSaveInduction,
   isSaving,
+  isSubscriptionActivation,
 }: AccordionItemProps) => {
   const [steps, setSteps] = useState<SubStep[]>([]);
   const [originalSteps, setOriginalSteps] = useState<SubStep[]>([]); // Track original API data
@@ -413,7 +423,7 @@ const AccordionItem = ({
           <div className="mt-4 sm:mt-6 flex justify-stretch sm:justify-end">
             <button
               onClick={handleSaveClick}
-              disabled={isSaving}
+              disabled={isSaving || isSubscriptionActivation}
               className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center space-x-2 ${
                 isSaving
                   ? "bg-blue-400 cursor-not-allowed"
@@ -442,7 +452,13 @@ const AccordionItem = ({
                   ></path>
                 </svg>
               )}
-              <span>{isSaving ? "Saving..." : "Save Induction"}</span>
+              <span>
+                {isSubscriptionActivation
+                  ? "Activating Subscription..."
+                  : isSaving
+                    ? "Saving..."
+                    : "Save Induction"}
+              </span>
             </button>
           </div>
         </div>
@@ -454,15 +470,20 @@ const AccordionItem = ({
         onClose={handleCancelSave}
         onConfirm={handleConfirmSave}
         isSaving={isSaving}
+        isSubscriptionActivation={isSubscriptionActivation}
       />
     </div>
   );
 };
 
 const ViewInduction = () => {
-  const { selectedInduction } = useSelector(
-    (state: RootState) => state.induction
-  );
+  const { selectedInduction, members } = useSelector((state: RootState) => {
+    return {
+      selectedInduction: state.induction?.selectedInduction,
+      members: state.members,
+    };
+  });
+
   const dispatch = useDispatch<AppDispatch>();
   const [openAccordions, setOpenAccordions] = useState<string[]>([
     selectedInduction?.userId || "",
@@ -516,9 +537,16 @@ const ViewInduction = () => {
             })
           )
             .then((response) => {
-              toast.success("Subscription activated successfully!");
+              console.log(response?.payload?.status);
+
+              if (response?.payload?.status === "error") {
+                toast.error(response?.payload?.message, { duration: 5000 });
+              } else {
+                toast.success("Subscription activated successfully!");
+              }
             })
             .catch((error) => {
+              console.log(error);
               toast.error(`Failed to activate subscription: ${error}`);
             });
         }
@@ -652,6 +680,9 @@ const ViewInduction = () => {
             dispatch={dispatch}
             onSaveInduction={handleSaveInduction}
             isSaving={savingUserId === data?.userId}
+            isSubscriptionActivation={
+              members?.isSubscriptionActivation || false
+            }
           />
         </div>
 
@@ -675,6 +706,9 @@ const ViewInduction = () => {
                 dispatch={dispatch}
                 onSaveInduction={handleSaveInduction}
                 isSaving={savingUserId === member.userId}
+                isSubscriptionActivation={
+                  members?.isSubscriptionActivation || false
+                }
               />
             ))}
           </div>

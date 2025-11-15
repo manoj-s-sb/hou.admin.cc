@@ -46,11 +46,19 @@ api.interceptors.response.use(
       // Server responded with error status
       const status = error.response.status;
 
-      if (status === 401) {
-        console.error("Unauthorized");
+      if (status === 400) {
+        // Bad Request - Log full details for debugging
+        console.error("Bad Request (400):", {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data,
+          response: error.response.data,
+        });
+      } else if (status === 401) {
+        console.error("Unauthorized (401)");
       } else if (status === 403) {
         // Forbidden - user doesn't have permission
-        console.error("Access forbidden");
+        console.error("Access forbidden (403)");
       } else if (status >= 500) {
         // Server error
         console.error("Server error:", error.response.data);

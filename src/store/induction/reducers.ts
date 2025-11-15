@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { initialState } from "./types";
-import { inductionList, getInductionStepsDetails, activateUserSubscription, updateInductionSteps } from "./api";
+import { inductionList, getInductionStepsDetails, updateInductionSteps } from "./api";
 
 const inductionSlice = createSlice({
   name: "induction",
@@ -55,24 +55,17 @@ const inductionSlice = createSlice({
     });
     builder.addCase(updateInductionSteps.rejected, (state, action) => {
       state.isLoading = false;
+
+      console.error("Update Induction Steps Failed:", {
+        payload: action.payload,
+        error: action.error,
+        meta: action.meta
+      });
       state.error =
         (action.payload as string) ||
         "Failed to update induction steps. Please try again.";
     });
-    builder.addCase(activateUserSubscription.pending, (state) => {
-      state.isLoading = true;
-      state.error = "";
-    });
-    builder.addCase(activateUserSubscription.fulfilled, (state) => {
-      state.isLoading = false;
-      state.error = "";
-    });
-    builder.addCase(activateUserSubscription.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error =
-        (action.payload as string) ||
-        "Failed to activate user subscription. Please try again.";
-    });
+     
   },
 });
 

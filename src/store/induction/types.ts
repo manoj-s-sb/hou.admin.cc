@@ -13,12 +13,7 @@ export interface UpdateInductionStepsRequest {
   userId: string;
   subSteps: { id: string; status: string }[];
 }
-
-export interface ActivateSubscriptionRequest {
-  userId: string;
-  adminId: string;
-  adminName: string;
-}
+ 
 
 export interface TimeSlot {
   startTime: string;
