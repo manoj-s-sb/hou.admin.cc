@@ -18,7 +18,6 @@ const Induction = () => {
   );
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  console.log(inductionListData);
 
   const [selectedDate, setSelectedDate] = useState(getTodayDateInChicago());
 

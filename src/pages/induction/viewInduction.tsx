@@ -195,7 +195,11 @@ const AccordionItem = ({
   };
 
   const fullName = `${firstName} ${lastName}`.trim();
+  
+  // Calculate completion status based on actual API data
   const completedCount = steps?.filter((s) => s.status === "completed").length;
+  const totalSteps = steps?.length || 0;
+  const isInductionCompletedFromAPI = totalSteps > 0 && completedCount === totalSteps;
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
@@ -231,12 +235,12 @@ const AccordionItem = ({
             {/* Mobile Progress - shown on small screens */}
             <div className="mt-1 sm:hidden">
               <p className="text-xs font-medium text-gray-700">
-                {completedCount} / {steps.length} Steps
+                {completedCount} / {totalSteps} Steps
               </p>
               <p
-                className={`text-xs ${isInductionCompleted ? "text-green-600" : "text-orange-600"}`}
+                className={`text-xs ${isInductionCompletedFromAPI ? "text-green-600" : "text-orange-600"}`}
               >
-                {isInductionCompleted ? "Completed" : "In Progress"}
+                {isInductionCompletedFromAPI ? "Completed" : "In Progress"}
               </p>
             </div>
           </div>
@@ -245,12 +249,12 @@ const AccordionItem = ({
           <div className="hidden sm:flex items-center space-x-3">
             <div className="text-right">
               <p className="text-sm font-medium text-gray-700">
-                {completedCount} / {steps.length} Steps
+                {completedCount} / {totalSteps} Steps
               </p>
               <p
-                className={`text-xs ${isInductionCompleted ? "text-green-600" : "text-orange-600"}`}
+                className={`text-xs ${isInductionCompletedFromAPI ? "text-green-600" : "text-orange-600"}`}
               >
-                {isInductionCompleted ? "Completed" : "In Progress"}
+                {isInductionCompletedFromAPI ? "Completed" : "In Progress"}
               </p>
             </div>
 
@@ -294,8 +298,8 @@ const AccordionItem = ({
           <div className="space-y-2">
             <div className="flex justify-between items-center mb-3">
               <h4 className="text-xs sm:text-sm font-semibold text-gray-700">
-                Induction Steps ({steps.length}{" "}
-                {steps.length === 1 ? "Step" : "Steps"})
+                Induction Steps ({totalSteps}{" "}
+                {totalSteps === 1 ? "Step" : "Steps"})
               </h4>
             </div>
 
@@ -327,7 +331,7 @@ const AccordionItem = ({
                   </span>
                 </div>
               </div>
-            ) : steps.length === 0 ? (
+            ) : totalSteps === 0 ? (
               <div className="p-4 bg-white rounded-lg border border-gray-200">
                 <p className="text-sm text-gray-600 text-center">
                   No induction steps found
@@ -587,14 +591,7 @@ const ViewInduction = () => {
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
             Booking Information
           </h2>
-          {data?.status === "completed" && (
-            <button
-              className="text-xs sm:text-sm bg-blue-600 text-white px-2 py-1 rounded-md"
-              onClick={() => {}}
-            >
-              Activate Subscription
-            </button>
-          )}
+           
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
