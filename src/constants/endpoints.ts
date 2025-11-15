@@ -1,5 +1,9 @@
 const endpoints = {
   login: "/admin/auth/login",
+  members: {
+    list: "/admin/members/list",
+    membersDetails: "/admin/member/details",
+  },
   induction: {
     list: "/admin/bookings/list",
     search: "/admin/induction/search",
