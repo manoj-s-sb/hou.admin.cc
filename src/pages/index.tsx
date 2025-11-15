@@ -7,4 +7,13 @@ import Tours from "./tours";
 import Members from "./members";
 import ViewMembers from "./members/viewMembers";
 
-export { Induction, Dashboard, Login, UserList, ViewInduction, Tours, Members, ViewMembers };
+export {
+  Induction,
+  Dashboard,
+  Login,
+  UserList,
+  ViewInduction,
+  Tours,
+  Members,
+  ViewMembers,
+};

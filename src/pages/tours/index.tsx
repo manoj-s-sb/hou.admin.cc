@@ -10,7 +10,7 @@ const Tours = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   const { inductionList: inductionListData, isLoading } = useSelector(
-    (state: RootState) => state.induction
+    (state: RootState) => state.induction,
   );
 
   const [selectedDate, setSelectedDate] = useState(getTodayDateInChicago());
@@ -25,7 +25,7 @@ const Tours = () => {
         page: 1,
         type: "tourbooking",
         listLimit: 20,
-      })
+      }),
     );
   }, [dispatch, selectedDate]);
 
@@ -38,7 +38,6 @@ const Tours = () => {
         value=""
         onSearch={() => {}}
       />
-
 
       {/* Date Filter */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">

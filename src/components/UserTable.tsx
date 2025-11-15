@@ -55,12 +55,15 @@ const UserTable: React.FC<TableProps> = ({
   const [sortField, setSortField] = useState<string>(columns[0]?.field || "");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [internalCurrentPage, setInternalCurrentPage] = useState(1);
-  
+
   // Determine if we're using server-side or client-side pagination
-  const isServerSidePagination = onPageChange !== undefined && totalItems !== undefined;
-  
+  const isServerSidePagination =
+    onPageChange !== undefined && totalItems !== undefined;
+
   // Use external pagination state if provided, otherwise use internal state
-  const currentPage = isServerSidePagination ? (externalCurrentPage || 0) : internalCurrentPage;
+  const currentPage = isServerSidePagination
+    ? externalCurrentPage || 0
+    : internalCurrentPage;
   const itemsPerPage = externalItemsPerPage || 20;
 
   const handleSort = (field: string) => {
@@ -75,12 +78,12 @@ const UserTable: React.FC<TableProps> = ({
   const sortedUsers = useMemo(() => {
     // Ensure data is always an array
     const safeData = Array.isArray(data) ? data : [];
-    
+
     // For server-side pagination, data is already sorted and paginated
     if (isServerSidePagination) {
       return safeData;
     }
-    
+
     // Client-side sorting
     if (!sortField) return safeData;
 
@@ -117,16 +120,20 @@ const UserTable: React.FC<TableProps> = ({
   }, [data, sortField, sortDirection, columns, isServerSidePagination]);
 
   // Calculate pagination values
-  const totalRecords = isServerSidePagination ? (totalItems || 0) : sortedUsers.length;
+  const totalRecords = isServerSidePagination
+    ? totalItems || 0
+    : sortedUsers.length;
   const totalPages = Math.ceil(totalRecords / itemsPerPage);
-  
+
   // For server-side pagination, data is already sliced
-  const paginatedUsers = isServerSidePagination ? sortedUsers : sortedUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-  
-  const startIndex = isServerSidePagination 
+  const paginatedUsers = isServerSidePagination
+    ? sortedUsers
+    : sortedUsers.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage,
+      );
+
+  const startIndex = isServerSidePagination
     ? currentPage
     : (currentPage - 1) * itemsPerPage;
   const endIndex = isServerSidePagination
@@ -204,7 +211,10 @@ const UserTable: React.FC<TableProps> = ({
     <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden min-w-[800px]">
       {/* Table Header */}
       <div className="bg-gray-50 border-b border-gray-200">
-        <div className="grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4" style={{ gridTemplateColumns }}>
+        <div
+          className="grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4"
+          style={{ gridTemplateColumns }}
+        >
           {columns.map((column) => (
             <div
               key={column.field}
@@ -336,24 +346,37 @@ const UserTable: React.FC<TableProps> = ({
                     setInternalCurrentPage((prev) => Math.max(1, prev - 1));
                   }
                 }}
-                disabled={isServerSidePagination ? currentPage === 0 : currentPage === 1}
+                disabled={
+                  isServerSidePagination ? currentPage === 0 : currentPage === 1
+                }
                 className="px-2 sm:px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <span className="px-2 sm:px-3 py-1 text-xs text-gray-700">
-                Page {isServerSidePagination ? currentPage / itemsPerPage + 1 : currentPage} of {totalPages}
+                Page{" "}
+                {isServerSidePagination
+                  ? currentPage / itemsPerPage + 1
+                  : currentPage}{" "}
+                of {totalPages}
               </span>
               <button
                 onClick={() => {
                   if (isServerSidePagination && onPageChange) {
-                    onPageChange(Math.min((totalPages - 1) * itemsPerPage, currentPage + itemsPerPage));
+                    onPageChange(
+                      Math.min(
+                        (totalPages - 1) * itemsPerPage,
+                        currentPage + itemsPerPage,
+                      ),
+                    );
                   } else {
-                    setInternalCurrentPage((prev) => Math.min(totalPages, prev + 1));
+                    setInternalCurrentPage((prev) =>
+                      Math.min(totalPages, prev + 1),
+                    );
                   }
                 }}
                 disabled={
-                  isServerSidePagination 
+                  isServerSidePagination
                     ? currentPage + itemsPerPage >= totalRecords
                     : currentPage === totalPages
                 }

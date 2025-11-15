@@ -17,9 +17,7 @@ export const login = createAsyncThunk(
       });
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(
-        handleApiError(error, "Login failed"),
-      );
+      return rejectWithValue(handleApiError(error, "Login failed"));
     }
   },
 );

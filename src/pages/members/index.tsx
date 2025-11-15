@@ -10,7 +10,7 @@ const Members = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { membersList: membersListData, isLoading } = useSelector(
-    (state: RootState) => state.members
+    (state: RootState) => state.members,
   );
 
   const membersColumns: ColumnDef[] = [
@@ -110,7 +110,7 @@ const Members = () => {
         skip: 0,
         limit: 15,
         facilityCode: "HOU01",
-      })
+      }),
     );
   }, [dispatch]);
 
@@ -139,7 +139,7 @@ const Members = () => {
               skip,
               limit: membersListData.limit,
               facilityCode: "HOU01",
-            })
+            }),
           );
         }}
       />

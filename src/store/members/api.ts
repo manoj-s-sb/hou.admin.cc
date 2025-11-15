@@ -17,10 +17,10 @@ export const getMembers = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        handleApiError(error, "Failed to fetch members list")
+        handleApiError(error, "Failed to fetch members list"),
       );
     }
-  }
+  },
 );
 
 export const getSingleMemberDetails = createAsyncThunk(
@@ -33,23 +33,23 @@ export const getSingleMemberDetails = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        handleApiError(error, "Failed to fetch single member details")
+        handleApiError(error, "Failed to fetch single member details"),
       );
     }
-  }
+  },
 );
 
 export const activateUserSubscription = createAsyncThunk(
   "user/activateUserSubscription",
   async (
     { userId, adminId, adminName }: ActivateSubscriptionRequest,
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       // Get the access token from localStorage
       const tokensString = localStorage.getItem("tokens");
       let accessToken = "";
-      
+
       if (tokensString) {
         const tokens = JSON.parse(tokensString);
         accessToken = tokens.access_token || "";
@@ -67,16 +67,17 @@ export const activateUserSubscription = createAsyncThunk(
             "Content-Type": "application/json",
             ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
           },
-        }
+        },
       );
 
-       
       return response?.data;
     } catch (error: any) {
       // Return the actual API error response, not the transformed message
       return rejectWithValue(
-        error.response?.data || error.message || "Failed to activate user subscription"
+        error.response?.data ||
+          error.message ||
+          "Failed to activate user subscription",
       );
     }
-  }
+  },
 );

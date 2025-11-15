@@ -146,13 +146,12 @@ const AccordionItem = ({
           if (data) {
             setSteps(data?.data?.subSteps);
             setOriginalSteps(data?.data?.subSteps); // Store original API data
-            
           }
         })
         .catch((error: any) => {
           console.error(
             `Error fetching induction steps for user ${userId}:`,
-            error
+            error,
           );
         })
         .finally(() => {
@@ -172,8 +171,8 @@ const AccordionItem = ({
                 step.status === "completed" ? null : new Date().toISOString(),
               completedBy: step.status === "completed" ? null : userId,
             }
-          : step
-      )
+          : step,
+      ),
     );
   };
 
@@ -191,11 +190,12 @@ const AccordionItem = ({
   };
 
   const fullName = `${firstName} ${lastName}`.trim();
-  
+
   // Calculate completion status based on actual API data
   const completedCount = steps?.filter((s) => s.status === "completed").length;
   const totalSteps = steps?.length || 0;
-  const isInductionCompletedFromAPI = totalSteps > 0 && completedCount === totalSteps;
+  const isInductionCompletedFromAPI =
+    totalSteps > 0 && completedCount === totalSteps;
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
@@ -338,7 +338,7 @@ const AccordionItem = ({
                 const isCompleted = step.status === "completed";
                 // Check if the step was originally completed in the API response
                 const originalStep = originalSteps.find(
-                  (s) => s.id === step.id
+                  (s) => s.id === step.id,
                 );
                 const isOriginallyCompleted =
                   originalStep?.status === "completed";
@@ -498,7 +498,7 @@ const ViewInduction = () => {
     setOpenAccordions((prev) =>
       prev.includes(userId)
         ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
+        : [...prev, userId],
     );
   };
 
@@ -519,7 +519,7 @@ const ViewInduction = () => {
         toast.success("Induction steps saved successfully!");
         // Check if all 5 steps are completed
         const completedSteps = response?.data?.subSteps?.filter(
-          (s: any) => s.status === "completed"
+          (s: any) => s.status === "completed",
         ).length;
         const totalSteps = response?.data?.subSteps?.length;
 
@@ -533,10 +533,9 @@ const ViewInduction = () => {
               userId,
               adminId: user?.userId || "",
               adminName: `${user?.firstName} ${user?.lastName}`,
-            })
+            }),
           )
             .then((response) => {
-
               if (response?.payload?.status === "error") {
                 toast.error(response?.payload?.message, { duration: 5000 });
               } else {
@@ -585,7 +584,6 @@ const ViewInduction = () => {
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
             Booking Information
           </h2>
-           
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
@@ -630,7 +628,7 @@ const ViewInduction = () => {
             <p className="font-semibold text-gray-900 text-xs sm:text-sm">
               {formatTimeRangeChicago(
                 data?.timeSlot?.startTime,
-                data?.timeSlot?.endTime
+                data?.timeSlot?.endTime,
               )}
             </p>
           </div>
@@ -671,9 +669,7 @@ const ViewInduction = () => {
             dispatch={dispatch}
             onSaveInduction={handleSaveInduction}
             isSaving={savingUserId === data?.userId}
-            isSubscriptionActivation={
-              members?.isSubscriptionActivation  
-            }
+            isSubscriptionActivation={members?.isSubscriptionActivation}
           />
         </div>
 
@@ -697,9 +693,7 @@ const ViewInduction = () => {
                 dispatch={dispatch}
                 onSaveInduction={handleSaveInduction}
                 isSaving={savingUserId === member.userId}
-                isSubscriptionActivation={
-                  members?.isSubscriptionActivation  
-                }
+                isSubscriptionActivation={members?.isSubscriptionActivation}
               />
             ))}
           </div>

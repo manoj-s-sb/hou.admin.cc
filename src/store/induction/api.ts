@@ -12,7 +12,7 @@ export const inductionList = createAsyncThunk(
   "induction/inductionList",
   async (
     { date, page, type, listLimit }: InductionListRequest,
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       const response = await api.post(`${endpoints.induction.list}`, {
@@ -24,10 +24,10 @@ export const inductionList = createAsyncThunk(
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        handleApiError(error, "Failed to fetch induction list")
+        handleApiError(error, "Failed to fetch induction list"),
       );
     }
-  }
+  },
 );
 
 export const getInductionStepsDetails = createAsyncThunk(
@@ -40,17 +40,17 @@ export const getInductionStepsDetails = createAsyncThunk(
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        handleApiError(error, "Failed to fetch induction steps details")
+        handleApiError(error, "Failed to fetch induction steps details"),
       );
     }
-  }
+  },
 );
 
 export const updateInductionSteps = createAsyncThunk(
   "induction/updateInductionSteps",
   async (
     { userId, subSteps }: UpdateInductionStepsRequest,
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       const response = await api.post(`${endpoints.induction.update}`, {
@@ -60,9 +60,8 @@ export const updateInductionSteps = createAsyncThunk(
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(
-        handleApiError(error, "Failed to update induction steps")
+        handleApiError(error, "Failed to update induction steps"),
       );
     }
-  }
+  },
 );
- 

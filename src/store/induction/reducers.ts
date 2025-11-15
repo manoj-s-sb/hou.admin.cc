@@ -1,6 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { initialState } from "./types";
-import { inductionList, getInductionStepsDetails, updateInductionSteps } from "./api";
+import {
+  inductionList,
+  getInductionStepsDetails,
+  updateInductionSteps,
+} from "./api";
 
 const inductionSlice = createSlice({
   name: "induction",
@@ -43,7 +47,7 @@ const inductionSlice = createSlice({
       state.error =
         (action.payload as string) ||
         "Induction steps details failed. Please try again.";
-    }); 
+    });
     builder.addCase(updateInductionSteps.pending, (state) => {
       state.isLoading = true;
       state.error = "";
@@ -58,13 +62,12 @@ const inductionSlice = createSlice({
       console.error("Update Induction Steps Failed:", {
         payload: action.payload,
         error: action.error,
-        meta: action.meta
+        meta: action.meta,
       });
       state.error =
         (action.payload as string) ||
         "Failed to update induction steps. Please try again.";
     });
-     
   },
 });
 

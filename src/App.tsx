@@ -7,7 +7,16 @@ import {
 } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
-import { Login, Dashboard, UserList, Induction, ViewInduction, Tours, Members, ViewMembers } from "./pages";
+import {
+  Login,
+  Dashboard,
+  UserList,
+  Induction,
+  ViewInduction,
+  Tours,
+  Members,
+  ViewMembers,
+} from "./pages";
 import { Provider } from "react-redux";
 import store from "./store/store";
 import { Toaster } from "react-hot-toast";

@@ -12,7 +12,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const user:any = JSON.parse(localStorage.getItem("user") || "{}");
+  const user: any = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

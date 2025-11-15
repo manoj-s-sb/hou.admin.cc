@@ -31,7 +31,7 @@ api.interceptors.request.use(
   (error: AxiosError) => {
     // Handle request error
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor - Handle errors globally
@@ -72,7 +72,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

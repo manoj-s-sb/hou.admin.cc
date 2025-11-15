@@ -13,7 +13,6 @@ export interface UpdateInductionStepsRequest {
   userId: string;
   subSteps: { id: string; status: string }[];
 }
- 
 
 export interface TimeSlot {
   startTime: string;

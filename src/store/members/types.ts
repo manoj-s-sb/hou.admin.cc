@@ -59,7 +59,7 @@ export interface MembersInitialState {
   error: string | null | any;
   membersList: MemberListResponse;
   memberDetails: MemberDetailsResponse | null;
-  isSubscriptionActivation:boolean
+  isSubscriptionActivation: boolean;
 }
 
 export const initialState: MembersInitialState = {
@@ -72,5 +72,5 @@ export const initialState: MembersInitialState = {
     total: 0,
   },
   memberDetails: null,
-  isSubscriptionActivation:false
+  isSubscriptionActivation: false,
 };

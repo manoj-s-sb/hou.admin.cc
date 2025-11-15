@@ -1,5 +1,9 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { getMembers, getSingleMemberDetails,activateUserSubscription } from "./api";
+import {
+  getMembers,
+  getSingleMemberDetails,
+  activateUserSubscription,
+} from "./api";
 import { initialState } from "./types";
 
 const membersSlice = createSlice({
@@ -34,16 +38,16 @@ const membersSlice = createSlice({
     builder.addCase(activateUserSubscription.pending, (state) => {
       state.isLoading = true;
       state.error = "";
-      state.isSubscriptionActivation =true
+      state.isSubscriptionActivation = true;
     });
     builder.addCase(activateUserSubscription.fulfilled, (state) => {
       state.isLoading = false;
-      state.isSubscriptionActivation =false
+      state.isSubscriptionActivation = false;
       state.error = "";
     });
     builder.addCase(activateUserSubscription.rejected, (state, action) => {
       state.isLoading = false;
-      state.isSubscriptionActivation =false
+      state.isSubscriptionActivation = false;
       state.error =
         (action.payload as string) ||
         "Failed to activate user subscription. Please try again.";
