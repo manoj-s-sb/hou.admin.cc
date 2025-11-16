@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { formatDateChicago, formatDateTimeChicago, formatTimeRangeChicago } from "../../utils/dateUtils";
+import {
+  formatDateChicago,
+  formatDateTimeChicago,
+  formatTimeRangeChicago,
+} from "../../utils/dateUtils";
 import SectionTitle from "../../components/SectionTitle";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -10,6 +14,7 @@ import {
 } from "../../store/induction/api";
 import { SubStep } from "../../store/induction/types";
 import { toast } from "react-hot-toast";
+import { activateUserSubscription } from "../../store/members/api";
 
 // Helper function to convert camelCase to readable title
 const formatStepTitle = (id: string): string => {
@@ -32,6 +37,8 @@ interface AccordionItemProps {
   dispatch: any;
   onSaveInduction: (userId: string, steps: SubStep[]) => void;
   isSaving: boolean;
+  isSubscriptionActivation: boolean;
+  data: any;
 }
 
 interface ConfirmationModalProps {
@@ -39,6 +46,7 @@ interface ConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   isSaving: boolean;
+  isSubscriptionActivation: boolean;
 }
 
 const ConfirmationModal = ({
@@ -46,6 +54,7 @@ const ConfirmationModal = ({
   onClose,
   onConfirm,
   isSaving,
+  isSubscriptionActivation,
 }: ConfirmationModalProps) => {
   if (!isOpen) return null;
 
@@ -62,14 +71,14 @@ const ConfirmationModal = ({
           <div className="flex space-x-3">
             <button
               onClick={onClose}
-              disabled={isSaving}
+              disabled={isSaving || isSubscriptionActivation}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              disabled={isSaving}
+              disabled={isSaving || isSubscriptionActivation}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               {isSaving && (
@@ -94,7 +103,13 @@ const ConfirmationModal = ({
                   ></path>
                 </svg>
               )}
-              <span>{isSaving ? "Saving..." : "Confirm"}</span>
+              <span>
+                {isSaving && isSubscriptionActivation
+                  ? "Activating..."
+                  : isSaving
+                    ? "Saving..."
+                    : "Confirm"}
+              </span>
             </button>
           </div>
         </div>
@@ -115,6 +130,8 @@ const AccordionItem = ({
   dispatch,
   onSaveInduction,
   isSaving,
+  isSubscriptionActivation,
+  data,
 }: AccordionItemProps) => {
   const [steps, setSteps] = useState<SubStep[]>([]);
   const [originalSteps, setOriginalSteps] = useState<SubStep[]>([]); // Track original API data
@@ -128,20 +145,15 @@ const AccordionItem = ({
       dispatch(getInductionStepsDetails({ userId }))
         .unwrap()
         .then((data: any) => {
-          console.log(data);
           if (data) {
             setSteps(data?.data?.subSteps);
             setOriginalSteps(data?.data?.subSteps); // Store original API data
-            console.log(
-              `Induction steps data for user ${userId}:`,
-              data.subSteps
-            );
           }
         })
         .catch((error: any) => {
           console.error(
             `Error fetching induction steps for user ${userId}:`,
-            error
+            error,
           );
         })
         .finally(() => {
@@ -161,8 +173,8 @@ const AccordionItem = ({
                 step.status === "completed" ? null : new Date().toISOString(),
               completedBy: step.status === "completed" ? null : userId,
             }
-          : step
-      )
+          : step,
+      ),
     );
   };
 
@@ -180,7 +192,12 @@ const AccordionItem = ({
   };
 
   const fullName = `${firstName} ${lastName}`.trim();
+
+  // Calculate completion status based on actual API data
   const completedCount = steps?.filter((s) => s.status === "completed").length;
+  const totalSteps = steps?.length || 0;
+  const isInductionCompletedFromAPI =
+    totalSteps > 0 && completedCount === totalSteps;
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden mb-3">
@@ -216,12 +233,12 @@ const AccordionItem = ({
             {/* Mobile Progress - shown on small screens */}
             <div className="mt-1 sm:hidden">
               <p className="text-xs font-medium text-gray-700">
-                {completedCount} / {steps.length} Steps
+                {completedCount} / {totalSteps} Steps
               </p>
               <p
-                className={`text-xs ${isInductionCompleted ? "text-green-600" : "text-orange-600"}`}
+                className={`text-xs ${isInductionCompletedFromAPI ? "text-green-600" : "text-orange-600"}`}
               >
-                {isInductionCompleted ? "Completed" : "In Progress"}
+                {isInductionCompletedFromAPI ? "Completed" : "In Progress"}
               </p>
             </div>
           </div>
@@ -230,12 +247,12 @@ const AccordionItem = ({
           <div className="hidden sm:flex items-center space-x-3">
             <div className="text-right">
               <p className="text-sm font-medium text-gray-700">
-                {completedCount} / {steps.length} Steps
+                {completedCount} / {totalSteps} Steps
               </p>
               <p
-                className={`text-xs ${isInductionCompleted ? "text-green-600" : "text-orange-600"}`}
+                className={`text-xs ${isInductionCompletedFromAPI ? "text-green-600" : "text-orange-600"}`}
               >
-                {isInductionCompleted ? "Completed" : "In Progress"}
+                {isInductionCompletedFromAPI ? "Completed" : "In Progress"}
               </p>
             </div>
 
@@ -279,8 +296,8 @@ const AccordionItem = ({
           <div className="space-y-2">
             <div className="flex justify-between items-center mb-3">
               <h4 className="text-xs sm:text-sm font-semibold text-gray-700">
-                Induction Steps ({steps.length}{" "}
-                {steps.length === 1 ? "Step" : "Steps"})
+                Induction Steps ({totalSteps}{" "}
+                {totalSteps === 1 ? "Step" : "Steps"})
               </h4>
             </div>
 
@@ -312,7 +329,7 @@ const AccordionItem = ({
                   </span>
                 </div>
               </div>
-            ) : steps.length === 0 ? (
+            ) : totalSteps === 0 ? (
               <div className="p-4 bg-white rounded-lg border border-gray-200">
                 <p className="text-sm text-gray-600 text-center">
                   No induction steps found
@@ -323,7 +340,7 @@ const AccordionItem = ({
                 const isCompleted = step.status === "completed";
                 // Check if the step was originally completed in the API response
                 const originalStep = originalSteps.find(
-                  (s) => s.id === step.id
+                  (s) => s.id === step.id,
                 );
                 const isOriginallyCompleted =
                   originalStep?.status === "completed";
@@ -376,7 +393,8 @@ const AccordionItem = ({
                           </div>
                           {step.completedAt && (
                             <p className="text-xs text-gray-500 mt-1">
-                              Completed: {formatDateTimeChicago(step.completedAt)}
+                              Completed:{" "}
+                              {formatDateTimeChicago(step.completedAt)}
                             </p>
                           )}
                         </div>
@@ -404,12 +422,13 @@ const AccordionItem = ({
           </div>
 
           {/* Save Induction Button */}
+          {data?.status !== "completed" && (
           <div className="mt-4 sm:mt-6 flex justify-stretch sm:justify-end">
             <button
               onClick={handleSaveClick}
-              disabled={isSaving}
+              disabled={isSaving || isSubscriptionActivation}
               className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center space-x-2 ${
-                isSaving
+                isSaving || isSubscriptionActivation
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg"
               }`}
@@ -436,9 +455,16 @@ const AccordionItem = ({
                   ></path>
                 </svg>
               )}
-              <span>{isSaving ? "Saving..." : "Save Induction"}</span>
+              <span>
+                {isSubscriptionActivation
+                  ? "Activating Subscription..."
+                  : isSaving
+                    ? "Saving..."
+                    : "Save Induction"}
+              </span>
             </button>
           </div>
+          )}
         </div>
       )}
 
@@ -448,15 +474,20 @@ const AccordionItem = ({
         onClose={handleCancelSave}
         onConfirm={handleConfirmSave}
         isSaving={isSaving}
+        isSubscriptionActivation={isSubscriptionActivation}
       />
     </div>
   );
 };
 
 const ViewInduction = () => {
-  const { selectedInduction } = useSelector(
-    (state: RootState) => state.induction
-  );
+  const { selectedInduction, members } = useSelector((state: RootState) => {
+    return {
+      selectedInduction: state.induction?.selectedInduction,
+      members: state.members,
+    };
+  });
+
   const dispatch = useDispatch<AppDispatch>();
   const [openAccordions, setOpenAccordions] = useState<string[]>([
     selectedInduction?.userId || "",
@@ -465,11 +496,13 @@ const ViewInduction = () => {
   const data = selectedInduction;
   const navigate = useNavigate();
 
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   const toggleAccordion = (userId: string) => {
     setOpenAccordions((prev) =>
       prev.includes(userId)
         ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
+        : [...prev, userId],
     );
   };
 
@@ -488,6 +521,36 @@ const ViewInduction = () => {
       .unwrap()
       .then((response) => {
         toast.success("Induction steps saved successfully!");
+        // Check if all 5 steps are completed
+        const completedSteps = response?.data?.subSteps?.filter(
+          (s: any) => s.status === "completed",
+        ).length;
+        const totalSteps = response?.data?.subSteps?.length;
+
+        if (
+          response?.status === "success" &&
+          completedSteps === 5 &&
+          completedSteps === totalSteps
+        ) {
+          dispatch(
+            activateUserSubscription({
+              userId,
+              adminId: user?.userId || "",
+              adminName: `${user?.firstName} ${user?.lastName}`,
+            }),
+          )
+            .then((response) => {
+              if (response?.payload?.status === "error") {
+                toast.error(response?.payload?.message, { duration: 5000 });
+              } else {
+                toast.success("Subscription activated successfully!");
+              }
+            })
+            .catch((error) => {
+              console.log(error);
+              toast.error(`Failed to activate subscription: ${error}`);
+            });
+        }
       })
       .catch((error) => {
         toast.error(`Failed to save induction steps: ${error}`);
@@ -525,11 +588,6 @@ const ViewInduction = () => {
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
             Booking Information
           </h2>
-          {data?.status === 'completed' && (
-            <button className="text-xs sm:text-sm bg-blue-600 text-white px-2 py-1 rounded-md" onClick={()=>{}}>
-              Activate Subscription
-            </button>
-          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
@@ -572,7 +630,10 @@ const ViewInduction = () => {
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">Time Slot</p>
             <p className="font-semibold text-gray-900 text-xs sm:text-sm">
-              {formatTimeRangeChicago(data?.timeSlot?.startTime, data?.timeSlot?.endTime)}
+              {formatTimeRangeChicago(
+                data?.timeSlot?.startTime,
+                data?.timeSlot?.endTime,
+              )}
             </p>
           </div>
           <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
@@ -612,6 +673,8 @@ const ViewInduction = () => {
             dispatch={dispatch}
             onSaveInduction={handleSaveInduction}
             isSaving={savingUserId === data?.userId}
+            isSubscriptionActivation={members?.isSubscriptionActivation}
+            data={data}
           />
         </div>
 
@@ -635,6 +698,8 @@ const ViewInduction = () => {
                 dispatch={dispatch}
                 onSaveInduction={handleSaveInduction}
                 isSaving={savingUserId === member.userId}
+                isSubscriptionActivation={members?.isSubscriptionActivation}
+                data={data}
               />
             ))}
           </div>

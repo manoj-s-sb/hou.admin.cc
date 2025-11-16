@@ -114,7 +114,7 @@ export const getTodayDateInChicago = (): string => {
     month: "2-digit",
     day: "2-digit",
   };
-  
+
   const formatter = new Intl.DateTimeFormat("en-CA", options);
   return formatter.format(today); // en-CA format gives YYYY-MM-DD
 };
@@ -189,13 +189,16 @@ export const formatDateTimeChicago = (dateValue: any): string => {
  * @param endTime - The end time value
  * @returns Formatted time range string or 'Invalid Date' if either date is invalid
  */
-export const formatTimeRangeChicago = (startTime: any, endTime: any): string => {
+export const formatTimeRangeChicago = (
+  startTime: any,
+  endTime: any,
+): string => {
   const start = formatTimeChicago(startTime);
   const end = formatTimeChicago(endTime);
-  
+
   if (start === "Invalid Date" || end === "Invalid Date") {
     return "Invalid Date";
   }
-  
+
   return `${start} - ${end}`;
 };

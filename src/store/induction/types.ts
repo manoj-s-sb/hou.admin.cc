@@ -9,6 +9,11 @@ export interface InductionStepsDetailsRequest {
   userId: string;
 }
 
+export interface UpdateInductionStepsRequest {
+  userId: string;
+  subSteps: { id: string; status: string }[];
+}
+
 export interface TimeSlot {
   startTime: string;
   endTime: string;
@@ -67,6 +72,12 @@ export interface InductionStepResponse {
   message: string;
   data: InductionStep;
   statusCode: string;
+}
+
+export interface UpdateTourStatusRequest {
+  userId: string;
+  bookingCode: string;
+  status: string;
 }
 
 export interface InductionState {

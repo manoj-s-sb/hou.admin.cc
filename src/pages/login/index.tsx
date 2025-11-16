@@ -101,7 +101,6 @@ const Login: React.FC = () => {
             {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
-         
       </div>
     </div>
   );

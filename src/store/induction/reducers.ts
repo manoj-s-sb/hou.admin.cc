@@ -1,6 +1,11 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { initialState } from "./types";
-import { inductionList, getInductionStepsDetails, activateUserSubscription } from "./api";
+import {
+  inductionList,
+  getInductionStepsDetails,
+  updateInductionSteps,
+  updateTourStatus,
+} from "./api";
 
 const inductionSlice = createSlice({
   name: "induction",
@@ -36,7 +41,6 @@ const inductionSlice = createSlice({
     });
     builder.addCase(getInductionStepsDetails.fulfilled, (state, action) => {
       state.isLoading = false;
-      console.log(action.payload?.data);
       state.inductionStep = action.payload?.data || null;
     });
     builder.addCase(getInductionStepsDetails.rejected, (state, action) => {
@@ -45,19 +49,39 @@ const inductionSlice = createSlice({
         (action.payload as string) ||
         "Induction steps details failed. Please try again.";
     });
-    builder.addCase(activateUserSubscription.pending, (state) => {
+    builder.addCase(updateInductionSteps.pending, (state) => {
       state.isLoading = true;
       state.error = "";
     });
-    builder.addCase(activateUserSubscription.fulfilled, (state, action) => {
+    builder.addCase(updateInductionSteps.fulfilled, (state) => {
       state.isLoading = false;
       state.error = "";
     });
-    builder.addCase(activateUserSubscription.rejected, (state, action) => {
+    builder.addCase(updateInductionSteps.rejected, (state, action) => {
+      state.isLoading = false;
+
+      console.error("Update Induction Steps Failed:", {
+        payload: action.payload,
+        error: action.error,
+        meta: action.meta,
+      });
+      state.error =
+        (action.payload as string) ||
+        "Failed to update induction steps. Please try again.";
+    });
+    builder.addCase(updateTourStatus.pending, (state) => {
+      state.isLoading = true;
+      state.error = "";
+    });
+    builder.addCase(updateTourStatus.fulfilled, (state) => {
+      state.isLoading = false;
+      state.error = "";
+    });
+    builder.addCase(updateTourStatus.rejected, (state, action) => {
       state.isLoading = false;
       state.error =
         (action.payload as string) ||
-        "Failed to activate user subscription. Please try again.";
+        "Failed to update tour status. Please try again.";
     });
   },
 });

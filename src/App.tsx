@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,57 +7,115 @@ import {
 } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
-import { Login, Dashboard, UserList, Induction, ViewInduction } from "./pages";
+import {
+  Login,
+  Dashboard,
+  UserList,
+  Induction,
+  ViewInduction,
+  Tours,
+  Members,
+  ViewMembers,
+} from "./pages";
 import { Provider } from "react-redux";
 import store from "./store/store";
 import { Toaster } from "react-hot-toast";
+import SessionExpiredModal from "./components/SessionExpiredModal";
+import { setSessionExpiredCallback } from "./services";
 
 const AppRoutes: React.FC = () => {
+  const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] = useState(false);
+
+  useEffect(() => {
+    // Set up the session expired callback
+    setSessionExpiredCallback(() => {
+      setIsSessionExpiredModalOpen(true);
+    });
+  }, []);
+
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Dashboard />
-            </Layout>
-          </ProtectedRoute>
-        }
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <UserList />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/induction"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Induction />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/view-induction"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ViewInduction />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tour"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Tours />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/members"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Members />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/members/:userId"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ViewMembers />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/induction" replace />} />
+      </Routes>
+      
+      {/* Global Session Expired Modal */}
+      <SessionExpiredModal
+        isOpen={isSessionExpiredModalOpen}
+        onClose={() => setIsSessionExpiredModalOpen(false)}
       />
-      <Route
-        path="/users"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <UserList />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/induction"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Induction />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/view-induction"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <ViewInduction />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/" element={<Navigate to="/induction" replace />} />
-    </Routes>
+    </>
   );
 };
 

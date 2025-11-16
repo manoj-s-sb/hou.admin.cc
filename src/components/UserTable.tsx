@@ -33,6 +33,11 @@ interface TableProps {
     title?: string;
     subtitle?: string;
   };
+  // Server-side pagination props
+  totalItems?: number;
+  itemsPerPage?: number;
+  currentPage?: number;
+  onPageChange?: (page: number) => void;
 }
 
 const UserTable: React.FC<TableProps> = ({
@@ -42,11 +47,24 @@ const UserTable: React.FC<TableProps> = ({
   onSelectItem,
   loading = false,
   emptyState,
+  totalItems,
+  itemsPerPage: externalItemsPerPage,
+  currentPage: externalCurrentPage,
+  onPageChange,
 }) => {
   const [sortField, setSortField] = useState<string>(columns[0]?.field || "");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [internalCurrentPage, setInternalCurrentPage] = useState(1);
+
+  // Determine if we're using server-side or client-side pagination
+  const isServerSidePagination =
+    onPageChange !== undefined && totalItems !== undefined;
+
+  // Use external pagination state if provided, otherwise use internal state
+  const currentPage = isServerSidePagination
+    ? externalCurrentPage || 0
+    : internalCurrentPage;
+  const itemsPerPage = externalItemsPerPage || 20;
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -60,6 +78,13 @@ const UserTable: React.FC<TableProps> = ({
   const sortedUsers = useMemo(() => {
     // Ensure data is always an array
     const safeData = Array.isArray(data) ? data : [];
+
+    // For server-side pagination, data is already sorted and paginated
+    if (isServerSidePagination) {
+      return safeData;
+    }
+
+    // Client-side sorting
     if (!sortField) return safeData;
 
     return [...safeData].sort((a, b) => {
@@ -92,18 +117,34 @@ const UserTable: React.FC<TableProps> = ({
       if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
       return 0;
     });
-  }, [data, sortField, sortDirection, columns]);
+  }, [data, sortField, sortDirection, columns, isServerSidePagination]);
 
-  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedUsers = sortedUsers.slice(startIndex, endIndex);
+  // Calculate pagination values
+  const totalRecords = isServerSidePagination
+    ? totalItems || 0
+    : sortedUsers.length;
+  const totalPages = Math.ceil(totalRecords / itemsPerPage);
+
+  // For server-side pagination, data is already sliced
+  const paginatedUsers = isServerSidePagination
+    ? sortedUsers
+    : sortedUsers.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage,
+      );
+
+  const startIndex = isServerSidePagination
+    ? currentPage
+    : (currentPage - 1) * itemsPerPage;
+  const endIndex = isServerSidePagination
+    ? Math.min(currentPage + paginatedUsers.length, totalRecords)
+    : Math.min(startIndex + itemsPerPage, totalRecords);
 
   useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(1);
+    if (!isServerSidePagination && currentPage > totalPages && totalPages > 0) {
+      setInternalCurrentPage(1);
     }
-  }, [totalPages, currentPage]);
+  }, [totalPages, currentPage, isServerSidePagination]);
 
   // Calculate grid template columns based on column definitions
   const gridTemplateColumns = useMemo(() => {
@@ -170,7 +211,10 @@ const UserTable: React.FC<TableProps> = ({
     <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden min-w-[800px]">
       {/* Table Header */}
       <div className="bg-gray-50 border-b border-gray-200">
-        <div className="grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4" style={{ gridTemplateColumns }}>
+        <div
+          className="grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4"
+          style={{ gridTemplateColumns }}
+        >
           {columns.map((column) => (
             <div
               key={column.field}
@@ -233,15 +277,15 @@ const UserTable: React.FC<TableProps> = ({
             return (
               <div
                 key={row.id || paginatedIndex}
-                className={`grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 cursor-pointer transition-colors ${
+                className={`grid gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 cursor-pointer transition-colors ${
                   selectedItem?.id === row.id
-                    ? "bg-indigo-50 border-l-4 border-l-indigo-600"
+                    ? "bg-indigo-50 border-indigo-200"
                     : "hover:bg-gray-50"
-                } ${paginatedIndex === paginatedUsers.length - 1 ? "border-b-0" : ""}`}
+                }`}
                 style={{ gridTemplateColumns }}
                 onClick={() => onSelectItem(row)}
               >
-                {columns.map((column) => {
+                {columns.map((column, colIndex) => {
                   const value = column.valueGetter
                     ? column.valueGetter({
                         value: row[column.field],
@@ -270,7 +314,9 @@ const UserTable: React.FC<TableProps> = ({
                   return (
                     <div
                       key={column.field}
-                      className="flex items-center text-[13px] sm:text-[15px] text-gray-700 min-w-0"
+                      className={`flex items-center text-[13px] sm:text-[15px] text-gray-700 min-w-0 ${
+                        colIndex < columns.length - 1 ? "border-r border-gray-100 pr-2 sm:pr-4" : ""
+                      }`}
                     >
                       {column.renderCell ? (
                         cellContent
@@ -287,29 +333,55 @@ const UserTable: React.FC<TableProps> = ({
       </div>
 
       {/* Table Footer with Pagination */}
-      {sortedUsers.length > 0 && (
+      {totalRecords > 0 && (
         <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-gray-500 text-center sm:text-left">
-              Showing {startIndex + 1}-{Math.min(endIndex, sortedUsers.length)}{" "}
-              of {sortedUsers.length}
+              Showing {startIndex + 1}-{endIndex} of {totalRecords}
             </p>
             <div className="flex items-center space-x-1">
               <button
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
+                onClick={() => {
+                  if (isServerSidePagination && onPageChange) {
+                    onPageChange(Math.max(0, currentPage - itemsPerPage));
+                  } else {
+                    setInternalCurrentPage((prev) => Math.max(1, prev - 1));
+                  }
+                }}
+                disabled={
+                  isServerSidePagination ? currentPage === 0 : currentPage === 1
+                }
                 className="px-2 sm:px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <span className="px-2 sm:px-3 py-1 text-xs text-gray-700">
-                Page {currentPage} of {totalPages}
+                Page{" "}
+                {isServerSidePagination
+                  ? currentPage / itemsPerPage + 1
+                  : currentPage}{" "}
+                of {totalPages}
               </span>
               <button
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                onClick={() => {
+                  if (isServerSidePagination && onPageChange) {
+                    onPageChange(
+                      Math.min(
+                        (totalPages - 1) * itemsPerPage,
+                        currentPage + itemsPerPage,
+                      ),
+                    );
+                  } else {
+                    setInternalCurrentPage((prev) =>
+                      Math.min(totalPages, prev + 1),
+                    );
+                  }
+                }}
+                disabled={
+                  isServerSidePagination
+                    ? currentPage + itemsPerPage >= totalRecords
+                    : currentPage === totalPages
                 }
-                disabled={currentPage === totalPages}
                 className="px-2 sm:px-3 py-1 text-xs text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next

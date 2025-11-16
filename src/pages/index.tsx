@@ -3,5 +3,17 @@ import Dashboard from "./dashboard";
 import Login from "./login";
 import UserList from "./users";
 import ViewInduction from "./induction/viewInduction";
+import Tours from "./tours";
+import Members from "./members";
+import ViewMembers from "./members/viewMembers";
 
-export { Induction, Dashboard, Login, UserList, ViewInduction };
+export {
+  Induction,
+  Dashboard,
+  Login,
+  UserList,
+  ViewInduction,
+  Tours,
+  Members,
+  ViewMembers,
+};

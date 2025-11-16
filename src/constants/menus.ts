@@ -10,10 +10,21 @@ const menus = [
   //   icon: '',
   // },
   {
+    path: "/members",
+    label: "Members",
+    icon: "/assets/subscription.svg",
+  },
+  {
     path: "/induction",
     label: "Induction",
     icon: "/assets/induction.svg",
   },
+  {
+    path: "/tour",
+    label: "Tour Details",
+    icon: "/assets/tour.svg",
+  },
+   
 ];
 
 export default menus;
