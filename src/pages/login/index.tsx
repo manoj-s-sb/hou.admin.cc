@@ -30,7 +30,7 @@ const Login: React.FC = () => {
       });
       // Small delay to ensure toast shows before navigation
       setTimeout(() => {
-        navigate("/induction");
+        navigate("/members");
       }, 100);
     }
   }, [isAuthenticated, navigate]);

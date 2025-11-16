@@ -84,7 +84,6 @@ api.interceptors.response.use(
       } else if (status === 401) {
         console.error("Unauthorized (401) - Token may be invalid or expired");
         // Trigger session expired modal for 401 errors
-        triggerSessionExpired();
       } else if (status === 403) {
         // Forbidden - user doesn't have permission
         console.error("Access forbidden (403)");
