@@ -56,7 +56,7 @@ export const activateUserSubscription = createAsyncThunk(
       }
 
       const response = await axios.post(
-        "https://century-subscription-func-uat-fkapb0bphngbgnfb.centralindia-01.azurewebsites.net/subscription/admin/activate",
+        "https://subscription-func-g4dvhpbhemd9hsbd.centralus-01.azurewebsites.net/subscription/admin/activate",
         {
           userId,
           adminId,

@@ -74,6 +74,12 @@ export interface InductionStepResponse {
   statusCode: string;
 }
 
+export interface UpdateTourStatusRequest {
+  userId: string;
+  bookingCode: string;
+  status: string;
+}
+
 export interface InductionState {
   isLoading: boolean;
   error: string | null;

@@ -10,6 +10,11 @@ const menus = [
   //   icon: '',
   // },
   {
+    path: "/members",
+    label: "Members",
+    icon: "/assets/subscription.svg",
+  },
+  {
     path: "/induction",
     label: "Induction",
     icon: "/assets/induction.svg",
@@ -19,11 +24,7 @@ const menus = [
     label: "Tour Details",
     icon: "/assets/tour.svg",
   },
-  {
-    path: "/members",
-    label: "Members",
-    icon: "/assets/subscription.svg",
-  },
+   
 ];
 
 export default menus;

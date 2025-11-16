@@ -19,7 +19,7 @@ const Induction = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const [selectedDate, setSelectedDate] = useState(getTodayDateInChicago());
+  const [selectedDate, setSelectedDate] = useState("");
 
   useEffect(() => {
     dispatch(

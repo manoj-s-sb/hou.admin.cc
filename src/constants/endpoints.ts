@@ -4,6 +4,9 @@ const endpoints = {
     list: "/admin/members/list",
     membersDetails: "/admin/member/details",
   },
+  tour: {
+    updateTourStatus: "/admin/bookings/tour/status/update ",
+  },
   induction: {
     list: "/admin/bookings/list",
     search: "/admin/induction/search",

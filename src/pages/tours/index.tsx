@@ -3,17 +3,23 @@ import UserTable, { ColumnDef } from "../../components/UserTable";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../store/store";
 import { useEffect, useState } from "react";
-import { inductionList } from "../../store/induction/api";
-import { formatDateChicago, formatTimeRangeChicago, getTodayDateInChicago } from "../../utils/dateUtils";
+import { inductionList, updateTourStatus } from "../../store/induction/api";
+import {
+  formatDateChicago,
+  formatTimeRangeChicago,
+  getTodayDateInChicago,
+} from "../../utils/dateUtils";
+import toast from "react-hot-toast";
+import { Loader } from "lucide-react";
 
 const Tours = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   const { inductionList: inductionListData, isLoading } = useSelector(
-    (state: RootState) => state.induction,
+    (state: RootState) => state.induction
   );
 
-  const [selectedDate, setSelectedDate] = useState(getTodayDateInChicago());
+  const [selectedDate, setSelectedDate] = useState("");
 
   const inductionColumns: ColumnDef[] = [
     {
@@ -69,40 +75,62 @@ const Tours = () => {
         return formatTimeRangeChicago(startTime, endTime);
       },
     },
-     
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      sortable: true,
+      renderCell: (params: any) => {
+        const status = params.row?.status || "pending";
+        const statusColors = {
+          completed: "bg-green-100 text-green-800",
+          pending: "bg-yellow-100 text-yellow-800",
+          cancelled: "bg-red-100 text-red-800",
+        };
+        const colorClass = statusColors[status as keyof typeof statusColors] || "bg-gray-100 text-gray-800";
+        
+        return (
+          <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${colorClass}`}>
+            {status}
+          </span>
+        );
+      },
+    },
     {
       field: "actions",
       headerName: "Actions",
-      width: 100,
+      width: 150,
       sortable: false,
       renderCell: (params: any) => (
         <button
+        disabled={params.row?.status === "completed"}
           onClick={() => {
-          
+            dispatch(
+              updateTourStatus({
+                userId: params.row.userId,
+                bookingCode: params.row.bookingCode,
+                status: "completed",
+              })
+            ).unwrap().then((res) => {
+                  if (res?.status === "success") {
+                    dispatch(
+                      inductionList({
+                        date: selectedDate,
+                        page: 1,
+                        type: "tourbooking",
+                        listLimit: 20,
+                      })
+                    );
+                    toast.success("Tour status updated successfully!");
+                  } else {
+                    toast.error("Failed to update tour status!");
+                  }
+            });
           }}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          title="View Details"
+          className={`px-3 py-2 hover:bg-indigo-600 rounded-lg transition-colors bg-indigo-500 text-white text-sm font-medium ${params.row?.status === "completed" ? "opacity-50 cursor-not-allowed" : ""}`}
+          title="Mark tour as completed"
         >
-          <svg
-            className="w-5 h-5 text-gray-600 hover:text-blue-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-            />
-          </svg>
+          {isLoading ? <Loader className="w-4 h-4 animate-spin" /> : "Mark Complete"}
         </button>
       ),
     },
@@ -115,7 +143,7 @@ const Tours = () => {
         page: 1,
         type: "tourbooking",
         listLimit: 20,
-      }),
+      })
     );
   }, [dispatch, selectedDate]);
 

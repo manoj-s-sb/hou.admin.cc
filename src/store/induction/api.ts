@@ -5,6 +5,7 @@ import {
   InductionListRequest,
   InductionStepsDetailsRequest,
   UpdateInductionStepsRequest,
+  UpdateTourStatusRequest,
 } from "./types";
 import { handleApiError } from "../../utils/errorUtils";
 
@@ -61,6 +62,25 @@ export const updateInductionSteps = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(
         handleApiError(error, "Failed to update induction steps"),
+      );
+    }
+  },
+);
+
+
+export const updateTourStatus = createAsyncThunk(
+  "induction/updateTourStatus",
+  async ({ userId, bookingCode, status }: UpdateTourStatusRequest, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${endpoints.tour.updateTourStatus}`, {
+        userId,
+        bookingCode,
+        status,
+      });
+      return response?.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        handleApiError(error, "Failed to update tour status"),    
       );
     }
   },

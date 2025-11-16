@@ -4,6 +4,7 @@ import {
   inductionList,
   getInductionStepsDetails,
   updateInductionSteps,
+  updateTourStatus,
 } from "./api";
 
 const inductionSlice = createSlice({
@@ -67,6 +68,20 @@ const inductionSlice = createSlice({
       state.error =
         (action.payload as string) ||
         "Failed to update induction steps. Please try again.";
+    });
+    builder.addCase(updateTourStatus.pending, (state) => {
+      state.isLoading = true;
+      state.error = "";
+    });
+    builder.addCase(updateTourStatus.fulfilled, (state) => {
+      state.isLoading = false;
+      state.error = "";
+    });
+    builder.addCase(updateTourStatus.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error =
+        (action.payload as string) ||
+        "Failed to update tour status. Please try again.";
     });
   },
 });
