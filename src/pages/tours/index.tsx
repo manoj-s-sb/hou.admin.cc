@@ -15,7 +15,7 @@ const Tours = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   const { inductionList: inductionListData, isLoading } = useSelector(
-    (state: RootState) => state.induction
+    (state: RootState) => state.induction,
   );
 
   const [selectedDate, setSelectedDate] = useState("");
@@ -86,10 +86,14 @@ const Tours = () => {
           pending: "bg-yellow-100 text-yellow-800",
           cancelled: "bg-red-100 text-red-800",
         };
-        const colorClass = statusColors[status as keyof typeof statusColors] || "bg-gray-100 text-gray-800";
-        
+        const colorClass =
+          statusColors[status as keyof typeof statusColors] ||
+          "bg-gray-100 text-gray-800";
+
         return (
-          <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${colorClass}`}>
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${colorClass}`}
+          >
             {status}
           </span>
         );
@@ -102,34 +106,40 @@ const Tours = () => {
       sortable: false,
       renderCell: (params: any) => (
         <button
-        disabled={params.row?.status === "completed"}
+          disabled={params.row?.status === "completed"}
           onClick={() => {
             dispatch(
               updateTourStatus({
                 userId: params.row.userId,
                 bookingCode: params.row.bookingCode,
                 status: "completed",
-              })
-            ).unwrap().then((res) => {
-                  if (res?.status === "success") {
-                    dispatch(
-                      inductionList({
-                        date: selectedDate,
-                        page: 1,
-                        type: "tourbooking",
-                        listLimit: 20,
-                      })
-                    );
-                    toast.success("Tour status updated successfully!");
-                  } else {
-                    toast.error("Failed to update tour status!");
-                  }
-            });
+              }),
+            )
+              .unwrap()
+              .then((res) => {
+                if (res?.status === "success") {
+                  dispatch(
+                    inductionList({
+                      date: selectedDate,
+                      page: 1,
+                      type: "tourbooking",
+                      listLimit: 20,
+                    }),
+                  );
+                  toast.success("Tour status updated successfully!");
+                } else {
+                  toast.error("Failed to update tour status!");
+                }
+              });
           }}
           className={`px-3 py-2 hover:bg-indigo-600 rounded-lg transition-colors bg-indigo-500 text-white text-sm font-medium ${params.row?.status === "completed" ? "opacity-50 cursor-not-allowed" : ""}`}
           title="Mark tour as completed"
         >
-          {isLoading ? <Loader className="w-4 h-4 animate-spin" /> : "Mark Complete"}
+          {isLoading ? (
+            <Loader className="w-4 h-4 animate-spin" />
+          ) : (
+            "Mark Complete"
+          )}
         </button>
       ),
     },
@@ -142,7 +152,7 @@ const Tours = () => {
         page: 1,
         type: "tourbooking",
         listLimit: 20,
-      })
+      }),
     );
   }, [dispatch, selectedDate]);
 

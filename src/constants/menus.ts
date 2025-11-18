@@ -24,7 +24,6 @@ const menus = [
     label: "Tour Details",
     icon: "/assets/tour.svg",
   },
-   
 ];
 
 export default menus;

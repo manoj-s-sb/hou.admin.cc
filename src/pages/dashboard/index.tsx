@@ -1,6 +1,14 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Calendar, dateFnsLocalizer, View, SlotInfo } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay, setHours, setMinutes, addDays } from "date-fns";
+import {
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  setHours,
+  setMinutes,
+  addDays,
+} from "date-fns";
 import { enUS } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Plus, X } from "lucide-react";
@@ -62,7 +70,7 @@ const Dashboard: React.FC = () => {
       attendees: 4,
       color: "#8b5cf6", // Purple for hybrid
     },
-    
+
     // TOMORROW - Batting Lane 2
     {
       id: 3,
@@ -83,7 +91,7 @@ const Dashboard: React.FC = () => {
       attendees: 5,
       color: "#3b82f6", // Blue for batting
     },
-    
+
     // DAY AFTER TOMORROW - Batting Lane 4
     {
       id: 5,
@@ -104,7 +112,7 @@ const Dashboard: React.FC = () => {
       attendees: 5,
       color: "#8b5cf6", // Purple for hybrid
     },
-    
+
     // 3 DAYS FROM NOW - Batting Lane 5
     {
       id: 7,
@@ -125,7 +133,7 @@ const Dashboard: React.FC = () => {
       attendees: 3,
       color: "#8b5cf6", // Purple for hybrid
     },
-    
+
     // 4 DAYS FROM NOW - Batting Lane 1 (Evening)
     {
       id: 9,
@@ -136,7 +144,7 @@ const Dashboard: React.FC = () => {
       attendees: 3,
       color: "#3b82f6", // Blue for batting
     },
-    
+
     // 5 DAYS FROM NOW - Hybrid Lane 7 (Batting)
     {
       id: 10,
@@ -157,7 +165,9 @@ const Dashboard: React.FC = () => {
 
   // Handle selecting an event
   const handleSelectEvent = useCallback((event: CalendarEvent) => {
-    alert(`Event: ${event.title}\nDescription: ${event.description}\nAttendees: ${event.attendees}`);
+    alert(
+      `Event: ${event.title}\nDescription: ${event.description}\nAttendees: ${event.attendees}`,
+    );
   }, []);
 
   // Add new event
@@ -170,7 +180,7 @@ const Dashboard: React.FC = () => {
         end: selectedSlot.end,
         description: newEventDescription,
         attendees: parseInt(newEventAttendees) || 0,
-        color: `#${Math.floor(Math.random()*16777215).toString(16)}`,
+        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
       };
       setEvents([...events, newEvent]);
       setShowEventModal(false);
@@ -206,12 +216,11 @@ const Dashboard: React.FC = () => {
         `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`,
       dayHeaderFormat: (date: Date) => format(date, "EEE, MMM d"),
     }),
-    []
+    [],
   );
 
   return (
     <div className=" mx-auto">
-     
       {/* Calendar Section */}
       <div className="bg-white p-6 rounded-xl ">
         <div className="mb-4 flex items-center justify-between">
@@ -313,11 +322,13 @@ const Dashboard: React.FC = () => {
               {selectedSlot && (
                 <div className="bg-blue-50 p-3 rounded-lg">
                   <p className="text-sm text-gray-700">
-                    <strong>Time:</strong> {format(selectedSlot.start, "h:mm a")} -{" "}
+                    <strong>Time:</strong>{" "}
+                    {format(selectedSlot.start, "h:mm a")} -{" "}
                     {format(selectedSlot.end, "h:mm a")}
                   </p>
                   <p className="text-sm text-gray-700 mt-1">
-                    <strong>Date:</strong> {format(selectedSlot.start, "EEEE, MMMM d, yyyy")}
+                    <strong>Date:</strong>{" "}
+                    {format(selectedSlot.start, "EEEE, MMMM d, yyyy")}
                   </p>
                 </div>
               )}
@@ -533,4 +544,3 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
-

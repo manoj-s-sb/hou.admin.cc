@@ -1,7 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { initialState } from "./types";
 import { login } from "./api";
-import { saveTokenExpirationTime, clearTokenExpirationTime } from "../../utils/tokenUtils";
+import {
+  saveTokenExpirationTime,
+  clearTokenExpirationTime,
+} from "../../utils/tokenUtils";
 
 const authSlice = createSlice({
   name: "auth",
@@ -30,12 +33,12 @@ const authSlice = createSlice({
       localStorage.setItem("tokens", JSON.stringify(tokens));
       localStorage.setItem("isAuthenticated", JSON.stringify(true));
       localStorage.setItem("user", JSON.stringify(action.payload?.data?.user));
-      
+
       // Save token expiration time
       if (tokens?.expires_in) {
         saveTokenExpirationTime(tokens.expires_in);
       }
-      
+
       state.isLoading = false;
       state.loginResponse = action.payload;
       state.isAuthenticated = true;

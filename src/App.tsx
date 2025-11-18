@@ -24,7 +24,8 @@ import SessionExpiredModal from "./components/SessionExpiredModal";
 import { setSessionExpiredCallback } from "./services";
 
 const AppRoutes: React.FC = () => {
-  const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] = useState(false);
+  const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] =
+    useState(false);
 
   useEffect(() => {
     // Set up the session expired callback
@@ -109,7 +110,7 @@ const AppRoutes: React.FC = () => {
         />
         <Route path="/" element={<Navigate to="/induction" replace />} />
       </Routes>
-      
+
       {/* Global Session Expired Modal */}
       <SessionExpiredModal
         isOpen={isSessionExpiredModalOpen}

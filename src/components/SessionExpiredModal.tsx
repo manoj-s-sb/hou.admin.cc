@@ -64,4 +64,3 @@ const SessionExpiredModal: React.FC<SessionExpiredModalProps> = ({
 };
 
 export default SessionExpiredModal;
-

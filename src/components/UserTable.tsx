@@ -315,7 +315,9 @@ const UserTable: React.FC<TableProps> = ({
                     <div
                       key={column.field}
                       className={`flex items-center text-[13px] sm:text-[15px] text-gray-700 min-w-0 ${
-                        colIndex < columns.length - 1 ? "border-r border-gray-100 pr-2 sm:pr-4" : ""
+                        colIndex < columns.length - 1
+                          ? "border-r border-gray-100 pr-2 sm:pr-4"
+                          : ""
                       }`}
                     >
                       {column.renderCell ? (

@@ -72,9 +72,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             const isActive =
               location.pathname === item.path ||
               location.pathname.startsWith(item.path + "/") ||
-              (item.path === "/induction" && location.pathname.includes("view-induction")) ||
-              (item.path === "/members" && location.pathname.includes("view-members"));
-            
+              (item.path === "/induction" &&
+                location.pathname.includes("view-induction")) ||
+              (item.path === "/members" &&
+                location.pathname.includes("view-members"));
+
             return (
               <Link
                 key={item.path}
@@ -93,10 +95,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               >
                 <span className="flex items-center gap-3 w-full">
                   {item.icon && (
-                    <img 
-                      src={item.icon} 
-                      alt={item.label} 
-                      className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} 
+                    <img
+                      src={item.icon}
+                      alt={item.label}
+                      className={`w-5 h-5 transition-transform ${isActive ? "scale-110" : ""}`}
                     />
                   )}
                   <span className="text-sm">{item.label}</span>
