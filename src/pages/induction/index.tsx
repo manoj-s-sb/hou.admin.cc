@@ -7,7 +7,6 @@ import { inductionList } from "../../store/induction/api";
 import { useNavigate } from "react-router-dom";
 import { setSelectedInduction } from "../../store/induction/reducers";
 import {
-  getTodayDateInChicago,
   formatDateChicago,
   formatTimeRangeChicago,
 } from "../../utils/dateUtils";

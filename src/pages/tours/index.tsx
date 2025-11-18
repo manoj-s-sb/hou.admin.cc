@@ -7,7 +7,6 @@ import { inductionList, updateTourStatus } from "../../store/induction/api";
 import {
   formatDateChicago,
   formatTimeRangeChicago,
-  getTodayDateInChicago,
 } from "../../utils/dateUtils";
 import toast from "react-hot-toast";
 import { Loader } from "lucide-react";
