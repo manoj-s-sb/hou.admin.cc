@@ -36,7 +36,6 @@ api.interceptors.request.use(
 
     // Check if token is expired before making the request
     if (isTokenExpired()) {
-      console.warn("Token expired - triggering session expired modal");
       triggerSessionExpired();
       // Reject the request to prevent API call with expired token
       return Promise.reject(new Error("Token expired"));
