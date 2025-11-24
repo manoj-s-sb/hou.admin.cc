@@ -14,7 +14,6 @@ import {
   Ban,
   Calendar,
   Mail,
-  Phone,
 } from "lucide-react";
 import SectionTitle from "../../components/SectionTitle";
 
@@ -125,20 +124,19 @@ const ViewMembers = () => {
 
               {/* Profile Details */}
               <div className="px-4 sm:px-6 py-5 space-y-4">
-               
                 {/* Member Details */}
                 <div className="space-y-3 pb-4 border-b border-gray-100">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center text-gray-600">
                       <Shield className="w-4 h-4 mr-2 flex-shrink-0" />
-                      <span className="text-sm font-medium">Onboarding Type</span>
+                      <span className="text-sm font-medium">
+                        Onboarding Type
+                      </span>
                     </div>
                     <span className="text-sm text-gray-900 font-medium capitalize text-right">
                       {memberDetails.onboardingType}
                     </span>
                   </div>
-
-                   
 
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center text-gray-600">
@@ -146,14 +144,15 @@ const ViewMembers = () => {
                       <span className="text-sm font-medium">Joined Date</span>
                     </div>
                     <span className="text-sm text-gray-900 text-right">
-                      {formatDate(memberDetails.subscription.currentPeriodStart)}
+                      {formatDate(
+                        memberDetails.subscription.currentPeriodStart,
+                      )}
                     </span>
                   </div>
                 </div>
 
                 {/* Member Actions */}
                 <div className="pt-2">
-                   
                   <div className="space-y-3">
                     {/* Block Facility Button */}
                     <button className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm group">
@@ -213,7 +212,9 @@ const ViewMembers = () => {
                       Current Period Start
                     </p>
                     <p className="text-base font-semibold text-gray-900">
-                      {formatDate(memberDetails.subscription.currentPeriodStart)}
+                      {formatDate(
+                        memberDetails.subscription.currentPeriodStart,
+                      )}
                     </p>
                   </div>
 
@@ -265,19 +266,11 @@ const ViewMembers = () => {
                     <p className="text-xs font-medium text-gray-500 uppercase mb-2">
                       Prepaid Status
                     </p>
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-green-100 text-green-800">
-                      
-                    </span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-green-100 text-green-800"></span>
                   </div>
-
-                   
                 </div>
-
-                 
               </div>
             </div>
-
-          
 
             {/* Attending Induction Card */}
             <div className="rounded-xl shadow-sm border  overflow-hidden">
@@ -434,8 +427,8 @@ const ViewMembers = () => {
               </div>
             </div>
 
-               {/* Tour Details Card */}
-               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Tour Details Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="border-b border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4">
                 <div className="flex items-center">
                   <Calendar className="w-5 h-5 text-blue-600 mr-2" />
@@ -462,9 +455,7 @@ const ViewMembers = () => {
                     <p className="text-xs font-medium text-gray-500 uppercase mb-2">
                       Tour Date
                     </p>
-                    <p className="text-base font-semibold text-gray-900">
-                      N/A
-                    </p>
+                    <p className="text-base font-semibold text-gray-900">N/A</p>
                   </div>
 
                   {/* Tour Guide */}
@@ -472,9 +463,7 @@ const ViewMembers = () => {
                     <p className="text-xs font-medium text-gray-500 uppercase mb-2">
                       Tour Guide
                     </p>
-                    <p className="text-base font-semibold text-gray-900">
-                      N/A
-                    </p>
+                    <p className="text-base font-semibold text-gray-900">N/A</p>
                   </div>
                 </div>
               </div>
