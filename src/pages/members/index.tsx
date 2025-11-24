@@ -12,7 +12,7 @@ const Members = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { membersList: membersListData, isLoading } = useSelector(
-    (state: RootState) => state.members,
+    (state: RootState) => state.members
   );
 
   const membersColumns: ColumnDef[] = [
@@ -114,7 +114,7 @@ const Members = () => {
         skip: 0,
         limit: 15,
         facilityCode: "HOU01",
-      }),
+      })
     );
   }, [dispatch]);
 
@@ -125,7 +125,7 @@ const Members = () => {
         description="View and manage all member subscriptions and account details"
         inputPlaceholder="Search members by name or email..."
         value=""
-        onSearch={() => {}}
+        search={false}
       />
 
       <div className="overflow-x-auto">
@@ -144,7 +144,7 @@ const Members = () => {
                 skip,
                 limit: membersListData.limit,
                 facilityCode: "HOU01",
-              }),
+              })
             );
           }}
         />

@@ -5,7 +5,7 @@ const endpoints = {
     membersDetails: "/admin/member/details",
   },
   tour: {
-    updateTourStatus: "/admin/bookings/tour/status/update ",
+    updateTourStatus: "/admin/bookings/tour/status/update",
   },
   induction: {
     list: "/admin/bookings/list",

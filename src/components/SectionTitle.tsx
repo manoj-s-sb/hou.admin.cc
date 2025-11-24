@@ -6,7 +6,7 @@ interface SectionTitleProps {
   search?: boolean;
   inputPlaceholder: string;
   value: string;
-  onSearch: (value: string) => void;
+  onSearch?: (value: string) => void;
   onBackClick?: () => void;
 }
 
@@ -71,12 +71,12 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
               type="text"
               placeholder={inputPlaceholder}
               value={value}
-              onChange={(e) => onSearch(e.target.value)}
+              onChange={(e) => onSearch?. (e.target.value)}
               className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400"
             />
             {value && (
               <button
-                onClick={() => onSearch("")}
+                onClick={() => onSearch?.("")}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Clear search"
               >
