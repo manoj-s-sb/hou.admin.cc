@@ -167,6 +167,13 @@ const UserTable: React.FC<TableProps> = ({
     );
   };
 
+  const triggerOnEnterOrSpace = (event: React.KeyboardEvent<HTMLElement>, handler: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handler();
+    }
+  };
+
   return (
     <div className="min-w-[800px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
       {/* Table Header */}
@@ -178,7 +185,12 @@ const UserTable: React.FC<TableProps> = ({
               className={`flex min-w-0 items-center ${
                 column.sortable !== false ? 'cursor-pointer hover:text-gray-900' : ''
               }`}
+              role={column.sortable !== false ? 'button' : undefined}
+              tabIndex={column.sortable !== false ? 0 : undefined}
               onClick={() => column.sortable !== false && handleSort(column.field)}
+              onKeyDown={event =>
+                column.sortable !== false && triggerOnEnterOrSpace(event, () => handleSort(column.field))
+              }
             >
               <span className="text-[12px] font-semibold uppercase tracking-wide text-gray-600 sm:text-[14px]">
                 {column.headerName}
@@ -224,8 +236,11 @@ const UserTable: React.FC<TableProps> = ({
                 className={`grid cursor-pointer gap-2 border-b border-gray-200 px-4 py-3 transition-colors sm:gap-4 sm:px-6 sm:py-4 ${
                   selectedItem?.id === row.id ? 'border-indigo-200 bg-indigo-50' : 'hover:bg-gray-50'
                 }`}
+                role="button"
                 style={{ gridTemplateColumns }}
+                tabIndex={0}
                 onClick={() => onSelectItem(row)}
+                onKeyDown={event => triggerOnEnterOrSpace(event, () => onSelectItem(row))}
               >
                 {columns.map((column, colIndex) => {
                   const value = column.valueGetter

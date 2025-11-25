@@ -475,7 +475,6 @@ const ViewInduction = () => {
               }
             })
             .catch(error => {
-              console.log(error);
               toast.error(`Failed to activate subscription: ${error}`);
             });
         }
@@ -507,9 +506,7 @@ const ViewInduction = () => {
         title="View Induction"
         value=""
         onBackClick={() => navigate('/induction')}
-        onSearch={() => {
-          console.log('search clicked');
-        }}
+        onSearch={() => undefined}
       />
 
       {/* Booking Information Card */}

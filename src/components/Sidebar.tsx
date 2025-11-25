@@ -20,11 +20,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
   const menuItems = menus;
 
+  const handleOverlayKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onClose) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClose();
+    }
+  };
+
   return (
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity lg:hidden" onClick={onClose} />
+        <div
+          aria-label="Close sidebar overlay"
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity lg:hidden"
+          role="button"
+          tabIndex={0}
+          onClick={onClose}
+          onKeyDown={handleOverlayKeyDown}
+        />
       )}
 
       {/* Sidebar */}

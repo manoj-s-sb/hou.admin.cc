@@ -148,9 +148,7 @@ const Tours = () => {
         inputPlaceholder="Search tour..."
         title="Tour Details"
         value=""
-        onSearch={() => {
-          console.log('search clicked');
-        }}
+        onSearch={() => undefined}
       />
 
       {/* Date Filter */}
@@ -187,9 +185,7 @@ const Tours = () => {
           }}
           loading={isLoading}
           selectedItem={null}
-          onSelectItem={() => {
-            console.log('select item clicked');
-          }}
+          onSelectItem={() => undefined}
         />
       </div>
     </div>

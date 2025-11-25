@@ -178,9 +178,7 @@ const Induction = () => {
           }}
           loading={isLoading}
           selectedItem={null}
-          onSelectItem={() => {
-            console.log('select item clicked');
-          }}
+          onSelectItem={() => undefined}
         />
       </div>
     </div>

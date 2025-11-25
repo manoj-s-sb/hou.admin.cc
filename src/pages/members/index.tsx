@@ -173,8 +173,14 @@ const Members = () => {
   };
 
   useEffect(() => {
-    dispatch(getMembers(buildRequestPayload()));
-  }, [dispatch]);
+    dispatch(
+      getMembers({
+        skip: 0,
+        limit: currentLimit,
+        facilityCode: 'HOU01',
+      })
+    );
+  }, [dispatch, currentLimit]);
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({
@@ -211,8 +217,8 @@ const Members = () => {
               Email
             </label>
             <input
-              id="member-email-filter"
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="member-email-filter"
               placeholder="Search members by email"
               type="text"
               value={filters.email}
@@ -224,8 +230,8 @@ const Members = () => {
               Billing Cycle
             </label>
             <select
-              id="member-billing-cycle-filter"
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="member-billing-cycle-filter"
               value={filters.billingCycle}
               onChange={e => handleFilterChange('billingCycle', e.target.value)}
             >
@@ -239,8 +245,8 @@ const Members = () => {
               Subscription Type
             </label>
             <select
-              id="member-subscription-type-filter"
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="member-subscription-type-filter"
               value={filters.subscriptionType}
               onChange={e => handleFilterChange('subscriptionType', e.target.value)}
             >
@@ -255,8 +261,8 @@ const Members = () => {
               Status
             </label>
             <select
-              id="member-status-filter"
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="member-status-filter"
               value={filters.status}
               onChange={e => handleFilterChange('status', e.target.value)}
             >

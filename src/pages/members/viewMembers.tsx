@@ -77,9 +77,7 @@ const ViewMembers = () => {
           title="Member Details"
           value=""
           onBackClick={() => navigate('/members')}
-          onSearch={() => {
-            console.log('search clicked');
-          }}
+          onSearch={() => undefined}
         />
 
         {/* Main Content Grid */}
