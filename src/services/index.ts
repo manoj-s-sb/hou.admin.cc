@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+
 import { isTokenExpired } from '../utils/tokenUtils';
 
 // Create axios instance with default configuration
@@ -69,7 +70,7 @@ api.interceptors.response.use(
     // Handle response errors
     if (error.response) {
       // Server responded with error status
-      const status = error.response.status;
+      const { status } = error.response;
 
       if (status === 400) {
         // Bad Request - Log full details for debugging

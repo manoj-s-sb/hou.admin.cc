@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+
 import { safeDate, formatDate, INVALID_DATE_SORT_VALUE } from '../utils/dateUtils';
 
 type SortDirection = 'asc' | 'desc';
@@ -146,10 +147,10 @@ const UserTable: React.FC<TableProps> = ({
       return (
         <svg className="ml-1 h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
+            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
           />
         </svg>
       );
@@ -157,11 +158,11 @@ const UserTable: React.FC<TableProps> = ({
 
     return sortDirection === 'asc' ? (
       <svg className="ml-1 h-3 w-3 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        <path d="M5 15l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
       </svg>
     ) : (
       <svg className="ml-1 h-3 w-3 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
       </svg>
     );
   };
@@ -203,10 +204,10 @@ const UserTable: React.FC<TableProps> = ({
               {emptyState?.icon || (
                 <svg className="mb-3 h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={1.5}
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                   />
                 </svg>
               )}
@@ -276,6 +277,8 @@ const UserTable: React.FC<TableProps> = ({
             </p>
             <div className="flex items-center space-x-1">
               <button
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3"
+                disabled={isServerSidePagination ? currentPage === 0 : currentPage === 1}
                 onClick={() => {
                   if (isServerSidePagination && onPageChange) {
                     onPageChange(Math.max(0, currentPage - itemsPerPage));
@@ -283,8 +286,6 @@ const UserTable: React.FC<TableProps> = ({
                     setInternalCurrentPage(prev => Math.max(1, prev - 1));
                   }
                 }}
-                disabled={isServerSidePagination ? currentPage === 0 : currentPage === 1}
-                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3"
               >
                 Previous
               </button>
@@ -292,6 +293,10 @@ const UserTable: React.FC<TableProps> = ({
                 Page {isServerSidePagination ? currentPage / itemsPerPage + 1 : currentPage} of {totalPages}
               </span>
               <button
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3"
+                disabled={
+                  isServerSidePagination ? currentPage + itemsPerPage >= totalRecords : currentPage === totalPages
+                }
                 onClick={() => {
                   if (isServerSidePagination && onPageChange) {
                     onPageChange(Math.min((totalPages - 1) * itemsPerPage, currentPage + itemsPerPage));
@@ -299,10 +304,6 @@ const UserTable: React.FC<TableProps> = ({
                     setInternalCurrentPage(prev => Math.min(totalPages, prev + 1));
                   }
                 }}
-                disabled={
-                  isServerSidePagination ? currentPage + itemsPerPage >= totalRecords : currentPage === totalPages
-                }
-                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3"
               >
                 Next
               </button>

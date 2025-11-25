@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { formatDateChicago, formatDateTimeChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
-import SectionTitle from '../../components/SectionTitle';
-import { useNavigate } from 'react-router-dom';
+
+import { toast } from 'react-hot-toast';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../../store/store';
+import { useNavigate } from 'react-router-dom';
+
+import SectionTitle from '../../components/SectionTitle';
 import { getInductionStepsDetails, updateInductionSteps } from '../../store/induction/api';
 import { SubStep } from '../../store/induction/types';
-import { toast } from 'react-hot-toast';
 import { activateUserSubscription } from '../../store/members/api';
+import { RootState, AppDispatch } from '../../store/store';
+import { formatDateChicago, formatDateTimeChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
 
 // Helper function to convert camelCase to readable title
 const formatStepTitle = (id: string): string => {
@@ -61,29 +63,29 @@ const ConfirmationModal = ({
           </p>
           <div className="flex space-x-3">
             <button
-              onClick={onClose}
-              disabled={isSaving || isSubscriptionActivation}
               className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isSaving || isSubscriptionActivation}
+              onClick={onClose}
             >
               Cancel
             </button>
             <button
-              onClick={onConfirm}
-              disabled={isSaving || isSubscriptionActivation}
               className="flex flex-1 items-center justify-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isSaving || isSubscriptionActivation}
+              onClick={onConfirm}
             >
               {isSaving && (
                 <svg
                   className="h-4 w-4 animate-spin text-white"
-                  xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
                 >
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path
                     className="opacity-75"
-                    fill="currentColor"
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    fill="currentColor"
                   ></path>
                 </svg>
               )}
@@ -101,7 +103,7 @@ const AccordionItem = ({
   email,
   firstName,
   lastName,
-  isInductionCompleted,
+  //isInductionCompleted,
   isPrimary,
   isOpen,
   onToggle,
@@ -176,8 +178,8 @@ const AccordionItem = ({
     <div className="mb-3 overflow-hidden rounded-lg border border-gray-200">
       {/* Accordion Header */}
       <button
-        onClick={onToggle}
         className="flex w-full items-start justify-between bg-white px-3 py-3 transition-colors hover:bg-gray-50 sm:items-center sm:px-6 sm:py-4"
+        onClick={onToggle}
       >
         <div className="flex min-w-0 flex-1 items-start space-x-2 sm:items-center sm:space-x-4">
           {/* User Avatar */}
@@ -230,7 +232,7 @@ const AccordionItem = ({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
             </svg>
           </div>
         </div>
@@ -242,7 +244,7 @@ const AccordionItem = ({
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
         </svg>
       </button>
 
@@ -262,9 +264,9 @@ const AccordionItem = ({
                 <div className="flex items-center justify-center space-x-2">
                   <svg
                     className="h-5 w-5 animate-spin text-blue-600"
-                    xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
                   >
                     <circle
                       className="opacity-25"
@@ -276,8 +278,8 @@ const AccordionItem = ({
                     ></circle>
                     <path
                       className="opacity-75"
-                      fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      fill="currentColor"
                     ></path>
                   </svg>
                   <span className="text-sm text-gray-600">Loading induction steps...</span>
@@ -304,14 +306,14 @@ const AccordionItem = ({
                       {/* Checkbox */}
                       <div className="flex-shrink-0 pt-1">
                         <input
-                          type="checkbox"
-                          id={`step-${userId}-${step.id}`}
                           checked={isCompleted}
-                          disabled={isOriginallyCompleted}
-                          onChange={() => toggleStep(step.id)}
                           className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 sm:h-5 sm:w-5 ${
                             isOriginallyCompleted ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
                           }`}
+                          disabled={isOriginallyCompleted}
+                          id={`step-${userId}-${step.id}`}
+                          type="checkbox"
+                          onChange={() => toggleStep(step.id)}
                         />
                       </div>
 
@@ -350,9 +352,9 @@ const AccordionItem = ({
                           viewBox="0 0 20 20"
                         >
                           <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                             clipRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            fillRule="evenodd"
                           />
                         </svg>
                       )}
@@ -367,20 +369,20 @@ const AccordionItem = ({
           {data?.status !== 'completed' && (
             <div className="mt-4 flex justify-stretch sm:mt-6 sm:justify-end">
               <button
-                onClick={handleSaveClick}
-                disabled={isSaving || isSubscriptionActivation}
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   isSaving || isSubscriptionActivation
                     ? 'cursor-not-allowed bg-blue-400'
                     : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
                 }`}
+                disabled={isSaving || isSubscriptionActivation}
+                onClick={handleSaveClick}
               >
                 {isSaving && (
                   <svg
                     className="h-4 w-4 animate-spin text-white"
-                    xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
                   >
                     <circle
                       className="opacity-25"
@@ -392,8 +394,8 @@ const AccordionItem = ({
                     ></circle>
                     <path
                       className="opacity-75"
-                      fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      fill="currentColor"
                     ></path>
                   </svg>
                 )}
@@ -409,10 +411,10 @@ const AccordionItem = ({
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={showConfirmModal}
-        onClose={handleCancelSave}
-        onConfirm={handleConfirmSave}
         isSaving={isSaving}
         isSubscriptionActivation={isSubscriptionActivation}
+        onClose={handleCancelSave}
+        onConfirm={handleConfirmSave}
       />
     </div>
   );
@@ -499,13 +501,15 @@ const ViewInduction = () => {
     <div className="mx-auto w-full p-3 sm:p-4 md:p-6">
       {/* Header Section */}
       <SectionTitle
-        title="View Induction"
+        description="Manage and track induction progress for all participants"
         inputPlaceholder=""
         search={false}
-        onBackClick={() => navigate('/induction')}
+        title="View Induction"
         value=""
-        onSearch={() => {}}
-        description="Manage and track induction progress for all participants"
+        onBackClick={() => navigate('/induction')}
+        onSearch={() => {
+          console.log('search clicked');
+        }}
       />
 
       {/* Booking Information Card */}
@@ -566,19 +570,19 @@ const ViewInduction = () => {
         <div className="mb-4">
           <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-700 sm:text-sm">Primary User</h3>
           <AccordionItem
-            userId={data?.userId || ''}
+            data={data}
+            dispatch={dispatch}
             email={data?.email || ''}
             firstName={data?.firstName || ''}
-            lastName={data?.lastName || ''}
             isInductionCompleted={data?.isInductionCompleted || false}
-            isPrimary={true}
             isOpen={openAccordions.includes(data?.userId || '')}
-            onToggle={() => toggleAccordion(data?.userId || '')}
-            dispatch={dispatch}
-            onSaveInduction={handleSaveInduction}
+            isPrimary={true}
             isSaving={savingUserId === data?.userId}
             isSubscriptionActivation={members?.isSubscriptionActivation}
-            data={data}
+            lastName={data?.lastName || ''}
+            userId={data?.userId || ''}
+            onSaveInduction={handleSaveInduction}
+            onToggle={() => toggleAccordion(data?.userId || '')}
           />
         </div>
 
@@ -591,19 +595,19 @@ const ViewInduction = () => {
             {data.members.map(member => (
               <AccordionItem
                 key={member.userId}
-                userId={member.userId}
+                data={data}
+                dispatch={dispatch}
                 email={member.email}
                 firstName={member.firstName}
-                lastName={member.lastName}
                 isInductionCompleted={member.isInductionCompleted}
-                isPrimary={false}
                 isOpen={openAccordions.includes(member.userId)}
-                onToggle={() => toggleAccordion(member.userId)}
-                dispatch={dispatch}
-                onSaveInduction={handleSaveInduction}
+                isPrimary={false}
                 isSaving={savingUserId === member.userId}
                 isSubscriptionActivation={members?.isSubscriptionActivation}
-                data={data}
+                lastName={member.lastName}
+                userId={member.userId}
+                onSaveInduction={handleSaveInduction}
+                onToggle={() => toggleAccordion(member.userId)}
               />
             ))}
           </div>

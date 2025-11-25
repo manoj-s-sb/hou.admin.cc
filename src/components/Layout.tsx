@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Sidebar from './Sidebar';
+
 import { useDispatch } from 'react-redux';
-import { logout as logoutAction } from '../store/auth/reducers';
 import { useNavigate } from 'react-router-dom';
+
+import { logout as logoutAction } from '../store/auth/reducers';
+
+import Sidebar from './Sidebar';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -76,9 +79,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
           {/* Mobile Menu Button */}
           <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="rounded-xl border border-gray-200 p-2.5 text-gray-600 transition-all duration-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 lg:hidden"
             aria-label="Open sidebar"
+            className="rounded-xl border border-gray-200 p-2.5 text-gray-600 transition-all duration-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 lg:hidden"
+            onClick={() => setIsSidebarOpen(true)}
           >
             <svg
               className="h-6 w-6"
@@ -87,15 +90,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
             </svg>
           </button>
 
           <div className="flex-1"></div>
-          <div className="relative" ref={profileMenuRef}>
+          <div ref={profileMenuRef} className="relative">
             <button
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 hover:shadow-md"
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-md ring-2 ring-indigo-100">
                 {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'U'}
@@ -114,7 +117,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
               </svg>
             </button>
             {showProfileMenu && (
@@ -129,15 +132,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </span>
                 </div>
                 <button
-                  onClick={handleLogout}
                   className="mt-1 flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                  onClick={handleLogout}
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                     />
                   </svg>
                   <span>Logout</span>

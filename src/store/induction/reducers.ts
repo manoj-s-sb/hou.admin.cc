@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { initialState } from './types';
+
 import { inductionList, getInductionStepsDetails, updateInductionSteps, updateTourStatus } from './api';
+import { initialState } from './types';
 
 const inductionSlice = createSlice({
   name: 'induction',

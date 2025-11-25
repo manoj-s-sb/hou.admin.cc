@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store/store';
-import { getSingleMemberDetails } from '../../store/members/api';
-import { useParams, useNavigate } from 'react-router-dom';
+
 import {
   CreditCard,
   User,
@@ -15,7 +12,12 @@ import {
   Calendar,
   Mail,
 } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useParams, useNavigate } from 'react-router-dom';
+
 import SectionTitle from '../../components/SectionTitle';
+import { getSingleMemberDetails } from '../../store/members/api';
+import { AppDispatch, RootState } from '../../store/store';
 
 const ViewMembers = () => {
   const { memberDetails, isLoading } = useSelector((state: RootState) => state.members);
@@ -57,7 +59,7 @@ const ViewMembers = () => {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-lg text-gray-500">No member details found</p>
-          <button onClick={() => navigate('/members')} className="mt-4 font-medium text-blue-600 hover:text-blue-700">
+          <button className="mt-4 font-medium text-blue-600 hover:text-blue-700" onClick={() => navigate('/members')}>
             Go back to members list
           </button>
         </div>
@@ -69,13 +71,15 @@ const ViewMembers = () => {
     <div className="min-h-screen bg-gray-50 px-3 py-4 sm:px-4 sm:py-6 lg:px-8 lg:py-8">
       <div className="mx-auto w-full">
         <SectionTitle
-          title="Member Details"
+          description="View member subscription details and account information"
           inputPlaceholder=""
           search={false}
-          onBackClick={() => navigate('/members')}
+          title="Member Details"
           value=""
-          onSearch={() => {}}
-          description="View member subscription details and account information"
+          onBackClick={() => navigate('/members')}
+          onSearch={() => {
+            console.log('search clicked');
+          }}
         />
 
         {/* Main Content Grid */}
@@ -90,9 +94,9 @@ const ViewMembers = () => {
                   <div className="relative">
                     {memberDetails.profileImageUrl ? (
                       <img
-                        src={memberDetails.profileImageUrl}
                         alt={`${memberDetails.firstName} ${memberDetails.lastName}`}
                         className="h-28 w-28 rounded-full border-4 border-white object-cover shadow-xl sm:h-32 sm:w-32"
+                        src={memberDetails.profileImageUrl}
                       />
                     ) : (
                       <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-gray-100 to-gray-200 shadow-xl sm:h-32 sm:w-32">
@@ -250,8 +254,8 @@ const ViewMembers = () => {
                 {/* Induction Steps Accordion */}
                 <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
                   <button
-                    onClick={() => toggleAccordion('inductionSteps')}
                     className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50"
+                    onClick={() => toggleAccordion('inductionSteps')}
                   >
                     <div className="flex items-center">
                       <CheckCircle className="mr-2 h-5 w-5 text-blue-600" />

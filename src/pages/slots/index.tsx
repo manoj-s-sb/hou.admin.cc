@@ -6,4 +6,4 @@ const SlotBookings: React.FC = () => {
   );
 };
 
-export default SlotBookings; 
+export default SlotBookings;

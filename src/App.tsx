@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
+
+import { Toaster } from 'react-hot-toast';
+import { Provider } from 'react-redux';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import ProtectedRoute from './components/ProtectedRoute';
+
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import SessionExpiredModal from './components/SessionExpiredModal';
 import {
   Login,
   Dashboard,
@@ -13,11 +18,8 @@ import {
   ViewMembers,
   SlotBookings,
 } from './pages';
-import { Provider } from 'react-redux';
-import store from './store/store';
-import { Toaster } from 'react-hot-toast';
-import SessionExpiredModal from './components/SessionExpiredModal';
 import { setSessionExpiredCallback } from './services';
+import store from './store/store';
 
 const AppRoutes: React.FC = () => {
   const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] = useState(false);
@@ -32,9 +34,8 @@ const AppRoutes: React.FC = () => {
   return (
     <>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route element={<Login />} path="/login" />
         <Route
-          path="/dashboard"
           element={
             <ProtectedRoute>
               <Layout>
@@ -42,9 +43,9 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
+          path="/dashboard"
         />
         <Route
-          path="/users"
           element={
             <ProtectedRoute>
               <Layout>
@@ -52,9 +53,9 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
+          path="/users"
         />
         <Route
-          path="/induction"
           element={
             <ProtectedRoute>
               <Layout>
@@ -62,9 +63,9 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
+          path="/induction"
         />
         <Route
-          path="/view-induction"
           element={
             <ProtectedRoute>
               <Layout>
@@ -72,9 +73,9 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
+          path="/view-induction"
         />
         <Route
-          path="/tour"
           element={
             <ProtectedRoute>
               <Layout>
@@ -82,9 +83,9 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
+          path="/tour"
         />
         <Route
-          path="/members"
           element={
             <ProtectedRoute>
               <Layout>
@@ -92,9 +93,9 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
+          path="/members"
         />
         <Route
-          path="/members/:userId"
           element={
             <ProtectedRoute>
               <Layout>
@@ -102,9 +103,9 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
+          path="/members/:userId"
         />
         <Route
-          path="/slot-bookings"
           element={
             <ProtectedRoute>
               <Layout>
@@ -112,8 +113,9 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
+          path="/slot-bookings"
         />
-        <Route path="/" element={<Navigate to="/induction" replace />} />
+        <Route element={<Navigate replace to="/induction" />} path="/" />
       </Routes>
 
       {/* Global Session Expired Modal */}

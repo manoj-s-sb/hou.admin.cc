@@ -1,4 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
+
 import { getMembers, getSingleMemberDetails, activateUserSubscription } from './api';
 import { initialState } from './types';
 

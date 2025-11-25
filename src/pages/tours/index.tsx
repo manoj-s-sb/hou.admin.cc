@@ -1,12 +1,14 @@
+import { useEffect, useState } from 'react';
+
+import { Loader } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { useDispatch, useSelector } from 'react-redux';
+
 import SectionTitle from '../../components/SectionTitle';
 import UserTable, { ColumnDef } from '../../components/UserTable';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store/store';
-import { useEffect, useState } from 'react';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
+import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
-import toast from 'react-hot-toast';
-import { Loader } from 'lucide-react';
 
 const Tours = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -93,7 +95,9 @@ const Tours = () => {
       sortable: false,
       renderCell: (params: any) => (
         <button
+          className={`rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 ${params.row?.status === 'completed' ? 'cursor-not-allowed opacity-50' : ''}`}
           disabled={params.row?.status === 'completed'}
+          title="Mark tour as completed"
           onClick={() => {
             dispatch(
               updateTourStatus({
@@ -119,8 +123,6 @@ const Tours = () => {
                 }
               });
           }}
-          className={`rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 ${params.row?.status === 'completed' ? 'cursor-not-allowed opacity-50' : ''}`}
-          title="Mark tour as completed"
         >
           {isLoading ? <Loader className="h-4 w-4 animate-spin" /> : 'Mark Complete'}
         </button>
@@ -142,47 +144,51 @@ const Tours = () => {
   return (
     <div className="w-full max-w-full">
       <SectionTitle
-        title="Tour Details"
         description="Manage your tour details."
         inputPlaceholder="Search tour..."
+        title="Tour Details"
         value=""
-        onSearch={() => {}}
+        onSearch={() => {
+          console.log('search clicked');
+        }}
       />
 
       {/* Date Filter */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <label htmlFor="induction-date" className="whitespace-nowrap text-sm font-medium text-gray-700">
+        <label className="whitespace-nowrap text-sm font-medium text-gray-700" htmlFor="induction-date">
           Select Date:
         </label>
         <input
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
           id="induction-date"
           type="date"
           value={selectedDate}
           onChange={e => setSelectedDate(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
         />
       </div>
 
       <div className="overflow-x-auto">
         <UserTable
-          data={inductionListData.bookings}
           columns={inductionColumns}
-          selectedItem={null}
-          loading={isLoading}
-          onSelectItem={() => {}}
+          data={inductionListData.bookings}
           emptyState={{
             icon: (
               <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={1.5}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
             ),
             title: 'No tour found',
             subtitle: '.',
+          }}
+          loading={isLoading}
+          selectedItem={null}
+          onSelectItem={() => {
+            console.log('select item clicked');
           }}
         />
       </div>

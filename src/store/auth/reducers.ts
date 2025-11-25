@@ -1,7 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { initialState } from './types';
-import { login } from './api';
+
 import { saveTokenExpirationTime, clearTokenExpirationTime } from '../../utils/tokenUtils';
+
+import { login } from './api';
+import { initialState } from './types';
 
 const authSlice = createSlice({
   name: 'auth',

@@ -29,8 +29,8 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
         <div className="flex items-center gap-3">
           {onBackClick && (
             <button
-              onClick={onBackClick}
               className="rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:text-gray-600"
+              onClick={onBackClick}
             >
               <svg
                 className="h-5 w-5"
@@ -39,7 +39,7 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                <path d="M10 19l-7-7m0 0l7-7m-7 7h18" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
               </svg>
             </button>
           )}
@@ -59,26 +59,26 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
             </span>
             <input
-              type="text"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-12 pr-32 text-sm text-gray-700 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200"
               placeholder={inputPlaceholder}
+              type="text"
               value={value}
               onChange={e => onSearch?.(e.target.value)}
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-12 pr-32 text-sm text-gray-700 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200"
             />
             {value && (
               <button
-                type="button"
-                onClick={onClear}
                 aria-label="Clear search"
                 className="absolute right-24 text-gray-400 transition-colors hover:text-gray-600"
+                type="button"
+                onClick={onClear}
               >
                 <svg
                   className="h-4 w-4"
@@ -87,14 +87,14 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
                 </svg>
               </button>
             )}
             <button
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow transition-all hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               type="button"
               onClick={onSearchClick}
-              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow transition-all hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               Search
             </button>

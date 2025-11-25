@@ -1,9 +1,11 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
+
 import endpoints from '../../constants/endpoints';
 import api from '../../services';
-import { ActivateSubscriptionRequest, MemberRequest } from './types';
 import { handleApiError } from '../../utils/errorUtils';
+
+import { ActivateSubscriptionRequest, MemberRequest } from './types';
 
 export const getMembers = createAsyncThunk(
   'members/getMembers',

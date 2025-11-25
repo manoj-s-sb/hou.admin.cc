@@ -1,22 +1,18 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Calendar, dateFnsLocalizer, View, SlotInfo } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, setHours, setMinutes, addDays } from 'date-fns';
-import { enUS } from 'date-fns/locale';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { Plus, X } from 'lucide-react';
-import SectionTitle from '../../components/SectionTitle';
 
-// Setup the localizer for react-big-calendar
-const locales = {
-  'en-US': enUS,
-};
+import { addDays, format, getDay, parse, setHours, setMinutes, startOfWeek } from 'date-fns';
+import { Plus, X } from 'lucide-react';
+import { Calendar, SlotInfo, View, dateFnsLocalizer } from 'react-big-calendar';
+
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+import SectionTitle from '../../components/SectionTitle';
 
 const localizer = dateFnsLocalizer({
   format,
   parse,
   startOfWeek,
   getDay,
-  locales,
 });
 
 // Event interface
@@ -214,36 +210,36 @@ const Dashboard: React.FC = () => {
     <div className="mx-auto">
       {/* Calendar Section */}
       <SectionTitle
-        title="Slot Bookings"
         description="Manage your slot bookings."
         inputPlaceholder=""
-        value=""
         search={false}
+        title="Slot Bookings"
+        value=""
       />
 
       <div className="calendar-container" style={{ height: '700px', marginTop: '30px' }}>
         <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          view={view}
-          onView={setView}
-          date={date}
-          onNavigate={setDate}
-          onSelectSlot={handleSelectSlot}
-          onSelectEvent={handleSelectEvent}
           selectable
-          eventPropGetter={eventStyleGetter}
-          formats={formats}
-          min={setMinutes(setHours(new Date(), 9), 0)} // 9 AM
-          max={setMinutes(setHours(new Date(), 18), 0)} // 6 PM
-          step={45} // 45-minute slots
-          timeslots={1} // One slot per step
-          defaultView="week"
-          views={['month', 'week', 'day', 'agenda']}
-          style={{ height: '100%' }}
           className="modern-calendar"
+          date={date}
+          defaultView="week"
+          endAccessor="end"
+          eventPropGetter={eventStyleGetter}
+          events={events}
+          formats={formats}
+          localizer={localizer}
+          max={setMinutes(setHours(new Date(), 18), 0)} // 6 PM
+          min={setMinutes(setHours(new Date(), 9), 0)} // 9 AM
+          startAccessor="start"
+          step={45} // 45-minute slots
+          style={{ height: '100%' }}
+          timeslots={1} // One slot per step
+          view={view}
+          views={['month', 'week', 'day', 'agenda']}
+          onNavigate={setDate}
+          onSelectEvent={handleSelectEvent}
+          onSelectSlot={handleSelectSlot}
+          onView={setView}
         />
       </div>
 
@@ -257,8 +253,8 @@ const Dashboard: React.FC = () => {
                 Add New Event
               </h3>
               <button
-                onClick={() => setShowEventModal(false)}
                 className="text-gray-500 transition-colors hover:text-gray-700"
+                onClick={() => setShowEventModal(false)}
               >
                 <X className="h-6 w-6" />
               </button>
@@ -266,35 +262,44 @@ const Dashboard: React.FC = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Event Title *</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-title">
+                  Event Title *
+                </label>
                 <input
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  id="event-title"
+                  placeholder="Enter event title"
                   type="text"
                   value={newEventTitle}
                   onChange={e => setNewEventTitle(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter event title"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-description">
+                  Description
+                </label>
                 <textarea
-                  value={newEventDescription}
-                  onChange={e => setNewEventDescription(e.target.value)}
                   className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  id="event-description"
                   placeholder="Enter event description"
                   rows={3}
+                  value={newEventDescription}
+                  onChange={e => setNewEventDescription(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Number of Attendees</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-attendees">
+                  Number of Attendees
+                </label>
                 <input
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  id="event-attendees"
+                  placeholder="0"
                   type="number"
                   value={newEventAttendees}
                   onChange={e => setNewEventAttendees(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  placeholder="0"
                 />
               </div>
 
@@ -311,15 +316,15 @@ const Dashboard: React.FC = () => {
 
               <div className="mt-6 flex gap-3">
                 <button
-                  onClick={handleAddEvent}
-                  disabled={!newEventTitle}
                   className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                  disabled={!newEventTitle}
+                  onClick={handleAddEvent}
                 >
                   Add Event
                 </button>
                 <button
-                  onClick={() => setShowEventModal(false)}
                   className="flex-1 rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+                  onClick={() => setShowEventModal(false)}
                 >
                   Cancel
                 </button>
@@ -519,4 +524,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard  ;
+export default Dashboard;
