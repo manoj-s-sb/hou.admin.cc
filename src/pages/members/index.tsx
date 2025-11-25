@@ -172,7 +172,7 @@ const Members = () => {
 
   useEffect(() => {
     dispatch(getMembers(buildRequestPayload()));
-  }, [dispatch, buildRequestPayload]);
+  }, [dispatch]);
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({
