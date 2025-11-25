@@ -8,7 +8,7 @@
  */
 export const saveTokenExpirationTime = (expiresIn: number): void => {
   const expirationTime = Date.now() + expiresIn * 1000; // Convert to milliseconds
-  localStorage.setItem("tokenExpirationTime", expirationTime.toString());
+  localStorage.setItem('tokenExpirationTime', expirationTime.toString());
 };
 
 /**
@@ -16,11 +16,11 @@ export const saveTokenExpirationTime = (expiresIn: number): void => {
  * @returns true if token is expired, false otherwise
  */
 export const isTokenExpired = (): boolean => {
-  const expirationTimeStr = localStorage.getItem("tokenExpirationTime");
+  const expirationTimeStr = localStorage.getItem('tokenExpirationTime');
 
   if (!expirationTimeStr) {
     // If no expiration time is stored, check if tokens exist
-    const tokens = localStorage.getItem("tokens");
+    const tokens = localStorage.getItem('tokens');
     return !tokens; // Token is expired if no tokens exist
   }
 
@@ -37,7 +37,7 @@ export const isTokenExpired = (): boolean => {
  * Clear token expiration time from localStorage
  */
 export const clearTokenExpirationTime = (): void => {
-  localStorage.removeItem("tokenExpirationTime");
+  localStorage.removeItem('tokenExpirationTime');
 };
 
 /**
@@ -45,7 +45,7 @@ export const clearTokenExpirationTime = (): void => {
  * @returns remaining time in seconds, or 0 if expired
  */
 export const getTokenRemainingTime = (): number => {
-  const expirationTimeStr = localStorage.getItem("tokenExpirationTime");
+  const expirationTimeStr = localStorage.getItem('tokenExpirationTime');
 
   if (!expirationTimeStr) {
     return 0;

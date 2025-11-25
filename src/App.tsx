@@ -1,12 +1,7 @@
-import React, { useEffect, useState } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Layout from "./components/Layout";
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
 import {
   Login,
   Dashboard,
@@ -16,16 +11,16 @@ import {
   Tours,
   Members,
   ViewMembers,
-} from "./pages";
-import { Provider } from "react-redux";
-import store from "./store/store";
-import { Toaster } from "react-hot-toast";
-import SessionExpiredModal from "./components/SessionExpiredModal";
-import { setSessionExpiredCallback } from "./services";
+  SlotBookings,
+} from './pages';
+import { Provider } from 'react-redux';
+import store from './store/store';
+import { Toaster } from 'react-hot-toast';
+import SessionExpiredModal from './components/SessionExpiredModal';
+import { setSessionExpiredCallback } from './services';
 
 const AppRoutes: React.FC = () => {
-  const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] =
-    useState(false);
+  const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] = useState(false);
 
   useEffect(() => {
     // Set up the session expired callback
@@ -108,14 +103,21 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/slot-bookings"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <SlotBookings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
         <Route path="/" element={<Navigate to="/induction" replace />} />
       </Routes>
 
       {/* Global Session Expired Modal */}
-      <SessionExpiredModal
-        isOpen={isSessionExpiredModalOpen}
-        onClose={() => setIsSessionExpiredModalOpen(false)}
-      />
+      <SessionExpiredModal isOpen={isSessionExpiredModalOpen} onClose={() => setIsSessionExpiredModalOpen(false)} />
     </>
   );
 };

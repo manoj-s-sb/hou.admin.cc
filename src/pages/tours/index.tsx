@@ -1,29 +1,24 @@
-import SectionTitle from "../../components/SectionTitle";
-import UserTable, { ColumnDef } from "../../components/UserTable";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "../../store/store";
-import { useEffect, useState } from "react";
-import { inductionList, updateTourStatus } from "../../store/induction/api";
-import {
-  formatDateChicago,
-  formatTimeRangeChicago,
-} from "../../utils/dateUtils";
-import toast from "react-hot-toast";
-import { Loader } from "lucide-react";
+import SectionTitle from '../../components/SectionTitle';
+import UserTable, { ColumnDef } from '../../components/UserTable';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../../store/store';
+import { useEffect, useState } from 'react';
+import { inductionList, updateTourStatus } from '../../store/induction/api';
+import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
+import toast from 'react-hot-toast';
+import { Loader } from 'lucide-react';
 
 const Tours = () => {
   const dispatch = useDispatch<AppDispatch>();
 
-  const { inductionList: inductionListData, isLoading } = useSelector(
-    (state: RootState) => state.induction,
-  );
+  const { inductionList: inductionListData, isLoading } = useSelector((state: RootState) => state.induction);
 
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState('');
 
   const inductionColumns: ColumnDef[] = [
     {
-      field: "S.No",
-      headerName: "S.No",
+      field: 'S.No',
+      headerName: 'S.No',
       width: 80,
       sortable: false,
       valueGetter: (params: any) => {
@@ -32,114 +27,102 @@ const Tours = () => {
       },
     },
     {
-      field: "firstName",
-      headerName: "Name",
+      field: 'firstName',
+      headerName: 'Name',
       flex: 1.2,
       sortable: true,
-      valueGetter: (params) => {
-        const firstName = params.row?.firstName || "";
-        const lastName = params.row?.lastName || "";
+      valueGetter: params => {
+        const firstName = params.row?.firstName || '';
+        const lastName = params.row?.lastName || '';
         return `${firstName} ${lastName}`.trim();
       },
     },
     {
-      field: "email",
-      headerName: "Email",
+      field: 'email',
+      headerName: 'Email',
       flex: 1.5,
       sortable: true,
-      valueGetter: (params) => {
-        return params.row?.email || "";
+      valueGetter: params => {
+        return params.row?.email || '';
       },
     },
     {
-      field: "bookingCode",
-      headerName: "Booking Date",
+      field: 'bookingCode',
+      headerName: 'Booking Date',
       flex: 1.2,
       sortable: false,
-      valueGetter: (params) => {
+      valueGetter: params => {
         return formatDateChicago(params.row?.timeSlot?.startTime);
       },
     },
     {
-      field: "Slot Time",
-      headerName: "Slot Time",
+      field: 'Slot Time',
+      headerName: 'Slot Time',
       flex: 1.2,
       sortable: true,
-      valueGetter: (params) => {
+      valueGetter: params => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
 
-        if (!startTime || !endTime) return "";
+        if (!startTime || !endTime) return '';
 
         return formatTimeRangeChicago(startTime, endTime);
       },
     },
     {
-      field: "status",
-      headerName: "Status",
+      field: 'status',
+      headerName: 'Status',
       flex: 1,
       sortable: true,
       renderCell: (params: any) => {
-        const status = params.row?.status || "pending";
+        const status = params.row?.status || 'pending';
         const statusColors = {
-          completed: "bg-green-100 text-green-800",
-          pending: "bg-yellow-100 text-yellow-800",
-          cancelled: "bg-red-100 text-red-800",
+          completed: 'bg-green-100 text-green-800',
+          pending: 'bg-yellow-100 text-yellow-800',
+          cancelled: 'bg-red-100 text-red-800',
         };
-        const colorClass =
-          statusColors[status as keyof typeof statusColors] ||
-          "bg-gray-100 text-gray-800";
+        const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
 
-        return (
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${colorClass}`}
-          >
-            {status}
-          </span>
-        );
+        return <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${colorClass}`}>{status}</span>;
       },
     },
     {
-      field: "actions",
-      headerName: "Actions",
+      field: 'actions',
+      headerName: 'Actions',
       width: 150,
       sortable: false,
       renderCell: (params: any) => (
         <button
-          disabled={params.row?.status === "completed"}
+          disabled={params.row?.status === 'completed'}
           onClick={() => {
             dispatch(
               updateTourStatus({
                 userId: params.row.userId,
                 bookingCode: params.row.bookingCode,
-                status: "completed",
-              }),
+                status: 'completed',
+              })
             )
               .unwrap()
-              .then((res) => {
-                if (res?.status === "success") {
+              .then(res => {
+                if (res?.status === 'success') {
                   dispatch(
                     inductionList({
                       date: selectedDate,
                       page: 1,
-                      type: "tourbooking",
+                      type: 'tourbooking',
                       listLimit: 20,
-                    }),
+                    })
                   );
-                  toast.success("Tour status updated successfully!");
+                  toast.success('Tour status updated successfully!');
                 } else {
-                  toast.error("Failed to update tour status!");
+                  toast.error('Failed to update tour status!');
                 }
               });
           }}
-          className={`px-3 py-2 hover:bg-indigo-600 rounded-lg transition-colors bg-indigo-500 text-white text-sm font-medium ${params.row?.status === "completed" ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={`rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 ${params.row?.status === 'completed' ? 'cursor-not-allowed opacity-50' : ''}`}
           title="Mark tour as completed"
         >
-          {isLoading ? (
-            <Loader className="w-4 h-4 animate-spin" />
-          ) : (
-            "Mark Complete"
-          )}
+          {isLoading ? <Loader className="h-4 w-4 animate-spin" /> : 'Mark Complete'}
         </button>
       ),
     },
@@ -150,9 +133,9 @@ const Tours = () => {
       inductionList({
         date: selectedDate,
         page: 1,
-        type: "tourbooking",
+        type: 'tourbooking',
         listLimit: 20,
-      }),
+      })
     );
   }, [dispatch, selectedDate]);
 
@@ -167,19 +150,16 @@ const Tours = () => {
       />
 
       {/* Date Filter */}
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-        <label
-          htmlFor="induction-date"
-          className="text-sm font-medium text-gray-700 whitespace-nowrap"
-        >
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <label htmlFor="induction-date" className="whitespace-nowrap text-sm font-medium text-gray-700">
           Select Date:
         </label>
         <input
           id="induction-date"
           type="date"
           value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          onChange={e => setSelectedDate(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
         />
       </div>
 
@@ -192,12 +172,7 @@ const Tours = () => {
           onSelectItem={() => {}}
           emptyState={{
             icon: (
-              <svg
-                className="w-16 h-16 text-gray-300 mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -206,8 +181,8 @@ const Tours = () => {
                 />
               </svg>
             ),
-            title: "No tour found",
-            subtitle: ".",
+            title: 'No tour found',
+            subtitle: '.',
           }}
         />
       </div>

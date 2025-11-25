@@ -2,6 +2,10 @@ export interface MemberRequest {
   skip: number;
   limit: number;
   facilityCode: string;
+  email?: string;
+  billingCycle?: 'annual' | 'fortnightly';
+  subscriptionCode?: 'standard' | 'premium' | 'family';
+  subscriptionStatus?: 'active' | 'pendingactivation' | 'paused' | 'canceled' | 'resumed' | 'inactive';
 }
 
 export interface Member {
@@ -64,7 +68,7 @@ export interface MembersInitialState {
 
 export const initialState: MembersInitialState = {
   isLoading: false,
-  error: "",
+  error: '',
   membersList: {
     members: [],
     limit: 15,

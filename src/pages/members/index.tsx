@@ -1,99 +1,132 @@
-import SectionTitle from "../../components/SectionTitle";
-import UserTable, { ColumnDef } from "../../components/UserTable";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "../../store/store";
-import { useEffect } from "react";
-import { getMembers } from "../../store/members/api";
-import { useNavigate } from "react-router-dom";
+import SectionTitle from '../../components/SectionTitle';
+import UserTable, { ColumnDef } from '../../components/UserTable';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../../store/store';
+import { useEffect, useState } from 'react';
+import { getMembers } from '../../store/members/api';
+import { useNavigate } from 'react-router-dom';
+import { MemberRequest } from '../../store/members/types';
 
-const user_svg = "/assets/user.svg";
+const user_svg = '/assets/user.svg';
 
 const Members = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { membersList: membersListData, isLoading } = useSelector(
-    (state: RootState) => state.members
-  );
-
+  const { membersList: membersListData, isLoading } = useSelector((state: RootState) => state.members);
+  type FilterState = {
+    email: string;
+    billingCycle: '' | NonNullable<MemberRequest['billingCycle']>;
+    subscriptionType: '' | NonNullable<MemberRequest['subscriptionCode']>;
+    status: '' | NonNullable<MemberRequest['subscriptionStatus']>;
+  };
+  const defaultFilters: FilterState = {
+    email: '',
+    billingCycle: '',
+    subscriptionType: '',
+    status: '',
+  };
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const membersColumns: ColumnDef[] = [
     {
-      field: "name",
-      headerName: "Name",
-      flex: 2,
+      field: 'name',
+      headerName: 'Name',
+      flex: 1.5,
+      minWidth: 220,
       sortable: false,
       renderCell: (params: any) => {
         const imageUrl = params.row?.profileImageUrl || user_svg;
         const isDefaultImage = !params.row?.profileImageUrl;
-        const fullName =
-          `${params.row?.firstName} ${params.row?.lastName}`.trim();
+        const fullName = `${params.row?.firstName} ${params.row?.lastName}`.trim();
         return (
           <div className="flex items-center gap-3">
             <img
               src={imageUrl}
               alt="Profile"
-              className={`w-11 h-11 rounded-full object-cover border-2 border-indigo-200 shadow-sm ring-2 ring-indigo-50 ${isDefaultImage ? "p-2" : ""}`}
-              onError={(e) => {
-                (e.target as HTMLImageElement).src =
-                  "https://via.placeholder.com/40";
+              className={`h-11 w-11 rounded-full border-2 border-indigo-200 object-cover shadow-sm ring-2 ring-indigo-50 ${isDefaultImage ? 'p-2' : ''}`}
+              onError={e => {
+                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
               }}
             />
             <span className="font-semibold text-gray-900">{fullName}</span>
           </div>
         );
       },
-      valueGetter: (params) => {
+      valueGetter: params => {
         return `${params.row?.firstName} ${params.row?.lastName}`.trim();
       },
     },
     {
-      field: "email",
-      headerName: "Email",
-      flex: 2,
+      field: 'email',
+      headerName: 'Email',
+      flex: 1.5,
+      minWidth: 200,
       sortable: false,
-      valueGetter: (params) => {
-        return params.row?.email || "";
+      valueGetter: params => {
+        return params.row?.email || '';
       },
     },
     {
-      field: "Subscription Type",
-      headerName: "Subscription Type",
-      flex: 1.5,
+      field: 'Billing Cycle',
+      headerName: 'Billing Cycle',
+      flex: 1.3,
+      minWidth: 170,
       sortable: false,
-      valueGetter: (params) => {
-        const type = params.row?.onboardingType || "";
-        if (type === "someoneelse") return "Someone else";
-        if (type === "individual") return "Individual";
-        if (type === "family") return "Family";
+      valueGetter: params => {
+        const billingCycle = params.row?.billingCycle || '';
+        if (billingCycle === 'fortnightly') return 'Fortnightly';
+        if (billingCycle === 'annual') return 'Annual';
+        return billingCycle;
+      },
+    },
+    {
+      field: 'Subscription Type',
+      headerName: 'Subscription Type',
+      flex: 1,
+      minWidth: 170,
+      sortable: false,
+      valueGetter: params => {
+        const type = params.row?.subscriptionCode || '';
+        if (type === 'standard') return 'Standard';
+        if (type === 'premium') return 'Premium';
+        if (type === 'family') return 'Family';
         return type;
       },
     },
     {
-      field: "actions",
-      headerName: "Actions",
-      flex: 0.5,
+      field: 'Subscription Status',
+      headerName: 'Subscription Status',
+      flex: 1.3,
+      minWidth: 170,
+      sortable: false,
+      valueGetter: params => {
+        const type = params.row?.subscriptionStatus || '';
+        if (type === 'pendingactivation') return 'Activation Pending';
+        if (type === 'active') return 'Active';
+        if (type === 'paused') return 'Paused';
+        if (type === 'canceled') return 'Cancelled';
+        if (type === 'resumed') return 'Resumed';
+        if (type === 'inactive') return 'Inactive';
+        return type;
+      },
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 0.8,
+      minWidth: 120,
       sortable: false,
       renderCell: (params: any) => {
         return (
           <button
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               navigate(`/members/${params.row.userId}`);
             }}
-            className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-indigo-600 hover:text-white bg-indigo-50 hover:bg-indigo-600 rounded-lg transition-all duration-200 font-medium text-sm border border-indigo-200 hover:border-indigo-600 shadow-sm hover:shadow-md"
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-600 shadow-sm transition-all duration-200 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white hover:shadow-md"
             title="View member details"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -108,25 +141,136 @@ const Members = () => {
     },
   ];
 
+  const currentLimit = membersListData.limit || 15;
+
+  const buildRequestPayload = (
+    overrides?: Partial<MemberRequest>,
+    appliedFilters: FilterState = filters
+  ): MemberRequest => {
+    const payload: MemberRequest = {
+      skip: overrides?.skip ?? 0,
+      limit: overrides?.limit ?? currentLimit,
+      facilityCode: 'HOU01',
+    };
+
+    const trimmedEmail = appliedFilters.email.trim();
+    if (trimmedEmail) {
+      payload.email = trimmedEmail;
+    }
+    if (appliedFilters.billingCycle) {
+      payload.billingCycle = appliedFilters.billingCycle;
+    }
+    if (appliedFilters.subscriptionType) {
+      payload.subscriptionCode = appliedFilters.subscriptionType;
+    }
+    if (appliedFilters.status) {
+      payload.subscriptionStatus = appliedFilters.status;
+    }
+
+    return payload;
+  };
+
   useEffect(() => {
-    dispatch(
-      getMembers({
-        skip: 0,
-        limit: 15,
-        facilityCode: "HOU01",
-      })
-    );
-  }, [dispatch]);
+    dispatch(getMembers(buildRequestPayload()));
+  }, [dispatch, buildRequestPayload]);
+
+  const handleFilterChange = (key: keyof FilterState, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleApplyFilters = () => {
+    dispatch(getMembers(buildRequestPayload({ skip: 0 })));
+  };
+
+  const handleClearFilters = () => {
+    setFilters(defaultFilters);
+    dispatch(getMembers(buildRequestPayload({ skip: 0 }, defaultFilters)));
+  };
 
   return (
     <div className="w-full max-w-full">
       <SectionTitle
         title="Members & Subscriptions"
         description="View and manage all member subscriptions and account details"
-        inputPlaceholder="Search members by name or email..."
+        inputPlaceholder=""
         value=""
         search={false}
       />
+
+      <div className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600">Email</label>
+            <input
+              type="text"
+              placeholder="Search members by email"
+              value={filters.email}
+              onChange={e => handleFilterChange('email', e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600">Billing Cycle</label>
+            <select
+              value={filters.billingCycle}
+              onChange={e => handleFilterChange('billingCycle', e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            >
+              <option value="">All</option>
+              <option value="annual">Annual</option>
+              <option value="fortnightly">Fortnightly</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600">Subscription Type</label>
+            <select
+              value={filters.subscriptionType}
+              onChange={e => handleFilterChange('subscriptionType', e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            >
+              <option value="">All</option>
+              <option value="standard">Standard</option>
+              <option value="premium">Premium</option>
+              <option value="family">Family</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600">Status</label>
+            <select
+              value={filters.status}
+              onChange={e => handleFilterChange('status', e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            >
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="pendingactivation">Pending Activation</option>
+              <option value="paused">Paused</option>
+              <option value="canceled">Cancelled</option>
+              <option value="resumed">Resumed</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={handleApplyFilters}
+            className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+          >
+            Apply Filters
+          </button>
+        </div>
+      </div>
 
       <div className="overflow-x-auto">
         <UserTable
@@ -138,14 +282,8 @@ const Members = () => {
           totalItems={membersListData.total}
           itemsPerPage={membersListData.limit}
           currentPage={membersListData.skip}
-          onPageChange={(skip) => {
-            dispatch(
-              getMembers({
-                skip,
-                limit: membersListData.limit,
-                facilityCode: "HOU01",
-              })
-            );
+          onPageChange={skip => {
+            dispatch(getMembers(buildRequestPayload({ skip })));
           }}
         />
       </div>

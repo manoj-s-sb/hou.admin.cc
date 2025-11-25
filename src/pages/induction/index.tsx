@@ -1,41 +1,36 @@
-import { useEffect, useState } from "react";
-import SectionTitle from "../../components/SectionTitle";
-import UserTable, { ColumnDef } from "../../components/UserTable";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "../../store/store";
-import { inductionList } from "../../store/induction/api";
-import { useNavigate } from "react-router-dom";
-import { setSelectedInduction } from "../../store/induction/reducers";
-import {
-  formatDateChicago,
-  formatTimeRangeChicago,
-} from "../../utils/dateUtils";
+import { useEffect, useState } from 'react';
+import SectionTitle from '../../components/SectionTitle';
+import UserTable, { ColumnDef } from '../../components/UserTable';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../../store/store';
+import { inductionList } from '../../store/induction/api';
+import { useNavigate } from 'react-router-dom';
+import { setSelectedInduction } from '../../store/induction/reducers';
+import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
 
 const Induction = () => {
-  const { inductionList: inductionListData, isLoading } = useSelector(
-    (state: RootState) => state.induction,
-  );
+  const { inductionList: inductionListData, isLoading } = useSelector((state: RootState) => state.induction);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState('');
 
   useEffect(() => {
     dispatch(
       inductionList({
         date: selectedDate,
         page: 1,
-        type: "inductionbooking",
+        type: 'inductionbooking',
         listLimit: 20,
-      }),
+      })
     );
   }, [dispatch, selectedDate]);
 
   // Define custom columns for the induction table
   const inductionColumns: ColumnDef[] = [
     {
-      field: "S.No",
-      headerName: "S.No",
+      field: 'S.No',
+      headerName: 'S.No',
       width: 80,
       sortable: false,
       valueGetter: (params: any) => {
@@ -44,64 +39,64 @@ const Induction = () => {
       },
     },
     {
-      field: "firstName",
-      headerName: "Name",
+      field: 'firstName',
+      headerName: 'Name',
       flex: 1.2,
       sortable: true,
-      valueGetter: (params) => {
-        const firstName = params.row?.firstName || "";
-        const lastName = params.row?.lastName || "";
+      valueGetter: params => {
+        const firstName = params.row?.firstName || '';
+        const lastName = params.row?.lastName || '';
         return `${firstName} ${lastName}`.trim();
       },
     },
     {
-      field: "email",
-      headerName: "Email",
+      field: 'email',
+      headerName: 'Email',
       flex: 1.5,
       sortable: true,
-      valueGetter: (params) => {
-        return params.row?.email || "";
+      valueGetter: params => {
+        return params.row?.email || '';
       },
     },
     {
-      field: "bookingCode",
-      headerName: "Booking Date",
+      field: 'bookingCode',
+      headerName: 'Booking Date',
       flex: 1.2,
       sortable: false,
-      valueGetter: (params) => {
+      valueGetter: params => {
         return formatDateChicago(params.row?.timeSlot?.startTime);
       },
     },
     {
-      field: "Slot Time",
-      headerName: "Slot Time",
+      field: 'Slot Time',
+      headerName: 'Slot Time',
       flex: 1.2,
       sortable: true,
-      valueGetter: (params) => {
+      valueGetter: params => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
 
-        if (!startTime || !endTime) return "";
+        if (!startTime || !endTime) return '';
 
         return formatTimeRangeChicago(startTime, endTime);
       },
     },
     {
-      field: "onboardingType",
-      headerName: "Subscription Type",
+      field: 'onboardingType',
+      headerName: 'Subscription Type',
       flex: 1.3,
       sortable: true,
-      valueGetter: (params) => {
-        const type = params.row?.onboardingType || "";
-        if (type === "someoneelse") return "Someone else";
-        if (type === "individual") return "Individual";
-        if (type === "family") return "Family";
+      valueGetter: params => {
+        const type = params.row?.onboardingType || '';
+        if (type === 'someoneelse') return 'Someone else';
+        if (type === 'individual') return 'Individual';
+        if (type === 'family') return 'Family';
         return type;
       },
     },
     {
-      field: "actions",
-      headerName: "Actions",
+      field: 'actions',
+      headerName: 'Actions',
       width: 100,
       sortable: false,
       renderCell: (params: any) => (
@@ -110,22 +105,17 @@ const Induction = () => {
             navigate(`/view-induction`);
             dispatch(setSelectedInduction(params.row));
           }}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          className="rounded-full p-2 transition-colors hover:bg-gray-100"
           title="View Details"
         >
           <svg
-            className="w-5 h-5 text-gray-600 hover:text-blue-600"
+            className="h-5 w-5 text-gray-600 hover:text-blue-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -138,7 +128,7 @@ const Induction = () => {
     },
   ];
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
 
   return (
     <div className="w-full max-w-full">
@@ -152,19 +142,16 @@ const Induction = () => {
       />
 
       {/* Date Filter */}
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-        <label
-          htmlFor="induction-date"
-          className="text-sm font-medium text-gray-700 whitespace-nowrap"
-        >
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <label htmlFor="induction-date" className="whitespace-nowrap text-sm font-medium text-gray-700">
           Select Date:
         </label>
         <input
           id="induction-date"
           type="date"
           value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          onChange={e => setSelectedDate(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
         />
       </div>
 
@@ -178,12 +165,7 @@ const Induction = () => {
           loading={isLoading}
           emptyState={{
             icon: (
-              <svg
-                className="w-16 h-16 text-gray-300 mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -192,8 +174,8 @@ const Induction = () => {
                 />
               </svg>
             ),
-            title: "No induction found",
-            subtitle: "Try adjusting your search criteria",
+            title: 'No induction found',
+            subtitle: 'Try adjusting your search criteria',
           }}
         />
       </div>

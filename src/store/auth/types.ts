@@ -6,7 +6,7 @@ export interface User {
   lastName: string;
   userType: string[];
   facilityCode: string;
-  status: "active" | "inactive";
+  status: 'active' | 'inactive';
   createdAt: string;
   lastLoginAt: string;
 }
