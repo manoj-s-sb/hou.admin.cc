@@ -43,7 +43,7 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                     <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
-                  <span
+                  {/* <span
                     className="absolute right-0 flex h-8 w-8 items-center justify-center rounded-full pt-1 text-[15px] font-semibold z-10 rotate-90 top-[10px] cursor-pointer"
                     role="button"
                     tabIndex={0}
@@ -56,7 +56,7 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                     }}
                   >
                     ...
-                  </span>
+                  </span> */}
                 </div>
               ))}
             </div>
@@ -91,7 +91,7 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div className="flex h-full w-full items-center justify-between rounded-[8px] bg-[#21295A] p-4 text-center align-middle text-white">
                             {getDisplayName(currentSlot?.booking?.user)}
-                            <span
+                            {/* <span
                               className="flex rotate-90 items-center justify-center pt-1 text-[15px] font-semibold z-10 cursor-pointer"
                               role="button"
                               tabIndex={0}
@@ -104,7 +104,7 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                               }}
                             >
                               ...
-                            </span>
+                            </span> */}
                           </div>
                         ) : !currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'disabled' ? (
                           <div

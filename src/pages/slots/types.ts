@@ -4,7 +4,6 @@ export interface CalendarHeader {
     month: number;
   };
   setSelectedDate: (date: { day: number; month: number }) => void;
-  monthAbbreviation: string;
   nextSevenDates: {
     day: number;
     month: number;

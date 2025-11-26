@@ -1,12 +1,6 @@
 import { CalendarHeader as CalendarHeaderType } from '../types';
 
-const CalendarHeader = ({
-  selectedDate,
-  setSelectedDate,
-  monthAbbreviation,
-  nextSevenDates,
-  monthName,
-}: CalendarHeaderType) => {
+const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthName }: CalendarHeaderType) => {
   const today = nextSevenDates?.[0];
   const isTodaySelected = Boolean(
     today && selectedDate?.day === today.day && selectedDate?.month === today.month
@@ -83,27 +77,32 @@ const CalendarHeader = ({
         <div className="absolute left-1/2 -translate-x-1/2 text-center text-[18px] font-[400] text-[#21295A]">
           {selectedDate?.day}, {monthName} 2025
         </div>
-        <div className="flex flex-col gap-2">
-          <span className="text-[14px] font-medium text-[#7A7F9C]">{monthAbbreviation}</span>
-          <div className="flex flex-row items-center gap-2">
-            {nextSevenDates.map((date, index) => (
-              <span
-                key={index}
-                className={`cursor-pointer rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-[15px] font-medium text-[#1E293B] ${selectedDate?.day === date.day ? 'bg-[#21295A] text-white' : ''}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedDate({ day: date.day, month: date.month })}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelectedDate({ day: date.day, month: date.month });
-                  }
-                }}
-              >
-                {date.day}
-              </span>
-            ))}{' '}
-          </div>
+        <div className="flex flex-row items-end gap-4">
+          {nextSevenDates.map((date, index) => {
+            const isSelected = selectedDate?.day === date.day;
+            const weekdayLabel = date.fullDate
+              ? date.fullDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+              : '';
+            return (
+              <div className="flex flex-col items-center gap-2 text-center" key={index}>
+                <span className="text-[12px] font-medium text-[#7A7F9C]">{weekdayLabel}</span>
+                <span
+                  className={`cursor-pointer rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-[15px] font-medium text-[#1E293B] ${isSelected ? 'bg-[#21295A] text-white' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedDate({ day: date.day, month: date.month })}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedDate({ day: date.day, month: date.month });
+                    }
+                  }}
+                >
+                  {date.day}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

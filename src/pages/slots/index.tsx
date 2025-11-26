@@ -29,27 +29,7 @@ const SlotBookings: React.FC = () => {
   };
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  const getMonthAbbreviation = (dates: Array<{ day: number; month: number; fullDate: Date }>) => {
-    const monthCounts: { [key: number]: number } = {};
-    // Count dates per month
-    dates.forEach(date => {
-      monthCounts[date.month] = (monthCounts[date.month] || 0) + 1;
-    });
-    // Find the month with the most dates
-    let maxCount = 0;
-    let dominantMonth = dates[0].month; // Default to first date's month
-    Object.keys(monthCounts).forEach(month => {
-      const count = monthCounts[parseInt(month)];
-      if (count > maxCount) {
-        maxCount = count;
-        dominantMonth = parseInt(month);
-      }
-    });
-    return monthNames[dominantMonth];
-  };
   const nextSevenDates = getNextSevenDates();
-  const monthAbbreviation = getMonthAbbreviation(nextSevenDates);
   const [selectedDate, setSelectedDate] = useState({
     day: nextSevenDates[0].day,
     month: nextSevenDates[0].month,
@@ -85,7 +65,6 @@ const SlotBookings: React.FC = () => {
       />
       <div className="flex flex-col gap-4">
         <CalendarHeader
-          monthAbbreviation={monthAbbreviation}
           monthName={monthNames[selectedDate?.month]}
           nextSevenDates={nextSevenDates}
           selectedDate={selectedDate}
