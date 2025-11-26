@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+
 import { BookingUser, Lanes } from '../../../store/slots/types';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
@@ -55,22 +56,30 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
               const zebraBgClass = slotIdx % 2 === 0 ? 'bg-[#DCEDED]' : 'bg-[#E6F3F3]'; // zebra pattern per row for available slots
               return (
                 <button
+                  key={`${slot}-${lane.laneNo}`}
                   className={composeClasses(
                     'flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[transparent] text-[14px] font-medium text-[#21295A] transition hover:border-[#B3DADA] hover:bg-[#fff] hover:text-[#21295A]',
                     slotIdx !== 0 && 'border-t-0',
                     laneIdx !== 0 && 'border-l-0'
                   )}
-                  key={`${slot}-${lane.laneNo}`}
                   type="button"
                 >
                   {/* <div className="h-full w-full bg-green-500" /> */}
 
                   {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
-                    <div className="flex h-full rounded-[8px] w-full items-center justify-between bg-[#21295A] p-4 text-center align-middle text-white">
+                    <div className="flex h-full w-full items-center justify-between rounded-[8px] bg-[#21295A] p-4 text-center align-middle text-white">
                       {getDisplayName(currentSlot?.booking?.user)}
                       <span
-                        onClick={() => alert('Alert button clicked')}
                         className="flex rotate-180 items-center justify-center pt-1 text-[15px] font-semibold"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => alert('Alert button clicked')}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            alert('Alert button clicked');
+                          }
+                        }}
                       >
                         ...
                       </span>

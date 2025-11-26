@@ -29,8 +29,10 @@ const CalendarHeader = ({
           <div className="flex flex-row items-center gap-2">
             {nextSevenDates.map((date, index) => (
               <span
-                className={`cursor-pointer rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-[15px] font-medium text-[#1E293B] ${selectedDate?.day === date.day ? 'bg-[#21295A] text-white' : ''}`}
                 key={index}
+                className={`cursor-pointer rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-[15px] font-medium text-[#1E293B] ${selectedDate?.day === date.day ? 'bg-[#21295A] text-white' : ''}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedDate({ day: date.day, month: date.month })}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -38,8 +40,6 @@ const CalendarHeader = ({
                     setSelectedDate({ day: date.day, month: date.month });
                   }
                 }}
-                role="button"
-                tabIndex={0}
               >
                 {date.day}
               </span>

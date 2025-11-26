@@ -1,13 +1,14 @@
-import { createSlice } from "@reduxjs/toolkit";
-import { getSlots } from "./api";
-import { initialState } from "./types";
+import { createSlice } from '@reduxjs/toolkit';
+
+import { getSlots } from './api';
+import { initialState } from './types';
 
 const slotsSlice = createSlice({
   name: 'slots',
   initialState,
   reducers: {},
-  extraReducers: (builder) => {
-    builder.addCase(getSlots.pending, (state) => {
+  extraReducers: builder => {
+    builder.addCase(getSlots.pending, state => {
       state.isLoading = true;
       state.error = null;
     });

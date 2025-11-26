@@ -1,8 +1,9 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
-import api from '../../services';
 import endpoints from '../../constants/endpoints';
+import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
+
 import { GetSlotsRequest } from './types';
 
 export const getSlots = createAsyncThunk(

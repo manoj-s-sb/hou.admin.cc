@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
+
 import { useDispatch, useSelector } from 'react-redux';
 
 import SectionTitle from '../../components/SectionTitle';
 import { getSlots } from '../../store/slots/api';
 import { AppDispatch, RootState } from '../../store/store';
-import CalendarBody from './components/calendatBody';
+
 import CalendarHeader from './components/calendarHeader';
+import CalendarBody from './components/calendatBody';
 
 const SlotBookings: React.FC = () => {
   const { slots } = useSelector((state: RootState) => state.slots);
-   const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useDispatch<AppDispatch>();
   const getNextSevenDates = () => {
     const dates = [];
     const today = new Date();
@@ -52,7 +54,9 @@ const SlotBookings: React.FC = () => {
     month: nextSevenDates[0].month,
   });
 
-  const selectedDateObject = nextSevenDates.find(date => date.day === selectedDate.day && date.month === selectedDate.month);
+  const selectedDateObject = nextSevenDates.find(
+    date => date.day === selectedDate.day && date.month === selectedDate.month
+  );
   const formattedDate = (() => {
     const dateToFormat = selectedDateObject?.fullDate ?? new Date();
     const year = dateToFormat.getFullYear();
@@ -81,13 +85,13 @@ const SlotBookings: React.FC = () => {
       <div className="flex flex-col gap-4">
         <CalendarHeader
           monthAbbreviation={monthAbbreviation}
+          monthName={monthNames[selectedDate?.month]}
           nextSevenDates={nextSevenDates}
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
-          monthName={monthNames[selectedDate?.month]}
         />
         <div>
-          <CalendarBody lanes={slots?.lanes||[]} timeSlots={slots?.timeSlots||[]} />
+          <CalendarBody lanes={slots?.lanes || []} timeSlots={slots?.timeSlots || []} />
         </div>
       </div>
     </div>
