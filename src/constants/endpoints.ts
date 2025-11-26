@@ -1,4 +1,7 @@
 const endpoints = {
+  slots: {
+    list: '/admin/slots/calendar',
+  },
   login: '/admin/auth/login',
   members: {
     list: '/admin/members/list',

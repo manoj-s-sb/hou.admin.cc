@@ -12,3 +12,9 @@ export interface CalendarHeader {
   }[];
   monthName: string;
 }
+
+export interface Lane {
+  laneId: string;
+  laneName: string;
+  laneType: 'Batting' | 'Hybrid';
+}
