@@ -31,12 +31,28 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
           <div
             key={lane.laneNo}
             className={composeClasses(
-              'flex min-h-[70px] min-w-[110px] flex-col items-center justify-center gap-2 border border-[#B3DADA] bg-[#fff] px-5 py-4 text-center text-[13px] font-semibold text-slate-600',
+              'relative flex min-h-[70px] min-w-[110px] w-full flex-row items-center justify-between gap-4 border border-[#B3DADA] bg-[#fff] px-5 py-4 text-center text-[13px] font-semibold text-slate-600',
               laneIdx !== 0 && 'border-l-0'
             )}
           >
-            <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
-            <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
+            <div className="flex flex-1 flex-col items-center justify-center gap-2">
+              <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
+              <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
+            </div>
+            <span
+              className="absolute right-0 flex h-8 w-8 items-center justify-center rounded-full pt-1 text-[15px] font-semibold z-10 rotate-90 top-[10px] cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => alert('Alert button clicked')}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  alert('Alert button clicked');
+                }
+              }}
+            >
+              ...
+            </span>
           </div>
         ))}
       </div>
@@ -70,7 +86,7 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                     <div className="flex h-full w-full items-center justify-between rounded-[8px] bg-[#21295A] p-4 text-center align-middle text-white">
                       {getDisplayName(currentSlot?.booking?.user)}
                       <span
-                        className="flex rotate-180 items-center justify-center pt-1 text-[15px] font-semibold"
+                        className="flex rotate-90 items-center justify-center pt-1 text-[15px] font-semibold z-10 cursor-pointer"
                         role="button"
                         tabIndex={0}
                         onClick={() => alert('Alert button clicked')}

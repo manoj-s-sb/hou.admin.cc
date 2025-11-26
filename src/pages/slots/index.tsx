@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { Loader } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import SectionTitle from '../../components/SectionTitle';
@@ -10,7 +11,7 @@ import CalendarHeader from './components/calendarHeader';
 import CalendarBody from './components/calendatBody';
 
 const SlotBookings: React.FC = () => {
-  const { slots } = useSelector((state: RootState) => state.slots);
+  const { slots, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
   const getNextSevenDates = () => {
     const dates = [];
@@ -90,7 +91,12 @@ const SlotBookings: React.FC = () => {
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
         />
-        <div>
+        <div className="relative">
+          {isLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[10px] bg-white/80 backdrop-blur-sm">
+              <Loader aria-label="Loading slots" className="h-7 w-7 animate-spin text-[#21295A]" />
+            </div>
+          )}
           <CalendarBody lanes={slots?.lanes || []} timeSlots={slots?.timeSlots || []} />
         </div>
       </div>
