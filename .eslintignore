@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+out/
+dist/
+build/
+
+# Config files (JavaScript)
+*.config.js
+*.config.mjs
+*.config.cjs
+jest.setup.js
+
+# Environment files
+.env*
+!.env.example
+
+# Coverage reports
+coverage/
+
+# TypeScript declaration files
+*.d.ts
+
+# Generated files
+node_modules/
+build/
+*.min.js
+*.bundle.js
+

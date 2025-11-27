@@ -32,19 +32,22 @@ export const safeDate = (value: any): Date | null => {
  * @param timeZone - The time zone to use (default: 'America/Chicago')
  * @returns Formatted date string or 'Invalid Date' if the date is invalid
  */
+const DEFAULT_LOCALE = 'en-US';
+const DEFAULT_TIME_ZONE = 'America/Chicago';
+
 export const formatDate = (
   dateValue: any,
   options: Intl.DateTimeFormatOptions = {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "America/Chicago",
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: DEFAULT_TIME_ZONE,
   },
-  locale: string = "en-US",
-  timeZone: string = "America/Chicago",
+  locale: string = DEFAULT_LOCALE,
+  timeZone: string = DEFAULT_TIME_ZONE
 ): string => {
   const date = safeDate(dateValue);
-  if (!date) return "Invalid Date";
+  if (!date) return 'Invalid Date';
 
   const formatOptions = { ...options, timeZone };
   return date.toLocaleDateString(locale, formatOptions);
@@ -87,16 +90,16 @@ export const INVALID_DATE_SORT_VALUE = Number.MAX_SAFE_INTEGER;
 export const formatDateTime = (
   dateValue: any,
   options: Intl.DateTimeFormatOptions = {
-    hour: "numeric",
-    minute: "2-digit",
+    hour: 'numeric',
+    minute: '2-digit',
     hour12: true,
-    timeZone: "America/Chicago",
+    timeZone: DEFAULT_TIME_ZONE,
   },
-  locale: string = "en-US",
-  timeZone: string = "America/Chicago",
+  locale: string = DEFAULT_LOCALE,
+  timeZone: string = DEFAULT_TIME_ZONE
 ): string => {
   const date = safeDate(dateValue);
-  if (!date) return "Invalid Date";
+  if (!date) return 'Invalid Date';
 
   const formatOptions = { ...options, timeZone };
   return date.toLocaleTimeString(locale, formatOptions);
@@ -109,13 +112,13 @@ export const formatDateTime = (
 export const getTodayDateInChicago = (): string => {
   const today = new Date();
   const options: Intl.DateTimeFormatOptions = {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+    timeZone: DEFAULT_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   };
 
-  const formatter = new Intl.DateTimeFormat("en-CA", options);
+  const formatter = new Intl.DateTimeFormat('en-CA', options);
   return formatter.format(today); // en-CA format gives YYYY-MM-DD
 };
 
@@ -131,14 +134,14 @@ export const getTodayDateInChicago = (): string => {
  */
 export const formatDateChicago = (dateValue: any): string => {
   const date = safeDate(dateValue);
-  if (!date) return "Invalid Date";
+  if (!date) return 'Invalid Date';
 
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "America/Chicago",
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: DEFAULT_TIME_ZONE,
   });
 };
 
@@ -150,13 +153,13 @@ export const formatDateChicago = (dateValue: any): string => {
  */
 export const formatTimeChicago = (dateValue: any): string => {
   const date = safeDate(dateValue);
-  if (!date) return "Invalid Date";
+  if (!date) return 'Invalid Date';
 
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
     hour12: true,
-    timeZone: "America/Chicago",
+    timeZone: DEFAULT_TIME_ZONE,
   });
 };
 
@@ -168,17 +171,17 @@ export const formatTimeChicago = (dateValue: any): string => {
  */
 export const formatDateTimeChicago = (dateValue: any): string => {
   const date = safeDate(dateValue);
-  if (!date) return "Invalid Date";
+  if (!date) return 'Invalid Date';
 
-  return date.toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+  return date.toLocaleString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
     hour12: true,
-    timeZone: "America/Chicago",
+    timeZone: DEFAULT_TIME_ZONE,
   });
 };
 
@@ -189,15 +192,12 @@ export const formatDateTimeChicago = (dateValue: any): string => {
  * @param endTime - The end time value
  * @returns Formatted time range string or 'Invalid Date' if either date is invalid
  */
-export const formatTimeRangeChicago = (
-  startTime: any,
-  endTime: any,
-): string => {
+export const formatTimeRangeChicago = (startTime: any, endTime: any): string => {
   const start = formatTimeChicago(startTime);
   const end = formatTimeChicago(endTime);
 
-  if (start === "Invalid Date" || end === "Invalid Date") {
-    return "Invalid Date";
+  if (start === 'Invalid Date' || end === 'Invalid Date') {
+    return 'Invalid Date';
   }
 
   return `${start} - ${end}`;

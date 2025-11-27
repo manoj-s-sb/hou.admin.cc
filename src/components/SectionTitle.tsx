@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 interface SectionTitleProps {
   title: string;
@@ -6,8 +6,10 @@ interface SectionTitleProps {
   search?: boolean;
   inputPlaceholder: string;
   value: string;
-  onSearch: (value: string) => void;
+  onSearch?: (value: string) => void;
+  onSearchClick?: () => void;
   onBackClick?: () => void;
+  onClear?: () => void;
 }
 
 const SectionTitle: React.FC<SectionTitleProps> = ({
@@ -17,85 +19,89 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   inputPlaceholder,
   value,
   onSearch,
+  onSearchClick,
   onBackClick,
+  onClear,
 }) => {
   return (
-    <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-      <div>
-        <div className="flex items-center gap-3">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 max-[560px]:mb-4 max-[560px]:gap-2">
+      <div className="max-[560px]:min-w-0 max-[560px]:flex-1">
+        <div className="flex items-center gap-3 max-[560px]:gap-2">
           {onBackClick && (
             <button
+              className="rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:text-gray-600 max-[560px]:p-1.5"
               onClick={onBackClick}
-              className="text-gray-400 bg-gray-100 p-2 rounded-full hover:text-gray-600 transition-colors"
             >
               <svg
-                className="w-5 h-5"
+                className="h-5 w-5 max-[560px]:h-4 max-[560px]:w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M10 19l-7-7m0 0l7-7m-7 7h18" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+              </svg>
+            </button>
+          )}
+          <h1 className="m-0 text-[25px] font-bold text-slate-800 max-[560px]:truncate max-[560px]:text-lg">{title}</h1>
+        </div>
+        {description && (
+          <p className="m-0 mt-2 text-[15px] text-gray-600 max-[560px]:mt-1 max-[560px]:line-clamp-2 max-[560px]:text-xs">
+            {description}
+          </p>
+        )}
+      </div>
+      {search && (
+        <div className="min-w-[250px] max-w-xl flex-1">
+          <div className="relative flex items-center">
+            <span className="absolute left-4 text-gray-400">
+              <svg
+                className="h-5 w-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
                 />
               </svg>
-            </button>
-          )}
-          <h1 className="text-[25px] font-bold text-slate-800 m-0">{title}</h1>
-        </div>
-        {description && (
-          <p className="text-[15px] text-gray-600 mt-2 m-0">{description}</p>
-        )}
-      </div>
-      {search && (
-        <div className="flex-1 min-w-[250px] max-w-md relative">
-          <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+            </span>
             <input
-              type="text"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-12 pr-32 text-sm text-gray-700 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200"
               placeholder={inputPlaceholder}
+              type="text"
               value={value}
-              onChange={(e) => onSearch(e.target.value)}
-              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-sm bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400"
+              onChange={e => onSearch?.(e.target.value)}
             />
             {value && (
               <button
-                onClick={() => onSearch("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Clear search"
+                className="absolute right-24 text-gray-400 transition-colors hover:text-gray-600"
+                type="button"
+                onClick={onClear}
               >
                 <svg
-                  className="w-5 h-5"
+                  className="h-4 w-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                  <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
                 </svg>
               </button>
             )}
+            <button
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow transition-all hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              type="button"
+              onClick={onSearchClick}
+            >
+              Search
+            </button>
           </div>
         </div>
       )}

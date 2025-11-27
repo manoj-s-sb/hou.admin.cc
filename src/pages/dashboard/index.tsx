@@ -1,29 +1,18 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { Calendar, dateFnsLocalizer, View, SlotInfo } from "react-big-calendar";
-import {
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  setHours,
-  setMinutes,
-  addDays,
-} from "date-fns";
-import { enUS } from "date-fns/locale";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Plus, X } from "lucide-react";
+import React, { useState, useCallback, useMemo } from 'react';
 
-// Setup the localizer for react-big-calendar
-const locales = {
-  "en-US": enUS,
-};
+import { addDays, format, getDay, parse, setHours, setMinutes, startOfWeek } from 'date-fns';
+import { Plus, X } from 'lucide-react';
+import { Calendar, SlotInfo, View, dateFnsLocalizer } from 'react-big-calendar';
+
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+import SectionTitle from '../../components/SectionTitle';
 
 const localizer = dateFnsLocalizer({
   format,
   parse,
   startOfWeek,
   getDay,
-  locales,
 });
 
 // Event interface
@@ -39,13 +28,13 @@ interface CalendarEvent {
 }
 
 const Dashboard: React.FC = () => {
-  const [view, setView] = useState<View>("week");
+  const [view, setView] = useState<View>('week');
   const [date, setDate] = useState(new Date());
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
-  const [newEventTitle, setNewEventTitle] = useState("");
-  const [newEventDescription, setNewEventDescription] = useState("");
-  const [newEventAttendees, setNewEventAttendees] = useState("");
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventDescription, setNewEventDescription] = useState('');
+  const [newEventAttendees, setNewEventAttendees] = useState('');
 
   // Lane booking system: 5 Batting Lanes + 2 Hybrid Lanes
   // 10 future bookings across different dates, each slot is 45 minutes
@@ -53,107 +42,107 @@ const Dashboard: React.FC = () => {
     // TODAY - Batting Lane 1
     {
       id: 1,
-      title: "Batting Lane 1 - Booking",
+      title: 'Batting Lane 1 - Booking',
       start: setMinutes(setHours(new Date(), 10), 0),
       end: setMinutes(setHours(new Date(), 10), 45),
-      description: "Batting practice session",
+      description: 'Batting practice session',
       attendees: 4,
-      color: "#3b82f6", // Blue for batting
+      color: '#3b82f6', // Blue for batting
     },
     // TODAY - Hybrid Lane 6 (Bowling)
     {
       id: 2,
-      title: "Hybrid Lane 6 - Bowling Session",
+      title: 'Hybrid Lane 6 - Bowling Session',
       start: setMinutes(setHours(new Date(), 14), 0),
       end: setMinutes(setHours(new Date(), 14), 45),
-      description: "Bowling practice session",
+      description: 'Bowling practice session',
       attendees: 4,
-      color: "#8b5cf6", // Purple for hybrid
+      color: '#8b5cf6', // Purple for hybrid
     },
 
     // TOMORROW - Batting Lane 2
     {
       id: 3,
-      title: "Batting Lane 2 - Booking",
+      title: 'Batting Lane 2 - Booking',
       start: setMinutes(setHours(addDays(new Date(), 1), 11), 0),
       end: setMinutes(setHours(addDays(new Date(), 1), 11), 45),
-      description: "Batting practice session",
+      description: 'Batting practice session',
       attendees: 3,
-      color: "#3b82f6", // Blue for batting
+      color: '#3b82f6', // Blue for batting
     },
     // TOMORROW - Batting Lane 3
     {
       id: 4,
-      title: "Batting Lane 3 - Booking",
+      title: 'Batting Lane 3 - Booking',
       start: setMinutes(setHours(addDays(new Date(), 1), 15), 0),
       end: setMinutes(setHours(addDays(new Date(), 1), 15), 45),
-      description: "Batting practice session",
+      description: 'Batting practice session',
       attendees: 5,
-      color: "#3b82f6", // Blue for batting
+      color: '#3b82f6', // Blue for batting
     },
 
     // DAY AFTER TOMORROW - Batting Lane 4
     {
       id: 5,
-      title: "Batting Lane 4 - Booking",
+      title: 'Batting Lane 4 - Booking',
       start: setMinutes(setHours(addDays(new Date(), 2), 9), 30),
       end: setMinutes(setHours(addDays(new Date(), 2), 10), 15),
-      description: "Batting practice session",
+      description: 'Batting practice session',
       attendees: 2,
-      color: "#3b82f6", // Blue for batting
+      color: '#3b82f6', // Blue for batting
     },
     // DAY AFTER TOMORROW - Hybrid Lane 7 (Bowling)
     {
       id: 6,
-      title: "Hybrid Lane 7 - Bowling Session",
+      title: 'Hybrid Lane 7 - Bowling Session',
       start: setMinutes(setHours(addDays(new Date(), 2), 12), 0),
       end: setMinutes(setHours(addDays(new Date(), 2), 12), 45),
-      description: "Bowling practice session",
+      description: 'Bowling practice session',
       attendees: 5,
-      color: "#8b5cf6", // Purple for hybrid
+      color: '#8b5cf6', // Purple for hybrid
     },
 
     // 3 DAYS FROM NOW - Batting Lane 5
     {
       id: 7,
-      title: "Batting Lane 5 - Booking",
+      title: 'Batting Lane 5 - Booking',
       start: setMinutes(setHours(addDays(new Date(), 3), 13), 0),
       end: setMinutes(setHours(addDays(new Date(), 3), 13), 45),
-      description: "Batting practice session",
+      description: 'Batting practice session',
       attendees: 6,
-      color: "#3b82f6", // Blue for batting
+      color: '#3b82f6', // Blue for batting
     },
     // 3 DAYS FROM NOW - Hybrid Lane 6 (Batting)
     {
       id: 8,
-      title: "Hybrid Lane 6 - Batting Session",
+      title: 'Hybrid Lane 6 - Batting Session',
       start: setMinutes(setHours(addDays(new Date(), 3), 16), 0),
       end: setMinutes(setHours(addDays(new Date(), 3), 16), 45),
-      description: "Batting practice on hybrid lane",
+      description: 'Batting practice on hybrid lane',
       attendees: 3,
-      color: "#8b5cf6", // Purple for hybrid
+      color: '#8b5cf6', // Purple for hybrid
     },
 
     // 4 DAYS FROM NOW - Batting Lane 1 (Evening)
     {
       id: 9,
-      title: "Batting Lane 1 - Evening Booking",
+      title: 'Batting Lane 1 - Evening Booking',
       start: setMinutes(setHours(addDays(new Date(), 4), 17), 0),
       end: setMinutes(setHours(addDays(new Date(), 4), 17), 45),
-      description: "Evening batting session",
+      description: 'Evening batting session',
       attendees: 3,
-      color: "#3b82f6", // Blue for batting
+      color: '#3b82f6', // Blue for batting
     },
 
     // 5 DAYS FROM NOW - Hybrid Lane 7 (Batting)
     {
       id: 10,
-      title: "Hybrid Lane 7 - Batting Session",
+      title: 'Hybrid Lane 7 - Batting Session',
       start: setMinutes(setHours(addDays(new Date(), 5), 10), 30),
       end: setMinutes(setHours(addDays(new Date(), 5), 11), 15),
-      description: "Batting practice on hybrid lane",
+      description: 'Batting practice on hybrid lane',
       attendees: 4,
-      color: "#8b5cf6", // Purple for hybrid
+      color: '#8b5cf6', // Purple for hybrid
     },
   ]);
 
@@ -165,9 +154,7 @@ const Dashboard: React.FC = () => {
 
   // Handle selecting an event
   const handleSelectEvent = useCallback((event: CalendarEvent) => {
-    alert(
-      `Event: ${event.title}\nDescription: ${event.description}\nAttendees: ${event.attendees}`,
-    );
+    alert(`Event: ${event.title}\nDescription: ${event.description}\nAttendees: ${event.attendees}`);
   }, []);
 
   // Add new event
@@ -184,24 +171,24 @@ const Dashboard: React.FC = () => {
       };
       setEvents([...events, newEvent]);
       setShowEventModal(false);
-      setNewEventTitle("");
-      setNewEventDescription("");
-      setNewEventAttendees("");
+      setNewEventTitle('');
+      setNewEventDescription('');
+      setNewEventAttendees('');
     }
   };
 
   // Custom event style
   const eventStyleGetter = (event: CalendarEvent) => {
     const style = {
-      backgroundColor: event.color || "#3b82f6",
-      borderRadius: "6px",
+      backgroundColor: event.color || '#3b82f6',
+      borderRadius: '6px',
       opacity: 0.9,
-      color: "white",
-      border: "none",
-      display: "block",
-      fontSize: "13px",
-      fontWeight: "500",
-      padding: "4px 8px",
+      color: 'white',
+      border: 'none',
+      display: 'block',
+      fontSize: '13px',
+      fontWeight: '500',
+      padding: '4px 8px',
     };
     return { style };
   };
@@ -209,141 +196,135 @@ const Dashboard: React.FC = () => {
   // Calendar formats
   const formats = useMemo(
     () => ({
-      timeGutterFormat: (date: Date) => format(date, "h:mm a"),
+      timeGutterFormat: (date: Date) => format(date, 'h:mm a'),
       eventTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
-        `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`,
+        `${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`,
       agendaTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
-        `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`,
-      dayHeaderFormat: (date: Date) => format(date, "EEE, MMM d"),
+        `${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`,
+      dayHeaderFormat: (date: Date) => format(date, 'EEE, MMM d'),
     }),
-    [],
+    []
   );
 
   return (
-    <div className=" mx-auto">
+    <div className="mx-auto">
       {/* Calendar Section */}
-      <div className="bg-white p-6 rounded-xl ">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-slate-800">Event Calendar</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setDate(new Date())}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-            >
-              Today
-            </button>
-          </div>
-        </div>
+      <SectionTitle
+        description="Manage your slot bookings."
+        inputPlaceholder=""
+        search={false}
+        title="Slot Bookings"
+        value=""
+      />
 
-        <div className="calendar-container" style={{ height: "700px" }}>
-          <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            view={view}
-            onView={setView}
-            date={date}
-            onNavigate={setDate}
-            onSelectSlot={handleSelectSlot}
-            onSelectEvent={handleSelectEvent}
-            selectable
-            eventPropGetter={eventStyleGetter}
-            formats={formats}
-            min={setMinutes(setHours(new Date(), 9), 0)} // 9 AM
-            max={setMinutes(setHours(new Date(), 18), 0)} // 6 PM
-            step={45} // 45-minute slots
-            timeslots={1} // One slot per step
-            defaultView="week"
-            views={["month", "week", "day", "agenda"]}
-            style={{ height: "100%" }}
-            className="modern-calendar"
-          />
-        </div>
+      <div className="calendar-container" style={{ height: '700px', marginTop: '30px' }}>
+        <Calendar
+          selectable
+          className="modern-calendar"
+          date={date}
+          defaultView="week"
+          endAccessor="end"
+          eventPropGetter={eventStyleGetter}
+          events={events}
+          formats={formats}
+          localizer={localizer}
+          max={setMinutes(setHours(new Date(), 18), 0)} // 6 PM
+          min={setMinutes(setHours(new Date(), 9), 0)} // 9 AM
+          startAccessor="start"
+          step={45} // 45-minute slots
+          style={{ height: '100%' }}
+          timeslots={1} // One slot per step
+          view={view}
+          views={['month', 'week', 'day', 'agenda']}
+          onNavigate={setDate}
+          onSelectEvent={handleSelectEvent}
+          onSelectSlot={handleSelectSlot}
+          onView={setView}
+        />
       </div>
 
       {/* Event Modal */}
       {showEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <Plus className="w-6 h-6 text-blue-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
+                <Plus className="h-6 w-6 text-blue-600" />
                 Add New Event
               </h3>
               <button
+                className="text-gray-500 transition-colors hover:text-gray-700"
                 onClick={() => setShowEventModal(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
               >
-                <X className="w-6 h-6" />
+                <X className="h-6 w-6" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-title">
                   Event Title *
                 </label>
                 <input
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  id="event-title"
+                  placeholder="Enter event title"
                   type="text"
                   value={newEventTitle}
-                  onChange={(e) => setNewEventTitle(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="Enter event title"
+                  onChange={e => setNewEventTitle(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-description">
                   Description
                 </label>
                 <textarea
-                  value={newEventDescription}
-                  onChange={(e) => setNewEventDescription(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                  className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  id="event-description"
                   placeholder="Enter event description"
                   rows={3}
+                  value={newEventDescription}
+                  onChange={e => setNewEventDescription(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-attendees">
                   Number of Attendees
                 </label>
                 <input
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
+                  id="event-attendees"
+                  placeholder="0"
                   type="number"
                   value={newEventAttendees}
-                  onChange={(e) => setNewEventAttendees(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="0"
+                  onChange={e => setNewEventAttendees(e.target.value)}
                 />
               </div>
 
-              {selectedSlot && (
-                <div className="bg-blue-50 p-3 rounded-lg">
+              {selectedSlot ? (
+                <div className="rounded-lg bg-blue-50 p-3">
                   <p className="text-sm text-gray-700">
-                    <strong>Time:</strong>{" "}
-                    {format(selectedSlot.start, "h:mm a")} -{" "}
-                    {format(selectedSlot.end, "h:mm a")}
+                    <strong>Time:</strong> {format(selectedSlot.start, 'h:mm a')} - {format(selectedSlot.end, 'h:mm a')}
                   </p>
-                  <p className="text-sm text-gray-700 mt-1">
-                    <strong>Date:</strong>{" "}
-                    {format(selectedSlot.start, "EEEE, MMMM d, yyyy")}
+                  <p className="mt-1 text-sm text-gray-700">
+                    <strong>Date:</strong> {format(selectedSlot.start, 'EEEE, MMMM d, yyyy')}
                   </p>
                 </div>
-              )}
+              ) : null}
 
-              <div className="flex gap-3 mt-6">
+              <div className="mt-6 flex gap-3">
                 <button
-                  onClick={handleAddEvent}
+                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                   disabled={!newEventTitle}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+                  onClick={handleAddEvent}
                 >
                   Add Event
                 </button>
                 <button
+                  className="flex-1 rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300"
                   onClick={() => setShowEventModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                 >
                   Cancel
                 </button>

@@ -2,6 +2,67 @@ export interface MemberRequest {
   skip: number;
   limit: number;
   facilityCode: string;
+  email?: string;
+  billingCycle?: 'annual' | 'fortnightly';
+  subscriptionCode?: 'standard' | 'premium' | 'family';
+  subscriptionStatus?: 'active' | 'pendingactivation' | 'paused' | 'canceled' | 'resumed' | 'inactive';
+}
+
+export interface PlayerProfile {
+  playerType: string;
+  battingStyle: string;
+  bowlingStyle: string;
+  playerStatus: string;
+  battingHand: string;
+  bowlingHand: string;
+  batsmanType: string;
+  bowlerRole: string;
+  bowlerType: string;
+  experienceLevel: string;
+  cricketingGoal: string;
+}
+
+export interface UserSubscription {
+  billingCycle: string;
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  subscriptionCode: string;
+  subscriptionStatus: string;
+}
+
+export interface userProfile {
+  gender: string;
+  phone: string;
+  dateOfBirth: string;
+  unitsOfMeasure: string;
+  healthDeclaration: [
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+  ];
+  height: any;
+  weight: any;
 }
 
 export interface Member {
@@ -10,6 +71,9 @@ export interface Member {
   email: string;
   onboardingType: string;
   profileImageUrl: string;
+  playerProfile: PlayerProfile;
+  subscription: UserSubscription;
+  userProfile: any;
   userId: string;
 }
 
@@ -47,6 +111,8 @@ export interface MemberDetailsResponse {
   onboardingType: string;
   subscription: MembersSubscription;
   members: AdditionalMemberDetails[];
+  playerProfile?: PlayerProfile;
+  userProfile?: userProfile;
 }
 
 export interface ActivateSubscriptionRequest {
@@ -64,7 +130,7 @@ export interface MembersInitialState {
 
 export const initialState: MembersInitialState = {
   isLoading: false,
-  error: "",
+  error: '',
   membersList: {
     members: [],
     limit: 15,

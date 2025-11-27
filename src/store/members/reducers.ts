@@ -1,19 +1,16 @@
-import { createSlice } from "@reduxjs/toolkit";
-import {
-  getMembers,
-  getSingleMemberDetails,
-  activateUserSubscription,
-} from "./api";
-import { initialState } from "./types";
+import { createSlice } from '@reduxjs/toolkit';
+
+import { getMembers, getSingleMemberDetails, activateUserSubscription } from './api';
+import { initialState } from './types';
 
 const membersSlice = createSlice({
-  name: "members",
+  name: 'members',
   initialState,
   reducers: {},
-  extraReducers: (builder) => {
-    builder.addCase(getMembers.pending, (state) => {
+  extraReducers: builder => {
+    builder.addCase(getMembers.pending, state => {
       state.isLoading = true;
-      state.error = "";
+      state.error = '';
     });
     builder.addCase(getMembers.fulfilled, (state, action) => {
       state.isLoading = false;
@@ -21,11 +18,11 @@ const membersSlice = createSlice({
     });
     builder.addCase(getMembers.rejected, (state, action) => {
       state.isLoading = false;
-      state.error = action.payload || "Failed to fetch members list";
+      state.error = action.payload || 'Failed to fetch members list';
     });
-    builder.addCase(getSingleMemberDetails.pending, (state) => {
+    builder.addCase(getSingleMemberDetails.pending, state => {
       state.isLoading = true;
-      state.error = "";
+      state.error = '';
     });
     builder.addCase(getSingleMemberDetails.fulfilled, (state, action) => {
       state.isLoading = false;
@@ -33,24 +30,22 @@ const membersSlice = createSlice({
     });
     builder.addCase(getSingleMemberDetails.rejected, (state, action) => {
       state.isLoading = false;
-      state.error = action.payload || "Failed to fetch single member details";
+      state.error = action.payload || 'Failed to fetch single member details';
     });
-    builder.addCase(activateUserSubscription.pending, (state) => {
+    builder.addCase(activateUserSubscription.pending, state => {
       state.isLoading = true;
-      state.error = "";
+      state.error = '';
       state.isSubscriptionActivation = true;
     });
-    builder.addCase(activateUserSubscription.fulfilled, (state) => {
+    builder.addCase(activateUserSubscription.fulfilled, state => {
       state.isLoading = false;
       state.isSubscriptionActivation = false;
-      state.error = "";
+      state.error = '';
     });
     builder.addCase(activateUserSubscription.rejected, (state, action) => {
       state.isLoading = false;
       state.isSubscriptionActivation = false;
-      state.error =
-        (action.payload as string) ||
-        "Failed to activate user subscription. Please try again.";
+      state.error = (action.payload as string) || 'Failed to activate user subscription. Please try again.';
     });
   },
 });
