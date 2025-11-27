@@ -17,10 +17,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
 import { getSingleMemberDetails } from '../../store/members/api';
+import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
 
 const ViewMembers = () => {
-  const { memberDetails, isLoading } = useSelector((state: RootState) => state.members);
+  const { memberDetails, isLoading } = useSelector((state: RootState) => state.members) as {
+    memberDetails: MemberDetailsResponse | null;
+    isLoading: boolean;
+  };
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 

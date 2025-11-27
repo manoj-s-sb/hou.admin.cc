@@ -8,12 +8,72 @@ export interface MemberRequest {
   subscriptionStatus?: 'active' | 'pendingactivation' | 'paused' | 'canceled' | 'resumed' | 'inactive';
 }
 
+export interface PlayerProfile {
+  playerType: string;
+  battingStyle: string;
+  bowlingStyle: string;
+  playerStatus: string;
+  battingHand: string;
+  bowlingHand: string;
+  batsmanType: string;
+  bowlerRole: string;
+  bowlerType: string;
+  experienceLevel: string;
+  cricketingGoal: string;
+}
+
+export interface UserSubscription {
+  billingCycle: string;
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  subscriptionCode: string;
+  subscriptionStatus: string;
+}
+
+export interface userProfile {
+  gender: string;
+  phone: string;
+  dateOfBirth: string;
+  unitsOfMeasure: string;
+  healthDeclaration: [
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+    {
+      id: string;
+      selectedOption: string;
+    },
+  ];
+  height: any;
+  weight: any;
+}
+
 export interface Member {
   firstName: string;
   lastName: string;
   email: string;
   onboardingType: string;
   profileImageUrl: string;
+  playerProfile: PlayerProfile;
+  subscription: UserSubscription;
+  userProfile: any;
   userId: string;
 }
 
@@ -51,6 +111,8 @@ export interface MemberDetailsResponse {
   onboardingType: string;
   subscription: MembersSubscription;
   members: AdditionalMemberDetails[];
+  playerProfile?: PlayerProfile;
+  userProfile?: userProfile;
 }
 
 export interface ActivateSubscriptionRequest {
