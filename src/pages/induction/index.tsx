@@ -28,8 +28,6 @@ const Induction = () => {
     );
   }, [dispatch, selectedDate]);
 
-  console.log(inductionListData);
-
   // Define custom columns for the induction table
   const inductionColumns: ColumnDef[] = [
     {
@@ -106,7 +104,7 @@ const Induction = () => {
       valueGetter: params => {
         const type = params.row?.status || '';
         if (type === 'completed') return 'Completed';
-        if (type === 'pending') return 'Pending';
+        if (type === 'confirmed') return 'Confirmed';
         if (type === 'cancelled') return 'Cancelled';
         return type;
       },
@@ -159,12 +157,15 @@ const Induction = () => {
       />
 
       {/* Date Filter */}
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 max-[560px]:mb-3 max-[560px]:gap-2">
-        <label className="whitespace-nowrap text-sm font-medium text-gray-700 max-[560px]:text-xs" htmlFor="induction-date">
+      <div className="mb-4 flex flex-col gap-2 max-[560px]:mb-3 max-[560px]:gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <label
+          className="whitespace-nowrap text-sm font-medium text-gray-700 max-[560px]:text-xs"
+          htmlFor="induction-date"
+        >
           Select Date:
         </label>
         <input
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto max-[560px]:px-3 max-[560px]:py-1.5 max-[560px]:text-sm"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 max-[560px]:px-3 max-[560px]:py-1.5 max-[560px]:text-sm sm:w-auto"
           id="induction-date"
           type="date"
           value={selectedDate}

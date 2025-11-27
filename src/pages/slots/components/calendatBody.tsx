@@ -36,7 +36,7 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                 <div
                   key={lane.laneNo}
                   className={composeClasses(
-                    'relative flex min-h-[70px] min-w-[110px] w-full flex-row items-center justify-between gap-4 border border-l-0 border-[#B3DADA] bg-[#fff] px-5 py-4 text-center text-[13px] font-semibold text-slate-600'
+                    'relative flex min-h-[70px] w-full min-w-[110px] flex-row items-center justify-between gap-4 border border-l-0 border-[#B3DADA] bg-[#fff] px-5 py-4 text-center text-[13px] font-semibold text-slate-600'
                   )}
                 >
                   <div className="flex flex-1 flex-col items-center justify-center gap-2">

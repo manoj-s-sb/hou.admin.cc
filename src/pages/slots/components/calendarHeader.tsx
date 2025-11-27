@@ -2,9 +2,7 @@ import { CalendarHeader as CalendarHeaderType } from '../types';
 
 const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthName }: CalendarHeaderType) => {
   const today = nextSevenDates?.[0];
-  const isTodaySelected = Boolean(
-    today && selectedDate?.day === today.day && selectedDate?.month === today.month
-  );
+  const isTodaySelected = Boolean(today && selectedDate?.day === today.day && selectedDate?.month === today.month);
   const currentDateIndex = nextSevenDates.findIndex(
     date => date.day === selectedDate?.day && date.month === selectedDate?.month
   );
@@ -50,7 +48,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
             role="button"
             tabIndex={0}
             onClick={handleSelectPrevious}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 handleSelectPrevious();
@@ -76,7 +74,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
             role="button"
             tabIndex={0}
             onClick={handleSelectNext}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 handleSelectNext();

@@ -96,7 +96,7 @@ const ViewMembers = () => {
                   <div className="relative">
                     {memberDetails.profileImageUrl ? (
                       <button
-                        className="h-20 w-20 cursor-pointer rounded-full border-4 border-white object-cover shadow-xl transition-transform hover:scale-105 sm:h-24 sm:w-24 overflow-hidden p-0 bg-transparent"
+                        className="h-20 w-20 cursor-pointer overflow-hidden rounded-full border-4 border-white bg-transparent object-cover p-0 shadow-xl transition-transform hover:scale-105 sm:h-24 sm:w-24"
                         type="button"
                         onClick={() => setIsImageModalOpen(true)}
                       >
@@ -401,7 +401,7 @@ const ViewMembers = () => {
           role="button"
           tabIndex={0}
           onClick={() => setIsImageModalOpen(false)}
-          onKeyDown={(e) => {
+          onKeyDown={e => {
             if (e.key === 'Escape') {
               setIsImageModalOpen(false);
             }
@@ -415,7 +415,7 @@ const ViewMembers = () => {
             >
               <X className="h-5 w-5 text-gray-600" />
             </button>
-            <div role="presentation" onClick={(e) => e.stopPropagation()}>
+            <div role="presentation" onClick={e => e.stopPropagation()}>
               <img
                 alt={`${memberDetails.firstName} ${memberDetails.lastName}`}
                 className="h-64 w-64 rounded-full border-4 border-white object-cover shadow-2xl sm:h-80 sm:w-80"
