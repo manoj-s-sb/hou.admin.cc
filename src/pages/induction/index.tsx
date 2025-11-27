@@ -15,7 +15,7 @@ const Induction = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     dispatch(
@@ -27,6 +27,8 @@ const Induction = () => {
       })
     );
   }, [dispatch, selectedDate]);
+
+  console.log(inductionListData);
 
   // Define custom columns for the induction table
   const inductionColumns: ColumnDef[] = [
@@ -89,10 +91,23 @@ const Induction = () => {
       flex: 1.3,
       sortable: true,
       valueGetter: params => {
-        const type = params.row?.onboardingType || '';
-        if (type === 'someoneelse') return 'Someone else';
-        if (type === 'individual') return 'Individual';
+        const type = params.row?.subscriptionCode || '';
+        if (type === 'standard') return 'Standard';
+        if (type === 'premium') return 'Premium';
         if (type === 'family') return 'Family';
+        return type;
+      },
+    },
+    {
+      field: 'onboardingType',
+      headerName: 'Status',
+      flex: 1.3,
+      sortable: true,
+      valueGetter: params => {
+        const type = params.row?.status || '';
+        if (type === 'completed') return 'Completed';
+        if (type === 'pending') return 'Pending';
+        if (type === 'cancelled') return 'Cancelled';
         return type;
       },
     },
@@ -103,7 +118,7 @@ const Induction = () => {
       sortable: false,
       renderCell: (params: any) => (
         <button
-          className="rounded-full p-2 transition-colors hover:bg-gray-100"
+          className="rounded-full p-2 transition-colors hover:bg-gray-100 max-[560px]:p-1"
           title="View Details"
           onClick={() => {
             navigate('/view-induction');
@@ -111,7 +126,7 @@ const Induction = () => {
           }}
         >
           <svg
-            className="h-5 w-5 text-gray-600 hover:text-blue-600"
+            className="h-5 w-5 text-gray-600 hover:text-blue-600 max-[560px]:h-4 max-[560px]:w-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -133,7 +148,7 @@ const Induction = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   return (
-    <div className="w-full max-w-full">
+    <div className="w-full max-w-full max-[560px]:overflow-x-hidden">
       <SectionTitle
         description="Manage your induction process."
         inputPlaceholder="Search induction..."
@@ -144,12 +159,12 @@ const Induction = () => {
       />
 
       {/* Date Filter */}
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <label className="whitespace-nowrap text-sm font-medium text-gray-700" htmlFor="induction-date">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 max-[560px]:mb-3 max-[560px]:gap-2">
+        <label className="whitespace-nowrap text-sm font-medium text-gray-700 max-[560px]:text-xs" htmlFor="induction-date">
           Select Date:
         </label>
         <input
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto max-[560px]:px-3 max-[560px]:py-1.5 max-[560px]:text-sm"
           id="induction-date"
           type="date"
           value={selectedDate}
@@ -158,7 +173,7 @@ const Induction = () => {
       </div>
 
       {/* Table Wrapper for Horizontal Scroll on Mobile */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-[560px]:-mx-2 max-[560px]:px-2">
         <UserTable
           columns={inductionColumns}
           data={inductionListData?.bookings}

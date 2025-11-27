@@ -178,7 +178,7 @@ const UserTable: React.FC<TableProps> = ({
     <div className="min-w-[800px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
       {/* Table Header */}
       <div className="border-b border-gray-200 bg-gray-50">
-        <div className="grid gap-2 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4" style={{ gridTemplateColumns }}>
+        <div className="grid gap-2 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 max-[560px]:gap-1 max-[560px]:px-2 max-[560px]:py-2" style={{ gridTemplateColumns }}>
           {columns.map(column => (
             <div
               key={column.field}
@@ -192,7 +192,7 @@ const UserTable: React.FC<TableProps> = ({
                 column.sortable !== false && triggerOnEnterOrSpace(event, () => handleSort(column.field))
               }
             >
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-gray-600 sm:text-[14px]">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-gray-600 sm:text-[14px] max-[560px]:text-[10px] max-[560px]:tracking-tight">
                 {column.headerName}
               </span>
               {column.sortable !== false && <SortIcon field={column.field} />}
@@ -233,7 +233,7 @@ const UserTable: React.FC<TableProps> = ({
             return (
               <div
                 key={row.id || paginatedIndex}
-                className={`grid cursor-pointer gap-2 border-b border-gray-200 px-4 py-3 transition-colors sm:gap-4 sm:px-6 sm:py-4 ${
+                className={`grid cursor-pointer gap-2 border-b border-gray-200 px-4 py-3 transition-colors sm:gap-4 sm:px-6 sm:py-4 max-[560px]:gap-1 max-[560px]:px-2 max-[560px]:py-2 ${
                   selectedItem?.id === row.id ? 'border-indigo-200 bg-indigo-50' : 'hover:bg-gray-50'
                 }`}
                 role="button"
@@ -269,8 +269,8 @@ const UserTable: React.FC<TableProps> = ({
                   return (
                     <div
                       key={column.field}
-                      className={`flex min-w-0 items-center text-[13px] text-gray-700 sm:text-[15px] ${
-                        colIndex < columns.length - 1 ? 'border-r border-gray-100 pr-2 sm:pr-4' : ''
+                      className={`flex min-w-0 items-center text-[13px] text-gray-700 sm:text-[15px] max-[560px]:text-[11px] ${
+                        colIndex < columns.length - 1 ? 'border-r border-gray-100 pr-2 sm:pr-4 max-[560px]:pr-1' : ''
                       }`}
                     >
                       {column.renderCell ? cellContent : <span className="truncate">{cellContent}</span>}
@@ -285,14 +285,14 @@ const UserTable: React.FC<TableProps> = ({
 
       {/* Table Footer with Pagination */}
       {totalRecords > 0 && (
-        <div className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-            <p className="text-center text-xs text-gray-500 sm:text-left">
+        <div className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6 max-[560px]:px-2 max-[560px]:py-2">
+          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row max-[560px]:gap-2">
+            <p className="text-center text-xs text-gray-500 sm:text-left max-[560px]:text-[10px]">
               Showing {startIndex + 1}-{endIndex} of {totalRecords}
             </p>
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1 max-[560px]:space-x-0.5">
               <button
-                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3"
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 max-[560px]:px-1.5 max-[560px]:py-0.5 max-[560px]:text-[10px]"
                 disabled={isServerSidePagination ? currentPage === 0 : currentPage === 1}
                 onClick={() => {
                   if (isServerSidePagination && onPageChange) {
@@ -304,11 +304,11 @@ const UserTable: React.FC<TableProps> = ({
               >
                 Previous
               </button>
-              <span className="px-2 py-1 text-xs text-gray-700 sm:px-3">
+              <span className="px-2 py-1 text-xs text-gray-700 sm:px-3 max-[560px]:px-1 max-[560px]:text-[10px]">
                 Page {isServerSidePagination ? currentPage / itemsPerPage + 1 : currentPage} of {totalPages}
               </span>
               <button
-                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3"
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 max-[560px]:px-1.5 max-[560px]:py-0.5 max-[560px]:text-[10px]"
                 disabled={
                   isServerSidePagination ? currentPage + itemsPerPage >= totalRecords : currentPage === totalPages
                 }

@@ -24,16 +24,16 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   onClear,
 }) => {
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <div className="flex items-center gap-3">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 max-[560px]:mb-4 max-[560px]:gap-2">
+      <div className="max-[560px]:flex-1 max-[560px]:min-w-0">
+        <div className="flex items-center gap-3 max-[560px]:gap-2">
           {onBackClick && (
             <button
-              className="rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:text-gray-600"
+              className="rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:text-gray-600 max-[560px]:p-1.5"
               onClick={onBackClick}
             >
               <svg
-                className="h-5 w-5"
+                className="h-5 w-5 max-[560px]:h-4 max-[560px]:w-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -43,9 +43,9 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
               </svg>
             </button>
           )}
-          <h1 className="m-0 text-[25px] font-bold text-slate-800">{title}</h1>
+          <h1 className="m-0 text-[25px] font-bold text-slate-800 max-[560px]:text-lg max-[560px]:truncate">{title}</h1>
         </div>
-        {description && <p className="m-0 mt-2 text-[15px] text-gray-600">{description}</p>}
+        {description && <p className="m-0 mt-2 text-[15px] text-gray-600 max-[560px]:mt-1 max-[560px]:text-xs max-[560px]:line-clamp-2">{description}</p>}
       </div>
       {search && (
         <div className="min-w-[250px] max-w-xl flex-1">

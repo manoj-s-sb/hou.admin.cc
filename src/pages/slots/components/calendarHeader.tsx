@@ -47,9 +47,15 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
         <div className="flex flex-row items-center gap-2">
           <span
             className={`rounded-[10px] border border-[#E2E8F0] p-2 ${isPrevDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[#F8FAFC]'}`}
-            onClick={handleSelectPrevious}
             role="button"
             tabIndex={0}
+            onClick={handleSelectPrevious}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSelectPrevious();
+              }
+            }}
           >
             <img alt="arrow right" className="h-6 w-6" src={'../../assets/svg/arrow_left.svg'} />
           </span>
@@ -60,16 +66,22 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
                 : 'cursor-pointer text-[#1E293B] hover:bg-[#F8FAFC]'
             }`}
             disabled={isTodaySelected}
-            onClick={handleSelectToday}
             type="button"
+            onClick={handleSelectToday}
           >
             Today
           </button>
           <span
             className={`rounded-[10px] border border-[#E2E8F0] p-2 ${isNextDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[#F8FAFC]'}`}
-            onClick={handleSelectNext}
             role="button"
             tabIndex={0}
+            onClick={handleSelectNext}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleSelectNext();
+              }
+            }}
           >
             <img alt="arrow right" className="h-6 w-6" src={'../../assets/svg/arrow_right.svg'} />
           </span>
@@ -84,7 +96,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
               ? date.fullDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
               : '';
             return (
-              <div className="flex flex-col items-center gap-2 text-center" key={index}>
+              <div key={index} className="flex flex-col items-center gap-2 text-center">
                 <span className="text-[12px] font-medium text-[#7A7F9C]">{weekdayLabel}</span>
                 <span
                   className={`cursor-pointer rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-[15px] font-medium text-[#1E293B] ${isSelected ? 'bg-[#21295A] text-white' : ''}`}

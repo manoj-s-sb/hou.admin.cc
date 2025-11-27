@@ -95,12 +95,17 @@ const ViewMembers = () => {
                 <div className="flex items-center space-x-4">
                   <div className="relative">
                     {memberDetails.profileImageUrl ? (
-                      <img
-                        alt={`${memberDetails.firstName} ${memberDetails.lastName}`}
-                        className="h-20 w-20 cursor-pointer rounded-full border-4 border-white object-cover shadow-xl transition-transform hover:scale-105 sm:h-24 sm:w-24"
+                      <button
+                        className="h-20 w-20 cursor-pointer rounded-full border-4 border-white object-cover shadow-xl transition-transform hover:scale-105 sm:h-24 sm:w-24 overflow-hidden p-0 bg-transparent"
+                        type="button"
                         onClick={() => setIsImageModalOpen(true)}
-                        src={memberDetails.profileImageUrl}
-                      />
+                      >
+                        <img
+                          alt={`${memberDetails.firstName} ${memberDetails.lastName}`}
+                          className="h-full w-full object-cover"
+                          src={memberDetails.profileImageUrl}
+                        />
+                      </button>
                     ) : (
                       <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-gray-100 to-gray-200 shadow-xl sm:h-24 sm:w-24">
                         <User className="h-12 w-12 text-gray-400 sm:h-14 sm:w-14" />
@@ -393,21 +398,30 @@ const ViewMembers = () => {
       {isImageModalOpen && memberDetails.profileImageUrl && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+          role="button"
+          tabIndex={0}
           onClick={() => setIsImageModalOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setIsImageModalOpen(false);
+            }
+          }}
         >
           <div className="relative">
             <button
               className="absolute -right-2 -top-2 z-10 rounded-full bg-white p-2 shadow-lg transition-colors hover:bg-gray-100"
+              type="button"
               onClick={() => setIsImageModalOpen(false)}
             >
               <X className="h-5 w-5 text-gray-600" />
             </button>
-            <img
-              alt={`${memberDetails.firstName} ${memberDetails.lastName}`}
-              className="h-64 w-64 rounded-full border-4 border-white object-cover shadow-2xl sm:h-80 sm:w-80"
-              onClick={(e) => e.stopPropagation()}
-              src={memberDetails.profileImageUrl}
-            />
+            <div role="presentation" onClick={(e) => e.stopPropagation()}>
+              <img
+                alt={`${memberDetails.firstName} ${memberDetails.lastName}`}
+                className="h-64 w-64 rounded-full border-4 border-white object-cover shadow-2xl sm:h-80 sm:w-80"
+                src={memberDetails.profileImageUrl}
+              />
+            </div>
           </div>
         </div>
       )}

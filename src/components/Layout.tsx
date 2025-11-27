@@ -149,7 +149,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             )}
           </div>
         </header>
-        <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-5 lg:p-6">{children}</main>
+        <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-5 lg:p-6 max-[560px]:p-2">{children}</main>
       </div>
     </div>
   );
