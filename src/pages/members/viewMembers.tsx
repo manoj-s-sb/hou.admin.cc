@@ -36,9 +36,12 @@ const ViewMembers = () => {
     dispatch(getSingleMemberDetails({ userId: userId as string }));
   }, [dispatch, userId]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) {
+      return 'Activation Pending';
+    }
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return  date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -132,7 +135,7 @@ const ViewMembers = () => {
                       </div>
                       <div className="flex items-center">
                         <Calendar className="mr-1.5 h-4 w-4" />
-                        <span>Joined {formatDate(memberDetails.subscription.currentPeriodStart)}</span>
+                        <span> {formatDate(memberDetails.subscription.currentPeriodStart)}</span>
                       </div>
                     </div>
                   </div>
