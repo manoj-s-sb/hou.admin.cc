@@ -130,10 +130,6 @@ const ViewMembers = () => {
                     </div>
                     <div className="mt-2 flex items-center gap-4 text-sm text-blue-50">
                       <div className="flex items-center">
-                        <Shield className="mr-1.5 h-4 w-4" />
-                        <span className="capitalize">{memberDetails.onboardingType}</span>
-                      </div>
-                      <div className="flex items-center">
                         <Calendar className="mr-1.5 h-4 w-4" />
                         <span> {formatDate(memberDetails.subscription.currentPeriodStart)}</span>
                       </div>
