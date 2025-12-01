@@ -41,7 +41,7 @@ const ViewMembers = () => {
       return 'Activation Pending';
     }
     const date = new Date(dateString);
-    return  date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
