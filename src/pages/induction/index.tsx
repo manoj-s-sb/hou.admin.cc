@@ -16,17 +16,24 @@ const Induction = () => {
   const navigate = useNavigate();
 
   const [selectedDate, setSelectedDate] = useState('');
+  const [emailFilter, setEmailFilter] = useState('');
 
-  useEffect(() => {
+  const applyFilters = () => {
     dispatch(
       inductionList({
         date: selectedDate,
         page: 1,
         type: 'inductionbooking',
         listLimit: 20,
+        email: emailFilter,
       })
     );
-  }, [dispatch, selectedDate]);
+  };
+
+  useEffect(() => {
+    applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 
   // Define custom columns for the induction table
   const inductionColumns: ColumnDef[] = [
@@ -156,21 +163,63 @@ const Induction = () => {
         onSearch={setSearchTerm}
       />
 
-      {/* Date Filter */}
-      <div className="mb-4 flex flex-col gap-2 max-[560px]:mb-3 max-[560px]:gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <label
-          className="whitespace-nowrap text-sm font-medium text-gray-700 max-[560px]:text-xs"
-          htmlFor="induction-date"
-        >
-          Select Date:
-        </label>
-        <input
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 max-[560px]:px-3 max-[560px]:py-1.5 max-[560px]:text-sm sm:w-auto"
-          id="induction-date"
-          type="date"
-          value={selectedDate}
-          onChange={e => setSelectedDate(e.target.value)}
-        />
+      {/* Filters */}
+      <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="induction-email-filter">
+              Email
+            </label>
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="induction-email-filter"
+              placeholder="Search by email"
+              type="text"
+              value={emailFilter}
+              onChange={e => setEmailFilter(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="induction-date">
+              Select Date
+            </label>
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="induction-date"
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <button
+            className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+            type="button"
+            onClick={() => {
+              setEmailFilter('');
+              setSelectedDate('');
+              dispatch(
+                inductionList({
+                  date: '',
+                  page: 1,
+                  type: 'inductionbooking',
+                  listLimit: 20,
+                  email: '',
+                })
+              );
+            }}
+          >
+            Reset
+          </button>
+          <button
+            className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+            type="button"
+            onClick={applyFilters}
+          >
+            Apply Filters
+          </button>
+        </div>
       </div>
 
       {/* Table Wrapper for Horizontal Scroll on Mobile */}

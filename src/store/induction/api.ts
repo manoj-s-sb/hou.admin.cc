@@ -13,14 +13,20 @@ import {
 
 export const inductionList = createAsyncThunk(
   'induction/inductionList',
-  async ({ date, page, type, listLimit }: InductionListRequest, { rejectWithValue }) => {
+  async ({ date, page, type, listLimit, email }: InductionListRequest, { rejectWithValue }) => {
     try {
-      const response = await api.post(`${endpoints.induction.list}`, {
+      const payload: any = {
         date,
         type,
         page,
         limit: listLimit,
-      });
+      };
+
+      if (email?.trim()) {
+        payload.email = email.trim();
+      }
+
+      const response = await api.post(`${endpoints.induction.list}`, payload);
       return response?.data;
     } catch (error: any) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch induction list'));
