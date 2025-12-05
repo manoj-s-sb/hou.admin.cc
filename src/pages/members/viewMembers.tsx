@@ -38,7 +38,7 @@ const ViewMembers = () => {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) {
-      return 'Activation Pending';
+      return '-';
     }
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
