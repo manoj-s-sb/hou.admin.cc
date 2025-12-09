@@ -4,6 +4,7 @@ export interface InductionListRequest {
   type: string;
   listLimit: number;
   email?: string;
+  status?: string;
 }
 
 export interface InductionStepsDetailsRequest {

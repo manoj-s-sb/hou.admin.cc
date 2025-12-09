@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +11,7 @@ import { AppDispatch, RootState } from '../../store/store';
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
@@ -62,15 +64,25 @@ const Login: React.FC = () => {
             <label className="text-sm font-medium text-gray-700" htmlFor="password">
               Password
             </label>
-            <input
-              required
-              className="rounded-md border border-gray-300 px-3 py-3 text-sm transition-colors focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
-              id="password"
-              placeholder="Enter password"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                required
+                className="w-full rounded-md border border-gray-300 px-3 py-3 pr-10 text-sm transition-colors focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                id="password"
+                placeholder="Enter password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              <button
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
           {error && <div className="rounded bg-red-50 p-2 text-center text-sm text-red-600">{error}</div>}
           <button

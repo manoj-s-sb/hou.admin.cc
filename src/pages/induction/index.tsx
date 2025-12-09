@@ -17,6 +17,7 @@ const Induction = () => {
 
   const [selectedDate, setSelectedDate] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('pending');
 
   const applyFilters = () => {
     dispatch(
@@ -191,6 +192,21 @@ const Induction = () => {
               onChange={e => setSelectedDate(e.target.value)}
             />
           </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="induction-status-filter">
+              Status
+            </label>
+            <select
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="induction-status-filter"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
         </div>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
@@ -199,6 +215,7 @@ const Induction = () => {
             onClick={() => {
               setEmailFilter('');
               setSelectedDate('');
+              setStatusFilter('pending');
               dispatch(
                 inductionList({
                   date: '',

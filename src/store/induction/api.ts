@@ -13,7 +13,7 @@ import {
 
 export const inductionList = createAsyncThunk(
   'induction/inductionList',
-  async ({ date, page, type, listLimit, email }: InductionListRequest, { rejectWithValue }) => {
+  async ({ date, page, type, listLimit, email, status }: InductionListRequest, { rejectWithValue }) => {
     try {
       const payload: any = {
         date,
@@ -24,6 +24,10 @@ export const inductionList = createAsyncThunk(
 
       if (email?.trim()) {
         payload.email = email.trim();
+      }
+
+      if (status && status !== 'all') {
+        payload.status = status;
       }
 
       const response = await api.post(`${endpoints.induction.list}`, payload);

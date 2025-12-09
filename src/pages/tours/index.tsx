@@ -17,6 +17,7 @@ const Tours = () => {
 
   const [selectedDate, setSelectedDate] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('pending');
 
   const applyFilters = () => {
     dispatch(
@@ -26,6 +27,7 @@ const Tours = () => {
         type: 'tourbooking',
         listLimit: 20,
         email: emailFilter,
+        status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
       })
     );
   };
@@ -98,7 +100,11 @@ const Tours = () => {
         };
         const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
 
-        return <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${colorClass}`}>{status}</span>;
+        return (
+          <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${colorClass}`}>
+            {status === 'confirmed' ? 'Pending' : status}
+          </span>
+        );
       },
     },
     {
@@ -182,6 +188,21 @@ const Tours = () => {
               onChange={e => setSelectedDate(e.target.value)}
             />
           </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="tour-status-filter">
+              Status
+            </label>
+            <select
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="tour-status-filter"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
         </div>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
@@ -190,6 +211,7 @@ const Tours = () => {
             onClick={() => {
               setEmailFilter('');
               setSelectedDate('');
+              setStatusFilter('all');
               dispatch(
                 inductionList({
                   date: '',
@@ -197,6 +219,7 @@ const Tours = () => {
                   type: 'tourbooking',
                   listLimit: 20,
                   email: '',
+                  status: 'all',
                 })
               );
             }}
