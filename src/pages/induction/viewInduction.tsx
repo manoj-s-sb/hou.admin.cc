@@ -34,6 +34,7 @@ interface AccordionItemProps {
   isSaving: boolean;
   isSubscriptionActivation: boolean;
   data: any;
+  user: any;
 }
 
 interface ConfirmationModalProps {
@@ -112,6 +113,7 @@ const AccordionItem = ({
   isSaving,
   isSubscriptionActivation,
   data,
+  user,
 }: AccordionItemProps) => {
   const [steps, setSteps] = useState<SubStep[]>([]);
   const [originalSteps, setOriginalSteps] = useState<SubStep[]>([]); // Track original API data
@@ -366,8 +368,9 @@ const AccordionItem = ({
           </div>
 
           {/* Save Induction Button */}
-          {data?.status !== 'completed' && (
-            <div className="mt-4 flex justify-stretch sm:mt-6 sm:justify-end">
+
+          <div className="mt-4 flex justify-stretch sm:mt-6 sm:justify-end">
+            {data?.status !== 'completed' && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   isSaving || isSubscriptionActivation
@@ -403,8 +406,35 @@ const AccordionItem = ({
                   {isSubscriptionActivation ? 'Activating Subscription...' : isSaving ? 'Saving...' : 'Save Induction'}
                 </span>
               </button>
-            </div>
-          )}
+            )}
+            {data?.subscriptionStatus === 'pendingactivation' && (
+              <button
+                onClick={() => {
+                  dispatch(
+                    activateUserSubscription({
+                      userId: data?.userId,
+                      adminId: user?.userId || '',
+                      adminName: `${user?.firstName} ${user?.lastName}`,
+                    })
+                  )
+                    .then((response: any) => {
+                      dispatch(userInductionDetails({ userId: data?.userId }));
+                      if (response?.payload?.status === 'error') {
+                        toast.error(response?.payload?.message, { duration: 5000 });
+                      } else {
+                        toast.success('Subscription activated successfully!');
+                      }
+                    })
+                    .catch((error: any) => {
+                      toast.error(`Failed to activate subscription: ${error}`);
+                    });
+                }}
+                className="flex w-full items-center justify-center space-x-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-blue-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6"
+              >
+                Active Subscription
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -421,10 +451,11 @@ const AccordionItem = ({
 };
 
 const ViewInduction = () => {
-  const { members, inductionDetails } = useSelector((state: RootState) => {
+  const { members, inductionDetails,loader } = useSelector((state: RootState) => {
     return {
       members: state.members,
       inductionDetails: state.induction?.userInductionDetails,
+    loader:state.induction?.isLoading,
     };
   });
 
@@ -459,31 +490,10 @@ const ViewInduction = () => {
     // Dispatch the API call with userId and filtered substeps
     dispatch(updateInductionSteps({ userId, subSteps: filteredSteps }))
       .unwrap()
-      .then(response => {
+      .then(() => {
         toast.success('Induction steps saved successfully!');
+        dispatch(userInductionDetails({ userId: data?.userId }));
         // Check if all 5 steps are completed
-        const completedSteps = response?.data?.subSteps?.filter((s: any) => s.status === 'completed').length;
-        const totalSteps = response?.data?.subSteps?.length;
-
-        if (response?.status === 'success' && completedSteps === 5 && completedSteps === totalSteps) {
-          dispatch(
-            activateUserSubscription({
-              userId,
-              adminId: user?.userId || '',
-              adminName: `${user?.firstName} ${user?.lastName}`,
-            })
-          )
-            .then(response => {
-              if (response?.payload?.status === 'error') {
-                toast.error(response?.payload?.message, { duration: 5000 });
-              } else {
-                toast.success('Subscription activated successfully!');
-              }
-            })
-            .catch(error => {
-              toast.error(`Failed to activate subscription: ${error}`);
-            });
-        }
       })
       .catch(error => {
         toast.error(`Failed to save induction steps: ${error}`);
@@ -515,8 +525,31 @@ const ViewInduction = () => {
         onSearch={() => undefined}
       />
 
-      {/* Booking Information Card */}
-      <div className="mb-4 rounded-lg bg-white p-4 shadow-md sm:mb-6 sm:p-6">
+      {/* Loading State */}
+      {loader ? (
+        <div className="flex min-h-[400px] items-center justify-center rounded-lg bg-white p-8 shadow-md">
+          <div className="text-center">
+            <svg
+              className="mx-auto h-12 w-12 animate-spin text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path
+                className="opacity-75"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                fill="currentColor"
+              ></path>
+            </svg>
+            <p className="mt-4 text-lg font-medium text-gray-700">Loading induction details...</p>
+            <p className="mt-2 text-sm text-gray-500">Please wait while we fetch the information</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Booking Information Card */}
+          <div className="mb-4 rounded-lg bg-white p-4 shadow-md sm:mb-6 sm:p-6">
         <div className="mb-3 flex items-center justify-between sm:mb-4">
           <h2 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Booking Information</h2>
         </div>
@@ -586,6 +619,7 @@ const ViewInduction = () => {
             isSubscriptionActivation={members?.isSubscriptionActivation}
             lastName={data?.lastName || ''}
             userId={data?.userId || ''}
+            user={user}
             onSaveInduction={handleSaveInduction}
             onToggle={() => toggleAccordion(data?.userId || '')}
           />
@@ -611,6 +645,7 @@ const ViewInduction = () => {
                 isSubscriptionActivation={members?.isSubscriptionActivation}
                 lastName={member.lastName}
                 userId={member.userId}
+                user={user}
                 onSaveInduction={handleSaveInduction}
                 onToggle={() => toggleAccordion(member.userId)}
               />
@@ -618,6 +653,8 @@ const ViewInduction = () => {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };
