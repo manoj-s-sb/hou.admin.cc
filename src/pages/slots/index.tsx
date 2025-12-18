@@ -64,7 +64,7 @@ const SlotBookings: React.FC = () => {
     );
   }, [dispatch, formattedDate]);
   return (
-    <div className="w-full max-w-full">
+    <div className="w-full max-w-full px-1 sm:px-0">
       <SectionTitle
         description="Manage your slot bookings."
         inputPlaceholder=""
@@ -72,7 +72,7 @@ const SlotBookings: React.FC = () => {
         title="Slot Bookings"
         value=""
       />
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <CalendarHeader
           monthName={monthNames[selectedDate?.month]}
           nextSevenDates={nextSevenDates}
@@ -83,8 +83,8 @@ const SlotBookings: React.FC = () => {
           {isLoading && (
             <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[10px] bg-white/90 backdrop-blur-sm">
               <div className="flex flex-col items-center justify-center gap-3">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-[#21295A]"></div>
-                <p className="text-sm font-medium text-[#21295A]">Loading slots...</p>
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#21295A] sm:h-12 sm:w-12"></div>
+                <p className="text-xs font-medium text-[#21295A] sm:text-sm">Loading slots...</p>
               </div>
             </div>
           )}

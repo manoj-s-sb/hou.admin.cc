@@ -533,10 +533,10 @@ const ViewInduction = () => {
             <p className="mb-1 text-xs text-gray-600 sm:text-sm">Status</p>
             <span
               className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium sm:px-3 sm:py-1 sm:text-sm ${
-                data?.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                data?.status === 'confirmed' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
               }`}
             >
-              {data?.status?.charAt(0).toUpperCase() + (data?.status?.slice(1) || '')}
+              {data?.status==='confirmed' ? 'Pending' : data?.status?.charAt(0).toUpperCase() + (data?.status?.slice(1) || '')}
             </span>
           </div>
           <div className="rounded-lg bg-gray-50 p-3 sm:p-4">

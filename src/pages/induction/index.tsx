@@ -27,6 +27,7 @@ const Induction = () => {
         type: 'inductionbooking',
         listLimit: 20,
         email: emailFilter,
+        status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
       })
     );
   };
@@ -112,7 +113,7 @@ const Induction = () => {
       valueGetter: params => {
         const type = params.row?.status || '';
         if (type === 'completed') return 'Completed';
-        if (type === 'confirmed') return 'Confirmed';
+        if (type === 'confirmed') return 'Pending';
         if (type === 'cancelled') return 'Cancelled';
         return type;
       },
@@ -127,7 +128,7 @@ const Induction = () => {
           className="rounded-full p-2 transition-colors hover:bg-gray-100 max-[560px]:p-1"
           title="View Details"
           onClick={() => {
-            navigate('/view-induction');
+            navigate(`/view-induction/${params.row.userId}`);
             dispatch(setSelectedInduction(params.row));
           }}
         >

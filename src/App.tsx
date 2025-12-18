@@ -73,7 +73,7 @@ const AppRoutes: React.FC = () => {
               </Layout>
             </ProtectedRoute>
           }
-          path="/view-induction"
+          path="/view-induction/:userId"
         />
         <Route
           element={

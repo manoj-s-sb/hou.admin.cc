@@ -22,13 +22,32 @@ const getDisplayName = (user?: BookingUser) => {
 
 const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[] }) => {
   const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(0, 1fr))` };
+  const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(95px, 1fr))` };
 
   return (
     <div className="rounded-[10px] bg-white">
       <div className="overflow-x-auto">
         <div className="min-w-fit">
           <div className="sticky top-0 z-10 bg-white">
-            <div className="grid" style={gridTemplateColumns}>
+            <div className="grid sm:hidden" style={gridTemplateColumnsMobile}>
+              <div className="flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-3 text-[12px] font-semibold text-[#21295A]">
+                Lane No
+              </div>
+              {lanes.map(lane => (
+                <div
+                  key={lane.laneNo}
+                  className={composeClasses(
+                    'relative flex min-h-[65px] w-full min-w-[95px] flex-row items-center justify-center border border-l-0 border-[#B3DADA] bg-[#fff] px-2 py-3 text-center'
+                  )}
+                >
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <span className="text-[12px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
+                    <span className="text-[11px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid hidden sm:grid" style={gridTemplateColumns}>
               <div className="flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A]">
                 Lane No
               </div>
@@ -36,38 +55,24 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                 <div
                   key={lane.laneNo}
                   className={composeClasses(
-                    'relative flex min-h-[70px] w-full min-w-[110px] flex-row items-center justify-between gap-4 border border-l-0 border-[#B3DADA] bg-[#fff] px-5 py-4 text-center text-[13px] font-semibold text-slate-600'
+                    'relative flex min-h-[70px] w-full min-w-[110px] flex-row items-center justify-center border border-l-0 border-[#B3DADA] bg-[#fff] px-4 py-4 text-center'
                   )}
                 >
-                  <div className="flex flex-1 flex-col items-center justify-center gap-2">
+                  <div className="flex flex-col items-center justify-center gap-2">
                     <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
-                  {/* <span
-                    className="absolute right-0 flex h-8 w-8 items-center justify-center rounded-full pt-1 text-[15px] font-semibold z-10 rotate-90 top-[10px] cursor-pointer"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => alert('Alert button clicked')}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        alert('Alert button clicked');
-                      }
-                    }}
-                  >
-                    ...
-                  </span> */}
                 </div>
               ))}
             </div>
           </div>
-          <div className="max-h-[65vh] overflow-auto">
-            <div className="grid" style={gridTemplateColumns}>
+          <div className="max-h-[55vh] overflow-auto sm:max-h-[65vh]">
+            <div className="grid sm:hidden" style={gridTemplateColumnsMobile}>
               {timeSlots.map((slot, slotIdx) => (
                 <Fragment key={slot}>
                   <div
                     className={composeClasses(
-                      'flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-10 py-6 text-[14px] font-medium text-[#212295A]',
+                      'flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-4 text-[11px] font-medium text-[#212295A]',
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
@@ -75,7 +80,49 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
-                    const zebraBgClass = slotIdx % 2 === 0 ? 'bg-[#DCEDED]' : 'bg-[#E6F3F3]'; // zebra pattern per row for available slots
+                    const zebraBgClass = slotIdx % 2 === 0 ? 'bg-[#DCEDED]' : 'bg-[#E6F3F3]';
+                    return (
+                      <button
+                        key={`${slot}-${lane.laneNo}`}
+                        className={composeClasses(
+                          'flex min-h-[65px] min-w-[95px] items-center justify-center border border-[#B3DADA] bg-[transparent] text-[11px] font-medium text-[#21295A] transition hover:border-[#B3DADA] hover:bg-[#fff] hover:text-[#21295A]',
+                          slotIdx !== 0 && 'border-t-0',
+                          laneIdx !== 0 && 'border-l-0'
+                        )}
+                        type="button"
+                      >
+                        {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
+                          <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#21295A] px-2 py-2 text-center text-[11px] leading-tight text-white">
+                            {getDisplayName(currentSlot?.booking?.user)}
+                          </div>
+                        ) : !currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'disabled' ? (
+                          <div
+                            className="h-full w-full rounded-[6px] bg-cover bg-center"
+                            style={{ backgroundImage: "url('/assets/svg/slot_bg.svg')" }}
+                          />
+                        ) : currentSlot?.status?.toLowerCase() === 'available' ? (
+                          <div className={composeClasses('h-full w-full', zebraBgClass)} />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </div>
+            <div className="grid hidden sm:grid" style={gridTemplateColumns}>
+              {timeSlots.map((slot, slotIdx) => (
+                <Fragment key={slot}>
+                  <div
+                    className={composeClasses(
+                      'flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-4 py-6 text-[14px] font-medium text-[#212295A] sm:px-10',
+                      slotIdx !== 0 && 'border-t-0'
+                    )}
+                  >
+                    {slot}
+                  </div>
+                  {lanes.map((lane, laneIdx) => {
+                    const currentSlot = lane.slots[slotIdx];
+                    const zebraBgClass = slotIdx % 2 === 0 ? 'bg-[#DCEDED]' : 'bg-[#E6F3F3]';
                     return (
                       <button
                         key={`${slot}-${lane.laneNo}`}
@@ -86,25 +133,9 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                         )}
                         type="button"
                       >
-                        {/* <div className="h-full w-full bg-green-500" /> */}
-
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
-                          <div className="flex h-full w-full items-center justify-between rounded-[8px] bg-[#21295A] p-4 text-center align-middle text-white">
+                          <div className="flex h-full w-full items-center justify-between rounded-[8px] bg-[#21295A] p-4 text-center text-white">
                             {getDisplayName(currentSlot?.booking?.user)}
-                            {/* <span
-                              className="flex rotate-90 items-center justify-center pt-1 text-[15px] font-semibold z-10 cursor-pointer"
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => alert('Alert button clicked')}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  alert('Alert button clicked');
-                                }
-                              }}
-                            >
-                              ...
-                            </span> */}
                           </div>
                         ) : !currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'disabled' ? (
                           <div

@@ -73,10 +73,16 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
 
   return (
     <div>
-      <div className="relative flex w-full flex-row items-center justify-between gap-2 rounded-[10px] border border-[#E2E8F0] bg-[#fff] px-5 py-5">
-        <div className="flex flex-row items-center gap-2">
+      <div className="relative flex w-full flex-col gap-3 rounded-[10px] border border-[#E2E8F0] bg-[#fff] px-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-5 sm:py-5 md:gap-4">
+        {/* Mobile: Date display at top */}
+        <div className="block text-center text-[15px] font-[400] text-[#21295A] sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:text-[18px] md:text-[18px]">
+          {selectedDate?.day}, {monthName} 2025
+        </div>
+
+        {/* Mobile: Navigation controls */}
+        <div className="flex flex-row items-center justify-center gap-2 sm:justify-start md:gap-2">
           <span
-            className={`rounded-[10px] border border-[#E2E8F0] p-2 ${isPrevDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[#F8FAFC]'}`}
+            className={`rounded-[8px] border border-[#E2E8F0] p-2 sm:rounded-[10px] sm:p-2 ${isPrevDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[#F8FAFC]'}`}
             role="button"
             tabIndex={0}
             onClick={handleSelectPrevious}
@@ -87,10 +93,10 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
               }
             }}
           >
-            <img alt="arrow right" className="h-6 w-6" src={'../../assets/svg/arrow_left.svg'} />
+            <img alt="arrow left" className="h-5 w-5 sm:h-6 sm:w-6" src={'../../assets/svg/arrow_left.svg'} />
           </span>
           <button
-            className={`rounded-[10px] border border-[#E2E8F0] px-5 py-2 text-[14px] font-medium ${
+            className={`rounded-[8px] border border-[#E2E8F0] px-4 py-2 text-[13px] font-medium sm:rounded-[10px] sm:px-5 sm:py-2 sm:text-[14px] md:text-[14px] ${
               isTodaySelected
                 ? 'cursor-not-allowed bg-[#F8FAFC] text-[#94A3B8]'
                 : 'cursor-pointer text-[#1E293B] hover:bg-[#F8FAFC]'
@@ -102,7 +108,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
             Today
           </button>
           <span
-            className={`rounded-[10px] border border-[#E2E8F0] p-2 ${isNextDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[#F8FAFC]'}`}
+            className={`rounded-[8px] border border-[#E2E8F0] p-2 sm:rounded-[10px] sm:p-2 ${isNextDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[#F8FAFC]'}`}
             role="button"
             tabIndex={0}
             onClick={handleSelectNext}
@@ -113,15 +119,14 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
               }
             }}
           >
-            <img alt="arrow right" className="h-6 w-6" src={'../../assets/svg/arrow_right.svg'} />
+            <img alt="arrow right" className="h-5 w-5 sm:h-6 sm:w-6" src={'../../assets/svg/arrow_right.svg'} />
           </span>
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 text-center text-[18px] font-[400] text-[#21295A]">
-          {selectedDate?.day}, {monthName} 2025
-        </div>
-        <div className="flex flex-row items-center gap-2">
+
+        {/* Week navigation with dates */}
+        <div className="flex flex-row items-center justify-center gap-1.5 sm:gap-2 md:gap-2">
           <span
-            className="relative top-[13px] cursor-pointer rounded-[10px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC]"
+            className="flex-shrink-0 cursor-pointer rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC] sm:relative sm:top-[13px] sm:rounded-[10px] sm:p-2.5"
             role="button"
             tabIndex={0}
             onClick={handleNavigatePrevious}
@@ -132,19 +137,19 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
               }
             }}
           >
-            <img alt="arrow left" className="h-5 w-5" src={'/assets/right-admin.svg'} />
+            <img alt="arrow left" className="h-4 w-4 sm:h-5 sm:w-5" src={'/assets/right-admin.svg'} />
           </span>
-          <div className="flex flex-row items-end gap-4">
+          <div className="scrollbar-hide flex flex-row items-end gap-1.5 overflow-x-auto sm:gap-4 md:gap-4">
             {displayedDates.map((date, index) => {
               const isSelected = selectedDate?.day === date.day && selectedDate?.month === date.month;
               const weekdayLabel = date.fullDate
                 ? date.fullDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
                 : '';
               return (
-                <div key={index} className="flex flex-col items-center gap-2 text-center">
-                  <span className="text-[12px] font-medium text-[#7A7F9C]">{weekdayLabel}</span>
+                <div key={index} className="flex flex-shrink-0 flex-col items-center gap-1 text-center sm:gap-2">
+                  <span className="text-[10px] font-medium text-[#7A7F9C] sm:text-[12px]">{weekdayLabel}</span>
                   <span
-                    className={`cursor-pointer rounded-[10px] border border-[#E2E8F0] px-4 py-2.5 text-[15px] font-medium text-[#1E293B] ${isSelected ? 'bg-[#21295A] text-white' : ''}`}
+                    className={`cursor-pointer rounded-[8px] border border-[#E2E8F0] px-3 py-2 text-[13px] font-medium text-[#1E293B] sm:rounded-[10px] sm:px-4 sm:py-2.5 sm:text-[15px] md:text-[15px] ${isSelected ? 'bg-[#21295A] text-white' : ''}`}
                     role="button"
                     tabIndex={0}
                     onClick={() => setSelectedDate({ day: date.day, month: date.month, fullDate: date.fullDate })}
@@ -162,7 +167,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
             })}
           </div>
           <span
-            className="relative top-[13px] cursor-pointer rounded-[10px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC]"
+            className="flex-shrink-0 cursor-pointer rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC] sm:relative sm:top-[13px] sm:rounded-[10px] sm:p-2.5"
             role="button"
             tabIndex={0}
             onClick={handleNavigateNext}
@@ -173,7 +178,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
               }
             }}
           >
-            <img alt="arrow right" className="h-5 w-5" src={'/assets/left-admin.svg'} />
+            <img alt="arrow right" className="h-4 w-4 sm:h-5 sm:w-5" src={'/assets/left-admin.svg'} />
           </span>
         </div>
       </div>
