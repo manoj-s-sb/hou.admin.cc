@@ -82,3 +82,15 @@ export const updateTourStatus = createAsyncThunk(
     }
   }
 );
+
+export const userInductionDetails = createAsyncThunk(
+  'induction/userInductionDetails',
+  async ({ userId }: any, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${endpoints.induction.userInductionDetails}`, { userId });
+      return response?.data;
+    } catch (error: any) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch user induction details'));
+    }
+  }
+);

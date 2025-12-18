@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
-import { getInductionStepsDetails, updateInductionSteps } from '../../store/induction/api';
+import { getInductionStepsDetails, updateInductionSteps, userInductionDetails } from '../../store/induction/api';
 import { SubStep } from '../../store/induction/types';
 import { activateUserSubscription } from '../../store/members/api';
 import { RootState, AppDispatch } from '../../store/store';
@@ -421,18 +421,24 @@ const AccordionItem = ({
 };
 
 const ViewInduction = () => {
-  const { selectedInduction, members } = useSelector((state: RootState) => {
+  const { members, inductionDetails } = useSelector((state: RootState) => {
     return {
-      selectedInduction: state.induction?.selectedInduction,
       members: state.members,
+      inductionDetails: state.induction?.userInductionDetails,
     };
   });
 
+  const { userId: userInductionId } = useParams<{ userId: string }>();
+
   const dispatch = useDispatch<AppDispatch>();
-  const [openAccordions, setOpenAccordions] = useState<string[]>([selectedInduction?.userId || '']);
+  const [openAccordions, setOpenAccordions] = useState<string[]>([inductionDetails?.userId || '']);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
-  const data = selectedInduction;
+  const data = inductionDetails;
   const navigate = useNavigate();
+
+  useEffect(() => {
+    dispatch(userInductionDetails({ userId: userInductionId as string }));
+  }, []);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -536,7 +542,9 @@ const ViewInduction = () => {
                 data?.status === 'confirmed' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
               }`}
             >
-              {data?.status==='confirmed' ? 'Pending' : data?.status?.charAt(0).toUpperCase() + (data?.status?.slice(1) || '')}
+              {data?.status === 'confirmed'
+                ? 'Pending'
+                : data?.status?.charAt(0).toUpperCase() + (data?.status?.slice(1) || '')}
             </span>
           </div>
           <div className="rounded-lg bg-gray-50 p-3 sm:p-4">

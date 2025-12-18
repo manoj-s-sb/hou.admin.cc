@@ -33,6 +33,7 @@ export interface Induction {
   userId: string;
   email: string;
   firstName: string;
+  subscriptionStatus: string;
   lastName: string;
   onboardingType: string;
   facilityCode: string;
@@ -88,6 +89,7 @@ export interface InductionState {
   inductionList: InductionResponse;
   selectedInduction: Induction | null;
   inductionStep: InductionStep | null;
+  userInductionDetails: Induction | null;
 }
 
 export const initialState: InductionState = {
@@ -99,6 +101,7 @@ export const initialState: InductionState = {
     page: 0,
     limit: 0,
   },
+  userInductionDetails: null,
   selectedInduction: null,
   inductionStep: null,
 };

@@ -1,6 +1,12 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { inductionList, getInductionStepsDetails, updateInductionSteps, updateTourStatus } from './api';
+import {
+  inductionList,
+  getInductionStepsDetails,
+  updateInductionSteps,
+  updateTourStatus,
+  userInductionDetails,
+} from './api';
 import { initialState } from './types';
 
 const inductionSlice = createSlice({
@@ -70,6 +76,18 @@ const inductionSlice = createSlice({
     builder.addCase(updateTourStatus.rejected, (state, action) => {
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to update tour status. Please try again.';
+    });
+    builder.addCase(userInductionDetails.pending, state => {
+      state.isLoading = true;
+      state.error = '';
+    });
+    builder.addCase(userInductionDetails.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.userInductionDetails = action.payload?.data || null;
+    });
+    builder.addCase(userInductionDetails.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = (action.payload as string) || 'Failed to fetch user induction details. Please try again.';
     });
   },
 });

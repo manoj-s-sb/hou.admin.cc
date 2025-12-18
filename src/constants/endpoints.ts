@@ -15,6 +15,7 @@ const endpoints = {
     search: '/admin/induction/search',
     update: '/admin/induction/status/update',
     activateSubscription: 'subscription/admin/activate',
+    userInductionDetails: '/admin/induction/details',
   },
 };
 
