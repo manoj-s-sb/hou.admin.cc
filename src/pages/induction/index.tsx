@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import SectionTitle from '../../components/SectionTitle';
 import UserTable, { ColumnDef } from '../../components/UserTable';
 import { inductionList } from '../../store/induction/api';
-import { setSelectedInduction } from '../../store/induction/reducers';
+// import { setSelectedInduction } from '../../store/induction/reducers';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
 
@@ -129,7 +129,7 @@ const Induction = () => {
           title="View Details"
           onClick={() => {
             navigate(`/view-induction/${params.row.userId}`);
-            dispatch(setSelectedInduction(params.row));
+            // dispatch(setSelectedInduction(params.row));
           }}
         >
           <svg

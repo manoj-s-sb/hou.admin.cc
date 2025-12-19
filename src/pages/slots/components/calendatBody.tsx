@@ -1,6 +1,13 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 
+import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
+
+import { getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { BookingUser, Lanes } from '../../../store/slots/types';
+import { AppDispatch } from '../../../store/store';
+
+import LaneDetailsModal from './LaneDetailsModal';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
@@ -20,9 +27,77 @@ const getDisplayName = (user?: BookingUser) => {
   return [firstName, lastName].filter(Boolean).join(' ');
 };
 
-const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[] }) => {
+interface CalendarBodyProps {
+  lanes: Lanes[];
+  timeSlots: string[];
+  date: string;
+  facilityCode: string;
+}
+
+const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProps) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
+  const [isUpdatingLane, setIsUpdatingLane] = useState(false);
+
   const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(0, 1fr))` };
   const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(95px, 1fr))` };
+
+  const handleMenuClick = (lane: Lanes, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedLane(lane);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedLane(null);
+  };
+
+  const handleUnblockLane = async () => {
+    if (selectedLane) {
+      setIsUpdatingLane(true);
+      try {
+        // Check if lane is currently blocked (all slots are disabled)
+        const isLaneBlocked = selectedLane.slots.every(slot => slot.status?.toLowerCase() === 'disabled');
+        const action = isLaneBlocked ? 'available' : 'disable';
+        const reason = isLaneBlocked ? 'Manual unblock from admin' : 'Manual block from admin';
+
+        await dispatch(
+          updateLaneStatus({
+            date,
+            facilityCode,
+            laneCode: selectedLane.laneCode,
+            action,
+            reason,
+          })
+        ).unwrap();
+
+        // Refresh the slots data after updating
+        await dispatch(
+          getSlots({
+            date,
+            facilityCode,
+          })
+        );
+
+        const successMessage = isLaneBlocked
+          ? `Lane ${selectedLane.laneNo} has been unblocked successfully!`
+          : `Lane ${selectedLane.laneNo} has been blocked successfully!`;
+
+        toast.success(successMessage, {
+          duration: 4000,
+        });
+
+        setSelectedLane(null);
+      } catch (error: any) {
+        const errorMessage = error?.message || 'Failed to update lane status. Please try again.';
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+        console.error('Failed to update lane status:', error);
+      } finally {
+        setIsUpdatingLane(false);
+      }
+    }
+  };
 
   return (
     <div className="rounded-[10px] bg-white">
@@ -44,10 +119,16 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                     <span className="text-[12px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[11px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
+                  <span
+                    className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A] hover:bg-gray-100"
+                    onClick={e => handleMenuClick(lane, e)}
+                  >
+                    ...
+                  </span>
                 </div>
               ))}
             </div>
-            <div className="grid hidden sm:grid" style={gridTemplateColumns}>
+            <div className="grid sm:grid" style={gridTemplateColumns}>
               <div className="flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A]">
                 Lane No
               </div>
@@ -62,6 +143,12 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                     <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
+                  <span
+                    className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
+                    onClick={e => handleMenuClick(lane, e)}
+                  >
+                    ...
+                  </span>
                 </div>
               ))}
             </div>
@@ -109,7 +196,7 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
                 </Fragment>
               ))}
             </div>
-            <div className="grid hidden sm:grid" style={gridTemplateColumns}>
+            <div className="grid sm:grid" style={gridTemplateColumns}>
               {timeSlots.map((slot, slotIdx) => (
                 <Fragment key={slot}>
                   <div
@@ -154,6 +241,17 @@ const CalendarBody = ({ lanes, timeSlots }: { lanes: Lanes[]; timeSlots: string[
           </div>
         </div>
       </div>
+
+      {/* Modal */}
+      {selectedLane && (
+        <LaneDetailsModal
+          lane={selectedLane}
+          isOpen={!!selectedLane}
+          onClose={handleCloseModal}
+          onLaneClick={handleUnblockLane}
+          isLoading={isUpdatingLane}
+        />
+      )}
     </div>
   );
 };

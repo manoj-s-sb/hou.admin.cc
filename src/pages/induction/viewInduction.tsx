@@ -31,10 +31,11 @@ interface AccordionItemProps {
   onToggle: () => void;
   dispatch: any;
   onSaveInduction: (userId: string, steps: SubStep[]) => void;
+  onActivateSubscription: (userId: string) => void;
   isSaving: boolean;
   isSubscriptionActivation: boolean;
+  isActivatingSubscription: boolean;
   data: any;
-  user: any;
 }
 
 interface ConfirmationModalProps {
@@ -110,10 +111,11 @@ const AccordionItem = ({
   onToggle,
   dispatch,
   onSaveInduction,
+  onActivateSubscription,
   isSaving,
   isSubscriptionActivation,
+  isActivatingSubscription,
   data,
-  user,
 }: AccordionItemProps) => {
   const [steps, setSteps] = useState<SubStep[]>([]);
   const [originalSteps, setOriginalSteps] = useState<SubStep[]>([]); // Track original API data
@@ -367,17 +369,18 @@ const AccordionItem = ({
             )}
           </div>
 
-          {/* Save Induction Button */}
-
-          <div className="mt-4 flex justify-stretch sm:mt-6 sm:justify-end">
+          {/* Action Buttons */}
+          
+          <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
+            {/* Save Induction Button */}
             {data?.status !== 'completed' && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
-                  isSaving || isSubscriptionActivation
+                  isSaving || isSubscriptionActivation || isActivatingSubscription
                     ? 'cursor-not-allowed bg-blue-400'
                     : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
                 }`}
-                disabled={isSaving || isSubscriptionActivation}
+                disabled={isSaving || isSubscriptionActivation || isActivatingSubscription}
                 onClick={handleSaveClick}
               >
                 {isSaving && (
@@ -407,31 +410,41 @@ const AccordionItem = ({
                 </span>
               </button>
             )}
-            {data?.subscriptionStatus === 'pendingactivation' && (
+
+            {/* Activate Subscription Button */}
+            {data?.subscriptionStatus === 'pendingactivation' && data?.status === 'completed' && (
               <button
-                onClick={() => {
-                  dispatch(
-                    activateUserSubscription({
-                      userId: data?.userId,
-                      adminId: user?.userId || '',
-                      adminName: `${user?.firstName} ${user?.lastName}`,
-                    })
-                  )
-                    .then((response: any) => {
-                      dispatch(userInductionDetails({ userId: data?.userId }));
-                      if (response?.payload?.status === 'error') {
-                        toast.error(response?.payload?.message, { duration: 5000 });
-                      } else {
-                        toast.success('Subscription activated successfully!');
-                      }
-                    })
-                    .catch((error: any) => {
-                      toast.error(`Failed to activate subscription: ${error}`);
-                    });
-                }}
-                className="flex w-full items-center justify-center space-x-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-blue-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6"
+                className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
+                  isActivatingSubscription || isSaving
+                    ? 'cursor-not-allowed bg-green-400'
+                    : 'bg-green-600 hover:bg-green-700 hover:shadow-lg'
+                }`}
+                disabled={isActivatingSubscription || isSaving}
+                onClick={() => onActivateSubscription(userId)}
               >
-                Active Subscription
+                {isActivatingSubscription && (
+                  <svg
+                    className="h-4 w-4 animate-spin text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      fill="currentColor"
+                    ></path>
+                  </svg>
+                )}
+                <span>{isActivatingSubscription ? 'Activating...' : 'Activate Subscription'}</span>
               </button>
             )}
           </div>
@@ -451,27 +464,52 @@ const AccordionItem = ({
 };
 
 const ViewInduction = () => {
-  const { members, inductionDetails,loader } = useSelector((state: RootState) => {
+  const { members, induction } = useSelector((state: RootState) => {
     return {
       members: state.members,
-      inductionDetails: state.induction?.userInductionDetails,
-    loader:state.induction?.isLoading,
+      induction: state.induction,
     };
   });
 
-  const { userId: userInductionId } = useParams<{ userId: string }>();
-
   const dispatch = useDispatch<AppDispatch>();
-  const [openAccordions, setOpenAccordions] = useState<string[]>([inductionDetails?.userId || '']);
-  const [savingUserId, setSavingUserId] = useState<string | null>(null);
-  const data = inductionDetails;
   const navigate = useNavigate();
+  const { userId } = useParams<{ userId: string }>();
+
+  const [data, setData] = useState<any>(induction?.userInductionDetails);
 
   useEffect(() => {
-    dispatch(userInductionDetails({ userId: userInductionId as string }));
-  }, []);
+    setData(induction?.userInductionDetails);
+  }, [induction?.userInductionDetails]);
+
+  console.log(induction?.userInductionDetails);
+
+  const [isLoadingInduction, setIsLoadingInduction] = useState(true);
+  const [openAccordions, setOpenAccordions] = useState<string[]>([]);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  // Fetch user induction details when component mounts
+  useEffect(() => {
+    if (userId) {
+      setIsLoadingInduction(true);
+      dispatch(userInductionDetails({ userId }))
+        .unwrap()
+        .then((response: any) => {
+          if (response?.data) {
+            setOpenAccordions([response.data?.userId || '']);
+          }
+        })
+        .catch((error: any) => {
+          console.error('Error fetching user induction details:', error);
+          toast.error('Failed to load induction details');
+        })
+        .finally(() => {
+          setIsLoadingInduction(false);
+        });
+    }
+  }, [userId, dispatch]);
 
   const toggleAccordion = (userId: string) => {
     setOpenAccordions(prev => (prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]));
@@ -489,10 +527,9 @@ const ViewInduction = () => {
 
     // Dispatch the API call with userId and filtered substeps
     dispatch(updateInductionSteps({ userId, subSteps: filteredSteps }))
-      .unwrap()
       .then(() => {
+        dispatch(userInductionDetails({ userId }));
         toast.success('Induction steps saved successfully!');
-        dispatch(userInductionDetails({ userId: data?.userId }));
         // Check if all 5 steps are completed
       })
       .catch(error => {
@@ -505,12 +542,104 @@ const ViewInduction = () => {
       });
   };
 
+  const handleActivateSubscription = (userId: string) => {
+    // Set loading state for this specific user
+    setActivatingUserId(userId);
+
+    dispatch(
+      activateUserSubscription({
+        userId,
+        adminId: user?.userId || '',
+        adminName: `${user?.firstName} ${user?.lastName}`,
+      })
+    )
+      .then(response => {
+        if (response?.payload?.status === 'error') {
+          toast.error(response?.payload?.message, { duration: 5000 });
+        } else {
+          toast.success('Subscription activated successfully!');
+          // Refresh induction details to get updated subscription status
+          dispatch(userInductionDetails({ userId: data?.userId }));
+        }
+      })
+      .catch(error => {
+        toast.error(`Failed to activate subscription: ${error}`);
+      })
+      .finally(() => {
+        // Clear loading state
+        setActivatingUserId(null);
+      });
+  };
+
   const formatOnboardingType = (type: string) => {
     if (type === 'someoneelse') return 'Someone Else';
     if (type === 'individual') return 'Individual';
     if (type === 'family') return 'Family';
     return type;
   };
+
+  // Show loading state while fetching induction details
+  if (isLoadingInduction) {
+    return (
+      <div className="mx-auto w-full p-3 sm:p-4 md:p-6">
+        <SectionTitle
+          description="Manage and track induction progress for all participants"
+          inputPlaceholder=""
+          search={false}
+          title="View Induction"
+          value=""
+          onBackClick={() => navigate('/induction')}
+          onSearch={() => undefined}
+        />
+        <div className="flex items-center justify-center rounded-lg bg-white p-12 shadow-md">
+          <div className="flex flex-col items-center space-y-4">
+            <svg
+              className="h-12 w-12 animate-spin text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path
+                className="opacity-75"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                fill="currentColor"
+              ></path>
+            </svg>
+            <p className="text-gray-600">Loading induction details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if no data is available
+  if (!data) {
+    return (
+      <div className="mx-auto w-full p-3 sm:p-4 md:p-6">
+        <SectionTitle
+          description="Manage and track induction progress for all participants"
+          inputPlaceholder=""
+          search={false}
+          title="View Induction"
+          value=""
+          onBackClick={() => navigate('/induction')}
+          onSearch={() => undefined}
+        />
+        <div className="rounded-lg bg-white p-12 shadow-md">
+          <div className="text-center">
+            <p className="text-lg text-gray-600">No induction details found</p>
+            <button
+              className="mt-4 rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+              onClick={() => navigate('/induction')}
+            >
+              Back to Inductions
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full p-3 sm:p-4 md:p-6">
@@ -525,31 +654,8 @@ const ViewInduction = () => {
         onSearch={() => undefined}
       />
 
-      {/* Loading State */}
-      {loader ? (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg bg-white p-8 shadow-md">
-          <div className="text-center">
-            <svg
-              className="mx-auto h-12 w-12 animate-spin text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path
-                className="opacity-75"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                fill="currentColor"
-              ></path>
-            </svg>
-            <p className="mt-4 text-lg font-medium text-gray-700">Loading induction details...</p>
-            <p className="mt-2 text-sm text-gray-500">Please wait while we fetch the information</p>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Booking Information Card */}
-          <div className="mb-4 rounded-lg bg-white p-4 shadow-md sm:mb-6 sm:p-6">
+      {/* Booking Information Card */}
+      <div className="mb-4 rounded-lg bg-white p-4 shadow-md sm:mb-6 sm:p-6">
         <div className="mb-3 flex items-center justify-between sm:mb-4">
           <h2 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Booking Information</h2>
         </div>
@@ -612,6 +718,7 @@ const ViewInduction = () => {
             dispatch={dispatch}
             email={data?.email || ''}
             firstName={data?.firstName || ''}
+            isActivatingSubscription={activatingUserId === data?.userId}
             isInductionCompleted={data?.isInductionCompleted || false}
             isOpen={openAccordions.includes(data?.userId || '')}
             isPrimary={true}
@@ -619,7 +726,7 @@ const ViewInduction = () => {
             isSubscriptionActivation={members?.isSubscriptionActivation}
             lastName={data?.lastName || ''}
             userId={data?.userId || ''}
-            user={user}
+            onActivateSubscription={handleActivateSubscription}
             onSaveInduction={handleSaveInduction}
             onToggle={() => toggleAccordion(data?.userId || '')}
           />
@@ -631,13 +738,14 @@ const ViewInduction = () => {
             <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-700 sm:text-sm">
               Additional Members ({data?.members?.length || 0})
             </h3>
-            {data.members.map(member => (
+            {data.members.map((member: any) => (
               <AccordionItem
                 key={member.userId}
                 data={data}
                 dispatch={dispatch}
                 email={member.email}
                 firstName={member.firstName}
+                isActivatingSubscription={activatingUserId === member.userId}
                 isInductionCompleted={member.isInductionCompleted}
                 isOpen={openAccordions.includes(member.userId)}
                 isPrimary={false}
@@ -645,7 +753,7 @@ const ViewInduction = () => {
                 isSubscriptionActivation={members?.isSubscriptionActivation}
                 lastName={member.lastName}
                 userId={member.userId}
-                user={user}
+                onActivateSubscription={handleActivateSubscription}
                 onSaveInduction={handleSaveInduction}
                 onToggle={() => toggleAccordion(member.userId)}
               />
@@ -653,8 +761,6 @@ const ViewInduction = () => {
           </div>
         )}
       </div>
-        </>
-      )}
     </div>
   );
 };
