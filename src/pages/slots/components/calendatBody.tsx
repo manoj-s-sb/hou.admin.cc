@@ -128,7 +128,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 </div>
               ))}
             </div>
-            <div className="grid sm:grid" style={gridTemplateColumns}>
+            <div className="hidden sm:grid" style={gridTemplateColumns}>
               <div className="flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A]">
                 Lane No
               </div>
@@ -196,7 +196,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 </Fragment>
               ))}
             </div>
-            <div className="grid sm:grid" style={gridTemplateColumns}>
+            <div className="hidden sm:grid" style={gridTemplateColumns}>
               {timeSlots.map((slot, slotIdx) => (
                 <Fragment key={slot}>
                   <div
