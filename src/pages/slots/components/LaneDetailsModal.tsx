@@ -29,10 +29,7 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
         if (e.key === 'Escape') onClose();
       }}
     >
-      <div
-        className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
-        role="dialog"
-      >
+      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#B3DADA] bg-gradient-to-r from-[#F8FAFA] to-[#EDF5F5] px-6 py-5">
           <h2 className="text-[18px] font-semibold text-[#21295A]">Lane {lane.laneNo}</h2>
