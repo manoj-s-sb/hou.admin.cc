@@ -57,6 +57,7 @@ const InductionAccordionItem = ({
   const [originalSteps, setOriginalSteps] = useState<SubStep[]>([]); // Track original API data
   const [isLoadingSteps, setIsLoadingSteps] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showActivateConfirmModal, setShowActivateConfirmModal] = useState(false);
 
   // Fetch induction steps details when accordion is opened
   useEffect(() => {
@@ -105,6 +106,19 @@ const InductionAccordionItem = ({
 
   const handleCancelSave = () => {
     setShowConfirmModal(false);
+  };
+
+  const handleActivateClick = () => {
+    setShowActivateConfirmModal(true);
+  };
+
+  const handleConfirmActivate = () => {
+    onActivateSubscription(userId);
+    setShowActivateConfirmModal(false);
+  };
+
+  const handleCancelActivate = () => {
+    setShowActivateConfirmModal(false);
   };
 
   const fullName = `${firstName} ${lastName}`.trim();
@@ -306,56 +320,62 @@ const InductionAccordionItem = ({
           </div>
 
           {/* Action Buttons */}
-
-          <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
-            {/* Save Induction Button */}
-            {data?.status !== 'completed' && (
+          {!(data?.status === 'completed' && data?.subscriptionStatus === 'active') && (
+            <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
+              {/* Save Induction Button */}
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
-                  isSaving || isSubscriptionActivation || isActivatingSubscription || buttonLoader
+                  data?.status === 'completed' || isSaving || isActivatingSubscription || buttonLoader
                     ? 'cursor-not-allowed bg-blue-400'
                     : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
                 }`}
-                disabled={isSaving || isSubscriptionActivation || isActivatingSubscription || buttonLoader}
+                disabled={data?.status === 'completed' || isSaving || isActivatingSubscription || buttonLoader}
                 onClick={handleSaveClick}
               >
-                {(isSaving || buttonLoader) && <ButtonLoader />}
-                <span>
-                  {isSubscriptionActivation
-                    ? 'Activating Subscription...'
-                    : isSaving || buttonLoader
-                      ? 'Saving...'
-                      : 'Save Induction'}
-                </span>
+                {isSaving && <ButtonLoader />}
+                <span>{isSaving ? 'Saving...' : 'Save Induction'}</span>
               </button>
-            )}
 
-            {/* Activate Subscription Button */}
-            {data?.subscriptionStatus === 'pendingactivation' && data?.status === 'completed' && (
+              {/* Activate Subscription Button - Hide when status is completed and subscriptionStatus is active */}
+
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
-                  isActivatingSubscription || isSaving || buttonLoader
+                  data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader
                     ? 'cursor-not-allowed bg-green-400'
                     : 'bg-green-600 hover:bg-green-700 hover:shadow-lg'
                 }`}
-                disabled={isActivatingSubscription || isSaving || buttonLoader}
-                onClick={() => onActivateSubscription(userId)}
+                disabled={data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader}
+                title={data?.status !== 'completed' ? 'Complete all the induction steps to activate subscription' : ''}
+                onClick={handleActivateClick}
               >
-                {(isActivatingSubscription || buttonLoader) && <ButtonLoader />}
-                <span>{isActivatingSubscription || buttonLoader ? 'Activating...' : 'Activate Subscription'}</span>
+                {isActivatingSubscription && <ButtonLoader />}
+                <span>{isActivatingSubscription ? 'Activating...' : 'Activate Subscription'}</span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Modal for Save Induction */}
       <ConfirmationModal
         isOpen={showConfirmModal}
         isSaving={isSaving}
         isSubscriptionActivation={isSubscriptionActivation}
         onClose={handleCancelSave}
         onConfirm={handleConfirmSave}
+      />
+
+      {/* Confirmation Modal for Activate Subscription */}
+      <ConfirmationModal
+        confirmButtonColor="green"
+        confirmButtonText="Activate"
+        isOpen={showActivateConfirmModal}
+        isSaving={isSaving}
+        isSubscriptionActivation={isActivatingSubscription}
+        message="Are you sure you want to activate this subscription?"
+        title="Confirm Activation"
+        onClose={handleCancelActivate}
+        onConfirm={handleConfirmActivate}
       />
     </div>
   );

@@ -75,13 +75,15 @@ const ViewInduction = () => {
 
     // Dispatch the API call with userId and filtered substeps
     dispatch(updateInductionSteps({ userId, subSteps: filteredSteps }))
+      .unwrap()
       .then(() => {
         dispatch(userInductionDetails({ userId }));
         toast.success('Induction steps saved successfully!');
-        // Check if all 5 steps are completed
       })
       .catch(error => {
-        toast.error(`Failed to save induction steps: ${error}`);
+        // Display the error message from the API
+        const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to save induction steps';
+        toast.error(errorMessage);
       })
       .finally(() => {
         dispatch(getInductionStepsDetails({ userId }));
@@ -101,17 +103,16 @@ const ViewInduction = () => {
         adminName: `${user?.firstName} ${user?.lastName}`,
       })
     )
-      .then(response => {
-        if (response?.payload?.status === 'error') {
-          toast.error(response?.payload?.message, { duration: 5000 });
-        } else {
-          toast.success('Subscription activated successfully!');
-          // Refresh induction details to get updated subscription status
-          dispatch(userInductionDetails({ userId: data?.userId }));
-        }
+      .unwrap()
+      .then(() => {
+        toast.success('Subscription activated successfully!');
+        // Refresh induction details to get updated subscription status
+        dispatch(userInductionDetails({ userId: data?.userId }));
       })
       .catch(error => {
-        toast.error(`Failed to activate subscription: ${error}`);
+        // Display the error message from the API
+        const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to activate subscription';
+        toast.error(errorMessage);
       })
       .finally(() => {
         // Clear loading state
