@@ -42,10 +42,10 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(0, 1fr))` };
   const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(95px, 1fr))` };
 
-  const handleMenuClick = (lane: Lanes, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedLane(lane);
-  };
+  // const handleMenuClick = (lane: Lanes, e: React.MouseEvent) => {
+  //   e.stopPropagation();
+  //   setSelectedLane(lane);
+  // };
 
   const handleCloseModal = () => {
     setSelectedLane(null);
@@ -119,12 +119,12 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                     <span className="text-[12px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[11px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
-                  <span
+                  {/* <span
                     className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A] hover:bg-gray-100"
                     onClick={e => handleMenuClick(lane, e)}
                   >
                     ...
-                  </span>
+                  </span> */}
                 </div>
               ))}
             </div>
@@ -143,12 +143,12 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                     <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
-                  <span
+                  {/* <span
                     className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
                     onClick={e => handleMenuClick(lane, e)}
                   >
                     ...
-                  </span>
+                  </span> */}
                 </div>
               ))}
             </div>
@@ -245,11 +245,11 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
       {/* Modal */}
       {selectedLane && (
         <LaneDetailsModal
-          lane={selectedLane}
+          isLoading={isUpdatingLane}
           isOpen={!!selectedLane}
+          lane={selectedLane}
           onClose={handleCloseModal}
           onLaneClick={handleUnblockLane}
-          isLoading={isUpdatingLane}
         />
       )}
     </div>

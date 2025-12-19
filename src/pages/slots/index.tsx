@@ -89,10 +89,10 @@ const SlotBookings: React.FC = () => {
             </div>
           )}
           <CalendarBody
-            lanes={slots?.lanes || []}
-            timeSlots={slots?.timeSlots || []}
             date={formattedDate}
             facilityCode="HOU01"
+            lanes={slots?.lanes || []}
+            timeSlots={slots?.timeSlots || []}
           />
         </div>
       </div>
