@@ -337,7 +337,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                         )}
                         type="button"
                         onClick={() => {
-                            handleSlotClick(currentSlot, lane);
+                          handleSlotClick(currentSlot, lane);
                         }}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (

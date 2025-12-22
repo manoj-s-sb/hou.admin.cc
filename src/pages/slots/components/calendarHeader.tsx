@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 
 import { CalendarHeader as CalendarHeaderType } from '../types';
 
 const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthName }: CalendarHeaderType) => {
   const [dateOffset, setDateOffset] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Track window width for responsive behavior
   useEffect(() => {
@@ -46,13 +47,25 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
   const isNextDisabled = currentDateIndex === -1 || currentDateIndex >= displayedDates.length - 1;
 
   const handleNavigatePrevious = () => {
-    const offset = isMobile ? 6 : 7;
-    setDateOffset(prev => prev - offset);
+    setDateOffset(prev => prev - 1);
+    // Smooth scroll to the left
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        left: scrollContainerRef.current.scrollLeft - 60,
+        behavior: 'smooth'
+      });
+    }
   };
 
   const handleNavigateNext = () => {
-    const offset = isMobile ? 6 : 7;
-    setDateOffset(prev => prev + offset);
+    setDateOffset(prev => prev + 1);
+    // Smooth scroll to the right
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        left: scrollContainerRef.current.scrollLeft + 60,
+        behavior: 'smooth'
+      });
+    }
   };
 
   const handleSelectToday = () => {
@@ -158,7 +171,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
           >
             <img alt="arrow left" className="h-4 w-4 desktop:h-5 desktop:w-5" src={'/assets/right-admin.svg'} />
           </span>
-          <div className="scrollbar-hide flex flex-row items-end gap-1.5 overflow-x-auto desktop:gap-4">
+          <div ref={scrollContainerRef} className="scrollbar-hide flex flex-row items-end gap-1.5 overflow-x-auto desktop:gap-4">
             {displayedDates.map((date, index) => {
               const isSelected = selectedDate?.day === date.day && selectedDate?.month === date.month;
               const weekdayLabel = date.fullDate
