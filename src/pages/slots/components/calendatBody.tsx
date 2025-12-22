@@ -53,8 +53,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
   const isStanceBeamAdmin = decodeUserType() === 'stancebeamadmin';
 
-  const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(0, 1fr))` };
-  const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(95px, 1fr))` };
+  const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(180px, 1fr))` };
+  const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(140px, 1fr))` };
 
   const handleMenuClick = (lane: Lanes, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -188,11 +188,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
   return (
     <div className="rounded-[10px] bg-white">
-      <div className="overflow-x-auto">
+      <div className="relative max-h-[calc(55vh+65px)] overflow-auto sm:max-h-[calc(65vh+70px)]">
         <div className="min-w-fit">
-          <div className="sticky top-0 z-10 bg-white">
-            <div className="grid sm:hidden" style={gridTemplateColumnsMobile}>
-              <div className="flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-3 text-[12px] font-semibold text-[#21295A]">
+          {/* Mobile Layout */}
+          <div className="sm:hidden">
+            {/* Header Row - Sticky Top */}
+            <div className="sticky top-0 z-30 grid bg-white" style={gridTemplateColumnsMobile}>
+              <div className="sticky left-0 z-40 flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-3 text-[12px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
                 Lane No
               </div>
               {lanes.map(lane => (
@@ -217,40 +219,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 </div>
               ))}
             </div>
-            <div className="hidden sm:grid" style={gridTemplateColumns}>
-              <div className="flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A]">
-                Lane No
-              </div>
-              {lanes.map(lane => (
-                <div
-                  key={lane.laneNo}
-                  className={composeClasses(
-                    'relative flex min-h-[70px] w-full min-w-[110px] flex-row items-center justify-center border border-l-0 border-[#B3DADA] bg-[#fff] px-4 py-4 text-center'
-                  )}
-                >
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
-                    <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
-                  </div>
-                  {isStanceBeamAdmin && (
-                    <span
-                      className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
-                      onClick={e => handleMenuClick(lane, e)}
-                    >
-                      ...
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="max-h-[55vh] overflow-auto sm:max-h-[65vh]">
-            <div className="grid sm:hidden" style={gridTemplateColumnsMobile}>
+            {/* Time Slots Grid */}
+            <div className="grid" style={gridTemplateColumnsMobile}>
               {timeSlots.map((slot, slotIdx) => (
                 <Fragment key={slot}>
                   <div
                     className={composeClasses(
-                      'flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-4 text-[11px] font-medium text-[#212295A]',
+                      'sticky left-0 z-20 flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-4 text-[11px] font-medium text-[#212295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]',
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
@@ -288,12 +263,44 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 </Fragment>
               ))}
             </div>
-            <div className="hidden sm:grid" style={gridTemplateColumns}>
+          </div>
+
+          {/* Desktop Layout */}
+          <div className="hidden sm:block">
+            {/* Header Row - Sticky Top */}
+            <div className="sticky top-0 z-30 grid bg-white" style={gridTemplateColumns}>
+              <div className="sticky left-0 z-40 flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                Lane No
+              </div>
+              {lanes.map(lane => (
+                <div
+                  key={lane.laneNo}
+                  className={composeClasses(
+                    'relative flex min-h-[70px] w-full min-w-[110px] flex-row items-center justify-center border border-l-0 border-[#B3DADA] bg-[#fff] px-4 py-4 text-center'
+                  )}
+                >
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
+                    <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
+                  </div>
+                  {isStanceBeamAdmin && (
+                    <span
+                      className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
+                      onClick={e => handleMenuClick(lane, e)}
+                    >
+                      ...
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Time Slots Grid */}
+            <div className="grid" style={gridTemplateColumns}>
               {timeSlots.map((slot, slotIdx) => (
                 <Fragment key={slot}>
                   <div
                     className={composeClasses(
-                      'flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-4 py-6 text-[14px] font-medium text-[#212295A] sm:px-10',
+                      'sticky left-0 z-20 flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-4 py-6 text-[14px] font-medium text-[#212295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)] sm:px-10',
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
