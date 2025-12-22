@@ -63,7 +63,7 @@ const SlotBookings: React.FC = () => {
     );
   }, [dispatch, formattedDate]);
   return (
-    <div className="w-full max-w-full px-1 sm:px-0">
+    <div className="w-full">
       <SectionTitle
         description="Manage your slot bookings."
         inputPlaceholder=""
@@ -78,7 +78,7 @@ const SlotBookings: React.FC = () => {
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
         />
-        <div className="relative">
+        <div className="relative w-full">
           {isLoading && (
             <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[10px] bg-white/90 backdrop-blur-sm">
               <div className="flex flex-col items-center justify-center gap-3">

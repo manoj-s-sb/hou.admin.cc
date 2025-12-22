@@ -111,7 +111,9 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   };
 
   const handleSlotClick = (slot: Slot, lane: Lanes) => {
-    setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
+    if (isStanceBeamAdmin) {
+      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
+    }
   };
 
   const handleCloseSlotModal = () => {
@@ -188,10 +190,10 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
   return (
     <div className="rounded-[10px] bg-white">
-      <div className="relative max-h-[calc(55vh+65px)] overflow-auto sm:max-h-[calc(65vh+70px)]">
+      <div className="relative max-h-[calc(55vh+65px)] overflow-x-auto overflow-y-auto desktop:max-h-[calc(65vh+70px)]">
         <div className="min-w-fit">
           {/* Mobile Layout */}
-          <div className="sm:hidden">
+          <div className="desktop:hidden">
             {/* Header Row - Sticky Top */}
             <div className="sticky top-0 z-30 grid bg-white" style={gridTemplateColumnsMobile}>
               <div className="sticky left-0 z-40 flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-3 text-[12px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
@@ -210,7 +212,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                   </div>
                   {isStanceBeamAdmin && (
                     <span
-                      className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A] hover:bg-gray-100"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A]"
                       role="button"
                       tabIndex={0}
                       onClick={e => handleMenuClick(lane, e)}
@@ -274,7 +276,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           </div>
 
           {/* Desktop Layout */}
-          <div className="hidden sm:block">
+          <div className="hidden desktop:block">
             {/* Header Row - Sticky Top */}
             <div className="sticky top-0 z-30 grid bg-white" style={gridTemplateColumns}>
               <div className="sticky left-0 z-40 flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
@@ -334,7 +336,9 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           laneIdx !== 0 && 'border-l-0'
                         )}
                         type="button"
-                        onClick={() => handleSlotClick(currentSlot, lane)}
+                        onClick={() => {
+                            handleSlotClick(currentSlot, lane);
+                        }}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div className="flex h-full w-full items-center justify-between rounded-[8px] bg-[#21295A] p-4 text-center text-white">
