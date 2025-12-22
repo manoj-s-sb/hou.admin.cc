@@ -16,6 +16,21 @@ const Tours = () => {
   const { inductionList: inductionListData, isLoading } = useSelector((state: RootState) => state.induction);
 
   const [selectedDate, setSelectedDate] = useState('');
+  const [emailFilter, setEmailFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('pending');
+
+  const applyFilters = () => {
+    dispatch(
+      inductionList({
+        date: selectedDate,
+        page: 1,
+        type: 'tourbooking',
+        listLimit: 20,
+        email: emailFilter,
+        status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
+      })
+    );
+  };
 
   const inductionColumns: ColumnDef[] = [
     {
@@ -85,7 +100,11 @@ const Tours = () => {
         };
         const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
 
-        return <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${colorClass}`}>{status}</span>;
+        return (
+          <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${colorClass}`}>
+            {status === 'confirmed' ? 'Pending' : status}
+          </span>
+        );
       },
     },
     {
@@ -109,14 +128,7 @@ const Tours = () => {
               .unwrap()
               .then(res => {
                 if (res?.status === 'success') {
-                  dispatch(
-                    inductionList({
-                      date: selectedDate,
-                      page: 1,
-                      type: 'tourbooking',
-                      listLimit: 20,
-                    })
-                  );
+                  applyFilters();
                   toast.success('Tour status updated successfully!');
                 } else {
                   toast.error('Failed to update tour status!');
@@ -131,41 +143,101 @@ const Tours = () => {
   ];
 
   useEffect(() => {
-    dispatch(
-      inductionList({
-        date: selectedDate,
-        page: 1,
-        type: 'tourbooking',
-        listLimit: 20,
-      })
-    );
-  }, [dispatch, selectedDate]);
+    applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
+
+  const [searchTerm, setSearchTerm] = useState('');
 
   return (
-    <div className="w-full max-w-full">
+    <div className="w-full max-w-full max-[560px]:overflow-x-hidden">
       <SectionTitle
         description="Manage your tour details."
         inputPlaceholder="Search tour..."
+        search={false}
         title="Tour Details"
-        value=""
-        onSearch={() => undefined}
+        value={searchTerm}
+        onSearch={setSearchTerm}
       />
 
-      {/* Date Filter */}
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <label className="whitespace-nowrap text-sm font-medium text-gray-700" htmlFor="induction-date">
-          Select Date:
-        </label>
-        <input
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
-          id="induction-date"
-          type="date"
-          value={selectedDate}
-          onChange={e => setSelectedDate(e.target.value)}
-        />
+      {/* Filters */}
+      <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="tour-email-filter">
+              Email
+            </label>
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="tour-email-filter"
+              placeholder="Search by email"
+              type="text"
+              value={emailFilter}
+              onChange={e => setEmailFilter(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="tour-date">
+              Select Date
+            </label>
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="tour-date"
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="tour-status-filter">
+              Status
+            </label>
+            <select
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="tour-status-filter"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <button
+            className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+            type="button"
+            onClick={() => {
+              setEmailFilter('');
+              setSelectedDate('');
+              setStatusFilter('all');
+              dispatch(
+                inductionList({
+                  date: '',
+                  page: 1,
+                  type: 'tourbooking',
+                  listLimit: 20,
+                  email: '',
+                  status: 'all',
+                })
+              );
+            }}
+          >
+            Reset
+          </button>
+          <button
+            className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+            type="button"
+            onClick={applyFilters}
+          >
+            Apply Filters
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Table Wrapper for Horizontal Scroll on Mobile */}
+      <div className="overflow-x-auto max-[560px]:-mx-2 max-[560px]:px-2">
         <UserTable
           columns={inductionColumns}
           data={inductionListData.bookings}
@@ -181,7 +253,7 @@ const Tours = () => {
               </svg>
             ),
             title: 'No tour found',
-            subtitle: '.',
+            subtitle: 'Try adjusting your search criteria',
           }}
           loading={isLoading}
           selectedItem={null}

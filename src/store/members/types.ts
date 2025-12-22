@@ -99,8 +99,17 @@ export interface MembersSubscription {
   billingCycle: string;
   currentPeriodStart: string;
   currentPeriodEnd: string;
+  paymentProcessedAt: string;
 }
 
+export interface Pricing {
+  basePrice: number;
+  taxRate: number;
+  taxAmount: number;
+  totalPrice: number;
+  currency: string;
+  isPromoPrice: boolean;
+}
 export interface MemberDetailsResponse {
   firstName: string;
   lastName: string;
@@ -108,6 +117,7 @@ export interface MemberDetailsResponse {
   profileImageUrl: string;
   userId: string;
   isActivePlayer: boolean;
+  pricing: Pricing;
   onboardingType: string;
   subscription: MembersSubscription;
   members: AdditionalMemberDetails[];

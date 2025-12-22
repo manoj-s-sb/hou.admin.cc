@@ -36,7 +36,10 @@ const ViewMembers = () => {
     dispatch(getSingleMemberDetails({ userId: userId as string }));
   }, [dispatch, userId]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) {
+      return '-';
+    }
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -75,7 +78,7 @@ const ViewMembers = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 px-3 py-4 sm:px-4 sm:py-6 lg:px-8 lg:py-8">
-      <div className="mx-auto w-full max-w-6xl">
+      <div className="mx-auto w-full">
         <SectionTitle
           description="View member subscription details and account information"
           inputPlaceholder=""
@@ -127,12 +130,8 @@ const ViewMembers = () => {
                     </div>
                     <div className="mt-2 flex items-center gap-4 text-sm text-blue-50">
                       <div className="flex items-center">
-                        <Shield className="mr-1.5 h-4 w-4" />
-                        <span className="capitalize">{memberDetails.onboardingType}</span>
-                      </div>
-                      <div className="flex items-center">
                         <Calendar className="mr-1.5 h-4 w-4" />
-                        <span>Joined {formatDate(memberDetails.subscription.currentPeriodStart)}</span>
+                        <span> {formatDate(memberDetails.subscription.paymentProcessedAt)}</span>
                       </div>
                     </div>
                   </div>
@@ -170,12 +169,6 @@ const ViewMembers = () => {
                     </p>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Status</p>
-                    <span className="inline-flex items-center rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800">
-                      {memberDetails.isActivePlayer ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <p className="mb-2 text-xs font-medium uppercase text-gray-500">Billing Cycle</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.subscription.billingCycle}
@@ -201,7 +194,7 @@ const ViewMembers = () => {
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <p className="mb-2 text-xs font-medium uppercase text-gray-500">Pricing</p>
-                    <p className="text-base font-semibold text-green-600">$ 00.00 USD</p>
+                    <p className="text-base font-semibold text-green-600">$ {memberDetails.pricing.totalPrice} USD</p>
                     <p className="mt-1 text-xs text-gray-500">{memberDetails.subscription.billingCycle}</p>
                   </div>
                 </div>

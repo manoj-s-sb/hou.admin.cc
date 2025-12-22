@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import SectionTitle from '../../components/SectionTitle';
 import UserTable, { ColumnDef } from '../../components/UserTable';
 import { inductionList } from '../../store/induction/api';
-import { setSelectedInduction } from '../../store/induction/reducers';
+// import { setSelectedInduction } from '../../store/induction/reducers';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
 
@@ -15,18 +15,27 @@ const Induction = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [emailFilter, setEmailFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('pending');
 
-  useEffect(() => {
+  const applyFilters = () => {
     dispatch(
       inductionList({
         date: selectedDate,
         page: 1,
         type: 'inductionbooking',
         listLimit: 20,
+        email: emailFilter,
+        status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
       })
     );
-  }, [dispatch, selectedDate]);
+  };
+
+  useEffect(() => {
+    applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 
   // Define custom columns for the induction table
   const inductionColumns: ColumnDef[] = [
@@ -104,7 +113,7 @@ const Induction = () => {
       valueGetter: params => {
         const type = params.row?.status || '';
         if (type === 'completed') return 'Completed';
-        if (type === 'confirmed') return 'Confirmed';
+        if (type === 'confirmed') return 'Pending';
         if (type === 'cancelled') return 'Cancelled';
         return type;
       },
@@ -119,8 +128,8 @@ const Induction = () => {
           className="rounded-full p-2 transition-colors hover:bg-gray-100 max-[560px]:p-1"
           title="View Details"
           onClick={() => {
-            navigate('/view-induction');
-            dispatch(setSelectedInduction(params.row));
+            navigate(`/view-induction/${params.row.userId}`);
+            // dispatch(setSelectedInduction(params.row));
           }}
         >
           <svg
@@ -156,21 +165,79 @@ const Induction = () => {
         onSearch={setSearchTerm}
       />
 
-      {/* Date Filter */}
-      <div className="mb-4 flex flex-col gap-2 max-[560px]:mb-3 max-[560px]:gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <label
-          className="whitespace-nowrap text-sm font-medium text-gray-700 max-[560px]:text-xs"
-          htmlFor="induction-date"
-        >
-          Select Date:
-        </label>
-        <input
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 max-[560px]:px-3 max-[560px]:py-1.5 max-[560px]:text-sm sm:w-auto"
-          id="induction-date"
-          type="date"
-          value={selectedDate}
-          onChange={e => setSelectedDate(e.target.value)}
-        />
+      {/* Filters */}
+      <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="induction-email-filter">
+              Email
+            </label>
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="induction-email-filter"
+              placeholder="Search by email"
+              type="text"
+              value={emailFilter}
+              onChange={e => setEmailFilter(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="induction-date">
+              Select Date
+            </label>
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="induction-date"
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-600" htmlFor="induction-status-filter">
+              Status
+            </label>
+            <select
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              id="induction-status-filter"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <button
+            className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+            type="button"
+            onClick={() => {
+              setEmailFilter('');
+              setSelectedDate('');
+              setStatusFilter('pending');
+              dispatch(
+                inductionList({
+                  date: '',
+                  page: 1,
+                  type: 'inductionbooking',
+                  listLimit: 20,
+                  email: '',
+                })
+              );
+            }}
+          >
+            Reset
+          </button>
+          <button
+            className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+            type="button"
+            onClick={applyFilters}
+          >
+            Apply Filters
+          </button>
+        </div>
       </div>
 
       {/* Table Wrapper for Horizontal Scroll on Mobile */}

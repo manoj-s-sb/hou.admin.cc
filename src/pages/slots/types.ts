@@ -2,8 +2,9 @@ export interface CalendarHeader {
   selectedDate: {
     day: number;
     month: number;
+    fullDate?: Date;
   };
-  setSelectedDate: (date: { day: number; month: number }) => void;
+  setSelectedDate: (date: { day: number; month: number; fullDate?: Date }) => void;
   nextSevenDates: {
     day: number;
     month: number;

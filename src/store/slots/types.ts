@@ -46,6 +46,14 @@ export interface GetSlotsResponse {
   timeSlots: string[];
 }
 
+export interface UpdateLaneStatusRequest {
+  date: string;
+  facilityCode: string;
+  laneCode: string;
+  action: string;
+  reason: string;
+}
+
 export interface SlotsInitialState {
   isLoading: boolean;
   error: string | null | any;
