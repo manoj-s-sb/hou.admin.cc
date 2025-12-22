@@ -52,6 +52,7 @@ export interface UpdateLaneStatusRequest {
   laneCode: string;
   action: string;
   reason: string;
+  slotCode?: string;
 }
 
 export interface SlotsInitialState {

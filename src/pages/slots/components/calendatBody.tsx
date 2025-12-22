@@ -67,7 +67,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     if (selectedLane) {
       try {
         // Check if lane is currently blocked (all slots are disabled)
-        const isLaneBlocked = selectedLane.slots.every(slot => slot.status?.toLowerCase() === 'disabled');
+        const isLaneBlocked = selectedLane.slots.some(slot => slot.status?.toLowerCase() === 'disabled');
         const action = isLaneBlocked ? 'available' : 'disable';
         const reason = isLaneBlocked ? 'Manual unblock from admin' : 'Manual block from admin';
 

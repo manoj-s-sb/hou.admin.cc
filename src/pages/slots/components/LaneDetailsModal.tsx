@@ -13,8 +13,8 @@ const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase(
 const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = false }: LaneDetailsModalProps) => {
   if (!isOpen) return null;
 
-  // Check if all slots are disabled (blocked)
-  const isLaneBlocked = lane.slots.every(slot => slot.status?.toLowerCase() === 'disabled');
+  // Check if any slot is disabled (blocked)
+  const isLaneBlocked = lane.slots.some(slot => slot.status?.toLowerCase() === 'disabled');
   const buttonText = isLaneBlocked ? 'Unblock Lane' : 'Block Lane';
 
   return (
