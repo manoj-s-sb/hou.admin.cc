@@ -1,18 +1,31 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 import { CalendarHeader as CalendarHeaderType } from '../types';
 
 const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthName }: CalendarHeaderType) => {
   const [dateOffset, setDateOffset] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Generate dates based on offset
+  // Track window width for responsive behavior
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 520);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Generate dates based on offset and screen size
   const displayedDates = useMemo(() => {
     const dates = [];
     const today = new Date();
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + dateOffset);
 
-    for (let i = 0; i < 7; i++) {
+    const daysToShow = isMobile ? 5 : 7;
+    for (let i = 0; i < daysToShow; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       dates.push({
@@ -22,7 +35,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
       });
     }
     return dates;
-  }, [dateOffset]);
+  }, [dateOffset, isMobile]);
 
   const today = nextSevenDates?.[0];
   const isTodaySelected = Boolean(today && selectedDate?.day === today.day && selectedDate?.month === today.month);
@@ -33,11 +46,13 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
   const isNextDisabled = currentDateIndex === -1 || currentDateIndex >= displayedDates.length - 1;
 
   const handleNavigatePrevious = () => {
-    setDateOffset(prev => prev - 7);
+    const offset = isMobile ? 6 : 7;
+    setDateOffset(prev => prev - offset);
   };
 
   const handleNavigateNext = () => {
-    setDateOffset(prev => prev + 7);
+    const offset = isMobile ? 6 : 7;
+    setDateOffset(prev => prev + offset);
   };
 
   const handleSelectToday = () => {
@@ -126,7 +141,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
         {/* Week navigation with dates */}
         <div className="flex flex-row items-center justify-center gap-1.5 sm:gap-2 md:gap-2">
           <span
-            className="flex-shrink-0 cursor-pointer rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC] sm:relative sm:top-[13px] sm:rounded-[10px] sm:p-2.5"
+            className="flex-shrink-0 cursor-pointer relative top-[10px] rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] sm:relative sm:top-[13px] sm:rounded-[10px] sm:p-2.5"
             role="button"
             tabIndex={0}
             onClick={handleNavigatePrevious}
@@ -167,7 +182,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
             })}
           </div>
           <span
-            className="flex-shrink-0 cursor-pointer rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC] sm:relative sm:top-[13px] sm:rounded-[10px] sm:p-2.5"
+            className="flex-shrink-0 cursor-pointer rounded-[8px] relative top-[10px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] sm:relative sm:top-[13px] sm:rounded-[10px] sm:p-2.5"
             role="button"
             tabIndex={0}
             onClick={handleNavigateNext}
