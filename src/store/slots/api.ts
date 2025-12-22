@@ -27,7 +27,7 @@ export const updateLaneStatus = createAsyncThunk(
         laneCode,
         action,
         reason,
-        slotCode
+        slotCode,
       });
       return response.data?.data;
     } catch (error: any) {

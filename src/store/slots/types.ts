@@ -47,9 +47,9 @@ export interface GetSlotsResponse {
 }
 
 export interface UpdateLaneStatusRequest {
-  date: string;
-  facilityCode: string;
-  laneCode: string;
+  date?: string;
+  facilityCode?: string;
+  laneCode?: string;
   action: string;
   reason: string;
   slotCode?: string;

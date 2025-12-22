@@ -5,10 +5,11 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { getSlots, updateLaneStatus } from '../../../store/slots/api';
-import { BookingUser, Lanes } from '../../../store/slots/types';
+import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
 
 import LaneDetailsModal from './LaneDetailsModal';
+import SlotDetailsModal from './SlotDetailsModal';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
@@ -39,6 +40,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   const dispatch = useDispatch<AppDispatch>();
   const { isBlockLaneLoading } = useSelector((state: RootState) => state.slots);
   const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ slot: Slot; laneNo: number; laneCode: string } | null>(null);
 
   const decodeUserType = () => {
     const tokens = localStorage.getItem('tokens');
@@ -104,6 +106,82 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           duration: 5000,
         });
         console.error('Failed to update lane status:', error);
+      }
+    }
+  };
+
+  const handleSlotClick = (slot: Slot, lane: Lanes) => {
+    setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
+  };
+
+  const handleCloseSlotModal = () => {
+    setSelectedSlot(null);
+  };
+
+  const handleBlockSlot = async () => {
+    if (selectedSlot) {
+      try {
+        await dispatch(
+          updateLaneStatus({
+            action: 'disable',
+            reason: 'Manual block from admin',
+            slotCode: selectedSlot.slot.slotCode,
+          })
+        ).unwrap();
+
+        // Refresh the slots data after updating
+        await dispatch(
+          getSlots({
+            date,
+            facilityCode,
+          })
+        );
+
+        toast.success('Slot has been blocked successfully!', {
+          duration: 4000,
+        });
+
+        setSelectedSlot(null);
+      } catch (error: any) {
+        const errorMessage = error?.message || 'Failed to block slot. Please try again.';
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+        console.error('Failed to block slot:', error);
+      }
+    }
+  };
+
+  const handleUnblockSlot = async () => {
+    if (selectedSlot) {
+      try {
+        await dispatch(
+          updateLaneStatus({
+            action: 'available',
+            reason: 'Manual unblock from admin',
+            slotCode: selectedSlot.slot.slotCode,
+          })
+        ).unwrap();
+
+        // Refresh the slots data after updating
+        await dispatch(
+          getSlots({
+            date,
+            facilityCode,
+          })
+        );
+
+        toast.success('Slot has been unblocked successfully!', {
+          duration: 4000,
+        });
+
+        setSelectedSlot(null);
+      } catch (error: any) {
+        const errorMessage = error?.message || 'Failed to unblock slot. Please try again.';
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+        console.error('Failed to unblock slot:', error);
       }
     }
   };
@@ -190,6 +268,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           laneIdx !== 0 && 'border-l-0'
                         )}
                         type="button"
+                        onClick={() => handleSlotClick(currentSlot, lane)}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#21295A] px-2 py-2 text-center text-[11px] leading-tight text-white">
@@ -227,11 +306,12 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                       <button
                         key={`${slot}-${lane.laneNo}`}
                         className={composeClasses(
-                          'flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[transparent] text-[14px] font-medium text-[#21295A] transition hover:border-[#B3DADA] hover:bg-[#fff] hover:text-[#21295A]',
+                          'group relative flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[transparent] text-[14px] font-medium text-[#21295A] transition',
                           slotIdx !== 0 && 'border-t-0',
                           laneIdx !== 0 && 'border-l-0'
                         )}
                         type="button"
+                        onClick={() => handleSlotClick(currentSlot, lane)}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div className="flex h-full w-full items-center justify-between rounded-[8px] bg-[#21295A] p-4 text-center text-white">
@@ -255,7 +335,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Lane Modal */}
       {selectedLane && (
         <LaneDetailsModal
           isLoading={isBlockLaneLoading}
@@ -263,6 +343,19 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           lane={selectedLane}
           onClose={handleCloseModal}
           onLaneClick={handleUnblockLane}
+        />
+      )}
+
+      {/* Slot Modal */}
+      {selectedSlot && (
+        <SlotDetailsModal
+          isLoading={isBlockLaneLoading}
+          isOpen={!!selectedSlot}
+          slot={selectedSlot.slot}
+          laneNo={selectedSlot.laneNo}
+          onClose={handleCloseSlotModal}
+          onBlockSlot={handleBlockSlot}
+          onUnblockSlot={handleUnblockSlot}
         />
       )}
     </div>
