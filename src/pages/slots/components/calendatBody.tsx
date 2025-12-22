@@ -1,11 +1,12 @@
 import { Fragment, useState } from 'react';
 
+import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-hot-toast';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import { getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { BookingUser, Lanes } from '../../../store/slots/types';
-import { AppDispatch } from '../../../store/store';
+import { AppDispatch, RootState } from '../../../store/store';
 
 import LaneDetailsModal from './LaneDetailsModal';
 
@@ -36,16 +37,27 @@ interface CalendarBodyProps {
 
 const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProps) => {
   const dispatch = useDispatch<AppDispatch>();
+  const { isBlockLaneLoading } = useSelector((state: RootState) => state.slots);
   const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
-  const [isUpdatingLane, setIsUpdatingLane] = useState(false);
+
+  const decodeUserType = () => {
+    const tokens = localStorage.getItem('tokens');
+    if (tokens) {
+      const decodedToken: any = jwtDecode(JSON.parse(tokens).access_token);
+      return decodedToken?.userType?.[0];
+    }
+    return null;
+  };
+
+  const isStanceBeamAdmin = decodeUserType() === 'stancebeamadmin';
 
   const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(0, 1fr))` };
   const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(95px, 1fr))` };
 
-  // const handleMenuClick = (lane: Lanes, e: React.MouseEvent) => {
-  //   e.stopPropagation();
-  //   setSelectedLane(lane);
-  // };
+  const handleMenuClick = (lane: Lanes, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedLane(lane);
+  };
 
   const handleCloseModal = () => {
     setSelectedLane(null);
@@ -53,7 +65,6 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
   const handleUnblockLane = async () => {
     if (selectedLane) {
-      setIsUpdatingLane(true);
       try {
         // Check if lane is currently blocked (all slots are disabled)
         const isLaneBlocked = selectedLane.slots.every(slot => slot.status?.toLowerCase() === 'disabled');
@@ -93,8 +104,6 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           duration: 5000,
         });
         console.error('Failed to update lane status:', error);
-      } finally {
-        setIsUpdatingLane(false);
       }
     }
   };
@@ -119,12 +128,14 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                     <span className="text-[12px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[11px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
-                  {/* <span
-                    className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A] hover:bg-gray-100"
-                    onClick={e => handleMenuClick(lane, e)}
-                  >
-                    ...
-                  </span> */}
+                  {isStanceBeamAdmin && (
+                    <span
+                      className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A] hover:bg-gray-100"
+                      onClick={e => handleMenuClick(lane, e)}
+                    >
+                      ...
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -143,12 +154,14 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                     <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
-                  {/* <span
-                    className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
-                    onClick={e => handleMenuClick(lane, e)}
-                  >
-                    ...
-                  </span> */}
+                  {isStanceBeamAdmin && (
+                    <span
+                      className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
+                      onClick={e => handleMenuClick(lane, e)}
+                    >
+                      ...
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -245,7 +258,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
       {/* Modal */}
       {selectedLane && (
         <LaneDetailsModal
-          isLoading={isUpdatingLane}
+          isLoading={isBlockLaneLoading}
           isOpen={!!selectedLane}
           lane={selectedLane}
           onClose={handleCloseModal}

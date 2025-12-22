@@ -17,7 +17,6 @@ export const getSlots = createAsyncThunk(
     }
   }
 );
-
 export const updateLaneStatus = createAsyncThunk(
   'slots/updateLaneStatus',
   async ({ date, facilityCode, laneCode, action, reason }: UpdateLaneStatusRequest, { rejectWithValue }) => {

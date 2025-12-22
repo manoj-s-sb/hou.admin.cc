@@ -34,7 +34,6 @@ const SlotBookings: React.FC = () => {
     month: nextSevenDates[0].month,
     fullDate: nextSevenDates[0].fullDate,
   });
-
   const formattedDate = (() => {
     // Use fullDate if available (from CalendarHeader), otherwise fall back to nextSevenDates lookup
     let dateToFormat: Date;
