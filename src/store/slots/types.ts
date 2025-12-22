@@ -47,21 +47,24 @@ export interface GetSlotsResponse {
 }
 
 export interface UpdateLaneStatusRequest {
-  date: string;
-  facilityCode: string;
-  laneCode: string;
+  date?: string;
+  facilityCode?: string;
+  laneCode?: string;
   action: string;
   reason: string;
+  slotCode?: string;
 }
 
 export interface SlotsInitialState {
   isLoading: boolean;
   error: string | null | any;
   slots: GetSlotsResponse | null;
+  isBlockLaneLoading: boolean;
 }
 
 export const initialState: SlotsInitialState = {
   isLoading: false,
   error: '',
   slots: null,
+  isBlockLaneLoading: false,
 };

@@ -23,15 +23,15 @@ const slotsSlice = createSlice({
       state.slots = null;
     });
     builder.addCase(updateLaneStatus.pending, state => {
-      state.isLoading = true;
+      state.isBlockLaneLoading = true;
       state.error = null;
     });
     builder.addCase(updateLaneStatus.fulfilled, state => {
-      state.isLoading = false;
+      state.isBlockLaneLoading = false;
       state.error = null;
     });
     builder.addCase(updateLaneStatus.rejected, (state, action) => {
-      state.isLoading = false;
+      state.isBlockLaneLoading = false;
       state.error = action.payload;
     });
   },
