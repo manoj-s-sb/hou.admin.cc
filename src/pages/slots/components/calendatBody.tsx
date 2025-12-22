@@ -211,7 +211,15 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                   {isStanceBeamAdmin && (
                     <span
                       className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A] hover:bg-gray-100"
+                      role="button"
+                      tabIndex={0}
                       onClick={e => handleMenuClick(lane, e)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleMenuClick(lane, e as any);
+                        }
+                      }}
                     >
                       ...
                     </span>
@@ -286,7 +294,15 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                   {isStanceBeamAdmin && (
                     <span
                       className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
+                      role="button"
+                      tabIndex={0}
                       onClick={e => handleMenuClick(lane, e)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleMenuClick(lane, e as any);
+                        }
+                      }}
                     >
                       ...
                     </span>
@@ -358,10 +374,10 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         <SlotDetailsModal
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedSlot}
-          slot={selectedSlot.slot}
           laneNo={selectedSlot.laneNo}
-          onClose={handleCloseSlotModal}
+          slot={selectedSlot.slot}
           onBlockSlot={handleBlockSlot}
+          onClose={handleCloseSlotModal}
           onUnblockSlot={handleUnblockSlot}
         />
       )}
