@@ -35,3 +35,15 @@ export const updateLaneStatus = createAsyncThunk(
     }
   }
 );
+
+export const coachSlots = createAsyncThunk(
+  'slots/coachSlots',
+  async ({ date, facilityCode, coachId }: any, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.slots.coachSlots, { date, facilityCode, coachId });
+      return response.data?.data;
+    } catch (error: any) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch coach slots'));
+    }
+  }
+);

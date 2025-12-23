@@ -2,6 +2,7 @@ const endpoints = {
   slots: {
     list: '/admin/slots/calendar',
     updateLaneStatus: '/admin/slots/status/update',
+    coachSlots: '/admin/coach/calendar',
   },
   login: '/admin/auth/login',
   members: {
