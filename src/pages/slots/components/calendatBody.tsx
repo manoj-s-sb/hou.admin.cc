@@ -111,7 +111,11 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   };
 
   const handleSlotClick = (slot: Slot, lane: Lanes) => {
-    if (isStanceBeamAdmin) {
+    // Only open modal for booked slots to show booking details
+    // For available/blocked slots, only StanceBeam admins can interact
+    if (slot.isBooked && slot.status?.toLowerCase() === 'confirmed') {
+      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
+    } else if (isStanceBeamAdmin) {
       setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
     }
   };
@@ -383,6 +387,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           onBlockSlot={handleBlockSlot}
           onClose={handleCloseSlotModal}
           onUnblockSlot={handleUnblockSlot}
+          isStanceBeamAdmin={isStanceBeamAdmin}
         />
       )}
     </div>

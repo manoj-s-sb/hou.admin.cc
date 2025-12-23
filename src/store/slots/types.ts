@@ -16,6 +16,11 @@ export interface BookingDetails {
   bookingCode?: string;
   user?: BookingUser;
   guests?: any[];
+  facilityPin: string;
+  lanePin: string;
+  coach: {
+    name: string;
+  };
 }
 
 export interface Slot {

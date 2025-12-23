@@ -1,4 +1,4 @@
-import { Fragment, useState, useMemo, useEffect } from 'react';
+import { Fragment, useState, useMemo, useEffect, useRef } from 'react';
 
 interface SlotAvailability {
   [key: string]: boolean | undefined; // key format: "dateIndex-slotIndex", undefined = not set, true = available, false = unavailable
@@ -11,6 +11,11 @@ interface SelectedSlot {
   timeSlot: string;
 }
 
+interface SlotKey {
+  dateIndex: number;
+  slotIndex: number;
+}
+
 const CoachScheduleGrid: React.FC = () => {
   // Store availability state
   const [availability, setAvailability] = useState<SlotAvailability>({});
@@ -18,6 +23,12 @@ const CoachScheduleGrid: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  // Multi-select state
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const selectionStartRef = useRef<SlotKey | null>(null);
 
   // Track window width for responsive behavior
   useEffect(() => {
@@ -93,8 +104,76 @@ const CoachScheduleGrid: React.FC = () => {
     setDateOffset(prev => prev + 1);
   };
 
+  // Toggle selection mode
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    if (selectionMode) {
+      // Exiting selection mode - clear selections
+      setSelectedSlots(new Set());
+    }
+  };
+
+  // Generate absolute slot key based on date and time
+  const getAbsoluteSlotKey = (date: any, timeSlot: string): string => {
+    const dateStr = `${date.year}-${String(date.month + 1).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+    return `${dateStr}_${timeSlot}`;
+  };
+
+  // Handle mouse down to start selection
+  const handleSlotMouseDown = (dateIndex: number, slotIndex: number) => {
+    if (!selectionMode) return;
+
+    setIsSelecting(true);
+    selectionStartRef.current = { dateIndex, slotIndex };
+
+    const date = displayedDates[dateIndex];
+    const timeSlot = timeSlots[slotIndex];
+    const key = getAbsoluteSlotKey(date, timeSlot);
+    const newSelected = new Set(selectedSlots);
+
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
+    } else {
+      newSelected.add(key);
+    }
+
+    setSelectedSlots(newSelected);
+  };
+
+  // Handle mouse enter for drag selection
+  const handleSlotMouseEnter = (dateIndex: number, slotIndex: number) => {
+    if (!selectionMode || !isSelecting) return;
+
+    const date = displayedDates[dateIndex];
+    const timeSlot = timeSlots[slotIndex];
+    const key = getAbsoluteSlotKey(date, timeSlot);
+    const newSelected = new Set(selectedSlots);
+    newSelected.add(key);
+    setSelectedSlots(newSelected);
+  };
+
+  // Handle mouse up to end selection
+  const handleSlotMouseUp = () => {
+    if (selectionMode) {
+      setIsSelecting(false);
+      selectionStartRef.current = null;
+    }
+  };
+
+  // Add global mouse up listener
+  useEffect(() => {
+    if (selectionMode) {
+      document.addEventListener('mouseup', handleSlotMouseUp);
+      return () => {
+        document.removeEventListener('mouseup', handleSlotMouseUp);
+      };
+    }
+  }, [selectionMode]);
+
   // Open modal for slot selection
   const handleSlotClick = (dateIndex: number, slotIndex: number, date: any, timeSlot: string) => {
+    if (selectionMode) return; // Don't open modal in selection mode
+
     setSelectedSlot({
       dateIndex,
       slotIndex,
@@ -109,11 +188,13 @@ const CoachScheduleGrid: React.FC = () => {
     setShowModal(true);
   };
 
-  // Set slot availability
+  // Set slot availability (single slot)
   const setSlotAvailability = (isAvailable: boolean) => {
     if (!selectedSlot) return;
 
-    const key = `${selectedSlot.dateIndex}-${selectedSlot.slotIndex}`;
+    const date = displayedDates[selectedSlot.dateIndex];
+    const timeSlot = timeSlots[selectedSlot.slotIndex];
+    const key = getAbsoluteSlotKey(date, timeSlot);
     setAvailability(prev => ({
       ...prev,
       [key]: isAvailable,
@@ -122,9 +203,43 @@ const CoachScheduleGrid: React.FC = () => {
     setSelectedSlot(null);
   };
 
+  // Set multiple slots availability
+  const setMultipleSlotAvailability = (isAvailable: boolean) => {
+    const updates: SlotAvailability = {};
+
+    // Use absolute keys directly for availability
+    selectedSlots.forEach(absoluteKey => {
+      updates[absoluteKey] = isAvailable;
+    });
+
+    setAvailability(prev => ({
+      ...prev,
+      ...updates,
+    }));
+
+    // Clear selection after applying
+    setSelectedSlots(new Set());
+    setSelectionMode(false);
+  };
+
+  // Clear all selections
+  const clearSelections = () => {
+    setSelectedSlots(new Set());
+  };
+
+  // Check if a slot is selected
+  const isSlotSelected = (dateIndex: number, slotIndex: number): boolean => {
+    const date = displayedDates[dateIndex];
+    const timeSlot = timeSlots[slotIndex];
+    const key = getAbsoluteSlotKey(date, timeSlot);
+    return selectedSlots.has(key);
+  };
+
   // Get slot availability status
   const getSlotStatus = (dateIndex: number, slotIndex: number): 'available' | 'unavailable' | 'not-set' => {
-    const key = `${dateIndex}-${slotIndex}`;
+    const date = displayedDates[dateIndex];
+    const timeSlot = timeSlots[slotIndex];
+    const key = getAbsoluteSlotKey(date, timeSlot);
     const value = availability[key];
 
     if (value === undefined) return 'not-set';
@@ -194,58 +309,94 @@ const CoachScheduleGrid: React.FC = () => {
             {/* Mobile Layout */}
             <div className="desktop:hidden">
               {/* Header Row - Sticky Top with Navigation */}
-              <div className="sticky top-0 z-30 bg-white">
-                <div className="flex items-center justify-between border-b border-[#B3DADA] bg-white px-2 py-2">
+              <div className="sticky top-0 z-30">
+                <div className="flex items-center justify-between gap-2 border-b border-[#B3DADA] bg-white px-2 py-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      className="rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC]"
+                      type="button"
+                      onClick={handleNavigatePrevious}
+                    >
+                      <img alt="arrow left" className="h-4 w-4" src={'/assets/svg/arrow_left.svg'} />
+                    </button>
+                    <button
+                      className="rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC]"
+                      type="button"
+                      onClick={handleNavigateNext}
+                    >
+                      <img alt="arrow right" className="h-4 w-4" src={'/assets/svg/arrow_right.svg'} />
+                    </button>
+                  </div>
+
                   <button
-                    className="rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC]"
+                    className={`rounded-[8px] px-2 py-1.5 text-[11px] font-medium transition ${
+                      selectionMode ? 'bg-[#21295A] text-white' : 'border border-[#E2E8F0] bg-white text-[#21295A]'
+                    }`}
                     type="button"
-                    onClick={handleNavigatePrevious}
+                    onClick={toggleSelectionMode}
                   >
-                    <img alt="arrow left" className="h-4 w-4" src={'/assets/svg/arrow_left.svg'} />
+                    {selectionMode ? `✓ ${selectedSlots.size || 0} Selected` : 'Multi-Select'}
                   </button>
-                  <span className="text-[12px] font-medium text-[#21295A]">Swipe to see more dates</span>
-                  <button
-                    className="rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC]"
-                    type="button"
-                    onClick={handleNavigateNext}
-                  >
-                    <img alt="arrow right" className="h-4 w-4" src={'/assets/svg/arrow_right.svg'} />
-                  </button>
+
+                  {selectionMode && selectedSlots.size > 0 && (
+                    <>
+                      <button
+                        className="rounded-[8px] bg-[#21295A] px-2 py-1.5 text-[11px] font-medium text-white"
+                        type="button"
+                        onClick={() => setMultipleSlotAvailability(true)}
+                      >
+                        ✓
+                      </button>
+                      <button
+                        className="rounded-[8px] border border-[#E2E8F0] bg-white px-2 py-1.5 text-[11px] font-medium text-[#64748B]"
+                        type="button"
+                        onClick={() => setMultipleSlotAvailability(false)}
+                      >
+                        ✕
+                      </button>
+                    </>
+                  )}
                 </div>
                 <div className="grid bg-white" style={gridTemplateColumnsMobile}>
                   <div className="sticky left-0 z-40 flex min-h-[65px] min-w-[100px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-3 text-[12px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
                     Time Slot
                   </div>
-                   {displayedDates.map((date, dateIdx) => (
-                     <div
-                       key={dateIdx}
-                       className={composeClasses(
-                         'relative flex min-h-[65px] w-full min-w-[140px] flex-col items-center justify-center border border-l-0 border-[#B3DADA] px-2 py-3 text-center',
-                         date.isToday ? 'bg-[#21295A]' : 'bg-[#fff]'
-                       )}
-                     >
-                       <div className="flex flex-col items-center justify-center gap-1">
-                         <span className={composeClasses(
-                           'text-[10px] font-medium',
-                           date.isToday ? 'text-white' : 'text-[#7A7F9C]'
-                         )}>
-                           {date.weekday}
-                         </span>
-                         <span className={composeClasses(
-                           'text-[12px] font-semibold',
-                           date.isToday ? 'text-white' : 'text-[#21295A]'
-                         )}>
-                           {date.day}
-                         </span>
-                         <span className={composeClasses(
-                           'text-[10px] font-medium',
-                           date.isToday ? 'text-white' : 'text-[#7A7F9C]'
-                         )}>
-                           {date.fullDate.toLocaleDateString('en-US', { month: 'short' })}
-                         </span>
-                       </div>
-                     </div>
-                   ))}
+                  {displayedDates.map((date, dateIdx) => (
+                    <div
+                      key={dateIdx}
+                      className={composeClasses(
+                        'relative flex min-h-[65px] w-full min-w-[140px] flex-col items-center justify-center border border-l-0 border-[#B3DADA] px-2 py-3 text-center',
+                        date.isToday ? 'bg-[#21295A]' : 'bg-[#fff]'
+                      )}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span
+                          className={composeClasses(
+                            'text-[10px] font-medium',
+                            date.isToday ? 'text-white' : 'text-[#7A7F9C]'
+                          )}
+                        >
+                          {date.weekday}
+                        </span>
+                        <span
+                          className={composeClasses(
+                            'text-[12px] font-semibold',
+                            date.isToday ? 'text-white' : 'text-[#21295A]'
+                          )}
+                        >
+                          {date.day}
+                        </span>
+                        <span
+                          className={composeClasses(
+                            'text-[10px] font-medium',
+                            date.isToday ? 'text-white' : 'text-[#7A7F9C]'
+                          )}
+                        >
+                          {date.fullDate.toLocaleDateString('en-US', { month: 'short' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -263,27 +414,36 @@ const CoachScheduleGrid: React.FC = () => {
                     </div>
                     {displayedDates.map((date, dateIdx) => {
                       const slotStatus = getSlotStatus(dateIdx, slotIdx);
+                      const isSelected = isSlotSelected(dateIdx, slotIdx);
 
                       return (
                         <button
                           key={`${slot}-${dateIdx}`}
                           className={composeClasses(
-                            'flex min-h-[65px] min-w-[140px] items-center justify-center border border-[#B3DADA] bg-[#F1F5F9] text-[11px] font-medium transition-all duration-200 hover:bg-[#E2E8F0]',
+                            'flex min-h-[65px] min-w-[140px] items-center justify-center border border-[#B3DADA] text-[11px] font-medium transition-all duration-200',
                             slotIdx !== 0 && 'border-t-0',
-                            dateIdx !== 0 && 'border-l-0'
+                            dateIdx !== 0 && 'border-l-0',
+                            isSelected
+                              ? 'bg-[#21295A] ring-2 ring-inset ring-[#1a1f42]'
+                              : 'bg-[#F1F5F9] hover:bg-[#E2E8F0]',
+                            selectionMode && 'cursor-pointer select-none'
                           )}
                           type="button"
                           onClick={() => handleSlotClick(dateIdx, slotIdx, date, slot)}
+                          onMouseDown={() => handleSlotMouseDown(dateIdx, slotIdx)}
+                          onMouseEnter={() => handleSlotMouseEnter(dateIdx, slotIdx)}
                         >
-                           <div className="flex h-full w-full items-center justify-center px-2 py-2 text-center text-[11px] leading-tight">
-                             {slotStatus === 'available' ? (
-                               <span className="text-[16px] text-[#21295A]">✓</span>
-                             ) : slotStatus === 'unavailable' ? (
-                               <span className="text-[16px] text-[#64748B]">✕</span>
-                             ) : (
-                               ''
-                             )}
-                           </div>
+                          <div className="flex h-full w-full items-center justify-center px-2 py-2 text-center text-[11px] leading-tight">
+                            {isSelected ? (
+                              <span className="text-[16px] text-white">●</span>
+                            ) : slotStatus === 'available' ? (
+                              <span className="text-[16px] text-[#21295A]">✓</span>
+                            ) : slotStatus === 'unavailable' ? (
+                              <span className="text-[16px] text-[#64748B]">✕</span>
+                            ) : (
+                              ''
+                            )}
+                          </div>
                         </button>
                       );
                     })}
@@ -295,57 +455,108 @@ const CoachScheduleGrid: React.FC = () => {
             {/* Desktop Layout */}
             <div className="hidden desktop:block">
               {/* Header Row - Sticky Top with Navigation */}
-              <div className="sticky top-0 z-30 bg-white">
-                <div className="flex items-center justify-end gap-2 border-b border-[#B3DADA] bg-white px-5 py-3">
+              <div className="sticky top-0 z-30">
+                <div className="flex items-center justify-between gap-3 border-b border-[#B3DADA] bg-white px-5 py-3">
                   <button
-                    className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC]"
+                    className={`rounded-[8px] border px-4 py-2 text-[13px] font-medium transition ${
+                      selectionMode
+                        ? 'border-[#21295A] bg-[#21295A] text-white hover:bg-[#1a1f42]'
+                        : 'border-[#E2E8F0] bg-white text-[#21295A] hover:bg-[#F8FAFC]'
+                    }`}
                     type="button"
-                    onClick={handleNavigatePrevious}
+                    onClick={toggleSelectionMode}
                   >
-                    <img alt="arrow left" className="h-5 w-5" src={'/assets/svg/arrow_left.svg'} />
+                    {selectionMode ? '✓ Multi-Select ON' : 'Enable Multi-Select'}
                   </button>
-                  <button
-                    className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC]"
-                    type="button"
-                    onClick={handleNavigateNext}
-                  >
-                    <img alt="arrow right" className="h-5 w-5" src={'/assets/svg/arrow_right.svg'} />
-                  </button>
+
+                  {selectionMode && (
+                    <div className="flex items-center gap-2">
+                      {selectedSlots.size > 0 && (
+                        <>
+                          <span className="text-[13px] font-medium text-[#64748B]">{selectedSlots.size} selected</span>
+                          <button
+                            className="rounded-[8px] bg-[#21295A] px-3 py-2 text-[13px] font-medium text-white transition hover:bg-[#1a1f42]"
+                            type="button"
+                            onClick={() => setMultipleSlotAvailability(true)}
+                          >
+                            ✓ Available
+                          </button>
+                          <button
+                            className="rounded-[8px] border border-[#E2E8F0] bg-white px-3 py-2 text-[13px] font-medium text-[#64748B] transition hover:bg-[#F1F5F9]"
+                            type="button"
+                            onClick={() => setMultipleSlotAvailability(false)}
+                          >
+                            ✕ Unavailable
+                          </button>
+                          <button
+                            className="rounded-[8px] border border-[#E2E8F0] bg-white px-3 py-2 text-[13px] font-medium text-[#64748B] transition hover:bg-[#F8FAFC]"
+                            type="button"
+                            onClick={clearSelections}
+                          >
+                            Clear
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC]"
+                      type="button"
+                      onClick={handleNavigatePrevious}
+                    >
+                      <img alt="arrow left" className="h-5 w-5" src={'/assets/svg/arrow_left.svg'} />
+                    </button>
+                    <button
+                      className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC]"
+                      type="button"
+                      onClick={handleNavigateNext}
+                    >
+                      <img alt="arrow right" className="h-5 w-5" src={'/assets/svg/arrow_right.svg'} />
+                    </button>
+                  </div>
                 </div>
                 <div className="grid bg-white" style={gridTemplateColumns}>
                   <div className="sticky left-0 z-40 flex min-h-[70px] min-w-[140px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
                     Time Slot
                   </div>
-                   {displayedDates.map((date, dateIdx) => (
-                     <div
-                       key={dateIdx}
-                       className={composeClasses(
-                         'relative flex min-h-[70px] w-full min-w-[180px] flex-col items-center justify-center border border-l-0 border-[#B3DADA] px-4 py-4 text-center',
-                         date.isToday ? 'bg-[#21295A]' : 'bg-[#fff]'
-                       )}
-                     >
-                       <div className="flex flex-col items-center justify-center gap-2">
-                         <span className={composeClasses(
-                           'text-[12px] font-medium',
-                           date.isToday ? 'text-white' : 'text-[#7A7F9C]'
-                         )}>
-                           {date.weekday}
-                         </span>
-                         <span className={composeClasses(
-                           'text-[15px] font-semibold',
-                           date.isToday ? 'text-white' : 'text-[#21295A]'
-                         )}>
-                           {date.day}
-                         </span>
-                         <span className={composeClasses(
-                           'text-[13px] font-medium',
-                           date.isToday ? 'text-white' : 'text-[#7A7F9C]'
-                         )}>
-                           {date.fullDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                         </span>
-                       </div>
-                     </div>
-                   ))}
+                  {displayedDates.map((date, dateIdx) => (
+                    <div
+                      key={dateIdx}
+                      className={composeClasses(
+                        'relative flex min-h-[70px] w-full min-w-[180px] flex-col items-center justify-center border border-l-0 border-[#B3DADA] px-4 py-4 text-center',
+                        date.isToday ? 'bg-[#21295A]' : 'bg-[#fff]'
+                      )}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <span
+                          className={composeClasses(
+                            'text-[12px] font-medium',
+                            date.isToday ? 'text-white' : 'text-[#7A7F9C]'
+                          )}
+                        >
+                          {date.weekday}
+                        </span>
+                        <span
+                          className={composeClasses(
+                            'text-[15px] font-semibold',
+                            date.isToday ? 'text-white' : 'text-[#21295A]'
+                          )}
+                        >
+                          {date.day}
+                        </span>
+                        <span
+                          className={composeClasses(
+                            'text-[13px] font-medium',
+                            date.isToday ? 'text-white' : 'text-[#7A7F9C]'
+                          )}
+                        >
+                          {date.fullDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -363,27 +574,36 @@ const CoachScheduleGrid: React.FC = () => {
                     </div>
                     {displayedDates.map((date, dateIdx) => {
                       const slotStatus = getSlotStatus(dateIdx, slotIdx);
+                      const isSelected = isSlotSelected(dateIdx, slotIdx);
 
                       return (
                         <button
                           key={`${slot}-${dateIdx}`}
                           className={composeClasses(
-                            'group relative flex min-h-[70px] min-w-[180px] items-center justify-center border border-[#B3DADA] bg-[#F1F5F9] text-[14px] font-medium transition-all duration-200 hover:bg-[#E2E8F0]',
+                            'group relative flex min-h-[70px] min-w-[180px] items-center justify-center border border-[#B3DADA] text-[14px] font-medium transition-all duration-200',
                             slotIdx !== 0 && 'border-t-0',
-                            dateIdx !== 0 && 'border-l-0'
+                            dateIdx !== 0 && 'border-l-0',
+                            isSelected
+                              ? 'bg-[#21295A] ring-2 ring-inset ring-[#1a1f42]'
+                              : 'bg-[#F1F5F9] hover:bg-[#E2E8F0]',
+                            selectionMode && 'cursor-pointer select-none'
                           )}
                           type="button"
                           onClick={() => handleSlotClick(dateIdx, slotIdx, date, slot)}
+                          onMouseDown={() => handleSlotMouseDown(dateIdx, slotIdx)}
+                          onMouseEnter={() => handleSlotMouseEnter(dateIdx, slotIdx)}
                         >
-                           <div className="flex h-full w-full items-center justify-center p-4 text-center text-[20px]">
-                             {slotStatus === 'available' ? (
-                               <span className="text-[#21295A]">✓</span>
-                             ) : slotStatus === 'unavailable' ? (
-                               <span className="text-[#64748B]">✕</span>
-                             ) : (
-                               ''
-                             )}
-                           </div>
+                          <div className="flex h-full w-full items-center justify-center p-4 text-center text-[20px]">
+                            {isSelected ? (
+                              <span className="text-white">●</span>
+                            ) : slotStatus === 'available' ? (
+                              <span className="text-[#21295A]">✓</span>
+                            ) : slotStatus === 'unavailable' ? (
+                              <span className="text-[#64748B]">✕</span>
+                            ) : (
+                              ''
+                            )}
+                          </div>
                         </button>
                       );
                     })}
@@ -395,8 +615,8 @@ const CoachScheduleGrid: React.FC = () => {
         </div>
       </div>
 
-      {/* Legend/Instructions */}
-      <div className="flex flex-wrap items-center justify-center gap-4 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-3 desktop:justify-start desktop:px-5 desktop:py-4">
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-4 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-3 desktop:px-5 desktop:py-4">
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded bg-[#F1F5F9]">
             <span className="text-[14px] text-[#21295A]">✓</span>
@@ -413,9 +633,14 @@ const CoachScheduleGrid: React.FC = () => {
           <div className="h-6 w-6 rounded bg-[#F1F5F9]"></div>
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Not Set</span>
         </div>
-        <div className="ml-auto text-[12px] text-[#64748B] desktop:text-[13px]">
-          Click any slot to mark your availability for that date and time
-        </div>
+        {selectionMode && (
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-[#21295A]">
+              <span className="text-[14px] text-white">●</span>
+            </div>
+            <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Selected</span>
+          </div>
+        )}
       </div>
     </div>
   );

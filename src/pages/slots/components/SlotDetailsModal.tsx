@@ -10,6 +10,7 @@ interface SlotDetailsModalProps {
   onBlockSlot: () => void;
   onUnblockSlot: () => void;
   isLoading?: boolean;
+  isStanceBeamAdmin?: boolean;
 }
 
 const SlotDetailsModal = ({
@@ -20,6 +21,7 @@ const SlotDetailsModal = ({
   onBlockSlot,
   onUnblockSlot,
   isLoading = false,
+  isStanceBeamAdmin = false,
 }: SlotDetailsModalProps) => {
   if (!isOpen || !slot) return null;
 
@@ -103,14 +105,32 @@ const SlotDetailsModal = ({
                       <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.phone}</span>
                     </div>
                   )}
+                  {slot?.booking?.facilityPin && (
+                    <div className="flex justify-between">
+                      <span className="text-[14px] text-gray-600">Facility Pin:</span>
+                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.facilityPin}</span>
+                    </div>
+                  )}
+                  {slot?.booking?.lanePin && (
+                    <div className="flex justify-between">
+                      <span className="text-[14px] text-gray-600">Lane Pin:</span>
+                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.lanePin}</span>
+                    </div>
+                  )}
+                  {slot?.booking?.coach?.name && (
+                    <div className="flex justify-between">
+                      <span className="text-[14px] text-gray-600">Coach:</span>
+                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.coach.name}</span>
+                    </div>
+                  )}
                 </>
               )}
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            {isAvailable && (
+          {/* Action Buttons - Only show for StanceBeam admins */}
+          <div className="flex justify-center gap-3">
+            {isStanceBeamAdmin && isAvailable && (
               <button
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                 disabled={isLoading}
@@ -144,7 +164,7 @@ const SlotDetailsModal = ({
               </button>
             )}
 
-            {isBlocked && (
+            {isStanceBeamAdmin && isBlocked && (
               <button
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                 disabled={isLoading}
