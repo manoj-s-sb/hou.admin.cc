@@ -17,6 +17,7 @@ import {
   Members,
   ViewMembers,
   SlotBookings,
+  CoachSchedule,
 } from './pages';
 import { setSessionExpiredCallback } from './services';
 import store from './store/store';
@@ -114,6 +115,16 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
           path="/slot-bookings"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <CoachSchedule />
+              </Layout>
+            </ProtectedRoute>
+          }
+          path="/coach-schedule"
         />
         <Route element={<Navigate replace to="/induction" />} path="/" />
       </Routes>
