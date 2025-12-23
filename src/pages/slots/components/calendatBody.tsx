@@ -194,7 +194,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
   return (
     <div className="rounded-[10px] bg-white">
-      <div className="relative max-h-[calc(55vh+65px)] overflow-x-auto overflow-y-auto desktop:max-h-[calc(65vh+70px)]">
+      <div className="relative max-h-[calc(45vh)] overflow-x-auto overflow-y-auto desktop:max-h-[calc(58vh)]">
         <div className="min-w-fit">
           {/* Mobile Layout */}
           <div className="desktop:hidden">
@@ -260,8 +260,18 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                         onClick={() => handleSlotClick(currentSlot, lane)}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
-                          <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#21295A] px-2 py-2 text-center text-[11px] leading-tight text-white">
-                            {getDisplayName(currentSlot?.booking?.user)}
+                          <div
+                            className={composeClasses(
+                              'flex h-full w-full flex-col items-center justify-center gap-1 rounded-[6px] px-2 py-2 text-center text-[11px] leading-tight text-white',
+                              currentSlot?.booking?.coach?.name ? 'bg-[#006A68]' : 'bg-[#21295A]'
+                            )}
+                          >
+                            <span className="font-medium">{getDisplayName(currentSlot?.booking?.user)}</span>
+                            {currentSlot?.booking?.coach?.name && (
+                              <span className="text-[10px] font-semibold opacity-90">
+                                Coach: {currentSlot.booking.coach.name}
+                              </span>
+                            )}
                           </div>
                         ) : !currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'disabled' ? (
                           <div
@@ -345,8 +355,20 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                         }}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
-                          <div className="flex h-full w-full items-center justify-between rounded-[8px] bg-[#21295A] p-4 text-center text-white">
-                            {getDisplayName(currentSlot?.booking?.user)}
+                          <div
+                            className={composeClasses(
+                              'flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-[8px] p-4 text-center text-white',
+                              currentSlot?.booking?.coach?.name ? 'bg-[#006A68]' : 'bg-[#21295A]'
+                            )}
+                          >
+                            <span className="font-medium leading-tight">
+                              {getDisplayName(currentSlot?.booking?.user)}
+                            </span>
+                            {currentSlot?.booking?.coach?.name && (
+                              <span className="text-[12px] font-semibold opacity-90">
+                                Coach: {currentSlot.booking.coach.name}
+                              </span>
+                            )}
                           </div>
                         ) : !currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'disabled' ? (
                           <div
@@ -390,6 +412,29 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           isStanceBeamAdmin={isStanceBeamAdmin}
         />
       )}
+
+      {/* Legend */}
+      <div className="mt-4 flex flex-wrap items-center gap-4 rounded-[10px] border border-[#E2E8F0] bg-white px-4 py-3 desktop:px-5 desktop:py-4">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-[#DCEDED]"></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Available</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-[#21295A]"></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-[#006A68]"></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked with Coach</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div
+            className="h-6 w-6 rounded bg-cover bg-center"
+            style={{ backgroundImage: "url('/assets/svg/slot_bg.svg')" }}
+          ></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Blocked</span>
+        </div>
+      </div>
     </div>
   );
 };
