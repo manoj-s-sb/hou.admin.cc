@@ -4,7 +4,7 @@ import endpoints from '../../constants/endpoints';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
-import { GetSlotsRequest, UpdateLaneStatusRequest } from './types';
+import { CoachSlotsRequest, GetSlotsRequest, UpdateLaneStatusRequest } from './types';
 
 export const getSlots = createAsyncThunk(
   'slots/getSlots',
@@ -38,9 +38,9 @@ export const updateLaneStatus = createAsyncThunk(
 
 export const coachSlots = createAsyncThunk(
   'slots/coachSlots',
-  async ({ date, facilityCode, coachId }: any, { rejectWithValue }) => {
+  async ({ date, facilityCode }: CoachSlotsRequest, { rejectWithValue }) => {
     try {
-      const response = await api.post(endpoints.slots.coachSlots, { date, facilityCode, coachId });
+      const response = await api.post(endpoints.slots.coachSlots, { date, facilityCode });
       return response.data?.data;
     } catch (error: any) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch coach slots'));

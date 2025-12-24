@@ -1,7 +1,9 @@
-import { Fragment, useState, useMemo, useEffect, useRef } from 'react';
+import { Fragment, useState, useMemo, useEffect, useRef, useCallback } from 'react';
+
+import { CoachSlotsResponse, Coach, CoachSlot } from '../../../store/slots/types';
 
 interface SlotAvailability {
-  [key: string]: boolean | undefined; // key format: "dateIndex-slotIndex", undefined = not set, true = available, false = unavailable
+  [key: string]: boolean | undefined; // key format: "coachSlotCode", undefined = not set, true = available, false = unavailable
 }
 
 interface SelectedSlot {
@@ -9,6 +11,7 @@ interface SelectedSlot {
   slotIndex: number;
   date: string;
   timeSlot: string;
+  coachSlotCode: string;
 }
 
 interface SlotKey {
@@ -16,13 +19,15 @@ interface SlotKey {
   slotIndex: number;
 }
 
-const CoachScheduleGrid: React.FC = () => {
+const CoachScheduleGrid: React.FC<{ coachSlotsList: CoachSlotsResponse[]; isLoading: boolean }> = ({
+  coachSlotsList,
+  isLoading,
+}) => {
   // Store availability state
   const [availability, setAvailability] = useState<SlotAvailability>({});
-  const [dateOffset, setDateOffset] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [selectedCoachIndex, setSelectedCoachIndex] = useState(0);
 
   // Multi-select state
   const [isSelecting, setIsSelecting] = useState(false);
@@ -30,78 +35,94 @@ const CoachScheduleGrid: React.FC = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const selectionStartRef = useRef<SlotKey | null>(null);
 
-  // Track window width for responsive behavior
+  // Initialize availability from API data
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Generate time slots with consistent 45-minute intervals
-  const generateTimeSlots = (): string[] => {
-    const slots: string[] = [];
-    let startMinutes = 0 * 60; // Start at 00:00 (midnight)
-    const endMinutes = 24 * 60; // End at 24:00 (end of day)
-    const slotDuration = 45; // 45-minute slots
-
-    while (startMinutes < endMinutes) {
-      const endSlotMinutes = startMinutes + slotDuration;
-
-      const startHour = Math.floor(startMinutes / 60);
-      const startMin = startMinutes % 60;
-      const endHour = Math.floor(endSlotMinutes / 60);
-      const endMin = endSlotMinutes % 60;
-
-      const startTime = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}`;
-      const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
-
-      slots.push(`${startTime} - ${endTime}`);
-      startMinutes += slotDuration;
+    if (coachSlotsList && coachSlotsList.length > 0) {
+      const currentCoach = coachSlotsList[0].coaches[selectedCoachIndex];
+      if (currentCoach) {
+        const initialAvailability: SlotAvailability = {};
+        currentCoach.availability.forEach(dayAvailability => {
+          dayAvailability.slots.forEach(slot => {
+            initialAvailability[slot.coachSlotCode] = slot.isAvailable;
+          });
+        });
+        setAvailability(initialAvailability);
+      }
     }
+  }, [coachSlotsList, selectedCoachIndex]);
 
-    return slots;
-  };
+  // Get current coach data
+  const currentCoachData: Coach | null = useMemo(() => {
+    if (!coachSlotsList || coachSlotsList.length === 0) return null;
+    return coachSlotsList[0].coaches[selectedCoachIndex] || null;
+  }, [coachSlotsList, selectedCoachIndex]);
 
-  const timeSlots = generateTimeSlots();
-
-  // Generate dates based on offset and screen size
+  // Extract dates from availability
   const displayedDates = useMemo(() => {
-    const dates = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() + dateOffset);
+    if (!currentCoachData) return [];
 
-    const daysToShow = isMobile ? 3 : 7;
-    for (let i = 0; i < daysToShow; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return currentCoachData.availability.map(dayAvailability => {
+      const date = new Date(dayAvailability.date);
       const dateOnly = new Date(date);
       dateOnly.setHours(0, 0, 0, 0);
       const isToday = dateOnly.getTime() === today.getTime();
 
-      dates.push({
+      return {
         day: date.getDate(),
         month: date.getMonth(),
         year: date.getFullYear(),
         fullDate: date,
+        dateString: dayAvailability.date,
         weekday: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
         isToday,
+        isHoliday: dayAvailability.isHoliday,
+        slots: dayAvailability.slots,
+      };
+    });
+  }, [currentCoachData]);
+
+  // Extract unique time slots from all dates
+  const timeSlots = useMemo(() => {
+    if (!currentCoachData) return [];
+
+    const allTimeSlots = new Set<string>();
+
+    currentCoachData.availability.forEach(dayAvailability => {
+      dayAvailability.slots.forEach(slot => {
+        const startTime = new Date(slot.startTime);
+        const endTime = new Date(slot.endTime);
+
+        const startTimeStr = startTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+        const endTimeStr = endTime.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+
+        allTimeSlots.add(`${startTimeStr} - ${endTimeStr}`);
       });
-    }
-    return dates;
-  }, [dateOffset, isMobile]);
+    });
+
+    return Array.from(allTimeSlots).sort();
+  }, [currentCoachData]);
 
   const handleNavigatePrevious = () => {
-    setDateOffset(prev => prev - 1);
+    if (selectedCoachIndex > 0) {
+      setSelectedCoachIndex(prev => prev - 1);
+    }
   };
 
   const handleNavigateNext = () => {
-    setDateOffset(prev => prev + 1);
+    if (coachSlotsList && coachSlotsList.length > 0 && selectedCoachIndex < coachSlotsList[0].coaches.length - 1) {
+      setSelectedCoachIndex(prev => prev + 1);
+    }
   };
 
   // Toggle selection mode
@@ -113,28 +134,52 @@ const CoachScheduleGrid: React.FC = () => {
     }
   };
 
-  // Generate absolute slot key based on date and time
-  const getAbsoluteSlotKey = (date: any, timeSlot: string): string => {
-    const dateStr = `${date.year}-${String(date.month + 1).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-    return `${dateStr}_${timeSlot}`;
+  // Find slot by date index and time slot
+  const findSlotByIndices = (dateIndex: number, timeSlotStr: string): CoachSlot | null => {
+    const date = displayedDates[dateIndex];
+    if (!date || date.isHoliday) return null;
+
+    const slot = date.slots.find(s => {
+      const startTime = new Date(s.startTime);
+      const endTime = new Date(s.endTime);
+
+      const startTimeStr = startTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      const endTimeStr = endTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+
+      return `${startTimeStr} - ${endTimeStr}` === timeSlotStr;
+    });
+
+    return slot || null;
   };
 
   // Handle mouse down to start selection
   const handleSlotMouseDown = (dateIndex: number, slotIndex: number) => {
     if (!selectionMode) return;
 
+    const date = displayedDates[dateIndex];
+    if (date.isHoliday) return;
+
     setIsSelecting(true);
     selectionStartRef.current = { dateIndex, slotIndex };
 
-    const date = displayedDates[dateIndex];
     const timeSlot = timeSlots[slotIndex];
-    const key = getAbsoluteSlotKey(date, timeSlot);
+    const slot = findSlotByIndices(dateIndex, timeSlot);
+    if (!slot) return;
+
     const newSelected = new Set(selectedSlots);
 
-    if (newSelected.has(key)) {
-      newSelected.delete(key);
+    if (newSelected.has(slot.coachSlotCode)) {
+      newSelected.delete(slot.coachSlotCode);
     } else {
-      newSelected.add(key);
+      newSelected.add(slot.coachSlotCode);
     }
 
     setSelectedSlots(newSelected);
@@ -145,19 +190,45 @@ const CoachScheduleGrid: React.FC = () => {
     if (!selectionMode || !isSelecting) return;
 
     const date = displayedDates[dateIndex];
+    if (date.isHoliday) return;
+
     const timeSlot = timeSlots[slotIndex];
-    const key = getAbsoluteSlotKey(date, timeSlot);
+    const slot = findSlotByIndices(dateIndex, timeSlot);
+    if (!slot) return;
+
     const newSelected = new Set(selectedSlots);
-    newSelected.add(key);
+    newSelected.add(slot.coachSlotCode);
     setSelectedSlots(newSelected);
   };
 
   // Handle mouse up to end selection
-  const handleSlotMouseUp = () => {
+  const handleSlotMouseUp = useCallback(() => {
     if (selectionMode) {
       setIsSelecting(false);
       selectionStartRef.current = null;
     }
+  }, [selectionMode]);
+
+  // Handle touch start for mobile
+  const handleSlotTouchStart = (dateIndex: number, slotIndex: number) => {
+    if (!selectionMode) return;
+
+    const date = displayedDates[dateIndex];
+    if (date.isHoliday) return;
+
+    const timeSlot = timeSlots[slotIndex];
+    const slot = findSlotByIndices(dateIndex, timeSlot);
+    if (!slot) return;
+
+    const newSelected = new Set(selectedSlots);
+
+    if (newSelected.has(slot.coachSlotCode)) {
+      newSelected.delete(slot.coachSlotCode);
+    } else {
+      newSelected.add(slot.coachSlotCode);
+    }
+
+    setSelectedSlots(newSelected);
   };
 
   // Add global mouse up listener
@@ -168,11 +239,14 @@ const CoachScheduleGrid: React.FC = () => {
         document.removeEventListener('mouseup', handleSlotMouseUp);
       };
     }
-  }, [selectionMode]);
+  }, [selectionMode, handleSlotMouseUp]);
 
   // Open modal for slot selection
   const handleSlotClick = (dateIndex: number, slotIndex: number, date: any, timeSlot: string) => {
-    if (selectionMode) return; // Don't open modal in selection mode
+    if (selectionMode || date.isHoliday) return; // Don't open modal in selection mode or for holidays
+
+    const slot = findSlotByIndices(dateIndex, timeSlot);
+    if (!slot) return;
 
     setSelectedSlot({
       dateIndex,
@@ -184,6 +258,7 @@ const CoachScheduleGrid: React.FC = () => {
         year: 'numeric',
       }),
       timeSlot,
+      coachSlotCode: slot.coachSlotCode,
     });
     setShowModal(true);
   };
@@ -192,12 +267,9 @@ const CoachScheduleGrid: React.FC = () => {
   const setSlotAvailability = (isAvailable: boolean) => {
     if (!selectedSlot) return;
 
-    const date = displayedDates[selectedSlot.dateIndex];
-    const timeSlot = timeSlots[selectedSlot.slotIndex];
-    const key = getAbsoluteSlotKey(date, timeSlot);
     setAvailability(prev => ({
       ...prev,
-      [key]: isAvailable,
+      [selectedSlot.coachSlotCode]: isAvailable,
     }));
     setShowModal(false);
     setSelectedSlot(null);
@@ -207,9 +279,9 @@ const CoachScheduleGrid: React.FC = () => {
   const setMultipleSlotAvailability = (isAvailable: boolean) => {
     const updates: SlotAvailability = {};
 
-    // Use absolute keys directly for availability
-    selectedSlots.forEach(absoluteKey => {
-      updates[absoluteKey] = isAvailable;
+    // Use coachSlotCode directly for availability
+    selectedSlots.forEach(coachSlotCode => {
+      updates[coachSlotCode] = isAvailable;
     });
 
     setAvailability(prev => ({
@@ -229,18 +301,22 @@ const CoachScheduleGrid: React.FC = () => {
 
   // Check if a slot is selected
   const isSlotSelected = (dateIndex: number, slotIndex: number): boolean => {
-    const date = displayedDates[dateIndex];
     const timeSlot = timeSlots[slotIndex];
-    const key = getAbsoluteSlotKey(date, timeSlot);
-    return selectedSlots.has(key);
+    const slot = findSlotByIndices(dateIndex, timeSlot);
+    if (!slot) return false;
+    return selectedSlots.has(slot.coachSlotCode);
   };
 
   // Get slot availability status
-  const getSlotStatus = (dateIndex: number, slotIndex: number): 'available' | 'unavailable' | 'not-set' => {
+  const getSlotStatus = (dateIndex: number, slotIndex: number): 'available' | 'unavailable' | 'not-set' | 'holiday' => {
     const date = displayedDates[dateIndex];
+    if (date.isHoliday) return 'holiday';
+
     const timeSlot = timeSlots[slotIndex];
-    const key = getAbsoluteSlotKey(date, timeSlot);
-    const value = availability[key];
+    const slot = findSlotByIndices(dateIndex, timeSlot);
+    if (!slot) return 'not-set';
+
+    const value = availability[slot.coachSlotCode];
 
     if (value === undefined) return 'not-set';
     return value ? 'available' : 'unavailable';
@@ -259,6 +335,42 @@ const CoachScheduleGrid: React.FC = () => {
   };
 
   const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center rounded-[10px] bg-white">
+        <div className="flex flex-col items-center justify-center">
+          <svg
+            className="h-12 w-12 animate-spin text-[#21295A]"
+            fill="none"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path
+              className="opacity-75"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              fill="currentColor"
+            ></path>
+          </svg>
+          <p className="mt-4 text-[16px] font-medium text-[#64748B]">Loading coach schedule...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state
+  if (!coachSlotsList || coachSlotsList.length === 0 || !currentCoachData) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center rounded-[10px] bg-white">
+        <div className="text-center">
+          <p className="text-[16px] font-medium text-[#64748B]">No coach schedule data available</p>
+          <p className="mt-2 text-[14px] text-[#94A3B8]">Please check back later</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -310,53 +422,73 @@ const CoachScheduleGrid: React.FC = () => {
             <div className="desktop:hidden">
               {/* Header Row - Sticky Top with Navigation */}
               <div className="sticky top-0 z-30">
-                <div className="flex items-center justify-between gap-2 border-b border-[#B3DADA] bg-white px-2 py-2">
-                  <div className="flex items-center gap-1">
-                    <button
-                      className="rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC]"
-                      type="button"
-                      onClick={handleNavigatePrevious}
-                    >
-                      <img alt="arrow left" className="h-4 w-4" src={'/assets/svg/arrow_left.svg'} />
-                    </button>
-                    <button
-                      className="rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC]"
-                      type="button"
-                      onClick={handleNavigateNext}
-                    >
-                      <img alt="arrow right" className="h-4 w-4" src={'/assets/svg/arrow_right.svg'} />
-                    </button>
-                  </div>
+                {/* Navigation and Multi-Select Toggle */}
+                {/* <div className="flex items-center justify-between gap-3 border-b border-[#B3DADA] bg-white px-3 py-3">
+                  {coachSlotsList && coachSlotsList[0].coaches.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] active:bg-[#E2E8F0] disabled:opacity-40 disabled:cursor-not-allowed"
+                        type="button"
+                        onClick={handleNavigatePrevious}
+                        disabled={selectedCoachIndex === 0}
+                      >
+                        <img alt="previous coach" className="h-5 w-5" src={'/assets/svg/arrow_left.svg'} />
+                      </button>
+                      <button
+                        className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] active:bg-[#E2E8F0] disabled:opacity-40 disabled:cursor-not-allowed"
+                        type="button"
+                        onClick={handleNavigateNext}
+                        disabled={selectedCoachIndex === coachSlotsList[0].coaches.length - 1}
+                      >
+                        <img alt="next coach" className="h-5 w-5" src={'/assets/svg/arrow_right.svg'} />
+                      </button>
+                    </div>
+                  )}
 
                   <button
-                    className={`rounded-[8px] px-2 py-1.5 text-[11px] font-medium transition ${
-                      selectionMode ? 'bg-[#21295A] text-white' : 'border border-[#E2E8F0] bg-white text-[#21295A]'
+                    className={`rounded-[8px] px-4 py-2.5 text-[13px] font-medium transition ${
+                      selectionMode
+                        ? 'bg-[#21295A] text-white active:bg-[#1a1f42]'
+                        : 'border border-[#E2E8F0] bg-white text-[#21295A] active:bg-[#F1F5F9]'
                     }`}
                     type="button"
                     onClick={toggleSelectionMode}
                   >
-                    {selectionMode ? `✓ ${selectedSlots.size || 0} Selected` : 'Multi-Select'}
+                    {selectionMode ? 'Done' : 'Multi-Select'}
                   </button>
+                </div> */}
 
-                  {selectionMode && selectedSlots.size > 0 && (
-                    <>
+                {/* Selection Actions Bar - Only show when slots are selected */}
+                {selectionMode && selectedSlots.size > 0 && (
+                  <div className="flex flex-col gap-2 border-b border-[#B3DADA] bg-[#F8FAFC] px-3 py-3">
+                    <div className="text-center text-[13px] font-medium text-[#64748B]">
+                      {selectedSlots.size} slot{selectedSlots.size > 1 ? 's' : ''} selected
+                    </div>
+                    <div className="flex gap-2">
                       <button
-                        className="rounded-[8px] bg-[#21295A] px-2 py-1.5 text-[11px] font-medium text-white"
+                        className="flex-1 rounded-[8px] bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white active:bg-[#1a1f42]"
                         type="button"
                         onClick={() => setMultipleSlotAvailability(true)}
                       >
-                        ✓
+                        ✓ Mark Available
                       </button>
                       <button
-                        className="rounded-[8px] border border-[#E2E8F0] bg-white px-2 py-1.5 text-[11px] font-medium text-[#64748B]"
+                        className="flex-1 rounded-[8px] border-2 border-[#E2E8F0] bg-white px-4 py-3 text-[14px] font-medium text-[#64748B] active:bg-[#F1F5F9]"
                         type="button"
                         onClick={() => setMultipleSlotAvailability(false)}
                       >
-                        ✕
+                        ✕ Mark Unavailable
                       </button>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Instruction text when in selection mode but no slots selected */}
+                {selectionMode && selectedSlots.size === 0 && (
+                  <div className="border-b border-[#B3DADA] bg-[#F8FAFC] px-3 py-2 text-center text-[12px] text-[#64748B]">
+                    Tap slots to select them
+                  </div>
+                )}
                 <div className="grid bg-white" style={gridTemplateColumnsMobile}>
                   <div className="sticky left-0 z-40 flex min-h-[65px] min-w-[100px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-3 text-[12px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
                     Time Slot
@@ -416,30 +548,54 @@ const CoachScheduleGrid: React.FC = () => {
                       const slotStatus = getSlotStatus(dateIdx, slotIdx);
                       const isSelected = isSlotSelected(dateIdx, slotIdx);
 
+                      // If it's a holiday, show holiday cell
+                      if (date.isHoliday) {
+                        return (
+                          <div
+                            key={`${slot}-${dateIdx}`}
+                            className={composeClasses(
+                              'flex min-h-[70px] min-w-[140px] items-center justify-center border border-[#B3DADA] bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] text-[11px] font-medium',
+                              slotIdx !== 0 && 'border-t-0',
+                              dateIdx !== 0 && 'border-l-0'
+                            )}
+                          >
+                            <div className="flex h-full w-full items-center justify-center px-2 py-3 text-center text-[10px] font-semibold leading-tight text-[#92400E]">
+                              Holiday
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <button
                           key={`${slot}-${dateIdx}`}
                           className={composeClasses(
-                            'flex min-h-[65px] min-w-[140px] items-center justify-center border border-[#B3DADA] text-[11px] font-medium transition-all duration-200',
+                            'flex min-h-[70px] min-w-[140px] items-center justify-center border border-[#B3DADA] text-[11px] font-medium transition-all duration-200 active:scale-95',
                             slotIdx !== 0 && 'border-t-0',
                             dateIdx !== 0 && 'border-l-0',
                             isSelected
                               ? 'bg-[#21295A] ring-2 ring-inset ring-[#1a1f42]'
-                              : 'bg-[#F1F5F9] hover:bg-[#E2E8F0]',
+                              : 'bg-[#F1F5F9] active:bg-[#E2E8F0]',
                             selectionMode && 'cursor-pointer select-none'
                           )}
                           type="button"
-                          onClick={() => handleSlotClick(dateIdx, slotIdx, date, slot)}
+                          onClick={() => !selectionMode && handleSlotClick(dateIdx, slotIdx, date, slot)}
                           onMouseDown={() => handleSlotMouseDown(dateIdx, slotIdx)}
                           onMouseEnter={() => handleSlotMouseEnter(dateIdx, slotIdx)}
+                          onTouchStart={e => {
+                            if (selectionMode) {
+                              e.preventDefault();
+                              handleSlotTouchStart(dateIdx, slotIdx);
+                            }
+                          }}
                         >
-                          <div className="flex h-full w-full items-center justify-center px-2 py-2 text-center text-[11px] leading-tight">
+                          <div className="flex h-full w-full items-center justify-center px-2 py-3 text-center text-[11px] leading-tight">
                             {isSelected ? (
-                              <span className="text-[16px] text-white">●</span>
+                              <span className="text-[20px] text-white">●</span>
                             ) : slotStatus === 'available' ? (
-                              <span className="text-[16px] text-[#21295A]">✓</span>
+                              <span className="text-[20px] text-[#21295A]">✓</span>
                             ) : slotStatus === 'unavailable' ? (
-                              <span className="text-[16px] text-[#64748B]">✕</span>
+                              <span className="text-[20px] text-[#64748B]">✕</span>
                             ) : (
                               ''
                             )}
@@ -500,22 +656,26 @@ const CoachScheduleGrid: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="ml-auto flex items-center gap-2">
-                    <button
-                      className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC]"
-                      type="button"
-                      onClick={handleNavigatePrevious}
-                    >
-                      <img alt="arrow left" className="h-5 w-5" src={'/assets/svg/arrow_left.svg'} />
-                    </button>
-                    <button
-                      className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC]"
-                      type="button"
-                      onClick={handleNavigateNext}
-                    >
-                      <img alt="arrow right" className="h-5 w-5" src={'/assets/svg/arrow_right.svg'} />
-                    </button>
-                  </div>
+                  {coachSlotsList && coachSlotsList[0].coaches.length > 1 && (
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={selectedCoachIndex === 0}
+                        type="button"
+                        onClick={handleNavigatePrevious}
+                      >
+                        <img alt="previous coach" className="h-5 w-5" src={'/assets/svg/arrow_left.svg'} />
+                      </button>
+                      <button
+                        className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={selectedCoachIndex === coachSlotsList[0].coaches.length - 1}
+                        type="button"
+                        onClick={handleNavigateNext}
+                      >
+                        <img alt="next coach" className="h-5 w-5" src={'/assets/svg/arrow_right.svg'} />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="grid bg-white" style={gridTemplateColumns}>
                   <div className="sticky left-0 z-40 flex min-h-[70px] min-w-[140px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
@@ -576,6 +736,24 @@ const CoachScheduleGrid: React.FC = () => {
                       const slotStatus = getSlotStatus(dateIdx, slotIdx);
                       const isSelected = isSlotSelected(dateIdx, slotIdx);
 
+                      // If it's a holiday, show holiday cell
+                      if (date.isHoliday) {
+                        return (
+                          <div
+                            key={`${slot}-${dateIdx}`}
+                            className={composeClasses(
+                              'flex min-h-[70px] min-w-[180px] items-center justify-center border border-[#B3DADA] bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] text-[14px] font-medium',
+                              slotIdx !== 0 && 'border-t-0',
+                              dateIdx !== 0 && 'border-l-0'
+                            )}
+                          >
+                            <div className="flex h-full w-full items-center justify-center p-4 text-center text-[12px] font-semibold leading-tight text-[#92400E]">
+                              Holiday
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <button
                           key={`${slot}-${dateIdx}`}
@@ -632,6 +810,10 @@ const CoachScheduleGrid: React.FC = () => {
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded bg-[#F1F5F9]"></div>
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Not Set</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A]"></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Holiday</span>
         </div>
         {selectionMode && (
           <div className="flex items-center gap-2">
