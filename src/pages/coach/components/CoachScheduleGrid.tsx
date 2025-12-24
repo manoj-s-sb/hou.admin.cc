@@ -148,9 +148,6 @@ const CoachScheduleGrid: React.FC<{ coachSlotsList: CoachSlotsResponse[]; isLoad
     const date = displayedDates[dateIndex];
     if (!date || date.isHoliday) return null;
 
-    console.log('Looking for slot:', timeSlotStr, 'on date index:', dateIndex);
-    console.log('Available slots for this date:', date.slots.length);
-
     const slot = date.slots.find(s => {
       const startTime = new Date(s.startTime);
       const endTime = new Date(s.endTime);
@@ -159,21 +156,9 @@ const CoachScheduleGrid: React.FC<{ coachSlotsList: CoachSlotsResponse[]; isLoad
       const endTimeStr = formatTime(endTime);
       const formattedSlot = `${startTimeStr} - ${endTimeStr}`;
 
-      console.log(
-        'Comparing:',
-        formattedSlot,
-        'with',
-        timeSlotStr,
-        'isAvailable:',
-        s.isAvailable,
-        'code:',
-        s.coachSlotCode
-      );
-
       return formattedSlot === timeSlotStr;
     });
 
-    console.log('Found slot:', slot ? slot.coachSlotCode : 'NULL');
     return slot || null;
   };
 
@@ -250,9 +235,6 @@ const CoachScheduleGrid: React.FC<{ coachSlotsList: CoachSlotsResponse[]; isLoad
 
     const slot = findSlotByIndices(dateIndex, timeSlot);
 
-    console.log('slot', dateIndex);
-    console.log('timeSlot', timeSlot);
-
     // For slots that don't exist yet, we still want to allow user to set availability
     // Generate a temporary coachSlotCode if slot doesn't exist
     const coachSlotCode = slot?.coachSlotCode || `temp-${dateIndex}-${slotIndex}`;
@@ -277,8 +259,6 @@ const CoachScheduleGrid: React.FC<{ coachSlotsList: CoachSlotsResponse[]; isLoad
     if (!selectedSlot) return;
 
     setIsUpdating(true);
-
-    console.log('selectedSlot', selectedSlot);
 
     try {
       const action = isAvailable ? 'available' : 'disable';
@@ -518,17 +498,17 @@ const CoachScheduleGrid: React.FC<{ coachSlotsList: CoachSlotsResponse[]; isLoad
                     <div className="flex items-center gap-2">
                       <button
                         className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] active:bg-[#E2E8F0] disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={selectedCoachIndex === 0}
                         type="button"
                         onClick={handleNavigatePrevious}
-                        disabled={selectedCoachIndex === 0}
                       >
                         <img alt="previous coach" className="h-5 w-5" src={'/assets/svg/arrow_left.svg'} />
                       </button>
                       <button
                         className="rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] active:bg-[#E2E8F0] disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={selectedCoachIndex === coachSlotsList[0].coaches.length - 1}
                         type="button"
                         onClick={handleNavigateNext}
-                        disabled={selectedCoachIndex === coachSlotsList[0].coaches.length - 1}
                       >
                         <img alt="next coach" className="h-5 w-5" src={'/assets/svg/arrow_right.svg'} />
                       </button>
@@ -588,9 +568,7 @@ const CoachScheduleGrid: React.FC<{ coachSlotsList: CoachSlotsResponse[]; isLoad
                       key={dateIdx}
                       className="relative flex min-h-[65px] w-full min-w-[140px] flex-col items-center justify-center border border-l-0 border-[#B3DADA] bg-[#fff] px-2 py-3 text-center"
                     >
-                      {date.isToday && (
-                        <div className="absolute left-2 top-2 h-2 w-2 rounded-full bg-[#21295A]"></div>
-                      )}
+                      {date.isToday && <div className="absolute left-2 top-2 h-2 w-2 rounded-full bg-[#21295A]"></div>}
                       <div className="flex flex-col items-center justify-center gap-1">
                         <span className="text-[10px] font-medium text-[#7A7F9C]">{date.weekday}</span>
                         <span className="text-[12px] font-semibold text-[#21295A]">{date.day}</span>
