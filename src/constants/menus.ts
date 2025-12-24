@@ -29,11 +29,11 @@ const menus = [
     label: 'Slot Bookings',
     icon: '/assets/slot-bookings.svg',
   },
-  {
-    path: '/coach-schedule',
-    label: 'Coach Schedule',
-    icon: '/assets/coach-schedule.svg',
-  },
+  // {
+  //   path: '/coach-schedule',
+  //   label: 'Coach Schedule',
+  //   icon: '/assets/coach-schedule.svg',
+  // },
 ];
 
 export default menus;
