@@ -1,9 +1,9 @@
 const menus = [
-  {
-    path: '/dashboard',
-    label: 'Dashboard',
-    icon: '/assets/dashboard.svg',
-  },
+  // {
+  //   path: '/dashboard',
+  //   label: 'Dashboard',
+  //   icon: '/assets/dashboard.svg',
+  // },
   // {
   //   path: '/users',
   //   label: 'Users',
@@ -29,11 +29,11 @@ const menus = [
     label: 'Slot Bookings',
     icon: '/assets/slot-bookings.svg',
   },
-  {
-    path: '/coach-schedule',
-    label: 'Coach Schedule',
-    icon: '/assets/coach-schedule.svg',
-  },
+  // {
+  //   path: '/coach-schedule',
+  //   label: 'Coach Schedule',
+  //   icon: '/assets/coach-schedule.svg',
+  // },
 ];
 
 export default menus;
