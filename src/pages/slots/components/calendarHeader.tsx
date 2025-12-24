@@ -52,7 +52,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
         left: scrollContainerRef.current.scrollLeft - 60,
-        behavior: 'smooth'
+        behavior: 'smooth',
       });
     }
   };
@@ -63,7 +63,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
         left: scrollContainerRef.current.scrollLeft + 60,
-        behavior: 'smooth'
+        behavior: 'smooth',
       });
     }
   };
@@ -171,7 +171,10 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
           >
             <img alt="arrow left" className="h-4 w-4 desktop:h-5 desktop:w-5" src={'/assets/right-admin.svg'} />
           </span>
-          <div ref={scrollContainerRef} className="scrollbar-hide flex flex-row items-end gap-1.5 overflow-x-auto desktop:gap-4">
+          <div
+            ref={scrollContainerRef}
+            className="scrollbar-hide flex flex-row items-end gap-1.5 overflow-x-auto desktop:gap-4"
+          >
             {displayedDates.map((date, index) => {
               const isSelected = selectedDate?.day === date.day && selectedDate?.month === date.month;
               const weekdayLabel = date.fullDate

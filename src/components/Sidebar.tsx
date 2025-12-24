@@ -73,7 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 key={item.path}
                 className={`mx-2 my-1 flex items-center rounded-lg px-5 py-3 no-underline transition-all duration-200 ${
                   isActive
-                    ? 'border-l-4 border-indigo-600 bg-gradient-to-r from-indigo-50 to-blue-50 font-semibold text-indigo-600 shadow-sm'
+                    ? 'border-l-4 border-[#21295A] bg-gradient-to-r from-[#21295A]/10 to-[#21295A]/5 font-semibold text-[#21295A] shadow-sm'
                     : 'text-gray-700 hover:translate-x-1 hover:bg-gray-100 hover:text-gray-900'
                 }`}
                 to={item.path}

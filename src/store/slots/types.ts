@@ -16,6 +16,11 @@ export interface BookingDetails {
   bookingCode?: string;
   user?: BookingUser;
   guests?: any[];
+  facilityPin: string;
+  lanePin: string;
+  coach: {
+    name: string;
+  };
 }
 
 export interface Slot {
@@ -55,11 +60,48 @@ export interface UpdateLaneStatusRequest {
   slotCode?: string;
 }
 
+export interface CoachSlotsRequest {
+  date?: string;
+  facilityCode: string;
+}
+
+export interface CoachSlot {
+  coachSlotCode: string;
+  endTime: string;
+  isAvailable: boolean;
+  startTime: string;
+}
+
+export interface Availability {
+  date: string;
+  isHoliday: boolean;
+  slots: CoachSlot[];
+}
+
+export interface Coach {
+  availability: Availability[];
+  certifications: string[];
+  coachCode: string;
+  description: string;
+  experienceYears: number;
+  hourlyRate: number;
+  name: string;
+  profileImageUrl: string;
+  specialization: string[];
+}
+export interface CoachSlotsResponse {
+  endDate: string;
+  facilityCode: string;
+  startDate: string;
+  coaches: Coach[];
+}
+
 export interface SlotsInitialState {
   isLoading: boolean;
   error: string | null | any;
   slots: GetSlotsResponse | null;
   isBlockLaneLoading: boolean;
+  coachSlotsList: CoachSlotsResponse[] | null;
 }
 
 export const initialState: SlotsInitialState = {
@@ -67,4 +109,5 @@ export const initialState: SlotsInitialState = {
   error: '',
   slots: null,
   isBlockLaneLoading: false,
+  coachSlotsList: null,
 };

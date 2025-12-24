@@ -1,3 +1,4 @@
+import CoachSchedule from './coach/index';
 import Dashboard from './dashboard';
 import Induction from './induction';
 import ViewInduction from './induction/viewInduction';
@@ -8,4 +9,15 @@ import SlotBookings from './slots';
 import Tours from './tours';
 import UserList from './users';
 
-export { Induction, Dashboard, Login, UserList, ViewInduction, Tours, Members, ViewMembers, SlotBookings };
+export {
+  Induction,
+  Dashboard,
+  Login,
+  UserList,
+  ViewInduction,
+  Tours,
+  Members,
+  ViewMembers,
+  SlotBookings,
+  CoachSchedule,
+};

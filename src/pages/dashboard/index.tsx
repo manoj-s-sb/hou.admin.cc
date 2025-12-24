@@ -1,525 +1,381 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
-import { addDays, format, getDay, parse, setHours, setMinutes, startOfWeek } from 'date-fns';
-import { Plus, X } from 'lucide-react';
-import { Calendar, SlotInfo, View, dateFnsLocalizer } from 'react-big-calendar';
+import { Calendar, CheckCircle2, Clock, CreditCard, TrendingUp, UserCheck, UserPlus, Users } from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
-import 'react-big-calendar/lib/css/react-big-calendar.css';
+import ChartCard from './components/ChartCard';
+import StatCard from './components/StatCard';
 
-import SectionTitle from '../../components/SectionTitle';
+// Mock data - Replace with actual API data when available
+const mockStats = {
+  slots: {
+    total: 450,
+    active: 320,
+    booked: 280,
+    available: 40,
+  },
+  inductions: {
+    total: 156,
+    pending: 28,
+    completed: 98,
+    inProgress: 30,
+  },
+  users: {
+    total: 1248,
+    active: 1050,
+    inactive: 198,
+  },
+  subscriptions: {
+    premium: 345,
+    standard: 678,
+    total: 1023,
+    expired: 56,
+  },
+  analytics: {
+    monthlyBookings: [
+      { month: 'Jan', bookings: 320, revenue: 45000 },
+      { month: 'Feb', bookings: 380, revenue: 52000 },
+      { month: 'Mar', bookings: 420, revenue: 58000 },
+      { month: 'Apr', bookings: 390, revenue: 54000 },
+      { month: 'May', bookings: 450, revenue: 62000 },
+      { month: 'Jun', bookings: 520, revenue: 72000 },
+    ],
+    userGrowth: [
+      { month: 'Jan', users: 850 },
+      { month: 'Feb', users: 920 },
+      { month: 'Mar', users: 980 },
+      { month: 'Apr', users: 1050 },
+      { month: 'May', users: 1150 },
+      { month: 'Jun', users: 1248 },
+    ],
+    subscriptionDistribution: [
+      { name: 'Premium', value: 345 },
+      { name: 'Standard', value: 678 },
+    ],
+  },
+};
 
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-});
+const COLORS = {
+  primary: '#6366f1',
+  secondary: '#8b5cf6',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  info: '#3b82f6',
+};
 
-// Event interface
-interface CalendarEvent {
-  id: number;
-  title: string;
-  start: Date;
-  end: Date;
-  resource?: string;
-  description?: string;
-  attendees?: number;
-  color?: string;
-}
+const PIE_COLORS = ['#6366f1', '#8b5cf6', '#3b82f6', '#10b981'];
 
-const Dashboard: React.FC = () => {
-  const [view, setView] = useState<View>('week');
-  const [date, setDate] = useState(new Date());
-  const [showEventModal, setShowEventModal] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
-  const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventDescription, setNewEventDescription] = useState('');
-  const [newEventAttendees, setNewEventAttendees] = useState('');
+const Dashboard = () => {
+  const [selectedPeriod, setSelectedPeriod] = useState('6months');
 
-  // Lane booking system: 5 Batting Lanes + 2 Hybrid Lanes
-  // 10 future bookings across different dates, each slot is 45 minutes
-  const [events, setEvents] = useState<CalendarEvent[]>([
-    // TODAY - Batting Lane 1
-    {
-      id: 1,
-      title: 'Batting Lane 1 - Booking',
-      start: setMinutes(setHours(new Date(), 10), 0),
-      end: setMinutes(setHours(new Date(), 10), 45),
-      description: 'Batting practice session',
-      attendees: 4,
-      color: '#3b82f6', // Blue for batting
-    },
-    // TODAY - Hybrid Lane 6 (Bowling)
-    {
-      id: 2,
-      title: 'Hybrid Lane 6 - Bowling Session',
-      start: setMinutes(setHours(new Date(), 14), 0),
-      end: setMinutes(setHours(new Date(), 14), 45),
-      description: 'Bowling practice session',
-      attendees: 4,
-      color: '#8b5cf6', // Purple for hybrid
-    },
+  // Using dummy data for now - API integration will be done later
+  const displayStats = mockStats;
 
-    // TOMORROW - Batting Lane 2
-    {
-      id: 3,
-      title: 'Batting Lane 2 - Booking',
-      start: setMinutes(setHours(addDays(new Date(), 1), 11), 0),
-      end: setMinutes(setHours(addDays(new Date(), 1), 11), 45),
-      description: 'Batting practice session',
-      attendees: 3,
-      color: '#3b82f6', // Blue for batting
-    },
-    // TOMORROW - Batting Lane 3
-    {
-      id: 4,
-      title: 'Batting Lane 3 - Booking',
-      start: setMinutes(setHours(addDays(new Date(), 1), 15), 0),
-      end: setMinutes(setHours(addDays(new Date(), 1), 15), 45),
-      description: 'Batting practice session',
-      attendees: 5,
-      color: '#3b82f6', // Blue for batting
-    },
-
-    // DAY AFTER TOMORROW - Batting Lane 4
-    {
-      id: 5,
-      title: 'Batting Lane 4 - Booking',
-      start: setMinutes(setHours(addDays(new Date(), 2), 9), 30),
-      end: setMinutes(setHours(addDays(new Date(), 2), 10), 15),
-      description: 'Batting practice session',
-      attendees: 2,
-      color: '#3b82f6', // Blue for batting
-    },
-    // DAY AFTER TOMORROW - Hybrid Lane 7 (Bowling)
-    {
-      id: 6,
-      title: 'Hybrid Lane 7 - Bowling Session',
-      start: setMinutes(setHours(addDays(new Date(), 2), 12), 0),
-      end: setMinutes(setHours(addDays(new Date(), 2), 12), 45),
-      description: 'Bowling practice session',
-      attendees: 5,
-      color: '#8b5cf6', // Purple for hybrid
-    },
-
-    // 3 DAYS FROM NOW - Batting Lane 5
-    {
-      id: 7,
-      title: 'Batting Lane 5 - Booking',
-      start: setMinutes(setHours(addDays(new Date(), 3), 13), 0),
-      end: setMinutes(setHours(addDays(new Date(), 3), 13), 45),
-      description: 'Batting practice session',
-      attendees: 6,
-      color: '#3b82f6', // Blue for batting
-    },
-    // 3 DAYS FROM NOW - Hybrid Lane 6 (Batting)
-    {
-      id: 8,
-      title: 'Hybrid Lane 6 - Batting Session',
-      start: setMinutes(setHours(addDays(new Date(), 3), 16), 0),
-      end: setMinutes(setHours(addDays(new Date(), 3), 16), 45),
-      description: 'Batting practice on hybrid lane',
-      attendees: 3,
-      color: '#8b5cf6', // Purple for hybrid
-    },
-
-    // 4 DAYS FROM NOW - Batting Lane 1 (Evening)
-    {
-      id: 9,
-      title: 'Batting Lane 1 - Evening Booking',
-      start: setMinutes(setHours(addDays(new Date(), 4), 17), 0),
-      end: setMinutes(setHours(addDays(new Date(), 4), 17), 45),
-      description: 'Evening batting session',
-      attendees: 3,
-      color: '#3b82f6', // Blue for batting
-    },
-
-    // 5 DAYS FROM NOW - Hybrid Lane 7 (Batting)
-    {
-      id: 10,
-      title: 'Hybrid Lane 7 - Batting Session',
-      start: setMinutes(setHours(addDays(new Date(), 5), 10), 30),
-      end: setMinutes(setHours(addDays(new Date(), 5), 11), 15),
-      description: 'Batting practice on hybrid lane',
-      attendees: 4,
-      color: '#8b5cf6', // Purple for hybrid
-    },
-  ]);
-
-  // Handle selecting a time slot
-  const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
-    setSelectedSlot(slotInfo);
-    setShowEventModal(true);
+  useEffect(() => {
+    // Fetch dashboard stats - uncomment when API is ready
+    // dispatch(getDashboardStats());
   }, []);
-
-  // Handle selecting an event
-  const handleSelectEvent = useCallback((event: CalendarEvent) => {
-    alert(`Event: ${event.title}\nDescription: ${event.description}\nAttendees: ${event.attendees}`);
-  }, []);
-
-  // Add new event
-  const handleAddEvent = () => {
-    if (newEventTitle && selectedSlot) {
-      const newEvent: CalendarEvent = {
-        id: events.length + 1,
-        title: newEventTitle,
-        start: selectedSlot.start,
-        end: selectedSlot.end,
-        description: newEventDescription,
-        attendees: parseInt(newEventAttendees) || 0,
-        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
-      };
-      setEvents([...events, newEvent]);
-      setShowEventModal(false);
-      setNewEventTitle('');
-      setNewEventDescription('');
-      setNewEventAttendees('');
-    }
-  };
-
-  // Custom event style
-  const eventStyleGetter = (event: CalendarEvent) => {
-    const style = {
-      backgroundColor: event.color || '#3b82f6',
-      borderRadius: '6px',
-      opacity: 0.9,
-      color: 'white',
-      border: 'none',
-      display: 'block',
-      fontSize: '13px',
-      fontWeight: '500',
-      padding: '4px 8px',
-    };
-    return { style };
-  };
-
-  // Calendar formats
-  const formats = useMemo(
-    () => ({
-      timeGutterFormat: (date: Date) => format(date, 'h:mm a'),
-      eventTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
-        `${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`,
-      agendaTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
-        `${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`,
-      dayHeaderFormat: (date: Date) => format(date, 'EEE, MMM d'),
-    }),
-    []
-  );
 
   return (
-    <div className="mx-auto">
-      {/* Calendar Section */}
-      <SectionTitle
-        description="Manage your slot bookings."
-        inputPlaceholder=""
-        search={false}
-        title="Slot Bookings"
-        value=""
-      />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm font-medium text-gray-500">Welcome back! Here&apos;s your overview</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-1">
+          <button
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+              selectedPeriod === '7days'
+                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            onClick={() => setSelectedPeriod('7days')}
+          >
+            7 Days
+          </button>
+          <button
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+              selectedPeriod === '30days'
+                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            onClick={() => setSelectedPeriod('30days')}
+          >
+            30 Days
+          </button>
+          <button
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+              selectedPeriod === '6months'
+                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            onClick={() => setSelectedPeriod('6months')}
+          >
+            6 Months
+          </button>
+        </div>
+      </div>
 
-      <div className="calendar-container" style={{ height: '700px', marginTop: '30px' }}>
-        <Calendar
-          selectable
-          className="modern-calendar"
-          date={date}
-          defaultView="week"
-          endAccessor="end"
-          eventPropGetter={eventStyleGetter}
-          events={events}
-          formats={formats}
-          localizer={localizer}
-          max={setMinutes(setHours(new Date(), 18), 0)} // 6 PM
-          min={setMinutes(setHours(new Date(), 9), 0)} // 9 AM
-          startAccessor="start"
-          step={45} // 45-minute slots
-          style={{ height: '100%' }}
-          timeslots={1} // One slot per step
-          view={view}
-          views={['month', 'week', 'day', 'agenda']}
-          onNavigate={setDate}
-          onSelectEvent={handleSelectEvent}
-          onSelectSlot={handleSelectSlot}
-          onView={setView}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Slots Card */}
+        <StatCard
+          gradient="from-indigo-600 to-blue-600"
+          icon={<Calendar className="h-7 w-7 text-white" />}
+          subStats={[
+            { label: 'Active', value: displayStats.slots.active, color: 'bg-green-500' },
+            { label: 'Booked', value: displayStats.slots.booked, color: 'bg-blue-500' },
+            { label: 'Available', value: displayStats.slots.available, color: 'bg-yellow-500' },
+          ]}
+          title="Total Slots"
+          value={displayStats.slots.total}
+        />
+
+        {/* Inductions Card */}
+        <StatCard
+          gradient="from-purple-600 to-pink-600"
+          icon={<UserCheck className="h-7 w-7 text-white" />}
+          subStats={[
+            { label: 'Completed', value: displayStats.inductions.completed, color: 'bg-green-500' },
+            { label: 'In Progress', value: displayStats.inductions.inProgress, color: 'bg-blue-500' },
+            { label: 'Pending', value: displayStats.inductions.pending, color: 'bg-yellow-500' },
+          ]}
+          title="Inductions"
+          value={displayStats.inductions.total}
+        />
+
+        {/* Users Card */}
+        <StatCard
+          gradient="from-blue-600 to-cyan-600"
+          icon={<Users className="h-7 w-7 text-white" />}
+          subStats={[
+            { label: 'Active Users', value: displayStats.users.active, color: 'bg-green-500' },
+            { label: 'Inactive', value: displayStats.users.inactive, color: 'bg-gray-400' },
+          ]}
+          title="Total Users"
+          value={displayStats.users.total}
+        />
+
+        {/* Subscriptions Card */}
+        <StatCard
+          gradient="from-green-600 to-emerald-600"
+          icon={<CreditCard className="h-7 w-7 text-white" />}
+          subStats={[
+            { label: 'Premium', value: displayStats.subscriptions.premium, color: 'bg-purple-500' },
+            { label: 'Standard', value: displayStats.subscriptions.standard, color: 'bg-blue-500' },
+            { label: 'Expired', value: displayStats.subscriptions.expired, color: 'bg-red-500' },
+          ]}
+          title="Subscriptions"
+          value={displayStats.subscriptions.total}
         />
       </div>
 
-      {/* Event Modal */}
-      {showEventModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
-                <Plus className="h-6 w-6 text-blue-600" />
-                Add New Event
-              </h3>
-              <button
-                className="text-gray-500 transition-colors hover:text-gray-700"
-                onClick={() => setShowEventModal(false)}
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Monthly Bookings Chart */}
+        <ChartCard subtitle="Track bookings and revenue trends" title="Monthly Bookings &amp; Revenue">
+          <ResponsiveContainer height={300} width="100%">
+            <AreaChart data={displayStats.analytics.monthlyBookings}>
+              <defs>
+                <linearGradient id="colorBookings" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorRevenue" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS.success} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={COLORS.success} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3" />
+              <XAxis dataKey="month" stroke="#6b7280" style={{ fontSize: '12px', fontWeight: 600 }} />
+              <YAxis stroke="#6b7280" style={{ fontSize: '12px', fontWeight: 600 }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: '14px', fontWeight: 600 }} />
+              <Area
+                dataKey="bookings"
+                fill="url(#colorBookings)"
+                name="Bookings"
+                stroke={COLORS.primary}
+                strokeWidth={3}
+                type="monotone"
+              />
+              <Area
+                dataKey="revenue"
+                fill="url(#colorRevenue)"
+                name="Revenue ($)"
+                stroke={COLORS.success}
+                strokeWidth={3}
+                type="monotone"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-title">
-                  Event Title *
-                </label>
-                <input
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  id="event-title"
-                  placeholder="Enter event title"
-                  type="text"
-                  value={newEventTitle}
-                  onChange={e => setNewEventTitle(e.target.value)}
+        {/* User Growth Chart */}
+        <ChartCard subtitle="Monitor user acquisition over time" title="User Growth">
+          <ResponsiveContainer height={300} width="100%">
+            <BarChart data={displayStats.analytics.userGrowth}>
+              <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3" />
+              <XAxis dataKey="month" stroke="#6b7280" style={{ fontSize: '12px', fontWeight: 600 }} />
+              <YAxis stroke="#6b7280" style={{ fontSize: '12px', fontWeight: 600 }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: '14px', fontWeight: 600 }} />
+              <Bar dataKey="users" fill={COLORS.info} name="Total Users" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Bottom Section */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Subscription Distribution */}
+        <div className="lg:col-span-1">
+          <ChartCard subtitle="Premium vs Standard plans" title="Subscription Distribution">
+            <ResponsiveContainer height={300} width="100%">
+              <PieChart>
+                <Pie
+                  cx="50%"
+                  cy="50%"
+                  data={displayStats.analytics.subscriptionDistribution}
+                  dataKey="value"
+                  innerRadius={60}
+                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  labelLine={false}
+                  outerRadius={100}
+                >
+                  {displayStats.analytics.subscriptionDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#fff',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  }}
                 />
-              </div>
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-description">
-                  Description
-                </label>
-                <textarea
-                  className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  id="event-description"
-                  placeholder="Enter event description"
-                  rows={3}
-                  value={newEventDescription}
-                  onChange={e => setNewEventDescription(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="event-attendees">
-                  Number of Attendees
-                </label>
-                <input
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                  id="event-attendees"
-                  placeholder="0"
-                  type="number"
-                  value={newEventAttendees}
-                  onChange={e => setNewEventAttendees(e.target.value)}
-                />
-              </div>
-
-              {selectedSlot ? (
-                <div className="rounded-lg bg-blue-50 p-3">
-                  <p className="text-sm text-gray-700">
-                    <strong>Time:</strong> {format(selectedSlot.start, 'h:mm a')} - {format(selectedSlot.end, 'h:mm a')}
-                  </p>
-                  <p className="mt-1 text-sm text-gray-700">
-                    <strong>Date:</strong> {format(selectedSlot.start, 'EEEE, MMMM d, yyyy')}
+        {/* Quick Stats */}
+        <div className="lg:col-span-2">
+          <ChartCard subtitle="Key performance indicators" title="Quick Stats">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Stat Item 1 */}
+              <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-600 to-emerald-600 shadow-lg">
+                  <CheckCircle2 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-600">Completion Rate</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {((displayStats.inductions.completed / displayStats.inductions.total) * 100).toFixed(1)}%
                   </p>
                 </div>
-              ) : null}
-
-              <div className="mt-6 flex gap-3">
-                <button
-                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                  disabled={!newEventTitle}
-                  onClick={handleAddEvent}
-                >
-                  Add Event
-                </button>
-                <button
-                  className="flex-1 rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300"
-                  onClick={() => setShowEventModal(false)}
-                >
-                  Cancel
-                </button>
               </div>
+
+              {/* Stat Item 2 */}
+              <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg">
+                  <UserPlus className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-600">Active Rate</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {((displayStats.users.active / displayStats.users.total) * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Stat Item 3 */}
+              <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 shadow-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-600">Slot Utilization</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {((displayStats.slots.booked / displayStats.slots.total) * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Stat Item 4 */}
+              <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-orange-50 to-yellow-50 p-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-600 to-yellow-600 shadow-lg">
+                  <Clock className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-600">Pending Tasks</p>
+                  <p className="text-2xl font-bold text-gray-900">{displayStats.inductions.pending}</p>
+                </div>
+              </div>
+            </div>
+          </ChartCard>
+        </div>
+      </div>
+
+      {/* Activity Status */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 text-lg font-bold text-gray-900">System Status</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4">
+            <CheckCircle2 className="h-6 w-6 text-green-600" />
+            <div>
+              <p className="text-sm font-semibold text-gray-600">Booking System</p>
+              <p className="text-xs font-medium text-green-600">Operational</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4">
+            <CheckCircle2 className="h-6 w-6 text-green-600" />
+            <div>
+              <p className="text-sm font-semibold text-gray-600">User Management</p>
+              <p className="text-xs font-medium text-green-600">Operational</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+            <Clock className="h-6 w-6 text-yellow-600" />
+            <div>
+              <p className="text-sm font-semibold text-gray-600">Payment Processing</p>
+              <p className="text-xs font-medium text-yellow-600">Maintenance</p>
             </div>
           </div>
         </div>
-      )}
-
-      <style>{`
-        .modern-calendar {
-          border: none;
-          font-family: inherit;
-        }
-
-        .rbc-calendar {
-          border-radius: 8px;
-          overflow: hidden;
-        }
-
-        .rbc-header {
-          padding: 16px 8px;
-          font-weight: 600;
-          font-size: 14px;
-          color: #1e293b;
-          background: #f8fafc;
-          border-bottom: 2px solid #e2e8f0;
-        }
-
-        .rbc-time-view {
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-
-        .rbc-time-header {
-          border-bottom: 2px solid #e2e8f0;
-        }
-
-        .rbc-time-content {
-          border-top: none;
-        }
-
-        .rbc-time-slot {
-          border-top: 1px solid #f1f5f9;
-        }
-
-        .rbc-timeslot-group {
-          min-height: 80px;
-          border-left: 1px solid #e2e8f0;
-        }
-
-        .rbc-day-slot .rbc-time-slot {
-          border-top: 1px solid #f1f5f9;
-        }
-
-        .rbc-current-time-indicator {
-          background-color: #ef4444;
-          height: 2px;
-        }
-
-        .rbc-today {
-          background-color: #eff6ff;
-        }
-
-        .rbc-event {
-          border: none !important;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          transition: all 0.2s;
-        }
-
-        .rbc-event:hover {
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-          transform: translateY(-1px);
-          cursor: pointer;
-        }
-
-        .rbc-event-label {
-          font-size: 11px;
-          font-weight: 600;
-        }
-
-        .rbc-event-content {
-          padding: 2px 4px;
-        }
-
-        .rbc-toolbar {
-          padding: 16px;
-          background: #f8fafc;
-          border-radius: 8px;
-          margin-bottom: 16px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-
-        .rbc-toolbar button {
-          padding: 8px 16px;
-          border: 1px solid #cbd5e1;
-          background: white;
-          color: #475569;
-          border-radius: 6px;
-          font-weight: 500;
-          font-size: 14px;
-          transition: all 0.2s;
-          cursor: pointer;
-        }
-
-        .rbc-toolbar button:hover {
-          background: #f1f5f9;
-          border-color: #94a3b8;
-        }
-
-        .rbc-toolbar button.rbc-active {
-          background: #3b82f6;
-          color: white;
-          border-color: #3b82f6;
-        }
-
-        .rbc-toolbar button.rbc-active:hover {
-          background: #2563eb;
-          border-color: #2563eb;
-        }
-
-        .rbc-toolbar-label {
-          font-size: 18px;
-          font-weight: 700;
-          color: #1e293b;
-        }
-
-        .rbc-month-view {
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-
-        .rbc-month-row {
-          border-top: 1px solid #e2e8f0;
-          min-height: 100px;
-        }
-
-        .rbc-date-cell {
-          padding: 8px;
-        }
-
-        .rbc-off-range {
-          color: #cbd5e1;
-        }
-
-        .rbc-off-range-bg {
-          background: #fafafa;
-        }
-
-        .rbc-show-more {
-          color: #3b82f6;
-          font-weight: 600;
-          font-size: 12px;
-          padding: 4px;
-          background: #eff6ff;
-          border-radius: 4px;
-          margin: 2px;
-        }
-
-        .rbc-agenda-view {
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-        }
-
-        .rbc-agenda-table {
-          border: none;
-        }
-
-        .rbc-agenda-date-cell,
-        .rbc-agenda-time-cell {
-          padding: 12px;
-          font-weight: 600;
-          color: #475569;
-        }
-
-        .rbc-agenda-event-cell {
-          padding: 12px;
-        }
-
-        .rbc-time-gutter {
-          background: #fafafa;
-          font-weight: 500;
-          color: #64748b;
-        }
-
-        .rbc-allday-cell {
-          background: #f8fafc;
-        }
-      `}</style>
+      </div>
     </div>
   );
 };

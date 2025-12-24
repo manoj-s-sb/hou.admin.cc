@@ -4,7 +4,7 @@ import endpoints from '../../constants/endpoints';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
-import { GetSlotsRequest, UpdateLaneStatusRequest } from './types';
+import { CoachSlotsRequest, GetSlotsRequest, UpdateLaneStatusRequest } from './types';
 
 export const getSlots = createAsyncThunk(
   'slots/getSlots',
@@ -32,6 +32,41 @@ export const updateLaneStatus = createAsyncThunk(
       return response.data?.data;
     } catch (error: any) {
       return rejectWithValue(handleApiError(error, 'Failed to update lane status'));
+    }
+  }
+);
+
+export const coachSlots = createAsyncThunk(
+  'slots/coachSlots',
+  async ({ date, facilityCode }: CoachSlotsRequest, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.slots.coachSlots, { date, facilityCode });
+      return response.data?.data;
+    } catch (error: any) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch coach slots'));
+    }
+  }
+);
+
+export const updateCoachSlots = createAsyncThunk(
+  'slots/updateCoachSlots',
+  async (
+    {
+      slotCodes,
+      action,
+      reason,
+    }: {
+      slotCodes: string[];
+      action: string;
+      reason: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.post(endpoints.slots.updateCoachSlots, { slotCodes, action, reason });
+      return response.data?.data;
+    } catch (error: any) {
+      return rejectWithValue(handleApiError(error, 'Failed to update coach slots'));
     }
   }
 );

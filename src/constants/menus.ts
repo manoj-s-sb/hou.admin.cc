@@ -2,7 +2,7 @@ const menus = [
   // {
   //   path: '/dashboard',
   //   label: 'Dashboard',
-  //   icon: '',
+  //   icon: '/assets/dashboard.svg',
   // },
   // {
   //   path: '/users',
@@ -29,6 +29,11 @@ const menus = [
     label: 'Slot Bookings',
     icon: '/assets/slot-bookings.svg',
   },
+  // {
+  //   path: '/coach-schedule',
+  //   label: 'Coach Schedule',
+  //   icon: '/assets/coach-schedule.svg',
+  // },
 ];
 
 export default menus;
