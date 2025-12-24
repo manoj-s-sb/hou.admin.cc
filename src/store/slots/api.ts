@@ -47,3 +47,26 @@ export const coachSlots = createAsyncThunk(
     }
   }
 );
+
+export const updateCoachSlots = createAsyncThunk(
+  'slots/updateCoachSlots',
+  async (
+    {
+      slotCodes,
+      action,
+      reason,
+    }: {
+      slotCodes: string[];
+      action: string;
+      reason: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.post(endpoints.slots.updateCoachSlots, { slotCodes, action, reason });
+      return response.data?.data;
+    } catch (error: any) {
+      return rejectWithValue(handleApiError(error, 'Failed to update coach slots'));
+    }
+  }
+);
