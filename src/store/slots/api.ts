@@ -38,9 +38,9 @@ export const updateLaneStatus = createAsyncThunk(
 
 export const coachSlots = createAsyncThunk(
   'slots/coachSlots',
-  async ({ date, facilityCode }: CoachSlotsRequest, { rejectWithValue }) => {
+  async ({ startDate, endDate, facilityCode }: CoachSlotsRequest, { rejectWithValue }) => {
     try {
-      const response = await api.post(endpoints.slots.coachSlots, { date, facilityCode });
+      const response = await api.post(endpoints.slots.coachSlots, { startDate, endDate, facilityCode });
       return response.data?.data;
     } catch (error: any) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch coach slots'));

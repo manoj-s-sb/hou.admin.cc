@@ -263,10 +263,20 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           <div
                             className={composeClasses(
                               'flex h-full w-full flex-col items-center justify-center gap-1 rounded-[6px] px-2 py-2 text-center text-[11px] leading-tight text-white',
-                              currentSlot?.booking?.coach?.name ? 'bg-[#006A68]' : 'bg-[#21295A]'
+                              currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
+                                ? 'bg-[#F97316]'
+                                : currentSlot?.booking?.coach?.name
+                                  ? 'bg-[#006A68]'
+                                  : 'bg-[#21295A]'
                             )}
                           >
                             <span className="font-medium">{getDisplayName(currentSlot?.booking?.user)}</span>
+                            {currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0 && (
+                              <span className="text-[10px] font-semibold opacity-90">
+                                {currentSlot.booking.guests.length} Guest
+                                {currentSlot.booking.guests.length > 1 ? 's' : ''}
+                              </span>
+                            )}
                             {currentSlot?.booking?.coach?.name && (
                               <span className="text-[10px] font-semibold opacity-90">
                                 Coach: {currentSlot.booking.coach.name}
@@ -358,12 +368,22 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           <div
                             className={composeClasses(
                               'flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-[8px] p-4 text-center text-white',
-                              currentSlot?.booking?.coach?.name ? 'bg-[#006A68]' : 'bg-[#21295A]'
+                              currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
+                                ? 'bg-[#F97316]'
+                                : currentSlot?.booking?.coach?.name
+                                  ? 'bg-[#006A68]'
+                                  : 'bg-[#21295A]'
                             )}
                           >
                             <span className="font-medium leading-tight">
                               {getDisplayName(currentSlot?.booking?.user)}
                             </span>
+                            {currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0 && (
+                              <span className="text-[12px] font-semibold opacity-90">
+                                {currentSlot.booking.guests.length} Guest
+                                {currentSlot.booking.guests.length > 1 ? 's' : ''}
+                              </span>
+                            )}
                             {currentSlot?.booking?.coach?.name && (
                               <span className="text-[12px] font-semibold opacity-90">
                                 Coach: {currentSlot.booking.coach.name}
@@ -404,12 +424,12 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         <SlotDetailsModal
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedSlot}
+          isStanceBeamAdmin={isStanceBeamAdmin}
           laneNo={selectedSlot.laneNo}
           slot={selectedSlot.slot}
           onBlockSlot={handleBlockSlot}
           onClose={handleCloseSlotModal}
           onUnblockSlot={handleUnblockSlot}
-          isStanceBeamAdmin={isStanceBeamAdmin}
         />
       )}
 
@@ -426,6 +446,10 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded bg-[#006A68]"></div>
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked with Coach</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-[#F97316]"></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked with Guest(s)</span>
         </div>
         <div className="flex items-center gap-2">
           <div
