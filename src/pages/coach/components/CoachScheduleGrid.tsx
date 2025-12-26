@@ -97,10 +97,19 @@ const CoachScheduleGrid: React.FC<{
     });
   }, [currentCoachData]);
 
-  // Helper function to format time consistently
-  const formatTime = (date: Date): string => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
+  // Helper function to format time consistently - extracts time directly from string without timezone conversion
+  const formatTime = (timeString: string): string => {
+    // Parse the time string directly to extract hours and minutes without timezone conversion
+    // Handles formats like "2024-01-15T10:30:00" or "2024-01-15T10:30:00Z" or "2024-01-15T10:30:00-06:00"
+    // Extract time part (HH:MM) directly from the string
+    const timeMatch = timeString.match(/T(\d{2}):(\d{2})/);
+    if (timeMatch) {
+      return `${timeMatch[1]}:${timeMatch[2]}`;
+    }
+    // Fallback: if format is different, try parsing as Date and use UTC methods
+    const date = new Date(timeString);
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
   };
 
@@ -112,11 +121,8 @@ const CoachScheduleGrid: React.FC<{
 
     currentCoachData.availability.forEach(dayAvailability => {
       dayAvailability.slots.forEach(slot => {
-        const startTime = new Date(slot.startTime);
-        const endTime = new Date(slot.endTime);
-
-        const startTimeStr = formatTime(startTime);
-        const endTimeStr = formatTime(endTime);
+        const startTimeStr = formatTime(slot.startTime);
+        const endTimeStr = formatTime(slot.endTime);
 
         allTimeSlots.add(`${startTimeStr} - ${endTimeStr}`);
       });
@@ -125,16 +131,13 @@ const CoachScheduleGrid: React.FC<{
     return Array.from(allTimeSlots).sort();
   }, [currentCoachData]);
 
-  // Helper function to format date in Chicago timezone
-  const formatDateInChicago = (date: Date): string => {
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: 'America/Chicago',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    };
-    const formatter = new Intl.DateTimeFormat('en-CA', options);
-    return formatter.format(date); // en-CA format gives YYYY-MM-DD
+  // Helper function to format date - extracts date components without timezone conversion
+  const formatDateOnly = (date: Date): string => {
+    // Extract year, month, day from the date object as-is (local time)
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const handleNavigatePrevious = () => {
@@ -153,7 +156,7 @@ const CoachScheduleGrid: React.FC<{
     newEndDate.setDate(newStartDate.getDate() + 7);
 
     // Format dates and fetch new data
-    onDateRangeChange(formatDateInChicago(newStartDate), formatDateInChicago(newEndDate));
+    onDateRangeChange(formatDateOnly(newStartDate), formatDateOnly(newEndDate));
   };
 
   const handleNavigateNext = () => {
@@ -172,7 +175,7 @@ const CoachScheduleGrid: React.FC<{
     newEndDate.setDate(newStartDate.getDate() + 7);
 
     // Format dates and fetch new data
-    onDateRangeChange(formatDateInChicago(newStartDate), formatDateInChicago(newEndDate));
+    onDateRangeChange(formatDateOnly(newStartDate), formatDateOnly(newEndDate));
   };
 
   const handleNavigateToday = () => {
@@ -185,7 +188,7 @@ const CoachScheduleGrid: React.FC<{
     endDate.setDate(today.getDate() + 7);
 
     // Format dates and fetch new data
-    onDateRangeChange(todayStr, formatDateInChicago(endDate));
+    onDateRangeChange(todayStr, formatDateOnly(endDate));
   };
 
   // Toggle selection mode
@@ -204,11 +207,8 @@ const CoachScheduleGrid: React.FC<{
     if (!date || date.isHoliday) return null;
 
     const slot = date.slots.find(s => {
-      const startTime = new Date(s.startTime);
-      const endTime = new Date(s.endTime);
-
-      const startTimeStr = formatTime(startTime);
-      const endTimeStr = formatTime(endTime);
+      const startTimeStr = formatTime(s.startTime);
+      const endTimeStr = formatTime(s.endTime);
       const formattedSlot = `${startTimeStr} - ${endTimeStr}`;
 
       return formattedSlot === timeSlotStr;

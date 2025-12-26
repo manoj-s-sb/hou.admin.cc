@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 
 import { jwtDecode } from 'jwt-decode';
+import moment from 'moment';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -13,6 +14,34 @@ import SlotDetailsModal from './SlotDetailsModal';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
+
+/**
+ * Format time slot string to HH:mm format
+ * Handles various input formats from backend (e.g., "2.15", "2:15", "14:15", ISO strings)
+ */
+const formatTimeSlot = (timeSlot: string): string => {
+  if (!timeSlot) return timeSlot;
+
+  // If it's already in HH:mm format, return as is
+  if (/^\d{2}:\d{2}$/.test(timeSlot)) {
+    return timeSlot;
+  }
+
+  // If it's in decimal format like "2.15" (2 hours 15 minutes)
+  if (/^\d+\.\d+$/.test(timeSlot)) {
+    const [hours, minutes] = timeSlot.split('.');
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+  }
+
+  // Try to parse as ISO date/time string using moment
+  const parsed = moment(timeSlot);
+  if (parsed.isValid()) {
+    return parsed.format('HH:mm');
+  }
+
+  // If all else fails, return original
+  return timeSlot;
+};
 
 const getDisplayName = (user?: BookingUser) => {
   const firstName = user?.firstName?.trim();
@@ -243,7 +272,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
-                    {slot}
+                    {formatTimeSlot(slot)}
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
@@ -346,7 +375,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
-                    {slot}
+                    {formatTimeSlot(slot)}
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
