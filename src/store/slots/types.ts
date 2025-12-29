@@ -15,6 +15,7 @@ export interface BookingDetails {
   bookingId?: string;
   bookingCode?: string;
   user?: BookingUser;
+  bookingStatus: string;
   guests: {
     name: string;
     email: string;
