@@ -1,5 +1,3 @@
-import moment from 'moment';
-
 import { Slot } from '../../../store/slots/types';
 
 interface SlotDetailsModalProps {
@@ -11,6 +9,8 @@ interface SlotDetailsModalProps {
   onUnblockSlot: () => void;
   isLoading?: boolean;
   isStanceBeamAdmin?: boolean;
+  timeSlot: string;
+  nextTimeSlot: string | null;
 }
 
 const SlotDetailsModal = ({
@@ -22,8 +22,12 @@ const SlotDetailsModal = ({
   onUnblockSlot,
   isLoading = false,
   isStanceBeamAdmin = false,
+  timeSlot,
+  nextTimeSlot,
 }: SlotDetailsModalProps) => {
   if (!isOpen || !slot) return null;
+
+  console.log('timeSlot123123', timeSlot, 'nextTimeSlot', nextTimeSlot);
 
   const isAvailable = slot.status?.toLowerCase() === 'available';
   const isBlocked = !slot.isBooked && slot.status?.toLowerCase() === 'disabled';
@@ -72,7 +76,7 @@ const SlotDetailsModal = ({
               <div className="flex justify-between">
                 <span className="text-[14px] text-gray-600">Time:</span>
                 <span className="text-[14px] font-medium text-[#21295A]">
-                  {moment(slot.startTime).format('HH:mm')} - {moment(slot.endTime).format('HH:mm')}
+                  {timeSlot} - {nextTimeSlot}
                 </span>
               </div>
               <div className="flex justify-between">

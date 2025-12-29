@@ -69,7 +69,12 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   const dispatch = useDispatch<AppDispatch>();
   const { isBlockLaneLoading } = useSelector((state: RootState) => state.slots);
   const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<{ slot: Slot; laneNo: number; laneCode: string } | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    slot: Slot;
+    laneNo: number;
+    laneCode: string;
+    slotIndex: number;
+  } | null>(null);
 
   const decodeUserType = () => {
     const tokens = localStorage.getItem('tokens');
@@ -139,13 +144,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     }
   };
 
-  const handleSlotClick = (slot: Slot, lane: Lanes) => {
+  const handleSlotClick = (slot: Slot, lane: Lanes, slotIndex: number) => {
     // Only open modal for booked slots to show booking details
     // For available/blocked slots, only StanceBeam admins can interact
     if (slot.isBooked && slot.status?.toLowerCase() === 'confirmed') {
-      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
+      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
     } else if (isStanceBeamAdmin) {
-      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
+      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
     }
   };
 
@@ -286,7 +291,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           laneIdx !== 0 && 'border-l-0'
                         )}
                         type="button"
-                        onClick={() => handleSlotClick(currentSlot, lane)}
+                        onClick={() => handleSlotClick(currentSlot, lane, slotIdx)}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div
@@ -390,7 +395,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                         )}
                         type="button"
                         onClick={() => {
-                          handleSlotClick(currentSlot, lane);
+                          handleSlotClick(currentSlot, lane, slotIdx);
                         }}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
@@ -459,6 +464,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           onBlockSlot={handleBlockSlot}
           onClose={handleCloseSlotModal}
           onUnblockSlot={handleUnblockSlot}
+          timeSlot={timeSlots[selectedSlot.slotIndex]}
+          nextTimeSlot={timeSlots[selectedSlot.slotIndex + 1] || null}
         />
       )}
 
