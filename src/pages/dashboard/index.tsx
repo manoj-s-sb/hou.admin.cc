@@ -348,7 +348,6 @@ const Dashboard = () => {
           </ChartCard>
         </div>
       </div>
-
     </div>
   );
 };

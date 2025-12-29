@@ -27,8 +27,6 @@ const SlotDetailsModal = ({
 }: SlotDetailsModalProps) => {
   if (!isOpen || !slot) return null;
 
-  console.log('timeSlot123123', timeSlot, 'nextTimeSlot', nextTimeSlot);
-
   const isAvailable = slot.status?.toLowerCase() === 'available';
   const isBlocked = !slot.isBooked && slot.status?.toLowerCase() === 'disabled';
   const isBooked = slot.isBooked && slot.status?.toLowerCase() === 'confirmed';

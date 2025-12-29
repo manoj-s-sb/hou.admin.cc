@@ -460,12 +460,12 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           isOpen={!!selectedSlot}
           isStanceBeamAdmin={isStanceBeamAdmin}
           laneNo={selectedSlot.laneNo}
+          nextTimeSlot={timeSlots[selectedSlot.slotIndex + 1] || null}
           slot={selectedSlot.slot}
+          timeSlot={timeSlots[selectedSlot.slotIndex]}
           onBlockSlot={handleBlockSlot}
           onClose={handleCloseSlotModal}
           onUnblockSlot={handleUnblockSlot}
-          timeSlot={timeSlots[selectedSlot.slotIndex]}
-          nextTimeSlot={timeSlots[selectedSlot.slotIndex + 1] || null}
         />
       )}
 
