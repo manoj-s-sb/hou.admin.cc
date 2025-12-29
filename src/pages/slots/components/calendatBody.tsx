@@ -299,11 +299,11 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                               'flex h-full w-full flex-col items-center justify-center gap-1 rounded-[6px] px-2 py-2 text-center text-[11px] leading-tight',
                               // currentSlot?.booking?.bookingStatus?.toLowerCase() === 'completed'
                               //   ? 'bg-[#43a047] text-white'
-                                 currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
-                                  ? 'bg-[#F97316] text-white'
-                                  : currentSlot?.booking?.coach?.name
-                                    ? 'bg-[#006A68] text-white'
-                                    : 'bg-[#21295A] text-white'
+                              currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
+                                ? 'bg-[#F97316] text-white'
+                                : currentSlot?.booking?.coach?.name
+                                  ? 'bg-[#006A68] text-white'
+                                  : 'bg-[#21295A] text-white'
                             )}
                           >
                             <span className="font-medium">{getDisplayName(currentSlot?.booking?.user)}</span>
