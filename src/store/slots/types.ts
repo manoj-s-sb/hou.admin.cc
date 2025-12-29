@@ -15,7 +15,12 @@ export interface BookingDetails {
   bookingId?: string;
   bookingCode?: string;
   user?: BookingUser;
-  guests?: any[];
+  bookingStatus: string;
+  guests: {
+    name: string;
+    email: string;
+    isMember: boolean;
+  }[];
   facilityPin: string;
   lanePin: string;
   coach: {
@@ -61,7 +66,8 @@ export interface UpdateLaneStatusRequest {
 }
 
 export interface CoachSlotsRequest {
-  date?: string;
+  startDate: string;
+  endDate: string;
   facilityCode: string;
 }
 

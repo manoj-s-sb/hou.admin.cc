@@ -1,5 +1,3 @@
-import moment from 'moment';
-
 import { Slot } from '../../../store/slots/types';
 
 interface SlotDetailsModalProps {
@@ -11,6 +9,8 @@ interface SlotDetailsModalProps {
   onUnblockSlot: () => void;
   isLoading?: boolean;
   isStanceBeamAdmin?: boolean;
+  timeSlot: string;
+  nextTimeSlot: string | null;
 }
 
 const SlotDetailsModal = ({
@@ -22,6 +22,8 @@ const SlotDetailsModal = ({
   onUnblockSlot,
   isLoading = false,
   isStanceBeamAdmin = false,
+  timeSlot,
+  nextTimeSlot,
 }: SlotDetailsModalProps) => {
   if (!isOpen || !slot) return null;
 
@@ -72,7 +74,7 @@ const SlotDetailsModal = ({
               <div className="flex justify-between">
                 <span className="text-[14px] text-gray-600">Time:</span>
                 <span className="text-[14px] font-medium text-[#21295A]">
-                  {moment(slot.startTime).format('HH:mm')} - {moment(slot.endTime).format('HH:mm')}
+                  {timeSlot} - {nextTimeSlot}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -121,6 +123,39 @@ const SlotDetailsModal = ({
                     <div className="flex justify-between">
                       <span className="text-[14px] text-gray-600">Coach:</span>
                       <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.coach.name}</span>
+                    </div>
+                  )}
+                  {slot?.booking?.guests && slot.booking.guests.length > 0 && (
+                    <div className="mt-3 border-t border-[#E5F0F0] pt-3">
+                      <div className="mb-2">
+                        <span className="text-[14px] font-semibold text-[#F97316]">
+                          Guest{slot.booking.guests.length > 1 ? 's' : ''} ({slot.booking.guests.length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {slot.booking.guests.map((guest, index) => (
+                          <div key={index} className="rounded-lg bg-orange-50 p-3">
+                            <div className="flex justify-between">
+                              <span className="text-[13px] text-gray-600">Name:</span>
+                              <span className="text-[13px] font-medium text-[#21295A]">{guest.name}</span>
+                            </div>
+                            {guest.email && (
+                              <div className="flex justify-between">
+                                <span className="text-[13px] text-gray-600">Email:</span>
+                                <span className="text-[13px] font-medium text-[#21295A]">{guest.email}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between">
+                              <span className="text-[13px] text-gray-600">Member:</span>
+                              <span
+                                className={`text-[13px] font-medium ${guest.isMember ? 'text-green-600' : 'text-gray-500'}`}
+                              >
+                                {guest.isMember ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </>

@@ -140,8 +140,8 @@ const Dashboard = () => {
           gradient="from-indigo-600 to-blue-600"
           icon={<Calendar className="h-7 w-7 text-white" />}
           subStats={[
-            { label: 'Active', value: displayStats.slots.active, color: 'bg-green-500' },
-            { label: 'Booked', value: displayStats.slots.booked, color: 'bg-blue-500' },
+            { label: 'Total Booked', value: displayStats.slots.active, color: 'bg-green-500' },
+            { label: 'Total Played', value: displayStats.slots.booked, color: 'bg-blue-500' },
             { label: 'Available', value: displayStats.slots.available, color: 'bg-yellow-500' },
           ]}
           title="Total Slots"
@@ -346,34 +346,6 @@ const Dashboard = () => {
               </div>
             </div>
           </ChartCard>
-        </div>
-      </div>
-
-      {/* Activity Status */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-bold text-gray-900">System Status</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4">
-            <CheckCircle2 className="h-6 w-6 text-green-600" />
-            <div>
-              <p className="text-sm font-semibold text-gray-600">Booking System</p>
-              <p className="text-xs font-medium text-green-600">Operational</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4">
-            <CheckCircle2 className="h-6 w-6 text-green-600" />
-            <div>
-              <p className="text-sm font-semibold text-gray-600">User Management</p>
-              <p className="text-xs font-medium text-green-600">Operational</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
-            <Clock className="h-6 w-6 text-yellow-600" />
-            <div>
-              <p className="text-sm font-semibold text-gray-600">Payment Processing</p>
-              <p className="text-xs font-medium text-yellow-600">Maintenance</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

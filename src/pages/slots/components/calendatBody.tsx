@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 
 import { jwtDecode } from 'jwt-decode';
+import moment from 'moment';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -13,6 +14,34 @@ import SlotDetailsModal from './SlotDetailsModal';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
+
+/**
+ * Format time slot string to HH:mm format
+ * Handles various input formats from backend (e.g., "2.15", "2:15", "14:15", ISO strings)
+ */
+const formatTimeSlot = (timeSlot: string): string => {
+  if (!timeSlot) return timeSlot;
+
+  // If it's already in HH:mm format, return as is
+  if (/^\d{2}:\d{2}$/.test(timeSlot)) {
+    return timeSlot;
+  }
+
+  // If it's in decimal format like "2.15" (2 hours 15 minutes)
+  if (/^\d+\.\d+$/.test(timeSlot)) {
+    const [hours, minutes] = timeSlot.split('.');
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+  }
+
+  // Try to parse as ISO date/time string using moment
+  const parsed = moment(timeSlot);
+  if (parsed.isValid()) {
+    return parsed.format('HH:mm');
+  }
+
+  // If all else fails, return original
+  return timeSlot;
+};
 
 const getDisplayName = (user?: BookingUser) => {
   const firstName = user?.firstName?.trim();
@@ -40,7 +69,12 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   const dispatch = useDispatch<AppDispatch>();
   const { isBlockLaneLoading } = useSelector((state: RootState) => state.slots);
   const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<{ slot: Slot; laneNo: number; laneCode: string } | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    slot: Slot;
+    laneNo: number;
+    laneCode: string;
+    slotIndex: number;
+  } | null>(null);
 
   const decodeUserType = () => {
     const tokens = localStorage.getItem('tokens');
@@ -110,13 +144,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     }
   };
 
-  const handleSlotClick = (slot: Slot, lane: Lanes) => {
+  const handleSlotClick = (slot: Slot, lane: Lanes, slotIndex: number) => {
     // Only open modal for booked slots to show booking details
     // For available/blocked slots, only StanceBeam admins can interact
     if (slot.isBooked && slot.status?.toLowerCase() === 'confirmed') {
-      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
+      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
     } else if (isStanceBeamAdmin) {
-      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode });
+      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
     }
   };
 
@@ -243,7 +277,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
-                    {slot}
+                    {formatTimeSlot(slot)}
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
@@ -257,16 +291,28 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           laneIdx !== 0 && 'border-l-0'
                         )}
                         type="button"
-                        onClick={() => handleSlotClick(currentSlot, lane)}
+                        onClick={() => handleSlotClick(currentSlot, lane, slotIdx)}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div
                             className={composeClasses(
-                              'flex h-full w-full flex-col items-center justify-center gap-1 rounded-[6px] px-2 py-2 text-center text-[11px] leading-tight text-white',
-                              currentSlot?.booking?.coach?.name ? 'bg-[#006A68]' : 'bg-[#21295A]'
+                              'flex h-full w-full flex-col items-center justify-center gap-1 rounded-[6px] px-2 py-2 text-center text-[11px] leading-tight',
+                              // currentSlot?.booking?.bookingStatus?.toLowerCase() === 'completed'
+                              //   ? 'bg-[#43a047] text-white'
+                              currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
+                                ? 'bg-[#F97316] text-white'
+                                : currentSlot?.booking?.coach?.name
+                                  ? 'bg-[#006A68] text-white'
+                                  : 'bg-[#21295A] text-white'
                             )}
                           >
                             <span className="font-medium">{getDisplayName(currentSlot?.booking?.user)}</span>
+                            {currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0 && (
+                              <span className="text-[10px] font-semibold opacity-90">
+                                {currentSlot.booking.guests.length} Guest
+                                {currentSlot.booking.guests.length > 1 ? 's' : ''}
+                              </span>
+                            )}
                             {currentSlot?.booking?.coach?.name && (
                               <span className="text-[10px] font-semibold opacity-90">
                                 Coach: {currentSlot.booking.coach.name}
@@ -336,7 +382,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
-                    {slot}
+                    {formatTimeSlot(slot)}
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
@@ -351,19 +397,31 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                         )}
                         type="button"
                         onClick={() => {
-                          handleSlotClick(currentSlot, lane);
+                          handleSlotClick(currentSlot, lane, slotIdx);
                         }}
                       >
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div
                             className={composeClasses(
-                              'flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-[8px] p-4 text-center text-white',
-                              currentSlot?.booking?.coach?.name ? 'bg-[#006A68]' : 'bg-[#21295A]'
+                              'flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-[8px] p-4 text-center',
+                              currentSlot?.booking?.bookingStatus?.toLowerCase() === 'completed'
+                                ? 'bg-[#43a047] text-white'
+                                : currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
+                                  ? 'bg-[#F97316] text-white'
+                                  : currentSlot?.booking?.coach?.name
+                                    ? 'bg-[#006A68] text-white'
+                                    : 'bg-[#21295A] text-white'
                             )}
                           >
                             <span className="font-medium leading-tight">
                               {getDisplayName(currentSlot?.booking?.user)}
                             </span>
+                            {currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0 && (
+                              <span className="text-[12px] font-semibold opacity-90">
+                                {currentSlot.booking.guests.length} Guest
+                                {currentSlot.booking.guests.length > 1 ? 's' : ''}
+                              </span>
+                            )}
                             {currentSlot?.booking?.coach?.name && (
                               <span className="text-[12px] font-semibold opacity-90">
                                 Coach: {currentSlot.booking.coach.name}
@@ -404,12 +462,14 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         <SlotDetailsModal
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedSlot}
+          isStanceBeamAdmin={isStanceBeamAdmin}
           laneNo={selectedSlot.laneNo}
+          nextTimeSlot={timeSlots[selectedSlot.slotIndex + 1] || null}
           slot={selectedSlot.slot}
+          timeSlot={timeSlots[selectedSlot.slotIndex]}
           onBlockSlot={handleBlockSlot}
           onClose={handleCloseSlotModal}
           onUnblockSlot={handleUnblockSlot}
-          isStanceBeamAdmin={isStanceBeamAdmin}
         />
       )}
 
@@ -427,6 +487,14 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           <div className="h-6 w-6 rounded bg-[#006A68]"></div>
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked with Coach</span>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-[#F97316]"></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked with Guest(s)</span>
+        </div>
+        {/* <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-[#43a047]"></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Completed</span>
+        </div> */}
         <div className="flex items-center gap-2">
           <div
             className="h-6 w-6 rounded bg-cover bg-center"
