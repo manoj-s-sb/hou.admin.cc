@@ -297,9 +297,9 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           <div
                             className={composeClasses(
                               'flex h-full w-full flex-col items-center justify-center gap-1 rounded-[6px] px-2 py-2 text-center text-[11px] leading-tight',
-                              currentSlot?.booking?.bookingStatus?.toLowerCase() === 'completed'
-                                ? 'bg-[#43a047] text-white'
-                                : currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
+                              // currentSlot?.booking?.bookingStatus?.toLowerCase() === 'completed'
+                              //   ? 'bg-[#43a047] text-white'
+                                 currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
                                   ? 'bg-[#F97316] text-white'
                                   : currentSlot?.booking?.coach?.name
                                     ? 'bg-[#006A68] text-white'
@@ -491,10 +491,10 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           <div className="h-6 w-6 rounded bg-[#F97316]"></div>
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked with Guest(s)</span>
         </div>
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded bg-[#43a047]"></div>
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Completed</span>
-        </div>
+        </div> */}
         <div className="flex items-center gap-2">
           <div
             className="h-6 w-6 rounded bg-cover bg-center"
