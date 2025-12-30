@@ -404,13 +404,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           <div
                             className={composeClasses(
                               'flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-[8px] p-4 text-center',
-                              currentSlot?.booking?.bookingStatus?.toLowerCase() === 'completed'
-                                ? 'bg-[#43a047] text-white'
-                                : currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
-                                  ? 'bg-[#F97316] text-white'
-                                  : currentSlot?.booking?.coach?.name
-                                    ? 'bg-[#006A68] text-white'
-                                    : 'bg-[#21295A] text-white'
+                              // currentSlot?.booking?.bookingStatus?.toLowerCase() === 'completed'
+                              //   ? 'bg-[#43a047] text-white'
+                              currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
+                                ? 'bg-[#F97316] text-white'
+                                : currentSlot?.booking?.coach?.name
+                                  ? 'bg-[#006A68] text-white'
+                                  : 'bg-[#21295A] text-white'
                             )}
                           >
                             <span className="font-medium leading-tight">
