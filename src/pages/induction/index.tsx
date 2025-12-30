@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/UserTable';
+import { ColumnDef } from '../../components/Table/types';
 import { inductionList } from '../../store/induction/api';
 // import { setSelectedInduction } from '../../store/induction/reducers';
 import { AppDispatch, RootState } from '../../store/store';
@@ -39,7 +39,20 @@ const Induction = () => {
   }, [dispatch]);
 
   // Define custom columns for the induction table
+  const currentPage = inductionListData?.page ? inductionListData.page - 1 : 0;
+  const rowsPerPage = inductionListData?.limit || 20;
+
   const inductionColumns: ColumnDef[] = [
+    {
+      field: 'S.No',
+      headerName: 'S.No',
+      width: 80,
+      sortable: false,
+      renderCell: (params: any) => {
+        const serialNumber = currentPage * rowsPerPage + (params.index || 0) + 1;
+        return serialNumber;
+      },
+    },
     {
       field: 'firstName',
       headerName: 'Name',
@@ -240,8 +253,7 @@ const Induction = () => {
             width: col.width,
             sortable: col.sortable !== false,
             renderCell: col.renderCell
-              ? (value: any, row: any, index: number) =>
-                  col.renderCell?.({ value, row, index })
+              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
               : col.valueGetter
                 ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
                 : undefined,
@@ -276,7 +288,6 @@ const Induction = () => {
             },
           }))}
           data={inductionListData?.bookings || []}
-          loading={isLoading}
           emptyState={{
             icon: (
               <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,20 +299,15 @@ const Induction = () => {
                 />
               </svg>
             ),
-            title: 'No induction found',
             subtitle: 'Try adjusting your search criteria',
+            title: 'No induction found',
           }}
           getRowId={(row: any) => row.userId || row.bookingCode}
+          loading={isLoading}
           page={inductionListData?.page ? inductionListData.page - 1 : 0}
           rowsPerPage={inductionListData?.limit || 20}
-          totalRows={inductionListData?.total || 0}
           serverSide={true}
-          onSortChange={(field: string, direction: 'asc' | 'desc') => {
-            // Handle server-side sorting if API supports it
-            // For now, this will allow client-side sorting on current page
-            console.log('Sort changed:', field, direction);
-            // TODO: Add sort parameters to API call when backend supports it
-          }}
+          totalRows={inductionListData?.total || 0}
           onPageChange={(page: number) => {
             // Convert 0-based page to 1-based for API
             const pageNumber = page + 1;
@@ -316,6 +322,9 @@ const Induction = () => {
               })
             );
           }}
+          onRowClick={(row: any) => {
+            navigate(`/view-induction/${row.userId}`);
+          }}
           onRowsPerPageChange={(rowsPerPage: number) => {
             // When changing rows per page, reset to first page
             dispatch(
@@ -329,8 +338,10 @@ const Induction = () => {
               })
             );
           }}
-          onRowClick={(row: any) => {
-            navigate(`/view-induction/${row.userId}`);
+          onSortChange={() => {
+            // Handle server-side sorting if API supports it
+            // For now, this will allow client-side sorting on current page
+            // TODO: Add sort parameters to API call when backend supports it
           }}
         />
       </div>

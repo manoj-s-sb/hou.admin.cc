@@ -32,6 +32,10 @@ const SlotDetailsModal = ({
   const isBooked = slot.isBooked && slot.status?.toLowerCase() === 'confirmed';
 
   const getStatusBadge = () => {
+    // Check if booking status is completed
+    if (slot.booking?.bookingStatus?.toLowerCase() === 'completed') {
+      return { text: 'Completed', class: 'bg-green-50 text-green-600' };
+    }
     if (isBooked) return { text: 'Booked', class: 'bg-green-50 text-green-600' };
     if (isBlocked) return { text: 'Blocked', class: 'bg-red-50 text-red-600' };
     return { text: 'Available', class: 'bg-blue-50 text-blue-600' };

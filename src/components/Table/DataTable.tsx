@@ -101,7 +101,7 @@ function DataTable<T = any>({
 
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [data, sortField, sortDirection, columns, serverSide]);
+  }, [data, sortField, sortDirection, columns, serverSide, onSortChange]);
 
   const paginatedData = useMemo(() => {
     if (!pagination || serverSide) {
@@ -145,6 +145,17 @@ function DataTable<T = any>({
 
   const tableContainerSx: SxProps<Theme> = {
     maxHeight: maxHeight || 'auto',
+    overflowX: 'auto',
+    '&::-webkit-scrollbar': {
+      height: '8px',
+    },
+    '&::-webkit-scrollbar-track': {
+      backgroundColor: 'rgba(0,0,0,0.05)',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      backgroundColor: 'rgba(0,0,0,0.2)',
+      borderRadius: '4px',
+    },
   };
 
   const renderEmptyState = () => (
@@ -194,7 +205,7 @@ function DataTable<T = any>({
   );
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+    <Paper sx={{ width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <TableContainer sx={tableContainerSx}>
         <Table size={size} stickyHeader={stickyHeader}>
           {!hideHeader && (
@@ -211,18 +222,29 @@ function DataTable<T = any>({
                     sx={{
                       backgroundColor: 'grey.50',
                       fontWeight: 600,
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      padding: { xs: '8px 4px', sm: '16px' },
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     {column.sortable !== false && sortable ? (
                       <TableSortLabel
                         active={sortField === column.id}
                         direction={sortField === column.id ? sortDirection : 'asc'}
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          '& .MuiTableSortLabel-icon': {
+                            fontSize: { xs: '1rem', sm: '1.25rem' },
+                          },
+                        }}
                         onClick={() => handleSort(column.id, column.sortable)}
                       >
                         {column.label}
                       </TableSortLabel>
                     ) : (
-                      column.label
+                      <span style={{ fontSize: 'inherit' }}>{column.label}</span>
                     )}
                   </TableCell>
                 ))}
@@ -261,6 +283,11 @@ function DataTable<T = any>({
                             key={column.id}
                             align={column.align || 'left'}
                             sx={{
+                              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                              padding: { xs: '8px 4px', sm: '16px' },
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                               ...(isSelected && {
                                 backgroundColor: 'action.selected',
                               }),

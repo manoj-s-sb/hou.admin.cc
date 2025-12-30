@@ -49,3 +49,15 @@ export interface TableProps<T = any> {
   rowClassName?: (row: T, index: number) => string;
   hideHeader?: boolean;
 }
+
+export interface ColumnDef {
+  field: string;
+  headerName: string;
+  width?: number;
+  flex?: number;
+  minWidth?: number;
+  sortable?: boolean;
+  renderCell?: (params: { value: any; row: any; index: number }) => React.ReactNode;
+  valueGetter?: (params: { value: any; row: any; index: number }) => any;
+  type?: 'string' | 'number' | 'date';
+}

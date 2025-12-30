@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 bg-white shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:static lg:translate-x-0`}
+        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 bg-white shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
       >
         {/* Header with close button for mobile */}
         <div className="relative flex h-20 items-center justify-center border-b border-gray-200 px-4">

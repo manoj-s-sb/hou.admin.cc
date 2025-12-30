@@ -1,9 +1,9 @@
 const menus = [
-  {
-    path: '/dashboard',
-    label: 'Dashboard',
-    icon: '/assets/dashboard.svg',
-  },
+  // {
+  //   path: '/dashboard',
+  //   label: 'Dashboard',
+  //   icon: '/assets/dashboard.svg',
+  // },
   // {
   //   path: '/users',
   //   label: 'Users',

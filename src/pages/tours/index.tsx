@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/UserTable';
+import { ColumnDef } from '../../components/Table/types';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -247,19 +247,12 @@ const Tours = () => {
             width: col.width,
             sortable: col.sortable !== false,
             renderCell: col.renderCell
-              ? (value: any, row: any, index: number) =>
-                  col.renderCell?.({ value, row, index })
+              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
               : col.valueGetter
                 ? (value: any, row: any, index: number) => col.valueGetter?.({ value, row, index }) || ''
                 : undefined,
           }))}
           data={inductionListData.bookings}
-          loading={isLoading}
-          getRowId={(row: any) => row.bookingCode || row.userId}
-          page={(inductionListData.page || 1) - 1}
-          rowsPerPage={inductionListData.limit || 20}
-          totalRows={inductionListData.total}
-          serverSide={true}
           emptyState={{
             icon: (
               <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,9 +264,15 @@ const Tours = () => {
                 />
               </svg>
             ),
-            title: 'No tour found',
             subtitle: 'Try adjusting your search criteria',
+            title: 'No tour found',
           }}
+          getRowId={(row: any) => row.bookingCode || row.userId}
+          loading={isLoading}
+          page={(inductionListData.page || 1) - 1}
+          rowsPerPage={inductionListData.limit || 20}
+          serverSide={true}
+          totalRows={inductionListData.total}
           onPageChange={(page: number) => {
             const limit = inductionListData.limit || 20;
             const newPage = page + 1; // DataTable uses 0-based page, API uses 1-based

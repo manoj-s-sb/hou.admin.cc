@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/UserTable';
+import { ColumnDef } from '../../components/Table/types';
 import { getMembers } from '../../store/members/api';
 import { MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -31,6 +31,21 @@ const Members = () => {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const membersColumns: ColumnDef[] = [
     {
+      field: 'sno',
+      headerName: 'S.No',
+      flex: 0.5,
+      minWidth: 80,
+      sortable: false,
+      renderCell: (params: any) => {
+        const currentSkip = membersListData.skip || 0;
+        return <span className="font-medium text-gray-600">{currentSkip + params.index + 1}</span>;
+      },
+      valueGetter: (params: any) => {
+        const currentSkip = membersListData.skip || 0;
+        return currentSkip + params.index + 1;
+      },
+    },
+    {
       field: 'name',
       headerName: 'Name',
       flex: 1.5,
@@ -44,7 +59,7 @@ const Members = () => {
           <div className="flex items-center gap-3">
             <img
               alt="Profile"
-              className={`h-11 w-11 rounded-full border-2 border-indigo-200 object-cover shadow-sm ring-2 ring-indigo-50 ${isDefaultImage ? 'p-2' : ''}`}
+              className={`h-11 w-11 rounded-full border-2 object-cover ${isDefaultImage ? 'p-2' : ''}`}
               src={imageUrl}
               onError={e => {
                 (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
@@ -303,19 +318,18 @@ const Members = () => {
             width: col.width,
             sortable: col.sortable !== false,
             renderCell: col.renderCell
-              ? (value: any, row: any, index: number) =>
-                  col.renderCell?.({ value, row, index })
+              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
               : col.valueGetter
                 ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
                 : undefined,
           }))}
           data={membersListData.members}
-          loading={isLoading}
           getRowId={(row: any) => row.userId}
+          loading={isLoading}
           page={Math.floor(membersListData.skip / (membersListData.limit || 15))}
           rowsPerPage={membersListData.limit || 15}
-          totalRows={membersListData.total}
           serverSide={true}
+          totalRows={membersListData.total}
           onPageChange={(page: number) => {
             const limit = membersListData.limit || 15;
             const newSkip = page * limit;
@@ -324,12 +338,12 @@ const Members = () => {
               dispatch(getMembers(buildRequestPayload({ skip: newSkip })));
             }
           }}
+          onRowClick={(row: any) => {
+            navigate(`/members/${row.userId}`);
+          }}
           onRowsPerPageChange={(rowsPerPage: number) => {
             // When changing rows per page, reset to first page
             dispatch(getMembers(buildRequestPayload({ limit: rowsPerPage, skip: 0 })));
-          }}
-          onRowClick={(row: any) => {
-            navigate(`/members/${row.userId}`);
           }}
         />
       </div>
