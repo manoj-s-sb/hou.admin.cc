@@ -104,7 +104,8 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
       <div className="relative flex w-[100%] flex-col gap-3 rounded-[10px] border border-[#E2E8F0] bg-[#fff] px-3 py-3.5 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-2 desktop:px-5 desktop:py-5">
         {/* Mobile: Date display at top */}
         <div className="block text-center text-[15px] font-[400] text-[#21295A] desktop:absolute desktop:left-1/2 desktop:-translate-x-1/2 desktop:text-[18px]">
-          {selectedDate?.day}, {monthName} 2025
+          {selectedDate?.day}, {monthName}{' '}
+          {selectedDate?.fullDate ? selectedDate.fullDate.getFullYear() : new Date().getFullYear()}
         </div>
 
         {/* Mobile: Navigation controls */}
