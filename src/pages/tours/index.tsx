@@ -5,7 +5,8 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
 import SectionTitle from '../../components/SectionTitle';
-import UserTable, { ColumnDef } from '../../components/UserTable';
+import DataTable from '../../components/Table/DataTable';
+import { ColumnDef } from '../../components/UserTable';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -19,13 +20,15 @@ const Tours = () => {
   const [emailFilter, setEmailFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
 
-  const applyFilters = () => {
+  const currentLimit = inductionListData.limit || 20;
+
+  const applyFilters = (page = 1, limit = currentLimit) => {
     dispatch(
       inductionList({
         date: selectedDate,
-        page: 1,
+        page,
         type: 'tourbooking',
-        listLimit: 20,
+        listLimit: limit,
         email: emailFilter,
         status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
       })
@@ -39,7 +42,9 @@ const Tours = () => {
       width: 80,
       sortable: false,
       valueGetter: (params: any) => {
-        const index = params.index + 1;
+        const currentPage = inductionListData.page || 1;
+        const limit = inductionListData.limit || 20;
+        const index = (currentPage - 1) * limit + params.index + 1;
         return index;
       },
     },
@@ -110,7 +115,7 @@ const Tours = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 150,
+      width: 200,
       sortable: false,
       renderCell: (params: any) => (
         <button
@@ -147,17 +152,14 @@ const Tours = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
-  const [searchTerm, setSearchTerm] = useState('');
-
   return (
     <div className="w-full max-w-full max-[560px]:overflow-x-hidden">
       <SectionTitle
         description="Manage your tour details."
-        inputPlaceholder="Search tour..."
+        inputPlaceholder=""
         search={false}
         title="Tour Details"
-        value={searchTerm}
-        onSearch={setSearchTerm}
+        value=""
       />
 
       {/* Filters */}
@@ -217,7 +219,7 @@ const Tours = () => {
                   date: '',
                   page: 1,
                   type: 'tourbooking',
-                  listLimit: 20,
+                  listLimit: currentLimit,
                   email: '',
                   status: 'all',
                 })
@@ -229,18 +231,35 @@ const Tours = () => {
           <button
             className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
             type="button"
-            onClick={applyFilters}
+            onClick={() => applyFilters(1, currentLimit)}
           >
             Apply Filters
           </button>
         </div>
       </div>
 
-      {/* Table Wrapper for Horizontal Scroll on Mobile */}
-      <div className="overflow-x-auto max-[560px]:-mx-2 max-[560px]:px-2">
-        <UserTable
-          columns={inductionColumns}
+      <div>
+        <DataTable
+          columns={inductionColumns.map(col => ({
+            id: col.field,
+            label: col.headerName,
+            minWidth: col.minWidth,
+            width: col.width,
+            sortable: col.sortable !== false,
+            renderCell: col.renderCell
+              ? (value: any, row: any, index: number) =>
+                  col.renderCell?.({ value, row, index })
+              : col.valueGetter
+                ? (value: any, row: any, index: number) => col.valueGetter?.({ value, row, index }) || ''
+                : undefined,
+          }))}
           data={inductionListData.bookings}
+          loading={isLoading}
+          getRowId={(row: any) => row.bookingCode || row.userId}
+          page={(inductionListData.page || 1) - 1}
+          rowsPerPage={inductionListData.limit || 20}
+          totalRows={inductionListData.total}
+          serverSide={true}
           emptyState={{
             icon: (
               <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -255,9 +274,17 @@ const Tours = () => {
             title: 'No tour found',
             subtitle: 'Try adjusting your search criteria',
           }}
-          loading={isLoading}
-          selectedItem={null}
-          onSelectItem={() => undefined}
+          onPageChange={(page: number) => {
+            const limit = inductionListData.limit || 20;
+            const newPage = page + 1; // DataTable uses 0-based page, API uses 1-based
+            if (newPage !== (inductionListData.page || 1)) {
+              applyFilters(newPage, limit);
+            }
+          }}
+          onRowsPerPageChange={(rowsPerPage: number) => {
+            // When changing rows per page, reset to first page
+            applyFilters(1, rowsPerPage);
+          }}
         />
       </div>
     </div>
