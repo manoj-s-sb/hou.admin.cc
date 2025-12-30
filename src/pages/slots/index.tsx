@@ -12,16 +12,40 @@ import CalendarBody from './components/calendatBody';
 const SlotBookings: React.FC = () => {
   const { slots, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
+  const TIMEZONE = 'America/Chicago';
+
   const getNextSevenDates = () => {
     const dates = [];
-    const today = new Date();
+    const now = new Date();
+
+    // Create dates for the next 7 days in Chicago timezone
     for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
+      // Calculate the date for day i (add i days from now)
+      const targetDate = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+
+      // Get date components in Chicago timezone
+      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIMEZONE,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+      });
+
+      const dateParts = dateFormatter.formatToParts(targetDate);
+      const year = parseInt(dateParts.find(p => p.type === 'year')?.value || '0');
+      const month = parseInt(dateParts.find(p => p.type === 'month')?.value || '0') - 1; // 0-indexed
+      const day = parseInt(dateParts.find(p => p.type === 'day')?.value || '0');
+
+      // Create a Date object for this date
+      // We'll create it as a date string and parse it
+      // The date will represent this calendar date
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const fullDate = new Date(`${dateStr}T00:00:00`);
+
       dates.push({
-        day: date.getDate(),
-        month: date.getMonth(),
-        fullDate: date,
+        day,
+        month,
+        fullDate,
       });
     }
     return dates;
@@ -48,10 +72,15 @@ const SlotBookings: React.FC = () => {
       dateToFormat = selectedDateObject?.fullDate ?? new Date();
     }
 
-    const year = dateToFormat.getFullYear();
-    const month = `${dateToFormat.getMonth() + 1}`.padStart(2, '0');
-    const day = `${dateToFormat.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    // Format date in Chicago timezone
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    return formatter.format(dateToFormat); // Returns YYYY-MM-DD format
   })();
 
   useEffect(() => {
