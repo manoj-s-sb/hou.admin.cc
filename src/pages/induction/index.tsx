@@ -4,7 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
-import UserTable, { ColumnDef } from '../../components/UserTable';
+import DataTable from '../../components/Table/DataTable';
+import { ColumnDef } from '../../components/Table/types';
 import { inductionList } from '../../store/induction/api';
 // import { setSelectedInduction } from '../../store/induction/reducers';
 import { AppDispatch, RootState } from '../../store/store';
@@ -38,15 +39,18 @@ const Induction = () => {
   }, [dispatch]);
 
   // Define custom columns for the induction table
+  const currentPage = inductionListData?.page ? inductionListData.page - 1 : 0;
+  const rowsPerPage = inductionListData?.limit || 20;
+
   const inductionColumns: ColumnDef[] = [
     {
       field: 'S.No',
       headerName: 'S.No',
       width: 80,
       sortable: false,
-      valueGetter: (params: any) => {
-        const index = params.index + 1;
-        return index;
+      renderCell: (params: any) => {
+        const serialNumber = currentPage * rowsPerPage + (params.index || 0) + 1;
+        return serialNumber;
       },
     },
     {
@@ -106,7 +110,7 @@ const Induction = () => {
       },
     },
     {
-      field: 'onboardingType',
+      field: 'status',
       headerName: 'Status',
       flex: 1.3,
       sortable: true,
@@ -240,11 +244,50 @@ const Induction = () => {
         </div>
       </div>
 
-      {/* Table Wrapper for Horizontal Scroll on Mobile */}
-      <div className="overflow-x-auto max-[560px]:-mx-2 max-[560px]:px-2">
-        <UserTable
-          columns={inductionColumns}
-          data={inductionListData?.bookings}
+      <div>
+        <DataTable
+          columns={inductionColumns.map(col => ({
+            id: col.field,
+            label: col.headerName,
+            minWidth: col.minWidth,
+            width: col.width,
+            sortable: col.sortable !== false,
+            renderCell: col.renderCell
+              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
+              : col.valueGetter
+                ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
+                : undefined,
+            // Add sortValue function to extract sortable value from raw data properties
+            sortValue: (row: any) => {
+              // Map column field names to actual data property names for sorting
+              if (col.field === 'firstName') {
+                return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
+              }
+              if (col.field === 'email') {
+                return (row?.email || '').toLowerCase();
+              }
+              if (col.field === 'Slot Time') {
+                // Sort by start time
+                return row?.timeSlot?.startTime || '';
+              }
+              if (col.field === 'onboardingType') {
+                return row?.subscriptionCode || '';
+              }
+              if (col.field === 'status') {
+                return row?.status || '';
+              }
+              if (col.field === 'bookingCode') {
+                return row?.timeSlot?.startTime || '';
+              }
+              // For S.No and actions, return empty string (not sortable)
+              if (col.field === 'S.No' || col.field === 'actions') {
+                return '';
+              }
+              // Fallback to direct property access
+              return row?.[col.field] || '';
+            },
+          }))}
+          data={inductionListData?.bookings || []}
           emptyState={{
             icon: (
               <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,12 +299,50 @@ const Induction = () => {
                 />
               </svg>
             ),
-            title: 'No induction found',
             subtitle: 'Try adjusting your search criteria',
+            title: 'No induction found',
           }}
+          getRowId={(row: any) => row.userId || row.bookingCode}
           loading={isLoading}
-          selectedItem={null}
-          onSelectItem={() => undefined}
+          page={inductionListData?.page ? inductionListData.page - 1 : 0}
+          rowsPerPage={inductionListData?.limit || 20}
+          serverSide={true}
+          totalRows={inductionListData?.total || 0}
+          onPageChange={(page: number) => {
+            // Convert 0-based page to 1-based for API
+            const pageNumber = page + 1;
+            dispatch(
+              inductionList({
+                page: pageNumber,
+                date: selectedDate,
+                type: 'inductionbooking',
+                listLimit: inductionListData?.limit || 20,
+                email: emailFilter,
+                status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
+              })
+            );
+          }}
+          onRowClick={(row: any) => {
+            navigate(`/view-induction/${row.userId}`);
+          }}
+          onRowsPerPageChange={(rowsPerPage: number) => {
+            // When changing rows per page, reset to first page
+            dispatch(
+              inductionList({
+                page: 1,
+                date: selectedDate,
+                type: 'inductionbooking',
+                listLimit: rowsPerPage,
+                email: emailFilter,
+                status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
+              })
+            );
+          }}
+          onSortChange={() => {
+            // Handle server-side sorting if API supports it
+            // For now, this will allow client-side sorting on current page
+            // TODO: Add sort parameters to API call when backend supports it
+          }}
         />
       </div>
     </div>

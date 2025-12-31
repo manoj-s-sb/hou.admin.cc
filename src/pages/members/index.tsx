@@ -4,7 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
-import UserTable, { ColumnDef } from '../../components/UserTable';
+import DataTable from '../../components/Table/DataTable';
+import { ColumnDef } from '../../components/Table/types';
 import { getMembers } from '../../store/members/api';
 import { MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -30,6 +31,21 @@ const Members = () => {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const membersColumns: ColumnDef[] = [
     {
+      field: 'sno',
+      headerName: 'S.No',
+      flex: 0.5,
+      minWidth: 80,
+      sortable: false,
+      renderCell: (params: any) => {
+        const currentSkip = membersListData.skip || 0;
+        return <span className="font-medium text-gray-600">{currentSkip + params.index + 1}</span>;
+      },
+      valueGetter: (params: any) => {
+        const currentSkip = membersListData.skip || 0;
+        return currentSkip + params.index + 1;
+      },
+    },
+    {
       field: 'name',
       headerName: 'Name',
       flex: 1.5,
@@ -43,7 +59,7 @@ const Members = () => {
           <div className="flex items-center gap-3">
             <img
               alt="Profile"
-              className={`h-11 w-11 rounded-full border-2 border-indigo-200 object-cover shadow-sm ring-2 ring-indigo-50 ${isDefaultImage ? 'p-2' : ''}`}
+              className={`h-11 w-11 rounded-full border-2 object-cover ${isDefaultImage ? 'p-2' : ''}`}
               src={imageUrl}
               onError={e => {
                 (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
@@ -149,9 +165,10 @@ const Members = () => {
     overrides?: Partial<MemberRequest>,
     appliedFilters: FilterState = filters
   ): MemberRequest => {
+    const limit = overrides?.limit ?? (membersListData.limit || 15);
     const payload: MemberRequest = {
       skip: overrides?.skip ?? 0,
-      limit: overrides?.limit ?? currentLimit,
+      limit,
       facilityCode: 'HOU01',
     };
 
@@ -197,8 +214,6 @@ const Members = () => {
     setFilters(defaultFilters);
     dispatch(getMembers(buildRequestPayload({ skip: 0 }, defaultFilters)));
   };
-
-  const handleSelectItem = () => undefined;
 
   return (
     <div className="w-full max-w-full">
@@ -294,19 +309,42 @@ const Members = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <UserTable
-          columns={membersColumns}
-          currentPage={membersListData.skip}
+      <div>
+        <DataTable
+          columns={membersColumns.map(col => ({
+            id: col.field,
+            label: col.headerName,
+            minWidth: col.minWidth,
+            width: col.width,
+            sortable: col.sortable !== false,
+            renderCell: col.renderCell
+              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
+              : col.valueGetter
+                ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
+                : undefined,
+          }))}
           data={membersListData.members}
-          itemsPerPage={membersListData.limit}
+          getRowId={(row: any) => row.userId}
           loading={isLoading}
-          selectedItem={null}
-          totalItems={membersListData.total}
-          onPageChange={skip => {
-            dispatch(getMembers(buildRequestPayload({ skip })));
+          page={Math.floor(membersListData.skip / (membersListData.limit || 15))}
+          rowsPerPage={membersListData.limit || 15}
+          serverSide={true}
+          totalRows={membersListData.total}
+          onPageChange={(page: number) => {
+            const limit = membersListData.limit || 15;
+            const newSkip = page * limit;
+            // Only dispatch if skip actually changed
+            if (newSkip !== membersListData.skip) {
+              dispatch(getMembers(buildRequestPayload({ skip: newSkip })));
+            }
           }}
-          onSelectItem={handleSelectItem}
+          onRowClick={(row: any) => {
+            navigate(`/members/${row.userId}`);
+          }}
+          onRowsPerPageChange={(rowsPerPage: number) => {
+            // When changing rows per page, reset to first page
+            dispatch(getMembers(buildRequestPayload({ limit: rowsPerPage, skip: 0 })));
+          }}
         />
       </div>
     </div>

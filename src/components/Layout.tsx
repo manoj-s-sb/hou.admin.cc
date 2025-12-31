@@ -75,8 +75,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="flex min-h-screen">
       <Sidebar isOpen={isSidebarOpen || isDesktop} onClose={() => setIsSidebarOpen(false)} />
-      <div className="flex w-full flex-col lg:w-[calc(100%-16rem)]">
-        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
+      <div className="flex h-screen w-full flex-col overflow-hidden lg:ml-64">
+        <header className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
           {/* Mobile Menu Button */}
           <button
             aria-label="Open sidebar"
@@ -149,7 +149,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             )}
           </div>
         </header>
-        <main className="flex-1 overflow-x-hidden bg-gradient-to-br from-gray-50 to-gray-100 p-2 max-[560px]:p-2 sm:p-5 lg:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 to-gray-100 p-2 max-[560px]:p-2 sm:p-5 lg:p-6">
           {children}
         </main>
       </div>
