@@ -40,7 +40,7 @@ const InductionAccordionItem = ({
   email,
   firstName,
   lastName,
-  //isInductionCompleted,
+  isInductionCompleted,
   isPrimary,
   isOpen,
   onToggle,
@@ -320,24 +320,39 @@ const InductionAccordionItem = ({
           </div>
 
           {/* Action Buttons */}
-          {!(data?.status === 'completed' && data?.subscriptionStatus === 'active') && (
-            <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
-              {/* Save Induction Button */}
+
+          <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
+            {/* Save Induction Button */}
+            {isPrimary && data.subscriptionStatus !== 'active' && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
-                  data?.status === 'completed' || isSaving || isActivatingSubscription || buttonLoader
+                  isInductionCompleted || isSaving
                     ? 'cursor-not-allowed bg-blue-400'
                     : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
                 }`}
-                disabled={data?.status === 'completed' || isSaving || isActivatingSubscription || buttonLoader}
+                disabled={isInductionCompleted || isSaving}
                 onClick={handleSaveClick}
               >
                 {isSaving && <ButtonLoader />}
                 <span>{isSaving ? 'Saving...' : 'Save Induction'}</span>
               </button>
-
-              {/* Activate Subscription Button - Hide when status is completed and subscriptionStatus is active */}
-
+            )}
+            {isInductionCompleted === false && !isPrimary && (
+              <button
+                className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
+                  isInductionCompleted || isSaving
+                    ? 'cursor-not-allowed bg-blue-400'
+                    : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
+                }`}
+                disabled={isInductionCompleted || isSaving}
+                onClick={handleSaveClick}
+              >
+                {isSaving && <ButtonLoader />}
+                <span>{isSaving ? 'Saving...' : 'Save Induction'}</span>
+              </button>
+            )}
+            {/* Activate Subscription Button - Hide when status is completed and subscriptionStatus is active */}
+            {isPrimary && data.subscriptionStatus !== 'active' && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader
@@ -351,8 +366,8 @@ const InductionAccordionItem = ({
                 {isActivatingSubscription && <ButtonLoader />}
                 <span>{isActivatingSubscription ? 'Activating...' : 'Activate Subscription'}</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 

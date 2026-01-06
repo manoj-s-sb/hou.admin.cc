@@ -2,6 +2,28 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 
 import { CalendarHeader as CalendarHeaderType } from '../types';
 
+const TIMEZONE = 'America/Chicago';
+
+// Helper function to get today's date in Chicago timezone
+const getTodayInChicago = (): Date => {
+  const now = new Date();
+  const dateFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
+
+  const dateParts = dateFormatter.formatToParts(now);
+  const year = parseInt(dateParts.find(p => p.type === 'year')?.value || '0');
+  const month = parseInt(dateParts.find(p => p.type === 'month')?.value || '0') - 1; // 0-indexed
+  const day = parseInt(dateParts.find(p => p.type === 'day')?.value || '0');
+
+  // Create a Date object for this date at midnight in local time
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return new Date(`${dateStr}T00:00:00`);
+};
+
 const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthName }: CalendarHeaderType) => {
   const [dateOffset, setDateOffset] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
@@ -21,7 +43,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
   // Generate dates based on offset and screen size
   const displayedDates = useMemo(() => {
     const dates = [];
-    const today = new Date();
+    const today = getTodayInChicago();
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + dateOffset);
 
@@ -104,7 +126,8 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
       <div className="relative flex w-[100%] flex-col gap-3 rounded-[10px] border border-[#E2E8F0] bg-[#fff] px-3 py-3.5 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-2 desktop:px-5 desktop:py-5">
         {/* Mobile: Date display at top */}
         <div className="block text-center text-[15px] font-[400] text-[#21295A] desktop:absolute desktop:left-1/2 desktop:-translate-x-1/2 desktop:text-[18px]">
-          {selectedDate?.day}, {monthName} 2025
+          {selectedDate?.day}, {monthName}{' '}
+          {selectedDate?.fullDate ? selectedDate.fullDate.getFullYear() : new Date().getFullYear()}
         </div>
 
         {/* Mobile: Navigation controls */}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -52,36 +52,41 @@ const SlotBookings: React.FC = () => {
   };
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const nextSevenDates = getNextSevenDates();
+  const nextSevenDates = useMemo(() => getNextSevenDates(), []);
   const [selectedDate, setSelectedDate] = useState<{ day: number; month: number; fullDate?: Date }>({
     day: nextSevenDates[0].day,
     month: nextSevenDates[0].month,
     fullDate: nextSevenDates[0].fullDate,
   });
-  const formattedDate = (() => {
-    // Use fullDate if available (from CalendarHeader), otherwise fall back to nextSevenDates lookup
-    let dateToFormat: Date;
+
+  const formattedDate = useMemo(() => {
+    // Get the year directly from fullDate object (not formatted in timezone to avoid year shifts)
+    // Use day and month directly from selectedDate since those represent the calendar date selected
+    let year: number;
 
     if (selectedDate.fullDate) {
-      dateToFormat = selectedDate.fullDate;
+      // Get year directly from the Date object
+      year = selectedDate.fullDate.getFullYear();
     } else {
       // Fallback: try to find in nextSevenDates
       const selectedDateObject = nextSevenDates.find(
         date => date.day === selectedDate.day && date.month === selectedDate.month
       );
-      dateToFormat = selectedDateObject?.fullDate ?? new Date();
+      if (selectedDateObject?.fullDate) {
+        year = selectedDateObject.fullDate.getFullYear();
+      } else {
+        // Last resort: use current year
+        year = new Date().getFullYear();
+      }
     }
 
-    // Format date in Chicago timezone
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+    // Use day and month directly from selectedDate (month is 0-indexed, so add 1)
+    const month = String(selectedDate.month + 1).padStart(2, '0');
+    const day = String(selectedDate.day).padStart(2, '0');
 
-    return formatter.format(dateToFormat); // Returns YYYY-MM-DD format
-  })();
+    // Format as YYYY-MM-DD
+    return `${year}-${month}-${day}`;
+  }, [selectedDate, nextSevenDates]);
 
   useEffect(() => {
     dispatch(
