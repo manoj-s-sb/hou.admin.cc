@@ -58,6 +58,7 @@ const InductionAccordionItem = ({
   const [isLoadingSteps, setIsLoadingSteps] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showActivateConfirmModal, setShowActivateConfirmModal] = useState(false);
+  const [prevIsSaving, setPrevIsSaving] = useState(isSaving);
 
   // Fetch induction steps details when accordion is opened
   useEffect(() => {
@@ -79,6 +80,29 @@ const InductionAccordionItem = ({
         });
     }
   }, [isOpen, userId, dispatch]);
+
+  // Re-fetch steps when save completes (isSaving changes from true to false)
+  useEffect(() => {
+    if (prevIsSaving && !isSaving && isOpen && userId) {
+      // Save just completed, refresh the steps
+      setIsLoadingSteps(true);
+      dispatch(getInductionStepsDetails({ userId }))
+        .unwrap()
+        .then((data: any) => {
+          if (data) {
+            setSteps(data?.data?.subSteps);
+            setOriginalSteps(data?.data?.subSteps); // Store original API data
+          }
+        })
+        .catch((error: any) => {
+          console.error(`Error fetching induction steps for user ${userId}:`, error);
+        })
+        .finally(() => {
+          setIsLoadingSteps(false);
+        });
+    }
+    setPrevIsSaving(isSaving);
+  }, [isSaving, isOpen, userId, dispatch, prevIsSaving]);
 
   const toggleStep = (stepId: string) => {
     setSteps(prevSteps =>

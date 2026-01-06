@@ -23,7 +23,7 @@ const ViewInduction = () => {
 
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { userId } = useParams<{ userId: string }>();
+  const { userId } = useParams<{ userId: string | any }>();
 
   const [data, setData] = useState<any>(induction?.userInductionDetails);
 
@@ -63,9 +63,11 @@ const ViewInduction = () => {
     setOpenAccordions(prev => (prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]));
   };
 
-  const handleSaveInduction = (userId: string, steps: SubStep[]) => {
+  const handleSaveInduction = (userIds: string, steps: SubStep[]) => {
     // Set loading state for this specific user
-    setSavingUserId(userId);
+
+    console.log('userId', userId);
+    setSavingUserId(userIds);
 
     // Filter steps to send only id and status fields
     const filteredSteps = steps.map(({ id, status }) => ({
@@ -74,7 +76,7 @@ const ViewInduction = () => {
     }));
 
     // Dispatch the API call with userId and filtered substeps
-    dispatch(updateInductionSteps({ userId, subSteps: filteredSteps }))
+    dispatch(updateInductionSteps({ userId: userIds, subSteps: filteredSteps }))
       .unwrap()
       .then(() => {
         dispatch(userInductionDetails({ userId }));
@@ -86,7 +88,7 @@ const ViewInduction = () => {
         toast.error(errorMessage);
       })
       .finally(() => {
-        dispatch(getInductionStepsDetails({ userId }));
+        dispatch(getInductionStepsDetails({ userId: userIds }));
         // Clear loading state
         setSavingUserId(null);
       });
@@ -107,7 +109,7 @@ const ViewInduction = () => {
       .then(() => {
         toast.success('Subscription activated successfully!');
         // Refresh induction details to get updated subscription status
-        dispatch(userInductionDetails({ userId: data?.userId }));
+        dispatch(userInductionDetails({ userId }));
       })
       .catch(error => {
         // Display the error message from the API
