@@ -70,26 +70,86 @@ const CoachScheduleGrid: React.FC<{
     return coachSlotsList[0].coaches[selectedCoachIndex] || null;
   }, [coachSlotsList, selectedCoachIndex]);
 
+  // Helper function to get weekday in Chicago timezone
+  const getWeekdayInChicago = (date: Date): string => {
+    return date
+      .toLocaleDateString('en-US', {
+        weekday: 'short',
+        timeZone: 'America/Chicago',
+      })
+      .toUpperCase();
+  };
+
+  // Helper function to get today's date components in Chicago timezone
+  const getTodayInChicago = (): { year: number; month: number; day: number } => {
+    const now = new Date();
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    });
+
+    const parts = dateFormatter.formatToParts(now);
+    return {
+      year: parseInt(parts.find(p => p.type === 'year')?.value || '0'),
+      month: parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1, // 0-indexed
+      day: parseInt(parts.find(p => p.type === 'day')?.value || '0'),
+    };
+  };
+
+  // Helper function to get date components in Chicago timezone
+  // The dateString is in YYYY-MM-DD format and should be interpreted as a date in Chicago timezone
+  const getDateComponentsInChicago = (dateString: string): { year: number; month: number; day: number } => {
+    // Parse the date string directly (YYYY-MM-DD format)
+    // The API sends dates that represent dates in Chicago timezone, so we parse them directly
+    const [year, month, day] = dateString.split('-').map(Number);
+
+    // Return the components directly since the date string already represents Chicago timezone date
+    return {
+      year,
+      month: month - 1, // Convert to 0-indexed month
+      day,
+    };
+  };
+
+  // Helper function to create a Date object for weekday calculation in Chicago timezone
+  // The date string represents a date in Chicago timezone, so we need to create a Date object
+  // that when formatted in Chicago timezone gives us the correct weekday
+  const createDateForChicagoWeekday = (year: number, month: number, day: number): Date => {
+    // Create a date at noon UTC (or later) to ensure it's the same day in Chicago
+    // Chicago is UTC-6 (CST) or UTC-5 (CDT), so we use 18:00 UTC which is definitely
+    // the same calendar day in Chicago (12:00 PM CST or 1:00 PM CDT)
+    // This ensures the weekday calculation is correct regardless of DST
+    return new Date(Date.UTC(year, month, day, 18, 0, 0));
+  };
+
   // Extract dates from availability
   const displayedDates = useMemo(() => {
     if (!currentCoachData) return [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayChicago = getTodayInChicago();
 
     return currentCoachData.availability.map(dayAvailability => {
-      const date = new Date(dayAvailability.date);
-      const dateOnly = new Date(date);
-      dateOnly.setHours(0, 0, 0, 0);
-      const isToday = dateOnly.getTime() === today.getTime();
+      const dateComponents = getDateComponentsInChicago(dayAvailability.date);
+      // Create a date object that represents this date in Chicago timezone for weekday calculation
+      const dateForWeekday = createDateForChicagoWeekday(dateComponents.year, dateComponents.month, dateComponents.day);
+      // Create a local date object for display purposes (using local timezone for the Date object itself)
+      const localDate = new Date(dateComponents.year, dateComponents.month, dateComponents.day);
+
+      // Check if this date is today in Chicago timezone
+      const isToday =
+        dateComponents.year === todayChicago.year &&
+        dateComponents.month === todayChicago.month &&
+        dateComponents.day === todayChicago.day;
 
       return {
-        day: date.getDate(),
-        month: date.getMonth(),
-        year: date.getFullYear(),
-        fullDate: date,
+        day: dateComponents.day,
+        month: dateComponents.month,
+        year: dateComponents.year,
+        fullDate: localDate,
         dateString: dayAvailability.date,
-        weekday: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+        weekday: getWeekdayInChicago(dateForWeekday),
         isToday,
         isHoliday: dayAvailability.isHoliday,
         slots: dayAvailability.slots,
@@ -131,64 +191,76 @@ const CoachScheduleGrid: React.FC<{
     return Array.from(allTimeSlots).sort();
   }, [currentCoachData]);
 
-  // Helper function to format date - extracts date components without timezone conversion
+  // Helper function to format date in Chicago timezone
   const formatDateOnly = (date: Date): string => {
-    // Extract year, month, day from the date object as-is (local time)
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
+    // Format the date in Chicago timezone to get the correct date components
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    const parts = dateFormatter.formatToParts(date);
+    const year = parts.find(p => p.type === 'year')?.value || '0';
+    const month = parts.find(p => p.type === 'month')?.value || '0';
+    const day = parts.find(p => p.type === 'day')?.value || '0';
+
     return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to add days to a date string in Chicago timezone
+  const addDaysInChicago = (dateString: string, days: number): string => {
+    const dateComponents = getDateComponentsInChicago(dateString);
+    // Create a date at noon UTC to avoid DST issues
+    const date = new Date(Date.UTC(dateComponents.year, dateComponents.month, dateComponents.day, 18, 0, 0));
+    // Add days
+    date.setUTCDate(date.getUTCDate() + days);
+    // Format back in Chicago timezone
+    return formatDateOnly(date);
   };
 
   const handleNavigatePrevious = () => {
     // Get the first date from displayed dates
     if (displayedDates.length === 0) return;
 
-    const [firstDate] = displayedDates;
-    const firstDateObj = new Date(firstDate.fullDate);
+    const [{ dateString }] = displayedDates;
 
     // Calculate previous 8 days: first date minus 8 days
-    const newStartDate = new Date(firstDateObj);
-    newStartDate.setDate(firstDateObj.getDate() - 8);
+    const newStartDate = addDaysInChicago(dateString, -8);
 
     // End date is 7 days after start date (8 days total)
-    const newEndDate = new Date(newStartDate);
-    newEndDate.setDate(newStartDate.getDate() + 7);
+    const newEndDate = addDaysInChicago(newStartDate, 7);
 
     // Format dates and fetch new data
-    onDateRangeChange(formatDateOnly(newStartDate), formatDateOnly(newEndDate));
+    onDateRangeChange(newStartDate, newEndDate);
   };
 
   const handleNavigateNext = () => {
     // Get the first date from displayed dates
     if (displayedDates.length === 0) return;
 
-    const [firstDate] = displayedDates;
-    const firstDateObj = new Date(firstDate.fullDate);
+    const [{ dateString }] = displayedDates;
 
     // Calculate next 8 days: first date plus 8 days
-    const newStartDate = new Date(firstDateObj);
-    newStartDate.setDate(firstDateObj.getDate() + 8);
+    const newStartDate = addDaysInChicago(dateString, 8);
 
     // End date is 7 days after start date (8 days total)
-    const newEndDate = new Date(newStartDate);
-    newEndDate.setDate(newStartDate.getDate() + 7);
+    const newEndDate = addDaysInChicago(newStartDate, 7);
 
     // Format dates and fetch new data
-    onDateRangeChange(formatDateOnly(newStartDate), formatDateOnly(newEndDate));
+    onDateRangeChange(newStartDate, newEndDate);
   };
 
   const handleNavigateToday = () => {
-    // Get today's date
-    const today = new Date();
+    // Get today's date in Chicago
     const todayStr = getTodayDateInChicago();
 
     // End date is 7 days after today (8 days total)
-    const endDate = new Date(today);
-    endDate.setDate(today.getDate() + 7);
+    const endDate = addDaysInChicago(todayStr, 7);
 
     // Format dates and fetch new data
-    onDateRangeChange(todayStr, formatDateOnly(endDate));
+    onDateRangeChange(todayStr, endDate);
   };
 
   // Toggle selection mode
@@ -1070,3 +1142,4 @@ const CoachScheduleGrid: React.FC<{
 };
 
 export default CoachScheduleGrid;
+
