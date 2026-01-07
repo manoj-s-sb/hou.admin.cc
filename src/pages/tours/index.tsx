@@ -155,7 +155,7 @@ const Tours = () => {
   return (
     <div className="w-full max-w-full max-[560px]:overflow-x-hidden">
       <SectionTitle
-        description="Manage your tour details."
+        description="Manage tour Bookings."
         inputPlaceholder=""
         search={false}
         title="Tour Details"
