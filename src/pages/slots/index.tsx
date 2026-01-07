@@ -99,7 +99,7 @@ const SlotBookings: React.FC = () => {
   return (
     <div className="w-full">
       <SectionTitle
-        description="Manage your slot bookings."
+        description="Manage slot bookings."
         inputPlaceholder=""
         search={false}
         title="Slot Bookings"
