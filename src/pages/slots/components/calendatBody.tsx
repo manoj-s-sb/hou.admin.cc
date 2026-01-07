@@ -1,6 +1,5 @@
 import { Fragment, useState } from 'react';
 
-import { jwtDecode } from 'jwt-decode';
 import moment from 'moment';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -76,17 +75,6 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     slotIndex: number;
   } | null>(null);
 
-  const decodeUserType = () => {
-    const tokens = localStorage.getItem('tokens');
-    if (tokens) {
-      const decodedToken: any = jwtDecode(JSON.parse(tokens).access_token);
-      return decodedToken?.userType?.[0];
-    }
-    return null;
-  };
-
-  const isStanceBeamAdmin = decodeUserType() === 'stancebeamadmin';
-
   const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(180px, 1fr))` };
   const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(140px, 1fr))` };
 
@@ -147,11 +135,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   const handleSlotClick = (slot: Slot, lane: Lanes, slotIndex: number) => {
     // Only open modal for booked slots to show booking details
     // For available/blocked slots, only StanceBeam admins can interact
-    if (slot.isBooked && slot.status?.toLowerCase() === 'confirmed') {
-      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
-    } else if (isStanceBeamAdmin) {
-      setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
-    }
+    setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
   };
 
   const handleCloseSlotModal = () => {
@@ -248,22 +232,21 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                     <span className="text-[12px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[11px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
-                  {isStanceBeamAdmin && (
-                    <span
-                      className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A]"
-                      role="button"
-                      tabIndex={0}
-                      onClick={e => handleMenuClick(lane, e)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleMenuClick(lane, e as any);
-                        }
-                      }}
-                    >
-                      ...
-                    </span>
-                  )}
+
+                  <span
+                    className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-1 text-[20px] font-medium text-[#21295A]"
+                    role="button"
+                    tabIndex={0}
+                    onClick={e => handleMenuClick(lane, e)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleMenuClick(lane, e as any);
+                      }
+                    }}
+                  >
+                    ...
+                  </span>
                 </div>
               ))}
             </div>
@@ -353,22 +336,20 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                     <span className="text-[15px] font-medium text-[#21295A]">{formatLaneType(lane.laneType)}</span>
                     <span className="text-[14px] font-semibold text-[#21295A]">Lane {lane.laneNo}</span>
                   </div>
-                  {isStanceBeamAdmin && (
-                    <span
-                      className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
-                      role="button"
-                      tabIndex={0}
-                      onClick={e => handleMenuClick(lane, e)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleMenuClick(lane, e as any);
-                        }
-                      }}
-                    >
-                      ...
-                    </span>
-                  )}
+                  <span
+                    className="absolute right-0 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer rounded-full px-2 text-[25px] font-medium text-[#21295A]"
+                    role="button"
+                    tabIndex={0}
+                    onClick={e => handleMenuClick(lane, e)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleMenuClick(lane, e as any);
+                      }
+                    }}
+                  >
+                    ...
+                  </span>
                 </div>
               ))}
             </div>
@@ -462,7 +443,6 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         <SlotDetailsModal
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedSlot}
-          isStanceBeamAdmin={isStanceBeamAdmin}
           laneNo={selectedSlot.laneNo}
           nextTimeSlot={timeSlots[selectedSlot.slotIndex + 1] || null}
           slot={selectedSlot.slot}
