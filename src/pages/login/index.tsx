@@ -43,7 +43,7 @@ const Login: React.FC = () => {
             <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand.svg" />
           </div>
         </div>
-        <h1 className="mb-2 text-center text-3xl font-bold text-gray-800">Admin Portal...123</h1>
+        <h1 className="mb-2 text-center text-3xl font-bold text-gray-800">Admin Portal</h1>
         <h2 className="mb-8 text-center text-lg font-normal text-gray-600">Sign In</h2>
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-2">
