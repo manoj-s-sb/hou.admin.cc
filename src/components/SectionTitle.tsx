@@ -24,7 +24,7 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   onClear,
 }) => {
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 max-[560px]:mb-4 max-[560px]:gap-2">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-6 max-[560px]:mb-6 max-[560px]:gap-3">
       <div className="max-[560px]:min-w-0 max-[560px]:flex-1">
         <div className="flex items-center gap-3 max-[560px]:gap-2">
           {onBackClick && (
@@ -43,10 +43,12 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
               </svg>
             </button>
           )}
-          <h1 className="m-0 text-[25px] font-bold text-slate-800 max-[560px]:truncate max-[560px]:text-lg">{title}</h1>
+          <h1 className="m-0 text-xl font-semibold text-gray-900 max-[560px]:truncate max-[560px]:text-base">
+            {title}
+          </h1>
         </div>
         {description && (
-          <p className="m-0 mt-2 text-[15px] text-gray-600 max-[560px]:mt-1 max-[560px]:line-clamp-2 max-[560px]:text-xs">
+          <p className="m-0 mt-2 text-sm text-gray-500 max-[560px]:mt-2 max-[560px]:line-clamp-2 max-[560px]:text-xs">
             {description}
           </p>
         )}

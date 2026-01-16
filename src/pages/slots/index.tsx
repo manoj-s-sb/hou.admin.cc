@@ -96,15 +96,56 @@ const SlotBookings: React.FC = () => {
       })
     );
   }, [dispatch, formattedDate]);
+
+  // Calculate slot statistics
+  const slotStats = useMemo(() => {
+    const lanes = slots?.lanes || [];
+    let totalBooked = 0;
+    let completed = 0;
+    let bookedWithCoach = 0;
+    let bookedWithGuest = 0;
+
+    lanes.forEach(lane => {
+      lane.slots?.forEach(slot => {
+        if (slot.isBooked && slot.booking) {
+          totalBooked++;
+
+          // Check if completed (assuming bookingStatus 'completed' or similar)
+          if (slot.booking.bookingStatus === 'completed' || slot.booking.bookingStatus === 'played') {
+            completed++;
+          }
+
+          // Check if booked with coach
+          if (slot.booking.coach?.name) {
+            bookedWithCoach++;
+          }
+
+          // Check if booked with guest
+          if (slot.booking.guests && slot.booking.guests.length > 0) {
+            bookedWithGuest++;
+          }
+        }
+      });
+    });
+
+    return {
+      totalBooked,
+      completed,
+      bookedWithCoach,
+      bookedWithGuest,
+    };
+  }, [slots]);
+
   return (
     <div className="w-full">
       <SectionTitle
-        description="Manage your slot bookings."
+        description="Manage slot bookings."
         inputPlaceholder=""
         search={false}
         title="Slot Bookings"
         value=""
       />
+
       <div className="flex flex-col gap-3 sm:gap-4">
         <CalendarHeader
           monthName={monthNames[selectedDate?.month]}
@@ -112,6 +153,33 @@ const SlotBookings: React.FC = () => {
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
         />
+
+        {/* Statistics Cards */}
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Total Slots Booked */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h3 className="mb-1 text-xs font-medium text-gray-600">Total Slots Booked</h3>
+            <p className="text-2xl font-bold text-gray-900">{slotStats.totalBooked.toLocaleString()}</p>
+          </div>
+
+          {/* Completed Slots */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h3 className="mb-1 text-xs font-medium text-gray-600">Completed Slots</h3>
+            <p className="text-2xl font-bold text-gray-900">{slotStats.completed.toLocaleString()}</p>
+          </div>
+
+          {/* Booked with Coach */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h3 className="mb-1 text-xs font-medium text-gray-600">Booked with Coach</h3>
+            <p className="text-2xl font-bold text-gray-900">{slotStats.bookedWithCoach.toLocaleString()}</p>
+          </div>
+
+          {/* Booked with Guest */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h3 className="mb-1 text-xs font-medium text-gray-600">Booked with Guest</h3>
+            <p className="text-2xl font-bold text-gray-900">{slotStats.bookedWithGuest.toLocaleString()}</p>
+          </div>
+        </div>
         <div className="relative w-full">
           {isLoading && (
             <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[10px] bg-white/90 backdrop-blur-sm">

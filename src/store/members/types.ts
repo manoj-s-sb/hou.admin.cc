@@ -69,6 +69,13 @@ export interface Member {
   firstName: string;
   lastName: string;
   email: string;
+  cycleLimits: {
+    carryForward: number;
+    cycleNumber: number;
+    period: string;
+    total: number;
+    used: number;
+  };
   onboardingType: string;
   profileImageUrl: string;
   playerProfile: PlayerProfile;
@@ -110,7 +117,30 @@ export interface Pricing {
   currency: string;
   isPromoPrice: boolean;
 }
+
+export interface Cycles {
+  billingCycle: string;
+  periodStart: string;
+  periodEnd: string;
+  cycleNumber: number;
+  monthNumber: number;
+  newSlots: number;
+  carriedFromPrevious: number;
+  totalAvailable: number;
+  slotsUsed: number;
+  unused: number;
+}
+
+export interface SlotUsageTable {
+  cycles: Cycles[];
+  summary: {
+    currentUnused: number;
+    totalNewSlots: number;
+    totalUsed: number;
+  };
+}
 export interface MemberDetailsResponse {
+  slotUsageTable: SlotUsageTable;
   firstName: string;
   lastName: string;
   email: string;

@@ -191,6 +191,19 @@ const CoachScheduleGrid: React.FC<{
     return Array.from(allTimeSlots).sort();
   }, [currentCoachData]);
 
+  // Helper function to format booking type to readable text
+  const formatBookingType = (bookingType: string): string => {
+    // Convert camelCase to readable format
+    // e.g., "tourBooking" -> "Tour Booked"
+    const result = bookingType
+      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+      .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+      .trim();
+
+    // Replace "Booking" with "Booked" at the end
+    return result.replace(/Booking$/i, 'Booked');
+  };
+
   // Helper function to format date in Chicago timezone
   const formatDateOnly = (date: Date): string => {
     // Format the date in Chicago timezone to get the correct date components
@@ -301,8 +314,8 @@ const CoachScheduleGrid: React.FC<{
     const coachSlotCode = slot?.coachSlotCode || `temp-${dateIndex}-${slotIndex}`;
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
 
-    // Don't allow selecting 'not-set' slots
-    if (slotStatus === 'not-set') return;
+    // Don't allow selecting 'not-set' or 'booked' slots
+    if (slotStatus === 'not-set' || slotStatus === 'booked') return;
 
     const newSelected = new Set(selectedSlots);
 
@@ -357,8 +370,8 @@ const CoachScheduleGrid: React.FC<{
     const coachSlotCode = slot?.coachSlotCode || `temp-${dateIndex}-${slotIndex}`;
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
 
-    // Don't allow selecting 'not-set' slots
-    if (slotStatus === 'not-set') return;
+    // Don't allow selecting 'not-set' or 'booked' slots
+    if (slotStatus === 'not-set' || slotStatus === 'booked') return;
 
     // Check if this slot matches the restriction type
     if (selectionTypeRestriction && slotStatus !== selectionTypeRestriction) {
@@ -399,6 +412,10 @@ const CoachScheduleGrid: React.FC<{
     if (selectionMode || date.isHoliday) return; // Don't open modal in selection mode or for holidays
 
     const slot = findSlotByIndices(dateIndex, timeSlot);
+
+    // Don't allow clicking on booked slots
+    const slotStatus = getSlotStatus(dateIndex, slotIndex);
+    if (slotStatus === 'booked') return;
 
     // For slots that don't exist yet, we still want to allow user to set availability
     // Generate a temporary coachSlotCode if slot doesn't exist
@@ -520,8 +537,8 @@ const CoachScheduleGrid: React.FC<{
 
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
 
-    // Can't select not-set or holiday slots
-    if (slotStatus === 'not-set' || slotStatus === 'holiday') return false;
+    // Can't select not-set, holiday, or booked slots
+    if (slotStatus === 'not-set' || slotStatus === 'holiday' || slotStatus === 'booked') return false;
 
     // If no restriction yet, any available/unavailable slot can be selected
     if (!selectionTypeRestriction) return true;
@@ -531,13 +548,19 @@ const CoachScheduleGrid: React.FC<{
   };
 
   // Get slot availability status
-  const getSlotStatus = (dateIndex: number, slotIndex: number): 'available' | 'unavailable' | 'not-set' | 'holiday' => {
+  const getSlotStatus = (
+    dateIndex: number,
+    slotIndex: number
+  ): 'available' | 'unavailable' | 'not-set' | 'holiday' | 'booked' => {
     const date = displayedDates[dateIndex];
     if (date.isHoliday) return 'holiday';
 
     const timeSlot = timeSlots[slotIndex];
     const slot = findSlotByIndices(dateIndex, timeSlot);
     if (!slot) return 'not-set';
+
+    // Check if slot has a booking
+    if (slot.bookingType && slot.bookingCode) return 'booked';
 
     // Check availability state first (this is updated by user actions)
     const value = availability[slot.coachSlotCode];
@@ -857,6 +880,31 @@ const CoachScheduleGrid: React.FC<{
                         );
                       }
 
+                      // If it's a booked slot, show booked cell (non-clickable)
+                      if (slotStatus === 'booked') {
+                        const currentSlot = findSlotByIndices(dateIdx, slot);
+                        const bookingTypeText = currentSlot?.bookingType
+                          ? formatBookingType(currentSlot.bookingType)
+                          : 'Booked';
+
+                        return (
+                          <div
+                            key={`${slot}-${dateIdx}`}
+                            className={composeClasses(
+                              'flex min-h-[70px] min-w-[140px] cursor-not-allowed items-center justify-center border border-[#B3DADA] bg-[#F1F5F9] text-[11px] font-medium',
+                              slotIdx !== 0 && 'border-t-0',
+                              dateIdx !== 0 && 'border-l-0'
+                            )}
+                          >
+                            <div className="flex h-full w-full flex-col items-center justify-center px-2 py-3 text-center">
+                              <span className="text-[10px] font-semibold leading-tight text-[#94A3B8]">
+                                {bookingTypeText}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <button
                           key={`${slot}-${dateIdx}`}
@@ -1034,6 +1082,31 @@ const CoachScheduleGrid: React.FC<{
                         );
                       }
 
+                      // If it's a booked slot, show booked cell (non-clickable)
+                      if (slotStatus === 'booked') {
+                        const currentSlot = findSlotByIndices(dateIdx, slot);
+                        const bookingTypeText = currentSlot?.bookingType
+                          ? formatBookingType(currentSlot.bookingType)
+                          : 'Booked';
+
+                        return (
+                          <div
+                            key={`${slot}-${dateIdx}`}
+                            className={composeClasses(
+                              'flex min-h-[70px] min-w-[180px] cursor-not-allowed items-center justify-center border border-[#B3DADA] bg-[#F1F5F9] text-[14px] font-medium',
+                              slotIdx !== 0 && 'border-t-0',
+                              dateIdx !== 0 && 'border-l-0'
+                            )}
+                          >
+                            <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
+                              <span className="text-[13px] font-semibold leading-tight text-[#94A3B8]">
+                                {bookingTypeText}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <button
                           key={`${slot}-${dateIdx}`}
@@ -1118,6 +1191,10 @@ const CoachScheduleGrid: React.FC<{
           </div>
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Unavailable</span>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-[#F1F5F9] border border-[#B3DADA]"></div>
+          <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked</span>
+        </div>
         {/* <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded bg-[#F1F5F9]">
             <span className="text-[10px] font-medium text-[#94A3B8]">Not Set</span>
@@ -1130,7 +1207,7 @@ const CoachScheduleGrid: React.FC<{
         </div>
         {selectionMode && (
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-[#21295A]">
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-[#1a1f42]">
               <span className="text-[14px] text-white">●</span>
             </div>
             <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Selected</span>

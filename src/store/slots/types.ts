@@ -76,6 +76,8 @@ export interface CoachSlot {
   endTime: string;
   isAvailable: boolean;
   startTime: string;
+  bookingCode?: string;
+  bookingType?: string;
 }
 
 export interface Availability {
@@ -96,6 +98,8 @@ export interface Coach {
   specialization: string[];
 }
 export interface CoachSlotsResponse {
+  bookingCode: string;
+  bookingType: string;
   endDate: string;
   facilityCode: string;
   startDate: string;

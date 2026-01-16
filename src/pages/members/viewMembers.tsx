@@ -5,13 +5,16 @@ import {
   User,
   CheckCircle,
   // XCircle,
-  // ChevronDown,
+  ChevronDown,
+  ChevronUp,
   // BookOpen,
   Shield,
   // Ban,
   Calendar,
   Mail,
   X,
+  Activity,
+  TrendingUp,
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -29,8 +32,15 @@ const ViewMembers = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [expandedCycles, setExpandedCycles] = useState<number[]>([]);
 
   const { userId } = useParams();
+
+  const toggleCycle = (cycleNumber: number) => {
+    setExpandedCycles(prev =>
+      prev.includes(cycleNumber) ? prev.filter(num => num !== cycleNumber) : [...prev, cycleNumber]
+    );
+  };
 
   useEffect(() => {
     dispatch(getSingleMemberDetails({ userId: userId as string }));
@@ -201,6 +211,193 @@ const ViewMembers = () => {
               </div>
             </div>
           </div>
+
+          {/* Slot Usage & Cycle Details - Accordion Style */}
+          {memberDetails.slotUsageTable?.cycles && (
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Activity className="mr-2 h-5 w-5 text-blue-600" />
+                    <h2 className="text-lg font-semibold text-gray-900">Slot Usage & Cycle Details</h2>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Total Cycles:{' '}
+                    <span className="font-semibold text-blue-600">{memberDetails.slotUsageTable.cycles.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-4 py-4 sm:px-6 sm:py-5">
+                {/* Cycles Accordion */}
+                <div className="space-y-3">
+                  {memberDetails.slotUsageTable.cycles.map((cycle, index) => {
+                    const isExpanded = expandedCycles.includes(cycle.cycleNumber);
+
+                    return (
+                      <div
+                        key={index}
+                        className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md"
+                      >
+                        {/* Accordion Header - Clickable */}
+                        <button
+                          className="w-full text-left transition-colors hover:bg-gray-50"
+                          type="button"
+                          onClick={() => toggleCycle(cycle.cycleNumber)}
+                        >
+                          <div className="flex items-center justify-between px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                                <TrendingUp className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <h3 className="text-base font-bold text-gray-900">
+                                  Cycle {cycle.cycleNumber} -
+                                  <span className="px-2.5 py-0.5 text-xs font-semibold uppercase text-gray-700">
+                                    {cycle.billingCycle}
+                                  </span>
+                                </h3>
+                              </div>
+                            </div>
+
+                            {/* Quick Stats + Expand Icon */}
+                            <div className="flex items-center gap-4">
+                              <div className="hidden items-center gap-4 sm:flex">
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-500">Available</p>
+                                  <p className="text-sm font-bold text-green-600">{cycle.totalAvailable}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-500">Used</p>
+                                  <p className="text-sm font-bold text-orange-600">{cycle.slotsUsed}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-500">Remaining</p>
+                                  <p className="text-sm font-bold text-teal-600">{cycle.unused}</p>
+                                </div>
+                              </div>
+
+                              <div
+                                className={`rounded-full p-1 transition-all duration-200 ${isExpanded ? 'bg-blue-100' : 'bg-gray-100'}`}
+                              >
+                                {isExpanded ? (
+                                  <ChevronUp className="h-5 w-5 text-blue-600" />
+                                ) : (
+                                  <ChevronDown className="h-5 w-5 text-gray-600" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Accordion Content - Expandable */}
+                        <div
+                          className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                            isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                          }`}
+                        >
+                          <div className="border-t border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-4">
+                            {/* Detailed Stats Table */}
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                              {/* New Slots */}
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
+                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                                  New Slots
+                                </p>
+                                <p className="text-2xl font-bold text-blue-600">{cycle.newSlots}</p>
+                              </div>
+
+                              {/* Carried Forward */}
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
+                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                                  Carried Over
+                                </p>
+                                <p className="text-2xl font-bold text-purple-600">{cycle.carriedFromPrevious}</p>
+                              </div>
+
+                              {/* Total Available */}
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
+                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                                  Total Available
+                                </p>
+                                <p className="text-2xl font-bold text-green-600">{cycle.totalAvailable}</p>
+                              </div>
+
+                              {/* Slots Used */}
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
+                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                                  Slots Used
+                                </p>
+                                <p className="text-2xl font-bold text-orange-600">{cycle.slotsUsed}</p>
+                              </div>
+
+                              {/* Unused Slots */}
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
+                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                                  Remaining
+                                </p>
+                                <p className="text-2xl font-bold text-teal-600">{cycle.unused}</p>
+                              </div>
+                            </div>
+
+                            {/* Additional Cycle Details */}
+                            <div className="mt-4 rounded-lg bg-white p-4 shadow-sm">
+                              <h4 className="mb-3 text-sm font-semibold text-gray-700">Period Details</h4>
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                                  <span className="text-xs font-medium text-gray-500">Cycle Number</span>
+                                  <span className="text-sm font-bold text-gray-900">#{cycle.cycleNumber}</span>
+                                </div>
+                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                                  <span className="text-xs font-medium text-gray-500">Month Number</span>
+                                  <span className="text-sm font-bold text-gray-900">Month {cycle.monthNumber}</span>
+                                </div>
+                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                                  <span className="text-xs font-medium text-gray-500">Period Start</span>
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {formatDate(cycle.periodStart)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                                  <span className="text-xs font-medium text-gray-500">Period End</span>
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {formatDate(cycle.periodEnd)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Usage Percentage Bar */}
+                            {/* <div className="mt-4 rounded-lg bg-white p-4 shadow-sm">
+                              <div className="mb-2 flex items-center justify-between">
+                                <span className="text-xs font-medium text-gray-500">Usage Progress</span>
+                                <span className="text-xs font-bold text-gray-900">
+                                  {cycle.totalAvailable > 0
+                                    ? `${Math.round((cycle.slotsUsed / cycle.totalAvailable) * 100)}%`
+                                    : '0%'}
+                                </span>
+                              </div>
+                              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500"
+                                  style={{
+                                    width:
+                                      cycle.totalAvailable > 0
+                                        ? `${Math.min((cycle.slotsUsed / cycle.totalAvailable) * 100, 100)}%`
+                                        : '0%',
+                                  }}
+                                />
+                              </div>
+                            </div> */}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Player Profile Section */}
           {memberDetails.playerProfile && (

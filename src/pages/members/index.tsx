@@ -107,6 +107,7 @@ const Members = () => {
         if (type === 'standard') return 'Standard';
         if (type === 'premium') return 'Premium';
         if (type === 'family') return 'Family';
+        if (type === 'offpeak') return 'Offpeak';
         return type;
       },
     },
@@ -125,6 +126,21 @@ const Members = () => {
         if (type === 'resumed') return 'Resumed';
         if (type === 'inactive') return 'Inactive';
         return type;
+      },
+    },
+    {
+      field: 'Cycle Limits',
+      headerName: 'Slots Cycle Limits',
+      flex: 1.3,
+      minWidth: 170,
+      sortable: false,
+      valueGetter: params => {
+        return params.row?.cycleLimits || '';
+      },
+      renderCell: (params: any) => {
+        const used = params.row?.cycleLimits?.used ?? '-';
+        const total = params.row?.cycleLimits?.total ?? '-';
+        return <span className="font-medium text-gray-600">{`${used} / ${total}`}</span>;
       },
     },
     {
@@ -215,8 +231,52 @@ const Members = () => {
     dispatch(getMembers(buildRequestPayload({ skip: 0 }, defaultFilters)));
   };
 
+  // Calculate member statistics
+  // const memberStats = useMemo(() => {
+  //   const members = membersListData.members || [];
+  //   const total = membersListData.total || 0;
+
+  //   // Calculate active and inactive counts (using flattened structure as per column definitions)
+  //   const active = members.filter(m => {
+  //     const status = (m as any).subscriptionStatus || m.subscription?.subscriptionStatus;
+  //     return status === 'active';
+  //   }).length;
+  //   const inactive = members.filter(m => {
+  //     const status = (m as any).subscriptionStatus || m.subscription?.subscriptionStatus;
+  //     return status === 'inactive';
+  //   }).length;
+
+  //   // Calculate subscription type counts (using flattened structure as per column definitions)
+  //   const standard = members.filter(m => {
+  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
+  //     return code === 'standard';
+  //   }).length;
+  //   const premium = members.filter(m => {
+  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
+  //     return code === 'premium';
+  //   }).length;
+  //   const family = members.filter(m => {
+  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
+  //     return code === 'family';
+  //   }).length;
+  //   const offpeak = members.filter(m => {
+  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
+  //     return code === 'offpeak';
+  //   }).length;
+
+  //   return {
+  //     total,
+  //     active,
+  //     inactive,
+  //     standard,
+  //     premium,
+  //     family,
+  //     offpeak,
+  //   };
+  // }, [membersListData]);
+
   return (
-    <div className="w-full max-w-full">
+    <div className="w-full">
       <SectionTitle
         description="View and manage all member subscriptions and account details"
         inputPlaceholder=""
@@ -225,88 +285,177 @@ const Members = () => {
         value=""
       />
 
-      <div className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-600" htmlFor="member-email-filter">
-              Email
-            </label>
-            <input
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              id="member-email-filter"
-              placeholder="Search members by email"
-              type="text"
-              value={filters.email}
-              onChange={e => handleFilterChange('email', e.target.value)}
-            />
+      <div className="mb-8">
+        {/* <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-4"> */}
+        {/* Filters Section - Left Side */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:col-span-2">
+          <h3 className="mb-3 text-base font-semibold text-gray-900">Filters</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-600" htmlFor="member-email-filter">
+                Email
+              </label>
+              <input
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                id="member-email-filter"
+                placeholder="Search members by email"
+                type="text"
+                value={filters.email}
+                onChange={e => handleFilterChange('email', e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-600" htmlFor="member-billing-cycle-filter">
+                Billing Cycle
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                id="member-billing-cycle-filter"
+                value={filters.billingCycle}
+                onChange={e => handleFilterChange('billingCycle', e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="annual">Annual</option>
+                <option value="fortnightly">Fortnightly</option>
+                <option value="offpeak">Offpeak</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-600" htmlFor="member-subscription-type-filter">
+                Subscription Type
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                id="member-subscription-type-filter"
+                value={filters.subscriptionType}
+                onChange={e => handleFilterChange('subscriptionType', e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="standard">Standard</option>
+                <option value="premium">Premium</option>
+                <option value="family">Family</option>
+                <option value="offpeak">Offpeak</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-600" htmlFor="member-status-filter">
+                Status
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                id="member-status-filter"
+                value={filters.status}
+                onChange={e => handleFilterChange('status', e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="pendingactivation">Pending Activation</option>
+                <option value="paused">Paused</option>
+                <option value="canceled">Cancelled</option>
+                <option value="resumed">Resumed</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-600" htmlFor="member-billing-cycle-filter">
-              Billing Cycle
-            </label>
-            <select
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              id="member-billing-cycle-filter"
-              value={filters.billingCycle}
-              onChange={e => handleFilterChange('billingCycle', e.target.value)}
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <button
+              className="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+              type="button"
+              onClick={handleClearFilters}
             >
-              <option value="">All</option>
-              <option value="annual">Annual</option>
-              <option value="fortnightly">Fortnightly</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-600" htmlFor="member-subscription-type-filter">
-              Subscription Type
-            </label>
-            <select
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              id="member-subscription-type-filter"
-              value={filters.subscriptionType}
-              onChange={e => handleFilterChange('subscriptionType', e.target.value)}
+              Reset
+            </button>
+            <button
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+              type="button"
+              onClick={handleApplyFilters}
             >
-              <option value="">All</option>
-              <option value="standard">Standard</option>
-              <option value="premium">Premium</option>
-              <option value="family">Family</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-600" htmlFor="member-status-filter">
-              Status
-            </label>
-            <select
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              id="member-status-filter"
-              value={filters.status}
-              onChange={e => handleFilterChange('status', e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="active">Active</option>
-              <option value="pendingactivation">Pending Activation</option>
-              <option value="paused">Paused</option>
-              <option value="canceled">Cancelled</option>
-              <option value="resumed">Resumed</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              Apply Filters
+            </button>
           </div>
         </div>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
-            type="button"
-            onClick={handleClearFilters}
-          >
-            Reset
-          </button>
-          <button
-            className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-            type="button"
-            onClick={handleApplyFilters}
-          >
-            Apply Filters
-          </button>
-        </div>
+
+        {/* Statistics Section - Right Side */}
+        {/* <div className="flex w-full flex-row gap-3 lg:col-span-2"> */}
+        {/* Members Statistics Card */}
+        {/* <div className="group relative flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300"> */}
+        {/* Gradient Background */}
+        {/* <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-blue-600 to-cyan-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div> */}
+
+        {/* <div className="relative"> */}
+        {/* <div className="mb-3"> */}
+        {/* <h3 className="mb-1 text-xs font-semibold text-gray-600">Total Members</h3> */}
+        {/* <p className="text-3xl font-bold text-gray-900">{memberStats.total.toLocaleString()}</p> */}
+        {/* </div> */}
+        {/* <div className="space-y-1.5 border-t border-gray-100 pt-3"> */}
+        {/* <div className="flex items-center justify-between"> */}
+        {/* <div className="flex items-center gap-2"> */}
+        {/* <div className="h-2 w-2 rounded-full bg-green-500"></div> */}
+        {/* <span className="text-sm font-medium text-gray-600">Active</span> */}
+        {/* </div> */}
+        {/* <span className="text-sm font-bold text-gray-900">{memberStats.active.toLocaleString()}</span> */}
+        {/* </div> */}
+        {/* <div className="flex items-center justify-between"> */}
+        {/* <div className="flex items-center gap-2"> */}
+        {/* <div className="h-2 w-2 rounded-full bg-gray-400"></div> */}
+        {/* <span className="text-sm font-medium text-gray-600">Inactive</span> */}
+        {/* </div> */}
+        {/* <span className="text-sm font-bold text-gray-900">{memberStats.inactive.toLocaleString()}</span> */}
+        {/* </div> */}
+        {/* </div> */}
+        {/* </div> */}
+        {/* </div> */}
+
+        {/* Subscriptions Statistics Card */}
+        {/* <div className="group relative flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300"> */}
+        {/* Gradient Background */}
+        {/* <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-green-600 to-emerald-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div> */}
+
+        {/* <div className="relative"> */}
+        {/* <div className="mb-3"> */}
+        {/* <h3 className="mb-1 text-xs font-semibold text-gray-600">Subscriptions</h3> */}
+        {/* <p className="text-3xl font-bold text-gray-900"> */}
+        {/* {( */}
+        {/* memberStats.standard + */}
+        {/* memberStats.premium + */}
+        {/* memberStats.family + */}
+        {/* memberStats.offpeak */}
+        {/* ).toLocaleString()} */}
+        {/* </p> */}
+        {/* </div> */}
+        {/* <div className="space-y-1.5 border-t border-gray-100 pt-3"> */}
+        {/* <div className="flex items-center justify-between"> */}
+        {/* <div className="flex items-center gap-2"> */}
+        {/* <div className="h-2 w-2 rounded-full bg-blue-500"></div> */}
+        {/* <span className="text-sm font-medium text-gray-600">Standard</span> */}
+        {/* </div> */}
+        {/* <span className="text-sm font-bold text-gray-900">{memberStats.standard.toLocaleString()}</span> */}
+        {/* </div> */}
+        {/* <div className="flex items-center justify-between"> */}
+        {/* <div className="flex items-center gap-2"> */}
+        {/* <div className="h-2 w-2 rounded-full bg-purple-500"></div> */}
+        {/* <span className="text-sm font-medium text-gray-600">Premium</span> */}
+        {/* </div> */}
+        {/* <span className="text-sm font-bold text-gray-900">{memberStats.premium.toLocaleString()}</span> */}
+        {/* </div> */}
+        {/* <div className="flex items-center justify-between"> */}
+        {/* <div className="flex items-center gap-2"> */}
+        {/* <div className="h-2 w-2 rounded-full bg-pink-500"></div> */}
+        {/* <span className="text-sm font-medium text-gray-600">Family</span> */}
+        {/* </div> */}
+        {/* <span className="text-sm font-bold text-gray-900">{memberStats.family.toLocaleString()}</span> */}
+        {/* </div> */}
+        {/* <div className="flex items-center justify-between"> */}
+        {/* <div className="flex items-center gap-2"> */}
+        {/* <div className="h-2 w-2 rounded-full bg-orange-500"></div> */}
+        {/* <span className="text-sm font-medium text-gray-600">Offpeak</span> */}
+        {/* </div> */}
+        {/* <span className="text-sm font-bold text-gray-900">{memberStats.offpeak.toLocaleString()}</span> */}
+        {/* </div> */}
+        {/* </div> */}
+        {/* </div> */}
+        {/* </div> */}
+        {/* </div> */}
       </div>
 
       <div>
