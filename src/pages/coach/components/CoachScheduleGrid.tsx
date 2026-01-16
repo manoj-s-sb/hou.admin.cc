@@ -1192,7 +1192,7 @@ const CoachScheduleGrid: React.FC<{
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Unavailable</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded bg-[#F1F5F9] border border-[#B3DADA]"></div>
+          <div className="h-6 w-6 rounded border border-[#B3DADA] bg-[#F1F5F9]"></div>
           <span className="text-[13px] font-medium text-[#1E293B] desktop:text-[14px]">Booked</span>
         </div>
         {/* <div className="flex items-center gap-2">
