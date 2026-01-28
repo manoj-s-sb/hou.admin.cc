@@ -49,7 +49,7 @@ const CoachSchedule: React.FC = () => {
   return (
     <div className="w-full">
       <SectionTitle
-        description="Manage coach availability across multiple dates."
+        description="Manage coach availability."
         inputPlaceholder=""
         search={false}
         title="Coach Schedule"

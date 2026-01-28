@@ -161,7 +161,7 @@ const Induction = () => {
   return (
     <div className="w-full max-w-full max-[560px]:overflow-x-hidden">
       <SectionTitle
-        description="Manage your induction process..."
+        description="Manage induction Bookings."
         inputPlaceholder="Search induction..."
         search={false}
         title="Induction"

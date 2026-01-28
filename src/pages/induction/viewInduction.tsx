@@ -65,7 +65,6 @@ const ViewInduction = () => {
 
   const handleSaveInduction = (userIds: string, steps: SubStep[]) => {
     // Set loading state for this specific user
-
     setSavingUserId(userIds);
 
     // Filter steps to send only id and status fields
