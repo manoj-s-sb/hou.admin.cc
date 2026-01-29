@@ -1,16 +1,30 @@
+import { useState } from 'react';
+
 import { Lanes } from '../../../store/slots/types';
+
+const BLOCK_REASONS = [
+  { value: '', label: 'Select a reason' },
+  { value: 'Scheduled Maintenance', label: 'Scheduled Maintenance' },
+  { value: 'Out of service', label: 'Out of service' },
+  { value: 'For Demo', label: 'For Demo' },
+  { value: 'Others', label: 'Others' },
+];
 
 interface LaneDetailsModalProps {
   lane: Lanes;
   isOpen: boolean;
   onClose: () => void;
-  onLaneClick: () => void;
+  onLaneClick: (reason?: string, blockLaneApp?: boolean) => void;
   isLoading?: boolean;
 }
 
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
 
 const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = false }: LaneDetailsModalProps) => {
+  const [selectedReason, setSelectedReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [blockLaneApp] = useState(false);
+
   if (!isOpen) return null;
 
   // Check if any slot is disabled (blocked)
@@ -29,7 +43,10 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
         if (e.key === 'Escape') onClose();
       }}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
+      <div
+        className="w-full max-w-[95%] overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-w-lg md:max-w-xl"
+        role="dialog"
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#B3DADA] bg-gradient-to-r from-[#F8FAFA] to-[#EDF5F5] px-6 py-5">
           <h2 className="text-[18px] font-semibold text-[#21295A]">Lane {lane.laneNo}</h2>
@@ -67,12 +84,61 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
             </div>
           </div>
 
+          {/* Block Reason Selection - Only show when lane is not blocked */}
+          {!isLaneBlocked && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
+              <div className="space-y-3">
+                <select
+                  className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                  value={selectedReason}
+                  onChange={e => {
+                    setSelectedReason(e.target.value);
+                    setCustomReason('');
+                  }}
+                >
+                  {BLOCK_REASONS.map(reason => (
+                    <option key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </option>
+                  ))}
+                </select>
+                {selectedReason && (
+                  <input
+                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    placeholder={`Enter details for ${selectedReason}...`}
+                    type="text"
+                    value={customReason}
+                    onChange={e => setCustomReason(e.target.value)}
+                  />
+                )}
+                {/* Block Lane App Checkbox */}
+                {/* <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#E5F0F0] bg-gradient-to-br from-[#F8FAFA] to-[#FFFFFF] p-4 transition-all hover:border-[#B3DADA]">
+                  <input
+                    checked={blockLaneApp}
+                    className="h-5 w-5 cursor-pointer rounded border-[#B3DADA] text-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    type="checkbox"
+                    onChange={e => setBlockLaneApp(e.target.checked)}
+                  />
+                  <span className="text-[14px] font-medium text-[#21295A]">Block this lane on the app</span>
+                </label> */}
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex gap-3">
             <button
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-              disabled={isLoading}
-              onClick={onLaneClick}
+              disabled={isLoading || (!isLaneBlocked && (!selectedReason || !customReason.trim()))}
+              onClick={() => {
+                if (isLaneBlocked) {
+                  onLaneClick();
+                } else {
+                  const reason = `${selectedReason}: ${customReason.trim()}`;
+                  onLaneClick(reason, blockLaneApp);
+                }
+              }}
             >
               {isLoading ? (
                 <>

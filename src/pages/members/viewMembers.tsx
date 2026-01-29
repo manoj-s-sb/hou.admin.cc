@@ -82,8 +82,8 @@ const ViewMembers = () => {
   // Helper function to get health declaration value
   const getHealthDeclarationValue = (id: string) => {
     if (!memberDetails.userProfile?.healthDeclaration) return 'N/A';
-    const item = memberDetails.userProfile.healthDeclaration.find((item: any) => item.id === id);
-    return item?.selectedOption || 'N/A';
+    const item = memberDetails.userProfile.healthDeclaration.find((item: any) => item.id === id) as any;
+    return item?.selectedOption || item?.selectedOptions || 'N/A';
   };
 
   return (
@@ -548,7 +548,12 @@ const ViewMembers = () => {
                       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                         <p className="mb-2 text-xs font-medium uppercase text-gray-500">Health Condition Details</p>
                         <p className="text-base font-semibold text-gray-900">
-                          {getHealthDeclarationValue('healthConditionDetails') || 'N/A'}
+                          {(() => {
+                            const value = getHealthDeclarationValue('healthConditionDetails');
+                            if (!value || value === 'N/A') return 'N/A';
+                            if (Array.isArray(value)) return value.join(', ');
+                            return value;
+                          })()}
                         </p>
                       </div>
                       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">

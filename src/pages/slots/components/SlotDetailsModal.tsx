@@ -1,11 +1,21 @@
+import { useState } from 'react';
+
 import { Slot } from '../../../store/slots/types';
+
+const BLOCK_REASONS = [
+  { value: '', label: 'Select a reason' },
+  { value: 'Scheduled Maintenance', label: 'Scheduled Maintenance' },
+  { value: 'Out of service', label: 'Out of service' },
+  { value: 'For Demo', label: 'For Demo' },
+  { value: 'Others', label: 'Others' },
+];
 
 interface SlotDetailsModalProps {
   slot: Slot | null;
   laneNo: number;
   isOpen: boolean;
   onClose: () => void;
-  onBlockSlot: () => void;
+  onBlockSlot: (reason: string) => void;
   onUnblockSlot: () => void;
   isLoading?: boolean;
   timeSlot: string;
@@ -23,6 +33,9 @@ const SlotDetailsModal = ({
   timeSlot,
   nextTimeSlot,
 }: SlotDetailsModalProps) => {
+  const [selectedReason, setSelectedReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+
   if (!isOpen || !slot) return null;
 
   const isAvailable = slot.status?.toLowerCase() === 'available';
@@ -53,7 +66,10 @@ const SlotDetailsModal = ({
         if (e.key === 'Escape') onClose();
       }}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
+      <div
+        className="w-full max-w-[95%] overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-w-lg md:max-w-xl"
+        role="dialog"
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#B3DADA] bg-gradient-to-r from-[#F8FAFA] to-[#EDF5F5] px-6 py-5">
           <h2 className="text-[18px] font-semibold text-[#21295A]">Slot Details - Lane {laneNo}</h2>
@@ -85,6 +101,36 @@ const SlotDetailsModal = ({
                   {statusBadge.text}
                 </span>
               </div>
+
+              {/* Disabled Details - Show if slot is blocked/disabled */}
+              {isBlocked && (slot.disableReason || slot.disabledAt) && (
+                <div className="mt-2 border-t border-red-100 pt-3">
+                  <div className="mb-2">
+                    <span className="text-[14px] font-semibold text-red-600">Disabled Info</span>
+                  </div>
+                  <div className="space-y-2 rounded-lg bg-red-50 p-3">
+                    {slot.disableReason && (
+                      <div className="flex justify-between">
+                        <span className="text-[13px] text-gray-600">Reason:</span>
+                        <span className="max-w-[300px] text-right text-[13px] font-medium text-red-600">
+                          {slot.disableReason}
+                        </span>
+                      </div>
+                    )}
+                    {slot.disabledAt && (
+                      <div className="flex justify-between">
+                        <span className="text-[13px] text-gray-600">Disabled At:</span>
+                        <span className="text-[13px] font-medium text-red-600">
+                          {new Date(slot.disabledAt).toLocaleString('en-US', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Booking Details - Show if slot is booked */}
               {isBooked && slot.booking?.user && (
@@ -165,13 +211,48 @@ const SlotDetailsModal = ({
             </div>
           </div>
 
+          {/* Block Reason Selection - Only show for available slots */}
+          {isAvailable && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
+              <div className="space-y-3">
+                <select
+                  className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                  value={selectedReason}
+                  onChange={e => {
+                    setSelectedReason(e.target.value);
+                    setCustomReason('');
+                  }}
+                >
+                  {BLOCK_REASONS.map(reason => (
+                    <option key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </option>
+                  ))}
+                </select>
+                {selectedReason && (
+                  <input
+                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    placeholder={`Enter details for ${selectedReason}...`}
+                    type="text"
+                    value={customReason}
+                    onChange={e => setCustomReason(e.target.value)}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons - Only show for StanceBeam admins */}
           <div className="flex justify-center gap-3">
             {isAvailable && (
               <button
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                disabled={isLoading}
-                onClick={onBlockSlot}
+                disabled={isLoading || !selectedReason || !customReason.trim()}
+                onClick={() => {
+                  const reason = `${selectedReason}: ${customReason.trim()}`;
+                  onBlockSlot(reason);
+                }}
               >
                 {isLoading ? (
                   <>

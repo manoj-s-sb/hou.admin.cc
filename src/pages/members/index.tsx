@@ -317,7 +317,6 @@ const Members = () => {
                 <option value="">All</option>
                 <option value="annual">Annual</option>
                 <option value="fortnightly">Fortnightly</option>
-                <option value="offpeak">Offpeak</option>
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -351,6 +350,7 @@ const Members = () => {
                 <option value="active">Active</option>
                 <option value="pendingactivation">Pending Activation</option>
                 <option value="paused">Paused</option>
+                <option value="past_due">Payment Failed</option>
                 <option value="canceled">Cancelled</option>
                 <option value="resumed">Resumed</option>
                 <option value="inactive">Inactive</option>
