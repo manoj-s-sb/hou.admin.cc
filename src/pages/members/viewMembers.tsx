@@ -15,6 +15,7 @@ import {
   X,
   Activity,
   TrendingUp,
+  Phone,
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -33,6 +34,7 @@ const ViewMembers = () => {
   const navigate = useNavigate();
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [expandedCycles, setExpandedCycles] = useState<number[]>([]);
+  const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
 
   const { userId } = useParams();
 
@@ -40,6 +42,10 @@ const ViewMembers = () => {
     setExpandedCycles(prev =>
       prev.includes(cycleNumber) ? prev.filter(num => num !== cycleNumber) : [...prev, cycleNumber]
     );
+  };
+
+  const toggleMember = (memberId: string) => {
+    setExpandedMembers(prev => (prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]));
   };
 
   useEffect(() => {
@@ -100,7 +106,7 @@ const ViewMembers = () => {
         />
 
         {/* Unified Content Layout */}
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-3 sm:space-y-4">
           {/* Member Header Card */}
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 px-4 py-6 sm:px-6 sm:py-8">
@@ -162,51 +168,48 @@ const ViewMembers = () => {
 
           {/* Subscription Details Card */}
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            {/* Subscription Details Card */}
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
-                <div className="flex items-center">
-                  <CreditCard className="mr-2 h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Subscription Details</h2>
-                </div>
+            <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
+              <div className="flex items-center">
+                <CreditCard className="mr-2 h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Subscription Details</h2>
               </div>
-              <div className="px-4 py-4 sm:px-6 sm:py-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Subscription Code</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.subscription.subscriptionCode}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Billing Cycle</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.subscription.billingCycle}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Current Period Start</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {formatDate(memberDetails.subscription.currentPeriodStart)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Current Period End</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {formatDate(memberDetails.subscription.currentPeriodEnd)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Next Billing Date</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {formatDate(memberDetails.subscription.currentPeriodEnd)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Pricing</p>
-                    <p className="text-base font-semibold text-green-600">$ {memberDetails.pricing.totalPrice} USD</p>
-                    <p className="mt-1 text-xs text-gray-500">{memberDetails.subscription.billingCycle}</p>
-                  </div>
+            </div>
+            <div className="px-4 py-3 sm:px-6 sm:py-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Subscription Code</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.subscription.subscriptionCode}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Billing Cycle</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.subscription.billingCycle}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period Start</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {formatDate(memberDetails.subscription.currentPeriodStart)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period End</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {formatDate(memberDetails.subscription.currentPeriodEnd)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Next Billing Date</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {formatDate(memberDetails.subscription.currentPeriodEnd)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Pricing</p>
+                  <p className="text-base font-semibold text-green-600">$ {memberDetails.pricing.totalPrice} USD</p>
+                  <p className="mt-1 text-xs text-gray-500">{memberDetails.subscription.billingCycle}</p>
                 </div>
               </div>
             </div>
@@ -215,7 +218,7 @@ const ViewMembers = () => {
           {/* Slot Usage & Cycle Details - Accordion Style */}
           {memberDetails.slotUsageTable?.cycles && (
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
+              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Activity className="mr-2 h-5 w-5 text-blue-600" />
@@ -228,9 +231,9 @@ const ViewMembers = () => {
                 </div>
               </div>
 
-              <div className="px-4 py-4 sm:px-6 sm:py-5">
+              <div className="px-4 py-3 sm:px-6 sm:py-4">
                 {/* Cycles Accordion */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {memberDetails.slotUsageTable.cycles.map((cycle, index) => {
                     const isExpanded = expandedCycles.includes(cycle.cycleNumber);
 
@@ -245,7 +248,7 @@ const ViewMembers = () => {
                           type="button"
                           onClick={() => toggleCycle(cycle.cycleNumber)}
                         >
-                          <div className="flex items-center justify-between px-4 py-4">
+                          <div className="flex items-center justify-between px-4 py-3">
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
                                 <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -296,74 +299,47 @@ const ViewMembers = () => {
                             isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
                           }`}
                         >
-                          <div className="border-t border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-4">
+                          <div className="border-t border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3">
                             {/* Detailed Stats Table */}
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                               {/* New Slots */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
-                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
+                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
                                   New Slots
                                 </p>
                                 <p className="text-2xl font-bold text-blue-600">{cycle.newSlots}</p>
                               </div>
 
                               {/* Carried Forward */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
-                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
+                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
                                   Carried Over
                                 </p>
                                 <p className="text-2xl font-bold text-purple-600">{cycle.carriedFromPrevious}</p>
                               </div>
 
                               {/* Total Available */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
-                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
+                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
                                   Total Available
                                 </p>
                                 <p className="text-2xl font-bold text-green-600">{cycle.totalAvailable}</p>
                               </div>
 
                               {/* Slots Used */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
-                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
+                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
                                   Slots Used
                                 </p>
                                 <p className="text-2xl font-bold text-orange-600">{cycle.slotsUsed}</p>
                               </div>
 
                               {/* Unused Slots */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-4 shadow-sm">
-                                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
+                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
                                   Remaining
                                 </p>
                                 <p className="text-2xl font-bold text-teal-600">{cycle.unused}</p>
-                              </div>
-                            </div>
-
-                            {/* Additional Cycle Details */}
-                            <div className="mt-4 rounded-lg bg-white p-4 shadow-sm">
-                              <h4 className="mb-3 text-sm font-semibold text-gray-700">Period Details</h4>
-                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                                  <span className="text-xs font-medium text-gray-500">Cycle Number</span>
-                                  <span className="text-sm font-bold text-gray-900">#{cycle.cycleNumber}</span>
-                                </div>
-                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                                  <span className="text-xs font-medium text-gray-500">Month Number</span>
-                                  <span className="text-sm font-bold text-gray-900">Month {cycle.monthNumber}</span>
-                                </div>
-                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                                  <span className="text-xs font-medium text-gray-500">Period Start</span>
-                                  <span className="text-sm font-semibold text-gray-900">
-                                    {formatDate(cycle.periodStart)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                                  <span className="text-xs font-medium text-gray-500">Period End</span>
-                                  <span className="text-sm font-semibold text-gray-900">
-                                    {formatDate(cycle.periodEnd)}
-                                  </span>
-                                </div>
                               </div>
                             </div>
 
@@ -402,76 +378,76 @@ const ViewMembers = () => {
           {/* Player Profile Section */}
           {memberDetails.playerProfile && (
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
+              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
                 <div className="flex items-center">
                   <User className="mr-2 h-5 w-5 text-blue-600" />
                   <h2 className="text-lg font-semibold text-gray-900">Player Profile</h2>
                 </div>
               </div>
-              <div className="px-4 py-4 sm:px-6 sm:py-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Player Type</p>
+              <div className="px-4 py-3 sm:px-6 sm:py-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Type</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.playerType || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Player Status</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Status</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.playerStatus || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Experience Level</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Experience Level</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.experienceLevel || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Batting Style</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Style</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.battingStyle || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.battingHand || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.batsmanType || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Bowling Style</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Style</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.bowlingStyle || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Bowling Hand</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Hand</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.bowlingHand || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Bowler Role</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Role</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.bowlerRole || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Bowler Type</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Type</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.bowlerType || 'N/A'}
                     </p>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 sm:col-span-2">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Cricketing Goal</p>
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Cricketing Goal</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.cricketingGoal || 'N/A'}
                     </p>
@@ -484,50 +460,50 @@ const ViewMembers = () => {
           {/* Personal & Health Profile Section */}
           {memberDetails.userProfile && (
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
+              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
                 <div className="flex items-center">
                   <Shield className="mr-2 h-5 w-5 text-blue-600" />
                   <h2 className="text-lg font-semibold text-gray-900">Personal & Health Profile</h2>
                 </div>
               </div>
-              <div className="px-4 py-4 sm:px-6 sm:py-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Gender</p>
+              <div className="px-4 py-3 sm:px-6 sm:py-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Gender</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.userProfile.gender || 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Phone</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Phone</p>
                     <p className="text-base font-semibold text-gray-900">{memberDetails.userProfile.phone || 'N/A'}</p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
                     <p className="text-base font-semibold text-gray-900">
                       {memberDetails.userProfile.dateOfBirth
                         ? formatDate(memberDetails.userProfile.dateOfBirth)
                         : 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Height</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Height</p>
                     <p className="text-base font-semibold text-gray-900">
                       {memberDetails.userProfile.height?.value
                         ? `${memberDetails.userProfile.height.value} ${memberDetails.userProfile.height.unit || ''}`
                         : 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Weight</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Weight</p>
                     <p className="text-base font-semibold text-gray-900">
                       {memberDetails.userProfile.weight?.value
                         ? `${memberDetails.userProfile.weight.value} ${memberDetails.userProfile.weight.unit || ''}`
                         : 'N/A'}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-2 text-xs font-medium uppercase text-gray-500">Units of Measure</p>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Units of Measure</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.userProfile.unitsOfMeasure || 'N/A'}
                     </p>
@@ -536,17 +512,17 @@ const ViewMembers = () => {
 
                 {/* Health Declaration */}
                 {memberDetails.userProfile.healthDeclaration && (
-                  <div className="mt-6 border-t border-gray-200 pt-6">
-                    <h3 className="mb-4 text-sm font-semibold uppercase text-gray-700">Health Declaration</h3>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                        <p className="mb-2 text-xs font-medium uppercase text-gray-500">Health Conditions</p>
+                  <div className="mt-4 border-t border-gray-200 pt-4">
+                    <h3 className="mb-3 text-sm font-semibold uppercase text-gray-700">Health Declaration</h3>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Conditions</p>
                         <p className="text-base font-semibold capitalize text-gray-900">
                           {getHealthDeclarationValue('healthConditions')}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                        <p className="mb-2 text-xs font-medium uppercase text-gray-500">Health Condition Details</p>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Condition Details</p>
                         <p className="text-base font-semibold text-gray-900">
                           {(() => {
                             const value = getHealthDeclarationValue('healthConditionDetails');
@@ -556,26 +532,26 @@ const ViewMembers = () => {
                           })()}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                        <p className="mb-2 text-xs font-medium uppercase text-gray-500">Doctor Advice</p>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Doctor Advice</p>
                         <p className="text-base font-semibold capitalize text-gray-900">
                           {getHealthDeclarationValue('doctorAdvice')}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                        <p className="mb-2 text-xs font-medium uppercase text-gray-500">Current Injuries</p>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Injuries</p>
                         <p className="text-base font-semibold capitalize text-gray-900">
                           {getHealthDeclarationValue('currentInjuries')}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                        <p className="mb-2 text-xs font-medium uppercase text-gray-500">Injury Details</p>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Injury Details</p>
                         <p className="text-base font-semibold text-gray-900">
                           {getHealthDeclarationValue('injuryDetails') || 'N/A'}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                        <p className="mb-2 text-xs font-medium uppercase text-gray-500">Allergies</p>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Allergies</p>
                         <p className="text-base font-semibold capitalize text-gray-900">
                           {getHealthDeclarationValue('allergies')}
                         </p>
@@ -583,6 +559,244 @@ const ViewMembers = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Emergency Details Section */}
+          {memberDetails.emergencyContacts && memberDetails.emergencyContacts.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
+                <div className="flex items-center">
+                  <Phone className="mr-2 h-5 w-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Emergency Details</h2>
+                </div>
+              </div>
+              <div className="px-4 py-3 sm:px-6 sm:py-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {memberDetails.emergencyContacts.flatMap((contact: any, index: number) => [
+                    <div key={`${index}-name`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Name` : 'Name'}
+                      </p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {contact.firstName && contact.lastName
+                          ? `${contact.firstName} ${contact.lastName}`
+                          : contact.firstName || contact.lastName || 'N/A'}
+                      </p>
+                    </div>,
+                    <div key={`${index}-relationship`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Relationship` : 'Relationship'}
+                      </p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {contact.relationship || 'N/A'}
+                      </p>
+                    </div>,
+                    <div key={`${index}-phone`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Phone` : 'Phone'}
+                      </p>
+                      <p className="text-base font-semibold text-gray-900">{contact.phone || 'N/A'}</p>
+                    </div>,
+                    <div key={`${index}-email`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Email` : 'Email'}
+                      </p>
+                      <p className="text-base font-semibold text-gray-900">{contact.email || 'N/A'}</p>
+                    </div>,
+                  ])}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Additional Members Section */}
+          {memberDetails.members && memberDetails.members.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-200 bg-white px-3 py-2 sm:px-6 sm:py-3">
+                <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
+                  <div className="flex items-center">
+                    <User className="mr-2 h-5 w-5 text-blue-600" />
+                    <h2 className="text-base font-semibold text-gray-900 sm:text-lg">Additional Members</h2>
+                  </div>
+                  <div className="text-xs text-gray-500 sm:text-sm">
+                    Total Members: <span className="font-semibold text-blue-600">{memberDetails.members.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-3 py-3 sm:px-6 sm:py-4">
+                <div className="space-y-2">
+                  {memberDetails.members.map(member => {
+                    const isExpanded = expandedMembers.includes(member.userId);
+
+                    return (
+                      <div
+                        key={member.userId}
+                        className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md"
+                      >
+                        {/* Accordion Header - Clickable */}
+                        <button
+                          className="w-full text-left transition-colors hover:bg-gray-50"
+                          type="button"
+                          onClick={() => toggleMember(member.userId)}
+                        >
+                          <div className="flex items-center justify-between px-3 py-3 sm:px-4">
+                            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                              <div className="relative flex-shrink-0">
+                                {member.profileImageUrl ? (
+                                  <img
+                                    alt={`${member.firstName} ${member.lastName}`}
+                                    className="h-10 w-10 rounded-full border-2 border-gray-200 object-cover"
+                                    src={member.profileImageUrl}
+                                  />
+                                ) : (
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-gray-200 bg-gradient-to-br from-gray-100 to-gray-200">
+                                    <User className="h-5 w-5 text-gray-400" />
+                                  </div>
+                                )}
+                                {member.isActivePlayer && (
+                                  <div className="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-white bg-green-500 p-0.5">
+                                    <CheckCircle className="h-3 w-3 text-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="truncate text-sm font-bold text-gray-900 sm:text-base">
+                                  {member.firstName} {member.lastName}
+                                </h3>
+                                <p className="truncate text-xs text-gray-500">{member.email}</p>
+                              </div>
+                            </div>
+
+                            {/* Expand Icon */}
+                            <div
+                              className={`ml-2 flex-shrink-0 rounded-full p-1 transition-all duration-200 ${isExpanded ? 'bg-blue-100' : 'bg-gray-100'}`}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5 text-gray-600" />
+                              )}
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Accordion Content - Expandable */}
+                        <div
+                          className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                            isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                          }`}
+                        >
+                          <div className="border-t border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-3 py-3 sm:px-4">
+                            {/* Basic Info */}
+                            <div className="mb-3 rounded-lg bg-white p-3 shadow-sm">
+                              <h4 className="mb-2 text-sm font-semibold text-gray-700">Basic Information</h4>
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
+                                  <p className="text-base font-semibold text-gray-900">
+                                    {member.dateOfBirth ? formatDate(member.dateOfBirth) : 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Email</p>
+                                  <p className="text-base font-semibold text-gray-900">{member.email || 'N/A'}</p>
+                                </div>
+                                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Status</p>
+                                  <p className="text-base font-semibold capitalize text-gray-900">
+                                    {member.isActivePlayer ? 'Active Player' : 'Inactive'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Player Profile */}
+                            {member.playerProfile && (
+                              <div className="rounded-lg bg-white p-3 shadow-sm">
+                                <h4 className="mb-2 text-sm font-semibold text-gray-700">Player Profile</h4>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Type</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.playerType || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Status</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.playerStatus || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                      Experience Level
+                                    </p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.experienceLevel || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Style</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.battingStyle || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.battingHand || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.batsmanType || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Style</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.bowlingStyle || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Hand</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.bowlingHand || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Role</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.bowlerRole || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Type</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.bowlerType || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 sm:col-span-2">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                      Cricketing Goal
+                                    </p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.playerProfile.cricketingGoal || 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

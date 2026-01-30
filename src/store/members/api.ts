@@ -80,3 +80,11 @@ export const activateUserSubscription = createAsyncThunk(
     }
   }
 );
+export const getMembersCount = createAsyncThunk('members/getMembersCount', async (_, { rejectWithValue }) => {
+  try {
+    const response = await api.post(endpoints.members.membersCount);
+    return response.data;
+  } catch (error: any) {
+    return rejectWithValue(handleApiError(error, 'Failed to fetch members count'));
+  }
+});
