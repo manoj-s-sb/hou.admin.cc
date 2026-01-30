@@ -6,8 +6,8 @@ import SectionTitle from '../../components/SectionTitle';
 import { getSlots } from '../../store/slots/api';
 import { AppDispatch, RootState } from '../../store/store';
 
-import CalendarHeader from './components/calendarHeader';
 import CalendarBody from './components/calendarBody';
+import CalendarHeader from './components/calendarHeader';
 
 const SlotBookings: React.FC = () => {
   const { slots, isLoading } = useSelector((state: RootState) => state.slots);
