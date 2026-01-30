@@ -9,6 +9,7 @@ const endpoints = {
   members: {
     list: '/admin/members/list',
     membersDetails: '/admin/member/details',
+    membersCount: '/admin/members/stats',
   },
   tour: {
     updateTourStatus: '/admin/bookings/tour/status/update',

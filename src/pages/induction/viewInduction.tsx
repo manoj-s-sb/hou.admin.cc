@@ -10,6 +10,7 @@ import { SubStep } from '../../store/induction/types';
 import { activateUserSubscription } from '../../store/members/api';
 import { RootState, AppDispatch } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
+import { logger } from '../../utils/logger';
 
 import InductionAccordionItem from './components/InductionAccordionItem';
 
@@ -50,7 +51,7 @@ const ViewInduction = () => {
           }
         })
         .catch((error: any) => {
-          console.error('Error fetching user induction details:', error);
+          logger.error('Error fetching user induction details', error, { userId });
           toast.error('Failed to load induction details');
         })
         .finally(() => {

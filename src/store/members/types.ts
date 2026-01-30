@@ -91,6 +91,21 @@ export interface MemberListResponse {
   total: number;
 }
 
+export interface PlayerProfileDetails {
+  batsmanType: string;
+
+  battingHand: string;
+  battingStyle: string;
+  bowlerRole: string;
+  bowlerType: string;
+  bowlingHand: string;
+  bowlingStyle: string;
+  cricketingGoal: string;
+  experienceLevel: string;
+  playerStatus: string;
+  playerType: string;
+}
+
 export interface AdditionalMemberDetails {
   firstName: string;
   lastName: string;
@@ -99,6 +114,7 @@ export interface AdditionalMemberDetails {
   userId: string;
   dateOfBirth: string;
   isActivePlayer: boolean;
+  playerProfile: PlayerProfileDetails;
 }
 
 export interface MembersSubscription {
@@ -139,6 +155,14 @@ export interface SlotUsageTable {
     totalUsed: number;
   };
 }
+
+export interface EmergencyContacts {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  relationship: string;
+}
 export interface MemberDetailsResponse {
   slotUsageTable: SlotUsageTable;
   firstName: string;
@@ -152,6 +176,7 @@ export interface MemberDetailsResponse {
   subscription: MembersSubscription;
   members: AdditionalMemberDetails[];
   playerProfile?: PlayerProfile;
+  emergencyContacts: [];
   userProfile?: userProfile;
 }
 
@@ -160,23 +185,44 @@ export interface ActivateSubscriptionRequest {
   adminId: string;
   adminName: string;
 }
+
+export interface MembersCountResponse {
+  premiumFortnightly: number;
+  premiumAnnual: number;
+  standardFortnightly: number;
+  standardAnnual: number;
+  familyFortnightly: number;
+  familyAnnual: number;
+  offpeakFortnightly: number;
+  offpeakAnnual: number;
+  activeCount: number;
+  cancelledCount: number;
+  pendingActivationCount: number;
+  total: number;
+  activeMembersCount: number;
+  inactiveMembersCount: number;
+}
 export interface MembersInitialState {
   isLoading: boolean;
+  membersCountLoading: boolean;
   error: string | null | any;
   membersList: MemberListResponse;
   memberDetails: MemberDetailsResponse | null;
   isSubscriptionActivation: boolean;
+  membersCount: MembersCountResponse | null;
 }
 
 export const initialState: MembersInitialState = {
   isLoading: false,
+  membersCountLoading: false,
   error: '',
   membersList: {
     members: [],
-    limit: 15,
+    limit: 20,
     skip: 0,
     total: 0,
   },
   memberDetails: null,
   isSubscriptionActivation: false,
+  membersCount: null,
 };

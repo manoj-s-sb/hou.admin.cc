@@ -35,6 +35,8 @@ export interface Slot {
   status: string;
   isBooked: boolean;
   booking?: Partial<BookingDetails>;
+  disableReason?: string;
+  disabledAt?: string;
 }
 
 export interface Lanes {
@@ -63,6 +65,7 @@ export interface UpdateLaneStatusRequest {
   action: string;
   reason: string;
   slotCode?: string;
+  blockLaneApp?: boolean;
 }
 
 export interface CoachSlotsRequest {

@@ -41,9 +41,17 @@ const CoachScheduleGrid: React.FC<{
   // Multi-select state
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
+  const selectedSlotsRef = useRef<Set<string>>(new Set()); // Keep ref in sync with state for accurate reads
   const [selectionMode, setSelectionMode] = useState(false);
   const selectionStartRef = useRef<SlotKey | null>(null);
+  const startCellSelectedRef = useRef(false); // was start cell already selected at mousedown (for click-vs-drag)
+  const gestureCellsRef = useRef<Set<string>>(new Set()); // cells touched during current gesture
   const [selectionTypeRestriction, setSelectionTypeRestriction] = useState<'available' | 'unavailable' | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedSlotsRef.current = selectedSlots;
+  }, [selectedSlots]);
 
   // API state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -281,7 +289,9 @@ const CoachScheduleGrid: React.FC<{
     setSelectionMode(!selectionMode);
     if (selectionMode) {
       // Exiting selection mode - clear selections and restriction
-      setSelectedSlots(new Set());
+      const emptySet = new Set<string>();
+      setSelectedSlots(emptySet);
+      selectedSlotsRef.current = emptySet;
       setSelectionTypeRestriction(null);
     }
   };
@@ -314,37 +324,33 @@ const CoachScheduleGrid: React.FC<{
     const coachSlotCode = slot?.coachSlotCode || `temp-${dateIndex}-${slotIndex}`;
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
 
-    // Don't allow selecting 'not-set' or 'booked' slots
-    if (slotStatus === 'not-set' || slotStatus === 'booked') return;
+    // Don't allow selecting 'booked' slots
+    if (slotStatus === 'booked') return;
 
-    const newSelected = new Set(selectedSlots);
+    // Check restriction before adding (use current state via callback)
+    if (selectionTypeRestriction && slotStatus !== 'not-set' && slotStatus !== selectionTypeRestriction) {
+      return;
+    }
 
-    if (newSelected.has(coachSlotCode)) {
-      // Deselecting
-      newSelected.delete(coachSlotCode);
+    setSelectedSlots(prev => {
+      const newSelected = new Set(prev);
 
-      // If no more selections, clear the restriction
-      if (newSelected.size === 0) {
-        setSelectionTypeRestriction(null);
+      if (newSelected.has(coachSlotCode)) {
+        newSelected.delete(coachSlotCode);
+        if (newSelected.size === 0) {
+          setSelectionTypeRestriction(null);
+        }
+        return newSelected;
       }
-    } else {
-      // Selecting
 
-      // If this is the first selection, set the restriction based on this slot's type
-      if (newSelected.size === 0) {
+      // First selection in this batch: set restriction if slot has status
+      if (newSelected.size === 0 && (slotStatus === 'available' || slotStatus === 'unavailable')) {
         setSelectionTypeRestriction(slotStatus as 'available' | 'unavailable');
       }
 
-      // Check if this slot matches the restriction type
-      if (selectionTypeRestriction && slotStatus !== selectionTypeRestriction) {
-        // Don't allow selecting slots of different type
-        return;
-      }
-
       newSelected.add(coachSlotCode);
-    }
-
-    setSelectedSlots(newSelected);
+      return newSelected;
+    });
   };
 
   // Handle mouse down to start drag selection
@@ -354,8 +360,35 @@ const CoachScheduleGrid: React.FC<{
     const date = displayedDates[dateIndex];
     if (date.isHoliday) return;
 
+    const timeSlot = timeSlots[slotIndex];
+    const slot = findSlotByIndices(dateIndex, timeSlot);
+    const coachSlotCode = slot?.coachSlotCode || `temp-${dateIndex}-${slotIndex}`;
+    const slotStatus = getSlotStatus(dateIndex, slotIndex);
+
+    // Don't allow selecting 'booked' slots
+    if (slotStatus === 'booked') return;
+
+    // Use ref for accurate "was already selected" check (avoids stale closure)
+    startCellSelectedRef.current = selectedSlotsRef.current.has(coachSlotCode);
+    gestureCellsRef.current = new Set([coachSlotCode]);
+
     setIsSelecting(true);
     selectionStartRef.current = { dateIndex, slotIndex };
+
+    // Check restriction before adding
+    if (selectionTypeRestriction && slotStatus !== 'not-set' && slotStatus !== selectionTypeRestriction) {
+      return;
+    }
+
+    // Use functional updater so we always add to the latest selection (fixes "second click loses first")
+    setSelectedSlots(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.size === 0 && (slotStatus === 'available' || slotStatus === 'unavailable')) {
+        setSelectionTypeRestriction(slotStatus as 'available' | 'unavailable');
+      }
+      newSelected.add(coachSlotCode);
+      return newSelected;
+    });
   };
 
   // Handle mouse enter for drag selection
@@ -370,30 +403,57 @@ const CoachScheduleGrid: React.FC<{
     const coachSlotCode = slot?.coachSlotCode || `temp-${dateIndex}-${slotIndex}`;
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
 
-    // Don't allow selecting 'not-set' or 'booked' slots
-    if (slotStatus === 'not-set' || slotStatus === 'booked') return;
+    // Don't allow selecting 'booked' slots
+    if (slotStatus === 'booked') return;
 
-    // Check if this slot matches the restriction type
-    if (selectionTypeRestriction && slotStatus !== selectionTypeRestriction) {
+    // Check if this slot matches the restriction type (skip check for 'not-set' slots)
+    if (selectionTypeRestriction && slotStatus !== 'not-set' && slotStatus !== selectionTypeRestriction) {
       return;
     }
 
-    const newSelected = new Set(selectedSlots);
+    gestureCellsRef.current.add(coachSlotCode);
 
-    // Set restriction on first selection during drag
-    if (newSelected.size === 0) {
-      setSelectionTypeRestriction(slotStatus as 'available' | 'unavailable');
-    }
-
-    newSelected.add(coachSlotCode);
-    setSelectedSlots(newSelected);
+    // Use functional updater so we always add to the latest selection during drag
+    setSelectedSlots(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.size === 0 && (slotStatus === 'available' || slotStatus === 'unavailable')) {
+        setSelectionTypeRestriction(slotStatus as 'available' | 'unavailable');
+      }
+      newSelected.add(coachSlotCode);
+      return newSelected;
+    });
   };
 
-  // Handle mouse up to end selection
+  // Handle mouse up on a cell: treat same-cell release as click (toggle); used because preventDefault on mousedown blocks click
+  const handleSlotMouseUpOnCell = (dateIndex: number, slotIndex: number) => {
+    if (!selectionMode || !isSelecting) return;
+
+    const start = selectionStartRef.current;
+    const sameCell = start?.dateIndex === dateIndex && start?.slotIndex === slotIndex;
+    const gestureSize = gestureCellsRef.current?.size ?? 0;
+
+    // If it's a simple click (same cell, no drag), handle toggle
+    if (sameCell && gestureSize === 1) {
+      // If the cell was already selected at mousedown, toggle it off
+      // If it wasn't selected, it was added in mousedown, so we do nothing (keep it selected)
+      if (startCellSelectedRef.current) {
+        toggleSlotSelection(dateIndex, slotIndex);
+      }
+      // If it wasn't selected, it's already been added in mousedown, so we're done
+    }
+    // If gestureSize > 1, it was a drag - selections already handled in mousedown/mouseenter
+
+    setIsSelecting(false);
+    selectionStartRef.current = null;
+    gestureCellsRef.current = new Set();
+  };
+
+  // Handle mouse up to end selection (document-level)
   const handleSlotMouseUp = useCallback(() => {
     if (selectionMode) {
       setIsSelecting(false);
       selectionStartRef.current = null;
+      gestureCellsRef.current = new Set();
     }
   }, [selectionMode]);
 
@@ -504,7 +564,9 @@ const CoachScheduleGrid: React.FC<{
         toast.success(`${selectedSlots.size} slot(s) marked as ${isAvailable ? 'available' : 'unavailable'}`);
 
         // Clear selection after applying
-        setSelectedSlots(new Set());
+        const emptySet = new Set<string>();
+        setSelectedSlots(emptySet);
+        selectedSlotsRef.current = emptySet;
         setSelectionTypeRestriction(null);
         setSelectionMode(false);
       } else {
@@ -519,7 +581,9 @@ const CoachScheduleGrid: React.FC<{
 
   // Clear all selections
   const clearSelections = () => {
-    setSelectedSlots(new Set());
+    const emptySet = new Set<string>();
+    setSelectedSlots(emptySet);
+    selectedSlotsRef.current = emptySet;
     setSelectionTypeRestriction(null);
   };
 
@@ -537,11 +601,14 @@ const CoachScheduleGrid: React.FC<{
 
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
 
-    // Can't select not-set, holiday, or booked slots
-    if (slotStatus === 'not-set' || slotStatus === 'holiday' || slotStatus === 'booked') return false;
+    // Can't select holiday or booked slots
+    if (slotStatus === 'holiday' || slotStatus === 'booked') return false;
 
-    // If no restriction yet, any available/unavailable slot can be selected
+    // If no restriction yet, any slot (including not-set) can be selected
     if (!selectionTypeRestriction) return true;
+
+    // 'not-set' slots can always be selected regardless of restriction
+    if (slotStatus === 'not-set') return true;
 
     // If there's a restriction, only slots matching the restriction can be selected
     return slotStatus === selectionTypeRestriction;
@@ -771,34 +838,67 @@ const CoachScheduleGrid: React.FC<{
           </div>
         </div>
 
+        {/* Desktop Selection Actions Bar - Outside scrollable container for full visibility */}
+        {selectionMode && selectedSlots.size > 0 && (
+          <div className="hidden flex-wrap items-center gap-2 border-b border-[#B3DADA] bg-[#F8FAFC] px-3 py-2.5 lg:px-5 lg:py-3 desktop:flex">
+            <span className="text-[12px] font-medium text-[#64748B] lg:text-[13px]">{selectedSlots.size} selected</span>
+            <button
+              className="rounded-[8px] bg-[#10B981] px-2 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#059669] disabled:cursor-not-allowed disabled:opacity-50 lg:px-3 lg:py-2 lg:text-[13px]"
+              disabled={selectionTypeRestriction === 'available'}
+              type="button"
+              onClick={() => setMultipleSlotAvailability(true)}
+            >
+              ✓ Available
+            </button>
+            <button
+              className="rounded-[8px] bg-[#EF4444] px-2 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50 lg:px-3 lg:py-2 lg:text-[13px]"
+              disabled={selectionTypeRestriction === 'unavailable'}
+              type="button"
+              onClick={() => setMultipleSlotAvailability(false)}
+            >
+              ✕ Unavailable
+            </button>
+            <button
+              className="rounded-[8px] border border-[#E2E8F0] bg-white px-2 py-1.5 text-[12px] font-medium text-[#64748B] transition hover:bg-[#F8FAFC] lg:px-3 lg:py-2 lg:text-[13px]"
+              type="button"
+              onClick={clearSelections}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
         <div className="relative max-h-[calc(55vh+65px)] overflow-x-auto overflow-y-auto desktop:max-h-[calc(65vh+70px)]">
           <div className="min-w-fit">
             {/* Mobile Layout */}
             <div className="desktop:hidden">
               {/* Selection Actions Bar - Only show when slots are selected */}
               {selectionMode && selectedSlots.size > 0 && (
-                <div className="sticky top-0 z-30 flex flex-col gap-2 border-b border-[#B3DADA] bg-[#F8FAFC] px-3 py-3">
-                  <div className="text-center text-[13px] font-medium text-[#64748B]">
-                    {selectedSlots.size} slot{selectedSlots.size > 1 ? 's' : ''} selected
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="flex-1 rounded-[8px] bg-[#10B981] px-2 py-2.5 text-[12px] font-semibold text-white active:bg-[#059669] disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={selectionTypeRestriction === 'available'}
-                      type="button"
-                      onClick={() => setMultipleSlotAvailability(true)}
-                    >
-                      ✓ Available
-                    </button>
-                    <button
-                      className="flex-1 rounded-[8px] border-2 border-[#EF4444] bg-[#EF4444] px-2 py-2.5 text-[12px] font-semibold text-white active:bg-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={selectionTypeRestriction === 'unavailable'}
-                      type="button"
-                      onClick={() => setMultipleSlotAvailability(false)}
-                    >
-                      ✕ Unavailable
-                    </button>
-                  </div>
+                <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-[#B3DADA] bg-[#F8FAFC] px-3 py-2">
+                  <span className="text-[12px] font-medium text-[#64748B]">{selectedSlots.size} selected</span>
+                  <button
+                    className="rounded-[6px] bg-[#10B981] px-2 py-1.5 text-[11px] font-semibold text-white active:bg-[#059669] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={selectionTypeRestriction === 'available'}
+                    type="button"
+                    onClick={() => setMultipleSlotAvailability(true)}
+                  >
+                    ✓ Available
+                  </button>
+                  <button
+                    className="rounded-[6px] bg-[#EF4444] px-2 py-1.5 text-[11px] font-semibold text-white active:bg-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={selectionTypeRestriction === 'unavailable'}
+                    type="button"
+                    onClick={() => setMultipleSlotAvailability(false)}
+                  >
+                    ✕ Unavailable
+                  </button>
+                  <button
+                    className="rounded-[6px] border border-[#E2E8F0] bg-white px-2 py-1.5 text-[11px] font-medium text-[#64748B] active:bg-[#F1F5F9]"
+                    type="button"
+                    onClick={clearSelections}
+                  >
+                    Clear
+                  </button>
                 </div>
               )}
 
@@ -808,41 +908,53 @@ const CoachScheduleGrid: React.FC<{
                   Tap slots to select them
                 </div>
               )}
-              <div className="grid bg-white" style={gridTemplateColumnsMobile}>
-                <div className="sticky left-0 z-40 flex min-h-[65px] min-w-[100px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-3 text-[12px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
-                  Time Slot
-                </div>
-                {displayedDates.map((date, dateIdx) => (
-                  <div
-                    key={dateIdx}
-                    className={composeClasses(
-                      'relative flex min-h-[65px] w-full min-w-[140px] flex-col items-center justify-center border border-l-0 border-[#B3DADA] px-2 py-3 text-center',
-                      date.isToday ? 'border-l-4 border-l-[#3B82F6] bg-[#F0F9FF]' : 'bg-[#fff]'
-                    )}
-                  >
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <span className="text-[10px] font-medium text-[#7A7F9C]">{date.weekday}</span>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={composeClasses(
-                            'text-[12px] font-semibold',
-                            date.isToday ? 'text-[#3B82F6]' : 'text-[#21295A]'
-                          )}
-                        >
-                          {date.day}
-                        </span>
-                        {date.isToday && (
-                          <span className="rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[8px] font-semibold text-white">
-                            Today
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] font-medium text-[#7A7F9C]">
-                        {date.fullDate.toLocaleDateString('en-US', { month: 'short' })}
-                      </span>
-                    </div>
+              {/* Header Row - Sticky */}
+              <div
+                className={composeClasses(
+                  'sticky z-30 bg-white',
+                  selectionMode && selectedSlots.size > 0
+                    ? 'top-[44px]'
+                    : selectionMode && selectedSlots.size === 0
+                      ? 'top-[40px]'
+                      : 'top-0'
+                )}
+              >
+                <div className="grid bg-white" style={gridTemplateColumnsMobile}>
+                  <div className="sticky left-0 z-40 flex min-h-[65px] min-w-[100px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-3 text-[12px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                    Time Slot
                   </div>
-                ))}
+                  {displayedDates.map((date, dateIdx) => (
+                    <div
+                      key={dateIdx}
+                      className={composeClasses(
+                        'relative flex min-h-[65px] w-full min-w-[140px] flex-col items-center justify-center border border-l-0 border-[#B3DADA] px-2 py-3 text-center',
+                        date.isToday ? 'border-l-4 border-l-[#3B82F6] bg-[#F0F9FF]' : 'bg-[#fff]'
+                      )}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span className="text-[10px] font-medium text-[#7A7F9C]">{date.weekday}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={composeClasses(
+                              'text-[12px] font-semibold',
+                              date.isToday ? 'text-[#3B82F6]' : 'text-[#21295A]'
+                            )}
+                          >
+                            {date.day}
+                          </span>
+                          {date.isToday && (
+                            <span className="rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[8px] font-semibold text-white">
+                              Today
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-medium text-[#7A7F9C]">
+                          {date.fullDate.toLocaleDateString('en-US', { month: 'short' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Time Slots Grid */}
@@ -922,9 +1034,9 @@ const CoachScheduleGrid: React.FC<{
                           disabled={selectionMode && !canSelect && !isSelected}
                           type="button"
                           onClick={() => {
-                            if (selectionMode) {
-                              toggleSlotSelection(dateIdx, slotIdx);
-                            } else {
+                            // In selection mode, onClick is blocked by preventDefault on mousedown
+                            // Selection is handled entirely via mousedown/mouseup to avoid conflicts
+                            if (!selectionMode) {
                               handleSlotClick(dateIdx, slotIdx, date, slot);
                             }
                           }}
@@ -941,7 +1053,7 @@ const CoachScheduleGrid: React.FC<{
                           }}
                           onMouseUp={() => {
                             if (selectionMode && !('ontouchstart' in window)) {
-                              setIsSelecting(false);
+                              handleSlotMouseUpOnCell(dateIdx, slotIdx);
                             }
                           }}
                         >
@@ -975,40 +1087,8 @@ const CoachScheduleGrid: React.FC<{
 
             {/* Desktop Layout */}
             <div className="hidden desktop:block">
-              {/* Selection Actions Bar - Only show when slots are selected */}
-              {selectionMode && selectedSlots.size > 0 && (
-                <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-[#B3DADA] bg-[#F8FAFC] px-3 py-2.5 lg:px-5 lg:py-3">
-                  <span className="text-[12px] font-medium text-[#64748B] lg:text-[13px]">
-                    {selectedSlots.size} selected
-                  </span>
-                  <button
-                    className="shrink-0 rounded-[8px] bg-[#10B981] px-2 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#059669] disabled:cursor-not-allowed disabled:opacity-50 lg:px-3 lg:py-2 lg:text-[13px]"
-                    disabled={selectionTypeRestriction === 'available'}
-                    type="button"
-                    onClick={() => setMultipleSlotAvailability(true)}
-                  >
-                    ✓ Available
-                  </button>
-                  <button
-                    className="shrink-0 rounded-[8px] bg-[#EF4444] px-2 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50 lg:px-3 lg:py-2 lg:text-[13px]"
-                    disabled={selectionTypeRestriction === 'unavailable'}
-                    type="button"
-                    onClick={() => setMultipleSlotAvailability(false)}
-                  >
-                    ✕ Unavailable
-                  </button>
-                  <button
-                    className="shrink-0 rounded-[8px] border border-[#E2E8F0] bg-white px-2 py-1.5 text-[12px] font-medium text-[#64748B] transition hover:bg-[#F8FAFC] lg:px-3 lg:py-2 lg:text-[13px]"
-                    type="button"
-                    onClick={clearSelections}
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
-
               {/* Header Row */}
-              <div className="sticky top-0 z-30">
+              <div className="sticky top-0 z-30 bg-white">
                 <div className="grid bg-white" style={gridTemplateColumns}>
                   <div className="sticky left-0 z-40 flex min-h-[70px] min-w-[140px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-5 py-4 text-[15px] font-semibold text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
                     Time Slot
@@ -1124,9 +1204,9 @@ const CoachScheduleGrid: React.FC<{
                           disabled={selectionMode && !canSelect && !isSelected}
                           type="button"
                           onClick={() => {
-                            if (selectionMode) {
-                              toggleSlotSelection(dateIdx, slotIdx);
-                            } else {
+                            // In selection mode, onClick is blocked by preventDefault on mousedown
+                            // Selection is handled entirely via mousedown/mouseup to avoid conflicts
+                            if (!selectionMode) {
                               handleSlotClick(dateIdx, slotIdx, date, slot);
                             }
                           }}
@@ -1143,7 +1223,7 @@ const CoachScheduleGrid: React.FC<{
                           }}
                           onMouseUp={() => {
                             if (selectionMode) {
-                              setIsSelecting(false);
+                              handleSlotMouseUpOnCell(dateIdx, slotIdx);
                             }
                           }}
                         >

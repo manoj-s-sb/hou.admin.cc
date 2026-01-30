@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
-import { getMembers } from '../../store/members/api';
+import { getMembers, getMembersCount } from '../../store/members/api';
 import { MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
 
@@ -15,7 +15,7 @@ const user_svg = '/assets/user.svg';
 const Members = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { membersList: membersListData, isLoading } = useSelector((state: RootState) => state.members);
+  const { membersList: membersListData, isLoading, membersCount } = useSelector((state: RootState) => state.members);
   type FilterState = {
     email: string;
     billingCycle: '' | NonNullable<MemberRequest['billingCycle']>;
@@ -28,6 +28,7 @@ const Members = () => {
     subscriptionType: '',
     status: '',
   };
+
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const membersColumns: ColumnDef[] = [
     {
@@ -175,7 +176,7 @@ const Members = () => {
     },
   ];
 
-  const currentLimit = membersListData.limit || 15;
+  const currentLimit = membersListData.limit || 20;
 
   const buildRequestPayload = (
     overrides?: Partial<MemberRequest>,
@@ -215,6 +216,10 @@ const Members = () => {
     );
   }, [dispatch, currentLimit]);
 
+  useEffect(() => {
+    dispatch(getMembersCount());
+  }, [dispatch]);
+
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({
       ...prev,
@@ -231,50 +236,6 @@ const Members = () => {
     dispatch(getMembers(buildRequestPayload({ skip: 0 }, defaultFilters)));
   };
 
-  // Calculate member statistics
-  // const memberStats = useMemo(() => {
-  //   const members = membersListData.members || [];
-  //   const total = membersListData.total || 0;
-
-  //   // Calculate active and inactive counts (using flattened structure as per column definitions)
-  //   const active = members.filter(m => {
-  //     const status = (m as any).subscriptionStatus || m.subscription?.subscriptionStatus;
-  //     return status === 'active';
-  //   }).length;
-  //   const inactive = members.filter(m => {
-  //     const status = (m as any).subscriptionStatus || m.subscription?.subscriptionStatus;
-  //     return status === 'inactive';
-  //   }).length;
-
-  //   // Calculate subscription type counts (using flattened structure as per column definitions)
-  //   const standard = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'standard';
-  //   }).length;
-  //   const premium = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'premium';
-  //   }).length;
-  //   const family = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'family';
-  //   }).length;
-  //   const offpeak = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'offpeak';
-  //   }).length;
-
-  //   return {
-  //     total,
-  //     active,
-  //     inactive,
-  //     standard,
-  //     premium,
-  //     family,
-  //     offpeak,
-  //   };
-  // }, [membersListData]);
-
   return (
     <div className="w-full">
       <SectionTitle
@@ -285,10 +246,9 @@ const Members = () => {
         value=""
       />
 
-      <div className="mb-8">
-        {/* <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-4"> */}
-        {/* Filters Section - Left Side */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:col-span-2">
+      <div className="mb-8 flex w-full flex-row flex-nowrap items-stretch justify-between gap-4">
+        {/* Filters Section - 40% */}
+        <div className="min-w-0 flex-[2_1_0%] rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <h3 className="mb-3 text-base font-semibold text-gray-900">Filters</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
@@ -317,7 +277,6 @@ const Members = () => {
                 <option value="">All</option>
                 <option value="annual">Annual</option>
                 <option value="fortnightly">Fortnightly</option>
-                <option value="offpeak">Offpeak</option>
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -351,6 +310,7 @@ const Members = () => {
                 <option value="active">Active</option>
                 <option value="pendingactivation">Pending Activation</option>
                 <option value="paused">Paused</option>
+                <option value="past_due">Payment Failed</option>
                 <option value="canceled">Cancelled</option>
                 <option value="resumed">Resumed</option>
                 <option value="inactive">Inactive</option>
@@ -375,87 +335,151 @@ const Members = () => {
           </div>
         </div>
 
-        {/* Statistics Section - Right Side */}
-        {/* <div className="flex w-full flex-row gap-3 lg:col-span-2"> */}
-        {/* Members Statistics Card */}
-        {/* <div className="group relative flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300"> */}
-        {/* Gradient Background */}
-        {/* <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-blue-600 to-cyan-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div> */}
+        {/* Statistics Section - 60% */}
+        <div className="flex min-w-0 flex-[3_1_0%] flex-row gap-3">
+          {membersCount && (
+            <>
+              {/* Members Statistics Card */}
+              <div className="group relative flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300">
+                <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-blue-600 to-cyan-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div>
 
-        {/* <div className="relative"> */}
-        {/* <div className="mb-3"> */}
-        {/* <h3 className="mb-1 text-xs font-semibold text-gray-600">Total Members</h3> */}
-        {/* <p className="text-3xl font-bold text-gray-900">{memberStats.total.toLocaleString()}</p> */}
-        {/* </div> */}
-        {/* <div className="space-y-1.5 border-t border-gray-100 pt-3"> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-green-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Active</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.active.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-gray-400"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Inactive</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.inactive.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
+                <div className="relative">
+                  <div className="mb-3">
+                    <h3 className="mb-1 text-xs font-semibold text-gray-600">Total Members</h3>
+                    <p className="text-3xl font-bold text-gray-900">{membersCount.total.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1.5 border-t border-gray-100 pt-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                        <span className="text-sm font-medium text-gray-600">Active</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">
+                        {membersCount.activeMembersCount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+                        <span className="text-sm font-medium text-gray-600">Inactive</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">
+                        {membersCount.inactiveMembersCount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-amber-500"></div>
+                        <span className="text-sm font-medium text-gray-600">Pending Activation</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">
+                        {membersCount.pendingActivationCount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-        {/* Subscriptions Statistics Card */}
-        {/* <div className="group relative flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300"> */}
-        {/* Gradient Background */}
-        {/* <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-green-600 to-emerald-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div> */}
+              {/* Subscriptions Statistics Card - by type with Annual / Fortnightly */}
+              <div className="group relative flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300">
+                <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-green-600 to-emerald-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div>
 
-        {/* <div className="relative"> */}
-        {/* <div className="mb-3"> */}
-        {/* <h3 className="mb-1 text-xs font-semibold text-gray-600">Subscriptions</h3> */}
-        {/* <p className="text-3xl font-bold text-gray-900"> */}
-        {/* {( */}
-        {/* memberStats.standard + */}
-        {/* memberStats.premium + */}
-        {/* memberStats.family + */}
-        {/* memberStats.offpeak */}
-        {/* ).toLocaleString()} */}
-        {/* </p> */}
-        {/* </div> */}
-        {/* <div className="space-y-1.5 border-t border-gray-100 pt-3"> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-blue-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Standard</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.standard.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-purple-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Premium</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.premium.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-pink-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Family</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.family.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-orange-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Offpeak</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.offpeak.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
+                <div className="relative">
+                  <div className="mb-3">
+                    <h3 className="mb-1 text-xs font-semibold text-gray-600">Subscriptions</h3>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {(
+                        membersCount.standardFortnightly +
+                        membersCount.standardAnnual +
+                        membersCount.premiumFortnightly +
+                        membersCount.premiumAnnual +
+                        membersCount.familyFortnightly +
+                        membersCount.familyAnnual +
+                        membersCount.offpeakFortnightly +
+                        membersCount.offpeakAnnual
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                  {/* Header: Billing cycle columns */}
+                  <div className="border-t border-gray-100 pt-3">
+                    <div className="mb-2 grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 text-xs font-semibold text-gray-500">
+                      <span>Plan</span>
+                      <span className="w-12 text-right">Annual</span>
+                      <span className="w-14 text-right">Fortnightly</span>
+                      <span className="w-10 text-right">Total</span>
+                    </div>
+                    <div className="space-y-2">
+                      {/* Standard */}
+                      <div className="flex items-center gap-2 rounded-lg bg-blue-50/70 px-2 py-1.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Standard</span>
+                        </div>
+                        <span className="w-12 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.standardAnnual.toLocaleString()}
+                        </span>
+                        <span className="w-14 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.standardFortnightly.toLocaleString()}
+                        </span>
+                        <span className="w-10 text-right text-sm font-bold tabular-nums text-blue-700">
+                          {(membersCount.standardAnnual + membersCount.standardFortnightly).toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Premium */}
+                      <div className="flex items-center gap-2 rounded-lg bg-purple-50/70 px-2 py-1.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-purple-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Premium</span>
+                        </div>
+                        <span className="w-12 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.premiumAnnual.toLocaleString()}
+                        </span>
+                        <span className="w-14 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.premiumFortnightly.toLocaleString()}
+                        </span>
+                        <span className="w-10 text-right text-sm font-bold tabular-nums text-purple-700">
+                          {(membersCount.premiumAnnual + membersCount.premiumFortnightly).toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Family */}
+                      <div className="flex items-center gap-2 rounded-lg bg-pink-50/70 px-2 py-1.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-pink-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Family</span>
+                        </div>
+                        <span className="w-12 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.familyAnnual.toLocaleString()}
+                        </span>
+                        <span className="w-14 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.familyFortnightly.toLocaleString()}
+                        </span>
+                        <span className="w-10 text-right text-sm font-bold tabular-nums text-pink-700">
+                          {(membersCount.familyAnnual + membersCount.familyFortnightly).toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Offpeak */}
+                      <div className="flex items-center gap-2 rounded-lg bg-orange-50/70 px-2 py-1.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-orange-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Offpeak</span>
+                        </div>
+                        <span className="w-12 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.offpeakAnnual.toLocaleString()}
+                        </span>
+                        <span className="w-14 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.offpeakFortnightly.toLocaleString()}
+                        </span>
+                        <span className="w-10 text-right text-sm font-bold tabular-nums text-orange-700">
+                          {(membersCount.offpeakAnnual + membersCount.offpeakFortnightly).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div>
