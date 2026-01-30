@@ -173,7 +173,7 @@ export const initialState: MembersInitialState = {
   error: '',
   membersList: {
     members: [],
-    limit: 15,
+    limit: 20,
     skip: 0,
     total: 0,
   },

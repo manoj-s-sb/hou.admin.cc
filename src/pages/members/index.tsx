@@ -175,7 +175,7 @@ const Members = () => {
     },
   ];
 
-  const currentLimit = membersListData.limit || 15;
+  const currentLimit = membersListData.limit || 20;
 
   const buildRequestPayload = (
     overrides?: Partial<MemberRequest>,

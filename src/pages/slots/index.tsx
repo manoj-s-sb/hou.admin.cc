@@ -155,29 +155,29 @@ const SlotBookings: React.FC = () => {
         />
 
         {/* Statistics Cards */}
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-1 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {/* Total Slots Booked */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="mb-1 text-xs font-medium text-gray-600">Total Slots Booked</h3>
-            <p className="text-2xl font-bold text-gray-900">{slotStats.totalBooked.toLocaleString()}</p>
+          <div className="rounded-xl border border-gray-200 bg-white p-3">
+            <h3 className="mb-0.5 text-xs font-medium text-gray-600">Total Slots Booked</h3>
+            <p className="text-xl font-bold text-gray-900">{slotStats.totalBooked.toLocaleString()}</p>
           </div>
 
           {/* Completed Slots */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="mb-1 text-xs font-medium text-gray-600">Completed Slots</h3>
-            <p className="text-2xl font-bold text-gray-900">{slotStats.completed.toLocaleString()}</p>
+          <div className="rounded-xl border border-gray-200 bg-white p-3">
+            <h3 className="mb-0.5 text-xs font-medium text-gray-600">Completed Slots</h3>
+            <p className="text-xl font-bold text-gray-900">{slotStats.completed.toLocaleString()}</p>
           </div>
 
           {/* Booked with Coach */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="mb-1 text-xs font-medium text-gray-600">Booked with Coach</h3>
-            <p className="text-2xl font-bold text-gray-900">{slotStats.bookedWithCoach.toLocaleString()}</p>
+          <div className="rounded-xl border border-gray-200 bg-white p-3">
+            <h3 className="mb-0.5 text-xs font-medium text-gray-600">Booked with Coach</h3>
+            <p className="text-xl font-bold text-gray-900">{slotStats.bookedWithCoach.toLocaleString()}</p>
           </div>
 
           {/* Booked with Guest */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="mb-1 text-xs font-medium text-gray-600">Booked with Guest</h3>
-            <p className="text-2xl font-bold text-gray-900">{slotStats.bookedWithGuest.toLocaleString()}</p>
+          <div className="rounded-xl border border-gray-200 bg-white p-3">
+            <h3 className="mb-0.5 text-xs font-medium text-gray-600">Booked with Guest</h3>
+            <p className="text-xl font-bold text-gray-900">{slotStats.bookedWithGuest.toLocaleString()}</p>
           </div>
         </div>
         <div className="relative w-full">

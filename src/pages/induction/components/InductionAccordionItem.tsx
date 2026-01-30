@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 
+import { toast } from 'react-hot-toast';
+
 import { getInductionStepsDetails } from '../../../store/induction/api';
 import { SubStep } from '../../../store/induction/types';
 import { formatDateTimeChicago } from '../../../utils/dateUtils';
@@ -105,8 +107,28 @@ const InductionAccordionItem = ({
   }, [isSaving, isOpen, userId, dispatch, prevIsSaving]);
 
   const toggleStep = (stepId: string) => {
-    setSteps(prevSteps =>
-      prevSteps.map(step =>
+    setSteps(prevSteps => {
+      // Find the index of the step being toggled
+      const stepIndex = prevSteps.findIndex(step => step.id === stepId);
+
+      // Check if this is the 5th step (index 4) and user is primary
+      if (stepIndex === 4 && isPrimary) {
+        // Check if trying to mark as completed
+        const currentStep = prevSteps.find(step => step.id === stepId);
+        if (currentStep?.status !== 'completed') {
+          // Verify that steps 1-4 (indices 0-3) are all completed
+          const firstFourSteps = prevSteps.slice(0, 4);
+          const allFirstFourCompleted = firstFourSteps.every(step => step.status === 'completed');
+
+          if (!allFirstFourCompleted) {
+            toast.error('Please complete all previous steps before completing this step');
+            return prevSteps; // Return unchanged steps
+          }
+        }
+      }
+
+      // Proceed with the toggle
+      return prevSteps.map(step =>
         step.id === stepId
           ? {
               ...step,
@@ -115,8 +137,8 @@ const InductionAccordionItem = ({
               completedBy: step.status === 'completed' ? null : userId,
             }
           : step
-      )
-    );
+      );
+    });
   };
 
   const handleSaveClick = () => {
