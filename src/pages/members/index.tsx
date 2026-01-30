@@ -29,7 +29,6 @@ const Members = () => {
     status: '',
   };
 
-  console.log('membersCount', membersCount);
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const membersColumns: ColumnDef[] = [
     {
@@ -236,50 +235,6 @@ const Members = () => {
     setFilters(defaultFilters);
     dispatch(getMembers(buildRequestPayload({ skip: 0 }, defaultFilters)));
   };
-
-  // Calculate member statistics
-  // const memberStats = useMemo(() => {
-  //   const members = membersListData.members || [];
-  //   const total = membersListData.total || 0;
-
-  //   // Calculate active and inactive counts (using flattened structure as per column definitions)
-  //   const active = members.filter(m => {
-  //     const status = (m as any).subscriptionStatus || m.subscription?.subscriptionStatus;
-  //     return status === 'active';
-  //   }).length;
-  //   const inactive = members.filter(m => {
-  //     const status = (m as any).subscriptionStatus || m.subscription?.subscriptionStatus;
-  //     return status === 'inactive';
-  //   }).length;
-
-  //   // Calculate subscription type counts (using flattened structure as per column definitions)
-  //   const standard = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'standard';
-  //   }).length;
-  //   const premium = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'premium';
-  //   }).length;
-  //   const family = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'family';
-  //   }).length;
-  //   const offpeak = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'offpeak';
-  //   }).length;
-
-  //   return {
-  //     total,
-  //     active,
-  //     inactive,
-  //     standard,
-  //     premium,
-  //     family,
-  //     offpeak,
-  //   };
-  // }, [membersListData]);
 
   return (
     <div className="w-full">
