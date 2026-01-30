@@ -60,6 +60,7 @@ class Logger {
    */
   info(message: string, context?: LogContext): void {
     if (this.isDevelopment) {
+      // eslint-disable-next-line no-console
       console.info(`[INFO] ${message}`, { ...context, timestamp: new Date().toISOString() });
     }
   }
@@ -69,6 +70,7 @@ class Logger {
    */
   debug(message: string, context?: LogContext): void {
     if (this.isDevelopment) {
+      // eslint-disable-next-line no-console
       console.debug(`[DEBUG] ${message}`, { ...context, timestamp: new Date().toISOString() });
     }
   }
