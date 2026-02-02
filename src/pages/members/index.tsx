@@ -320,7 +320,6 @@ const Members = () => {
                 <option value="past_due">Payment Failed</option>
                 <option value="canceled">Inactive</option>
                 <option value="resumed">Resumed</option>
-                <option value="inactive">Inactive</option>
               </select>
             </div>
           </div>
