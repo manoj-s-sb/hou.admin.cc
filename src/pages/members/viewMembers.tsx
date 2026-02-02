@@ -895,10 +895,7 @@ const ViewMembers = () => {
                                           Current Injuries
                                         </p>
                                         <p className="text-base font-semibold capitalize text-gray-900">
-                                          {getHealthDeclarationValueForProfile(
-                                            member.userProfile,
-                                            'currentInjuries'
-                                          )}
+                                          {getHealthDeclarationValueForProfile(member.userProfile, 'currentInjuries')}
                                         </p>
                                       </div>
                                       <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -906,16 +903,12 @@ const ViewMembers = () => {
                                           Injury Details
                                         </p>
                                         <p className="text-base font-semibold text-gray-900">
-                                          {getHealthDeclarationValueForProfile(
-                                            member.userProfile,
-                                            'injuryDetails'
-                                          ) || 'N/A'}
+                                          {getHealthDeclarationValueForProfile(member.userProfile, 'injuryDetails') ||
+                                            'N/A'}
                                         </p>
                                       </div>
                                       <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                                          Allergies
-                                        </p>
+                                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Allergies</p>
                                         <p className="text-base font-semibold capitalize text-gray-900">
                                           {getHealthDeclarationValueForProfile(member.userProfile, 'allergies')}
                                         </p>

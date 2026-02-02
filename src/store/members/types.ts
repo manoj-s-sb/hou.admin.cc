@@ -116,7 +116,7 @@ export interface AdditionalMemberDetails {
   isActivePlayer: boolean;
   playerProfile: PlayerProfileDetails;
   userProfile: {
-    gender: string
+    gender: string;
     phone: string;
     dateOfBirth: string;
     unitsOfMeasure: string;
