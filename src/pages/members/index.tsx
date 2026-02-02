@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
+import { decodeToken } from '../../helpers';
 import { getMembers, getMembersCount } from '../../store/members/api';
 import { MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -206,19 +207,25 @@ const Members = () => {
     return payload;
   };
 
+  const facilityCode = decodeToken()?.facilityCode;
+
   useEffect(() => {
     dispatch(
       getMembers({
         skip: 0,
         limit: currentLimit,
-        facilityCode: 'HOU01',
+        facilityCode: facilityCode || '',
       })
     );
-  }, [dispatch, currentLimit]);
+  }, [dispatch, currentLimit, facilityCode]);
 
   useEffect(() => {
-    dispatch(getMembersCount());
-  }, [dispatch]);
+    dispatch(
+      getMembersCount({
+        facilityCode: facilityCode || '',
+      })
+    );
+  }, [dispatch, facilityCode]);
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({

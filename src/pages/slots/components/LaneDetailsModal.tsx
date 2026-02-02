@@ -7,7 +7,7 @@ const BLOCK_REASONS = [
   { value: 'Scheduled Maintenance', label: 'Scheduled Maintenance' },
   { value: 'Out of service', label: 'Out of service' },
   { value: 'For Demo', label: 'For Demo' },
-  { value: 'Others', label: 'Others' },
+  { value: 'Other', label: 'Other' },
 ];
 
 interface LaneDetailsModalProps {
