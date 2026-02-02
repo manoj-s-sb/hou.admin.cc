@@ -85,11 +85,18 @@ const ViewMembers = () => {
     );
   }
 
-  // Helper function to get health declaration value
+  // Helper function to get health declaration value (primary member)
   const getHealthDeclarationValue = (id: string) => {
     if (!memberDetails.userProfile?.healthDeclaration) return 'N/A';
     const item = memberDetails.userProfile.healthDeclaration.find((item: any) => item.id === id) as any;
     return item?.selectedOption || item?.selectedOptions || 'N/A';
+  };
+
+  // Helper to get health declaration value for any userProfile (e.g. additional members)
+  const getHealthDeclarationValueForProfile = (userProfile: any, id: string) => {
+    if (!userProfile?.healthDeclaration) return 'N/A';
+    const item = userProfile.healthDeclaration.find((item: any) => item.id === id) as any;
+    return item?.selectedOption ?? item?.selectedOptions ?? 'N/A';
   };
 
   return (
@@ -789,6 +796,133 @@ const ViewMembers = () => {
                                     </p>
                                   </div>
                                 </div>
+                              </div>
+                            )}
+
+                            {/* User Profile (Personal & Health) for additional member */}
+                            {member.userProfile && (
+                              <div className="mt-3 rounded-lg bg-white p-3 shadow-sm">
+                                <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+                                  <Shield className="h-4 w-4 text-blue-600" />
+                                  User Profile
+                                </h4>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Gender</p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.userProfile.gender || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Phone</p>
+                                    <p className="text-base font-semibold text-gray-900">
+                                      {member.userProfile.phone || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
+                                    <p className="text-base font-semibold text-gray-900">
+                                      {member.userProfile.dateOfBirth
+                                        ? formatDate(member.userProfile.dateOfBirth)
+                                        : 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Height</p>
+                                    <p className="text-base font-semibold text-gray-900">
+                                      {member.userProfile.height?.value
+                                        ? `${member.userProfile.height.value} ${member.userProfile.height.unit || ''}`
+                                        : 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Weight</p>
+                                    <p className="text-base font-semibold text-gray-900">
+                                      {member.userProfile.weight?.value
+                                        ? `${member.userProfile.weight.value} ${member.userProfile.weight.unit || ''}`
+                                        : 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                      Units of Measure
+                                    </p>
+                                    <p className="text-base font-semibold capitalize text-gray-900">
+                                      {member.userProfile.unitsOfMeasure || 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
+                                {member.userProfile.healthDeclaration && (
+                                  <div className="mt-4 border-t border-gray-200 pt-4">
+                                    <h3 className="mb-3 text-sm font-semibold uppercase text-gray-700">
+                                      Health Declaration
+                                    </h3>
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                          Health Conditions
+                                        </p>
+                                        <p className="text-base font-semibold capitalize text-gray-900">
+                                          {getHealthDeclarationValueForProfile(member.userProfile, 'healthConditions')}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                          Health Condition Details
+                                        </p>
+                                        <p className="text-base font-semibold text-gray-900">
+                                          {(() => {
+                                            const value = getHealthDeclarationValueForProfile(
+                                              member.userProfile,
+                                              'healthConditionDetails'
+                                            );
+                                            if (!value || value === 'N/A') return 'N/A';
+                                            if (Array.isArray(value)) return value.join(', ');
+                                            return value;
+                                          })()}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                          Doctor Advice
+                                        </p>
+                                        <p className="text-base font-semibold capitalize text-gray-900">
+                                          {getHealthDeclarationValueForProfile(member.userProfile, 'doctorAdvice')}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                          Current Injuries
+                                        </p>
+                                        <p className="text-base font-semibold capitalize text-gray-900">
+                                          {getHealthDeclarationValueForProfile(
+                                            member.userProfile,
+                                            'currentInjuries'
+                                          )}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                          Injury Details
+                                        </p>
+                                        <p className="text-base font-semibold text-gray-900">
+                                          {getHealthDeclarationValueForProfile(
+                                            member.userProfile,
+                                            'injuryDetails'
+                                          ) || 'N/A'}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                                          Allergies
+                                        </p>
+                                        <p className="text-base font-semibold capitalize text-gray-900">
+                                          {getHealthDeclarationValueForProfile(member.userProfile, 'allergies')}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>

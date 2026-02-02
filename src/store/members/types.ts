@@ -115,6 +115,46 @@ export interface AdditionalMemberDetails {
   dateOfBirth: string;
   isActivePlayer: boolean;
   playerProfile: PlayerProfileDetails;
+  userProfile: {
+    gender: string
+    phone: string;
+    dateOfBirth: string;
+    unitsOfMeasure: string;
+    healthDeclaration: [
+      {
+        selectedOption: string;
+        id: string;
+      },
+      {
+        selectedOption: string;
+        id: string;
+      },
+      {
+        selectedOption: string;
+        id: 'doctorAdvice';
+      },
+      {
+        selectedOption: 'No';
+        id: string;
+      },
+      {
+        selectedOption: string;
+        id: string;
+      },
+      {
+        selectedOption: string;
+        id: string;
+      },
+    ];
+    height: {
+      value: number;
+      unit: string;
+    };
+    weight: {
+      value: number;
+      unit: string;
+    };
+  };
 }
 
 export interface MembersSubscription {
