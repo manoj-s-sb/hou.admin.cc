@@ -13,9 +13,7 @@ const printResults = rawJson => {
 
   results.forEach(file => {
     // Filter out react-hooks/exhaustive-deps warnings
-    const filteredMessages = file.messages.filter(
-      msg => msg.ruleId !== 'react-hooks/exhaustive-deps'
-    );
+    const filteredMessages = file.messages.filter(msg => msg.ruleId !== 'react-hooks/exhaustive-deps');
 
     if (filteredMessages.length === 0) return;
 
