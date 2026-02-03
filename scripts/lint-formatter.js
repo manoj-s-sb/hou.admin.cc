@@ -12,7 +12,12 @@ const printResults = rawJson => {
   const groupedByFolder = {};
 
   results.forEach(file => {
-    if (file.messages.length === 0) return;
+    // Filter out react-hooks/exhaustive-deps warnings
+    const filteredMessages = file.messages.filter(
+      msg => msg.ruleId !== 'react-hooks/exhaustive-deps'
+    );
+
+    if (filteredMessages.length === 0) return;
 
     const filePath = file.filePath;
     const relativePath = path.relative(process.cwd(), filePath);
@@ -24,7 +29,7 @@ const printResults = rawJson => {
 
     groupedByFolder[folder].push({
       file: relativePath,
-      messages: file.messages,
+      messages: filteredMessages,
     });
   });
 

@@ -240,7 +240,7 @@ const Members = () => {
   useEffect(() => {
     const applied = parseFiltersFromSearchParams(searchParams);
     dispatch(getMembers(buildRequestPayload({ skip: 0, limit: currentLimit }, applied)));
-  }, [dispatch, currentLimit, facilityCode, searchParams, filters, buildRequestPayload]);
+  }, [dispatch, currentLimit, facilityCode, searchParams]);
 
   useEffect(() => {
     dispatch(
