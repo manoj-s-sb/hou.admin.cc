@@ -25,7 +25,7 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      toast.success('Login Successful!', {
+      toast.success('Logged in successfully!', {
         duration: 4000,
       });
       // Small delay to ensure toast shows before navigation

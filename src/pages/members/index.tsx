@@ -202,10 +202,7 @@ const Members = () => {
   const currentLimit = membersListData.limit || 20;
 
   const buildRequestPayload = useCallback(
-    (
-      overrides?: Partial<MemberRequest>,
-      appliedFilters: FilterState = filters
-    ): MemberRequest => {
+    (overrides?: Partial<MemberRequest>, appliedFilters: FilterState = filters): MemberRequest => {
       const limit = overrides?.limit ?? (membersListData.limit || 15);
       const payload: MemberRequest = {
         skip: overrides?.skip ?? 0,
@@ -283,7 +280,7 @@ const Members = () => {
 
       <div className="mb-8 flex w-full flex-col gap-4 lg:flex-row lg:flex-nowrap lg:items-stretch lg:justify-between">
         {/* Filters Section - 40% on lg */}
-        <div className="min-w-0 w-full rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:flex-[2_1_0%]">
+        <div className="w-full min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:flex-[2_1_0%]">
           <h3 className="mb-3 text-base font-semibold text-gray-900">Filters</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
@@ -370,7 +367,7 @@ const Members = () => {
         </div>
 
         {/* Statistics Section - 60% on lg */}
-        <div className="flex min-w-0 w-full flex-col gap-3 sm:flex-row lg:flex-[3_1_0%]">
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row lg:flex-[3_1_0%]">
           {membersCount && (
             <>
               {/* Members Statistics Card */}
@@ -380,7 +377,9 @@ const Members = () => {
                 <div className="relative">
                   <div className="mb-3">
                     <h3 className="mb-1 text-xs font-semibold text-gray-600">Total Members</h3>
-                    <p className="text-2xl font-bold text-gray-900 sm:text-3xl">{membersCount.total.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-gray-900 sm:text-3xl">
+                      {membersCount.total.toLocaleString()}
+                    </p>
                   </div>
                   <div className="space-y-1.5 border-t border-gray-100 pt-3">
                     <div className="flex items-center justify-between">
