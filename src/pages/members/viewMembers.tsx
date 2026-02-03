@@ -18,9 +18,10 @@ import {
   Phone,
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
+import { getRelationshipLabel } from '../../constants/relationship';
 import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -32,6 +33,8 @@ const ViewMembers = () => {
   };
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? '';
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [expandedCycles, setExpandedCycles] = useState<number[]>([]);
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
@@ -77,7 +80,10 @@ const ViewMembers = () => {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-lg text-gray-500">No member details found</p>
-          <button className="mt-4 font-medium text-blue-600 hover:text-blue-700" onClick={() => navigate('/members')}>
+          <button
+            className="mt-4 font-medium text-blue-600 hover:text-blue-700"
+            onClick={() => navigate(`/members${listSearch}`)}
+          >
             Go back to members list
           </button>
         </div>
@@ -108,7 +114,7 @@ const ViewMembers = () => {
           search={false}
           title="Member Details"
           value=""
-          onBackClick={() => navigate('/members')}
+          onBackClick={() => navigate(`/members${listSearch}`)}
           onSearch={() => undefined}
         />
 
@@ -596,8 +602,8 @@ const ViewMembers = () => {
                       <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
                         {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Relationship` : 'Relationship'}
                       </p>
-                      <p className="text-base font-semibold capitalize text-gray-900">
-                        {contact.relationship || 'N/A'}
+                      <p className="text-base font-semibold text-gray-900">
+                        {getRelationshipLabel(contact.relationship)}
                       </p>
                     </div>,
                     <div key={`${index}-phone`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">

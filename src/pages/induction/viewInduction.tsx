@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
 import { getInductionStepsDetails, updateInductionSteps, userInductionDetails } from '../../store/induction/api';
@@ -24,6 +24,8 @@ const ViewInduction = () => {
 
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? '';
   const { userId } = useParams<{ userId: string | any }>();
 
   const [data, setData] = useState<any>(induction?.userInductionDetails);
@@ -138,7 +140,7 @@ const ViewInduction = () => {
           search={false}
           title="View Induction"
           value=""
-          onBackClick={() => navigate('/induction')}
+          onBackClick={() => navigate(`/induction${listSearch}`)}
           onSearch={() => undefined}
         />
         <div className="flex items-center justify-center rounded-lg bg-white p-12 shadow-md">
@@ -173,7 +175,7 @@ const ViewInduction = () => {
           search={false}
           title="View Induction"
           value=""
-          onBackClick={() => navigate('/induction')}
+          onBackClick={() => navigate(`/induction${listSearch}`)}
           onSearch={() => undefined}
         />
         <div className="rounded-lg bg-white p-12 shadow-md">
@@ -181,7 +183,7 @@ const ViewInduction = () => {
             <p className="text-lg text-gray-600">No induction details found</p>
             <button
               className="mt-4 rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-              onClick={() => navigate('/induction')}
+              onClick={() => navigate(`/induction${listSearch}`)}
             >
               Back to Inductions
             </button>
@@ -200,7 +202,7 @@ const ViewInduction = () => {
         search={false}
         title="View Induction"
         value=""
-        onBackClick={() => navigate('/induction')}
+        onBackClick={() => navigate(`/induction${listSearch}`)}
         onSearch={() => undefined}
       />
 
