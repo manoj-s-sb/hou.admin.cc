@@ -397,12 +397,6 @@ const ViewMembers = () => {
               <div className="px-4 py-3 sm:px-6 sm:py-4">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Type</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.playerType || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Status</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.playerStatus || 'N/A'}
@@ -415,12 +409,6 @@ const ViewMembers = () => {
                     </p>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Style</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.battingStyle || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.battingHand || 'N/A'}
@@ -430,12 +418,6 @@ const ViewMembers = () => {
                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
                     <p className="text-base font-semibold capitalize text-gray-900">
                       {memberDetails.playerProfile.batsmanType || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Style</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.bowlingStyle || 'N/A'}
                     </p>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
