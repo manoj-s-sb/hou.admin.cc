@@ -183,12 +183,7 @@ const SlotBookings: React.FC = () => {
         </div>
         <div className="relative w-full">
           {isLoading && (
-            <LoaderComponent
-              message="Loading slots..."
-              size="lg"
-              spinnerClassName="text-[#21295A]"
-              variant="overlay"
-            />
+            <LoaderComponent message="Loading slots..." size="lg" spinnerClassName="text-[#21295A]" variant="overlay" />
           )}
           <CalendarBody
             date={formattedDate}

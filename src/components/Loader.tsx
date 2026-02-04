@@ -45,25 +45,17 @@ export function Loader({
   spinnerClassName = 'text-blue-600',
   className = '',
 }: LoaderProps) {
-  const spinner = (
-    <SpinnerIcon className={`${sizeClasses[size]} ${spinnerClassName}`} />
-  );
+  const spinner = <SpinnerIcon className={`${sizeClasses[size]} ${spinnerClassName}`} />;
 
   const content = (
     <div className={`flex flex-col items-center justify-center ${message ? 'gap-3' : ''} ${className}`}>
       {spinner}
-      {message && (
-        <p className="text-sm font-medium text-gray-600 sm:text-base">{message}</p>
-      )}
+      {message && <p className="text-sm font-medium text-gray-600 sm:text-base">{message}</p>}
     </div>
   );
 
   if (variant === 'page') {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        {content}
-      </div>
-    );
+    return <div className="flex min-h-screen items-center justify-center">{content}</div>;
   }
 
   if (variant === 'overlay') {
@@ -78,13 +70,7 @@ export function Loader({
 }
 
 /** Spinner only (no wrapper). Use for buttons or inside MUI/other components. */
-export function LoaderSpinner({
-  size = 'sm',
-  className = 'text-blue-600',
-}: {
-  size?: LoaderSize;
-  className?: string;
-}) {
+export function LoaderSpinner({ size = 'sm', className = 'text-blue-600' }: { size?: LoaderSize; className?: string }) {
   return <SpinnerIcon className={`${sizeClasses[size]} ${className}`} />;
 }
 

@@ -47,9 +47,7 @@ const ConfirmationModal = ({
               disabled={isSaving || isSubscriptionActivation}
               onClick={onConfirm}
             >
-              {(isSaving || isSubscriptionActivation) && (
-                <LoaderSpinner className="text-white" size="xs" />
-              )}
+              {(isSaving || isSubscriptionActivation) && <LoaderSpinner className="text-white" size="xs" />}
               <span>
                 {isSaving && isSubscriptionActivation
                   ? 'Activating...'
