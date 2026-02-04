@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
+import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import { getSlots } from '../../store/slots/api';
 import { AppDispatch, RootState } from '../../store/store';
@@ -182,12 +183,12 @@ const SlotBookings: React.FC = () => {
         </div>
         <div className="relative w-full">
           {isLoading && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[10px] bg-white/90 backdrop-blur-sm">
-              <div className="flex flex-col items-center justify-center gap-3">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#21295A] sm:h-12 sm:w-12"></div>
-                <p className="text-xs font-medium text-[#21295A] sm:text-sm">Loading slots...</p>
-              </div>
-            </div>
+            <LoaderComponent
+              message="Loading slots..."
+              size="lg"
+              spinnerClassName="text-[#21295A]"
+              variant="overlay"
+            />
           )}
           <CalendarBody
             date={formattedDate}

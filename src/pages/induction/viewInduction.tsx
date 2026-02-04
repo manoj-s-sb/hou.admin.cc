@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useSelector, useDispatch } from 'react-redux';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import { getInductionStepsDetails, updateInductionSteps, userInductionDetails } from '../../store/induction/api';
 import { SubStep } from '../../store/induction/types';
@@ -144,22 +145,7 @@ const ViewInduction = () => {
           onSearch={() => undefined}
         />
         <div className="flex items-center justify-center rounded-lg bg-white p-12 shadow-md">
-          <div className="flex flex-col items-center space-y-4">
-            <svg
-              className="h-12 w-12 animate-spin text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path
-                className="opacity-75"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                fill="currentColor"
-              ></path>
-            </svg>
-            <p className="text-gray-600">Loading induction details...</p>
-          </div>
+          <LoaderComponent message="Loading induction details..." size="lg" variant="inline" />
         </div>
       </div>
     );

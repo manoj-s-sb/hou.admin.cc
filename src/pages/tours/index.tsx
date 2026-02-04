@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import { Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
+import { LoaderSpinner } from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
@@ -141,7 +141,7 @@ const Tours = () => {
               });
           }}
         >
-          {isLoading ? <Loader className="h-4 w-4 animate-spin" /> : 'Mark Complete'}
+          {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'Mark Complete'}
         </button>
       ),
     },

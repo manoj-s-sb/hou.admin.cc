@@ -9,13 +9,14 @@ import {
   TableRow,
   TableSortLabel,
   Paper,
-  CircularProgress,
   Box,
   Typography,
   TablePagination,
   SxProps,
   Theme,
 } from '@mui/material';
+
+import { LoaderSpinner } from '../Loader';
 
 import { TableColumn, TableProps, SortDirection } from './types';
 
@@ -195,7 +196,7 @@ function DataTable<T = any>({
     <TableRow>
       <TableCell align="center" colSpan={columns.length} sx={{ py: 8 }}>
         <Box alignItems="center" display="flex" flexDirection="column" gap={2}>
-          <CircularProgress />
+          <LoaderSpinner className="text-blue-600" size="lg" />
           <Typography color="text.secondary" variant="body2">
             Loading...
           </Typography>

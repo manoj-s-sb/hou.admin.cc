@@ -20,6 +20,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
+import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import { getRelationshipLabel } from '../../constants/relationship';
 import { getSingleMemberDetails } from '../../store/members/api';
@@ -68,11 +69,7 @@ const ViewMembers = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoaderComponent size="lg" variant="page" />;
   }
 
   if (!memberDetails) {

@@ -239,7 +239,17 @@ const Members = () => {
   // Fetch members when URL/search params or facility/limit change (restores filtered list on return)
   useEffect(() => {
     const applied = parseFiltersFromSearchParams(searchParams);
-    dispatch(getMembers(buildRequestPayload({ skip: 0, limit: currentLimit }, applied)));
+    const payload: MemberRequest = {
+      skip: 0,
+      limit: currentLimit,
+      facilityCode: 'HOU01',
+    };
+    const trimmedEmail = applied.email.trim();
+    if (trimmedEmail) payload.email = trimmedEmail;
+    if (applied.billingCycle) payload.billingCycle = applied.billingCycle;
+    if (applied.subscriptionType) payload.subscriptionCode = applied.subscriptionType;
+    if (applied.status) payload.subscriptionStatus = applied.status;
+    dispatch(getMembers(payload));
   }, [dispatch, currentLimit, facilityCode, searchParams]);
 
   useEffect(() => {
