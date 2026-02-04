@@ -22,6 +22,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
+import countries from '../../constants/countries.json';
 import { getRelationshipLabel } from '../../constants/relationship';
 import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
@@ -41,6 +42,27 @@ const ViewMembers = () => {
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
 
   const { userId } = useParams();
+
+  const getCountryDialCode = (countryCode: string | undefined) => {
+    if (!countryCode) return '';
+
+    const rawCountryCode = String(countryCode).toUpperCase();
+
+    // Try matching by ISO code first
+    const countryByCode = (countries as { code: string; dialCode: string; name: string }[]).find(
+      c => c.code === countryCode
+    );
+    if (countryByCode?.dialCode) {
+      return countryByCode.dialCode as string;
+    }
+
+    // Fallback: try matching by country name (case-insensitive)
+    const countryByName = (countries as { code: string; dialCode: string; name: string }[]).find(
+      c => typeof c.name === 'string' && c.name.toLowerCase() === String(rawCountryCode).toLowerCase()
+    );
+
+    return (countryByName?.dialCode as string) || '';
+  };
 
   const toggleCycle = (cycleNumber: number) => {
     setExpandedCycles(prev =>
@@ -468,7 +490,20 @@ const ViewMembers = () => {
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Phone</p>
-                    <p className="text-base font-semibold text-gray-900">{memberDetails.userProfile.phone || 'N/A'}</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {(() => {
+                        const { countryCode } = memberDetails;
+                        const dialCode = getCountryDialCode(countryCode);
+                        const { phone } = memberDetails.userProfile;
+
+                        if (!dialCode && !phone) {
+                          return 'N/A';
+                        }
+
+                        const formatted = `${dialCode ? `${dialCode} ` : ''}${phone || ''}`.trim();
+                        return formatted || 'N/A';
+                      })()}
+                    </p>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
@@ -711,12 +746,6 @@ const ViewMembers = () => {
                                 <h4 className="mb-2 text-sm font-semibold text-gray-700">Player Profile</h4>
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Type</p>
-                                    <p className="text-base font-semibold capitalize text-gray-900">
-                                      {member.playerProfile.playerType || 'N/A'}
-                                    </p>
-                                  </div>
-                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Status</p>
                                     <p className="text-base font-semibold capitalize text-gray-900">
                                       {member.playerProfile.playerStatus || 'N/A'}
@@ -731,12 +760,6 @@ const ViewMembers = () => {
                                     </p>
                                   </div>
                                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Style</p>
-                                    <p className="text-base font-semibold capitalize text-gray-900">
-                                      {member.playerProfile.battingStyle || 'N/A'}
-                                    </p>
-                                  </div>
-                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
                                     <p className="text-base font-semibold capitalize text-gray-900">
                                       {member.playerProfile.battingHand || 'N/A'}
@@ -746,12 +769,6 @@ const ViewMembers = () => {
                                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
                                     <p className="text-base font-semibold capitalize text-gray-900">
                                       {member.playerProfile.batsmanType || 'N/A'}
-                                    </p>
-                                  </div>
-                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Style</p>
-                                    <p className="text-base font-semibold capitalize text-gray-900">
-                                      {member.playerProfile.bowlingStyle || 'N/A'}
                                     </p>
                                   </div>
                                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -801,7 +818,18 @@ const ViewMembers = () => {
                                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                                     <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Phone</p>
                                     <p className="text-base font-semibold text-gray-900">
-                                      {member.userProfile.phone || 'N/A'}
+                                      {(() => {
+                                        const { countryCode } = memberDetails;
+                                        const dialCode = getCountryDialCode(countryCode);
+                                        const { phone } = member.userProfile;
+
+                                        if (!dialCode && !phone) {
+                                          return 'N/A';
+                                        }
+
+                                        const formatted = `${dialCode ? `${dialCode} ` : ''}${phone || ''}`.trim();
+                                        return formatted || 'N/A';
+                                      })()}
                                     </p>
                                   </div>
                                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">

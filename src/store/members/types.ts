@@ -207,6 +207,7 @@ export interface MemberDetailsResponse {
   slotUsageTable: SlotUsageTable;
   firstName: string;
   lastName: string;
+  countryCode?: string;
   email: string;
   profileImageUrl: string;
   userId: string;
