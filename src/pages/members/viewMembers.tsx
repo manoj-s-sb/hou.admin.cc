@@ -50,7 +50,7 @@ const ViewMembers = () => {
 
     // Try matching by ISO code first
     const countryByCode = (countries as { code: string; dialCode: string; name: string }[]).find(
-      c => c.code === countryCode
+      c => c.code === rawCountryCode
     );
     if (countryByCode?.dialCode) {
       return countryByCode.dialCode as string;
@@ -500,7 +500,7 @@ const ViewMembers = () => {
                           return 'N/A';
                         }
 
-                        const formatted = `${dialCode ? `${dialCode} ` : ''}${phone || ''}`.trim();
+                        const formatted = `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim();
                         return formatted || 'N/A';
                       })()}
                     </p>
@@ -624,7 +624,13 @@ const ViewMembers = () => {
                       <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
                         {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Phone` : 'Phone'}
                       </p>
-                      <p className="text-base font-semibold text-gray-900">{contact.phone || 'N/A'}</p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {(() => {
+                          const { countryCode, phone } = contact || {};
+                          const dialCode = getCountryDialCode(countryCode);
+                          return `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim() || 'N/A';
+                        })()}
+                      </p>
                     </div>,
                     <div key={`${index}-email`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                       <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
@@ -827,7 +833,8 @@ const ViewMembers = () => {
                                           return 'N/A';
                                         }
 
-                                        const formatted = `${dialCode ? `${dialCode} ` : ''}${phone || ''}`.trim();
+                                        const formatted =
+                                          `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim();
                                         return formatted || 'N/A';
                                       })()}
                                     </p>

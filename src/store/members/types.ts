@@ -217,7 +217,16 @@ export interface MemberDetailsResponse {
   subscription: MembersSubscription;
   members: AdditionalMemberDetails[];
   playerProfile?: PlayerProfile;
-  emergencyContacts: [];
+  emergencyContacts: [
+    {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      relationship: string;
+      countryCode: string;
+    },
+  ];
   userProfile?: userProfile;
 }
 
