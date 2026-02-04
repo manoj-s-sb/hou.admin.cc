@@ -75,7 +75,6 @@ export const activateUserSubscription = createAsyncThunk(
 
       return response?.data;
     } catch (error: any) {
-      // Return the actual API error response, not the transformed message
       return rejectWithValue(error.response?.data || error.message || 'Failed to activate user subscription');
     }
   }
