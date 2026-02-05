@@ -36,6 +36,7 @@ const SlotDetailsModal = ({
 }: SlotDetailsModalProps) => {
   const [selectedReason, setSelectedReason] = useState('');
   const [customReason, setCustomReason] = useState('');
+  const [showFullDisableReason, setShowFullDisableReason] = useState(false);
 
   if (!isOpen || !slot) return null;
 
@@ -111,11 +112,24 @@ const SlotDetailsModal = ({
                   </div>
                   <div className="space-y-2 rounded-lg bg-red-50 p-3">
                     {slot.disableReason && (
-                      <div className="flex justify-between">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                         <span className="text-[13px] text-gray-600">Reason:</span>
-                        <span className="max-w-[300px] text-right text-[13px] font-medium text-red-600">
-                          {slot.disableReason}
-                        </span>
+                        <div className="flex flex-col items-start sm:items-end">
+                          <span className="max-w-[300px] break-words text-right text-[13px] font-medium text-red-600">
+                            {slot.disableReason.length > 120 && !showFullDisableReason
+                              ? `${slot.disableReason.slice(0, 120)}...`
+                              : slot.disableReason}
+                          </span>
+                          {slot.disableReason.length > 120 && (
+                            <button
+                              type="button"
+                              className="mt-1 text-[12px] font-medium text-red-600 underline underline-offset-2"
+                              onClick={() => setShowFullDisableReason(prev => !prev)}
+                            >
+                              {showFullDisableReason ? 'Show less' : 'Show more'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                     {slot.disabledAt && (
