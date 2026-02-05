@@ -122,8 +122,8 @@ const SlotDetailsModal = ({
                           </span>
                           {slot.disableReason.length > 120 && (
                             <button
-                              type="button"
                               className="mt-1 text-[12px] font-medium text-red-600 underline underline-offset-2"
+                              type="button"
                               onClick={() => setShowFullDisableReason(prev => !prev)}
                             >
                               {showFullDisableReason ? 'Show less' : 'Show more'}
@@ -249,9 +249,9 @@ const SlotDetailsModal = ({
                   <>
                     <textarea
                       className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                      maxLength={500}
                       placeholder={`Enter details for ${selectedReason} (max 500 characters)...`}
                       rows={4}
-                      maxLength={500}
                       value={customReason}
                       onChange={e => setCustomReason(e.target.value)}
                     />
