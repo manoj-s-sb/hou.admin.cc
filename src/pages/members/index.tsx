@@ -360,14 +360,16 @@ const Members = () => {
           </div>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button
-              className="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+              className="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isLoading}
               type="button"
               onClick={handleClearFilters}
             >
               Reset
             </button>
             <button
-              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isLoading}
               type="button"
               onClick={handleApplyFilters}
             >

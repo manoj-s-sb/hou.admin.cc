@@ -252,7 +252,8 @@ const Induction = () => {
         </div>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
-            className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+            className="rounded-xl border border-gray-200 px-5 py-2 text-[13px] font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLoading}
             type="button"
             onClick={() => {
               setFilters(defaultFilters);
@@ -271,7 +272,8 @@ const Induction = () => {
             Reset
           </button>
           <button
-            className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+            className="rounded-xl bg-indigo-600 px-5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLoading}
             type="button"
             onClick={applyFilters}
           >
