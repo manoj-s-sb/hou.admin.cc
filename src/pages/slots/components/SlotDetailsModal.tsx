@@ -122,7 +122,7 @@ const SlotDetailsModal = ({
                           </span>
                           {slot.disableReason.length > 120 && (
                             <button
-                              className="mt-1 text-[12px] font-medium text-red-600 underline underline-offset-2"
+                              className="mt-1 text-[12px] font-medium text-blue-600 underline underline-offset-2"
                               type="button"
                               onClick={() => setShowFullDisableReason(prev => !prev)}
                             >
