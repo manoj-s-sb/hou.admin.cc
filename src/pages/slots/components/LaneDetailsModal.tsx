@@ -105,13 +105,24 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
                   ))}
                 </select>
                 {selectedReason && (
-                  <input
-                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
-                    placeholder={`Enter details for ${selectedReason}...`}
-                    type="text"
-                    value={customReason}
-                    onChange={e => setCustomReason(e.target.value)}
-                  />
+                  <>
+                    <textarea
+                      className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                      maxLength={500}
+                      placeholder={`Enter details for ${selectedReason} (max 500 characters)...`}
+                      rows={4}
+                      value={customReason}
+                      onChange={e => setCustomReason(e.target.value)}
+                    />
+                    <div className="flex justify-between text-[12px]">
+                      <span className={customReason.length >= 500 ? 'text-red-500' : 'text-gray-500'}>
+                        {customReason.length}/500 characters
+                      </span>
+                      {customReason.length >= 500 && (
+                        <span className="text-red-500">Maximum 500 characters allowed</span>
+                      )}
+                    </div>
+                  </>
                 )}
                 {/* Block Lane App Checkbox */}
                 {/* <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#E5F0F0] bg-gradient-to-br from-[#F8FAFA] to-[#FFFFFF] p-4 transition-all hover:border-[#B3DADA]">
