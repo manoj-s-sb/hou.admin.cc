@@ -1,34 +1,58 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
-import { getMembers } from '../../store/members/api';
+import { decodeToken } from '../../helpers';
+import { getMembers, getMembersCount } from '../../store/members/api';
 import { MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
 
 const user_svg = '/assets/user.svg';
 
+type FilterState = {
+  email: string;
+  billingCycle: '' | NonNullable<MemberRequest['billingCycle']>;
+  subscriptionType: '' | NonNullable<MemberRequest['subscriptionCode']>;
+  status: '' | NonNullable<MemberRequest['subscriptionStatus']>;
+};
+
+const defaultFilters: FilterState = {
+  email: '',
+  billingCycle: '',
+  subscriptionType: '',
+  status: '',
+};
+
+function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterState {
+  return {
+    email: searchParams.get('email') ?? '',
+    billingCycle: (searchParams.get('billingCycle') as FilterState['billingCycle']) ?? '',
+    subscriptionType: (searchParams.get('subscriptionType') as FilterState['subscriptionType']) ?? '',
+    status: (searchParams.get('status') as FilterState['status']) ?? '',
+  };
+}
+
+function filtersToSearchParams(filters: FilterState): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (filters.email.trim()) params.email = filters.email.trim();
+  if (filters.billingCycle) params.billingCycle = filters.billingCycle;
+  if (filters.subscriptionType) params.subscriptionType = filters.subscriptionType;
+  if (filters.status) params.status = filters.status;
+  return params;
+}
+
 const Members = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { membersList: membersListData, isLoading } = useSelector((state: RootState) => state.members);
-  type FilterState = {
-    email: string;
-    billingCycle: '' | NonNullable<MemberRequest['billingCycle']>;
-    subscriptionType: '' | NonNullable<MemberRequest['subscriptionCode']>;
-    status: '' | NonNullable<MemberRequest['subscriptionStatus']>;
-  };
-  const defaultFilters: FilterState = {
-    email: '',
-    billingCycle: '',
-    subscriptionType: '',
-    status: '',
-  };
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { membersList: membersListData, isLoading, membersCount } = useSelector((state: RootState) => state.members);
+
+  const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
   const membersColumns: ColumnDef[] = [
     {
       field: 'sno',
@@ -122,7 +146,7 @@ const Members = () => {
         if (type === 'pendingactivation') return 'Activation Pending';
         if (type === 'active') return 'Active';
         if (type === 'paused') return 'Paused';
-        if (type === 'canceled') return 'Cancelled';
+        if (type === 'canceled') return 'Inactive';
         if (type === 'resumed') return 'Resumed';
         if (type === 'inactive') return 'Inactive';
         return type;
@@ -156,7 +180,7 @@ const Members = () => {
             title="View member details"
             onClick={e => {
               e.stopPropagation();
-              navigate(`/members/${params.row.userId}`);
+              navigate(`/members/${params.row.userId}`, { state: { listSearch: location.search } });
             }}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,45 +199,66 @@ const Members = () => {
     },
   ];
 
-  const currentLimit = membersListData.limit || 15;
+  const currentLimit = membersListData.limit || 20;
 
-  const buildRequestPayload = (
-    overrides?: Partial<MemberRequest>,
-    appliedFilters: FilterState = filters
-  ): MemberRequest => {
-    const limit = overrides?.limit ?? (membersListData.limit || 15);
+  const buildRequestPayload = useCallback(
+    (overrides?: Partial<MemberRequest>, appliedFilters: FilterState = filters): MemberRequest => {
+      const limit = overrides?.limit ?? (membersListData.limit || 15);
+      const payload: MemberRequest = {
+        skip: overrides?.skip ?? 0,
+        limit,
+        facilityCode: 'HOU01',
+      };
+
+      const trimmedEmail = appliedFilters.email.trim();
+      if (trimmedEmail) {
+        payload.email = trimmedEmail;
+      }
+      if (appliedFilters.billingCycle) {
+        payload.billingCycle = appliedFilters.billingCycle;
+      }
+      if (appliedFilters.subscriptionType) {
+        payload.subscriptionCode = appliedFilters.subscriptionType;
+      }
+      if (appliedFilters.status) {
+        payload.subscriptionStatus = appliedFilters.status;
+      }
+
+      return payload;
+    },
+    [filters, membersListData.limit]
+  );
+
+  const facilityCode = decodeToken()?.facilityCode;
+
+  // Sync filter state from URL when search params change (e.g. back from detail)
+  useEffect(() => {
+    setFilters(parseFiltersFromSearchParams(searchParams));
+  }, [searchParams]);
+
+  // Fetch members when URL/search params or facility/limit change (restores filtered list on return)
+  useEffect(() => {
+    const applied = parseFiltersFromSearchParams(searchParams);
     const payload: MemberRequest = {
-      skip: overrides?.skip ?? 0,
-      limit,
+      skip: 0,
+      limit: currentLimit,
       facilityCode: 'HOU01',
     };
-
-    const trimmedEmail = appliedFilters.email.trim();
-    if (trimmedEmail) {
-      payload.email = trimmedEmail;
-    }
-    if (appliedFilters.billingCycle) {
-      payload.billingCycle = appliedFilters.billingCycle;
-    }
-    if (appliedFilters.subscriptionType) {
-      payload.subscriptionCode = appliedFilters.subscriptionType;
-    }
-    if (appliedFilters.status) {
-      payload.subscriptionStatus = appliedFilters.status;
-    }
-
-    return payload;
-  };
+    const trimmedEmail = applied.email.trim();
+    if (trimmedEmail) payload.email = trimmedEmail;
+    if (applied.billingCycle) payload.billingCycle = applied.billingCycle;
+    if (applied.subscriptionType) payload.subscriptionCode = applied.subscriptionType;
+    if (applied.status) payload.subscriptionStatus = applied.status;
+    dispatch(getMembers(payload));
+  }, [dispatch, currentLimit, facilityCode, searchParams]);
 
   useEffect(() => {
     dispatch(
-      getMembers({
-        skip: 0,
-        limit: currentLimit,
-        facilityCode: 'HOU01',
+      getMembersCount({
+        facilityCode: facilityCode || '',
       })
     );
-  }, [dispatch, currentLimit]);
+  }, [dispatch, facilityCode]);
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({
@@ -223,57 +268,15 @@ const Members = () => {
   };
 
   const handleApplyFilters = () => {
-    dispatch(getMembers(buildRequestPayload({ skip: 0 })));
+    const params = filtersToSearchParams(filters);
+    setSearchParams(params, { replace: true });
   };
 
   const handleClearFilters = () => {
     setFilters(defaultFilters);
+    setSearchParams({}, { replace: true });
     dispatch(getMembers(buildRequestPayload({ skip: 0 }, defaultFilters)));
   };
-
-  // Calculate member statistics
-  // const memberStats = useMemo(() => {
-  //   const members = membersListData.members || [];
-  //   const total = membersListData.total || 0;
-
-  //   // Calculate active and inactive counts (using flattened structure as per column definitions)
-  //   const active = members.filter(m => {
-  //     const status = (m as any).subscriptionStatus || m.subscription?.subscriptionStatus;
-  //     return status === 'active';
-  //   }).length;
-  //   const inactive = members.filter(m => {
-  //     const status = (m as any).subscriptionStatus || m.subscription?.subscriptionStatus;
-  //     return status === 'inactive';
-  //   }).length;
-
-  //   // Calculate subscription type counts (using flattened structure as per column definitions)
-  //   const standard = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'standard';
-  //   }).length;
-  //   const premium = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'premium';
-  //   }).length;
-  //   const family = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'family';
-  //   }).length;
-  //   const offpeak = members.filter(m => {
-  //     const code = (m as any).subscriptionCode || m.subscription?.subscriptionCode;
-  //     return code === 'offpeak';
-  //   }).length;
-
-  //   return {
-  //     total,
-  //     active,
-  //     inactive,
-  //     standard,
-  //     premium,
-  //     family,
-  //     offpeak,
-  //   };
-  // }, [membersListData]);
 
   return (
     <div className="w-full">
@@ -285,10 +288,9 @@ const Members = () => {
         value=""
       />
 
-      <div className="mb-8">
-        {/* <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-4"> */}
-        {/* Filters Section - Left Side */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:col-span-2">
+      <div className="mb-8 flex w-full flex-col gap-4 lg:flex-row lg:flex-nowrap lg:items-stretch lg:justify-between">
+        {/* Filters Section - 40% on lg */}
+        <div className="w-full min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:flex-[2_1_0%]">
           <h3 className="mb-3 text-base font-semibold text-gray-900">Filters</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
@@ -317,7 +319,6 @@ const Members = () => {
                 <option value="">All</option>
                 <option value="annual">Annual</option>
                 <option value="fortnightly">Fortnightly</option>
-                <option value="offpeak">Offpeak</option>
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -351,22 +352,24 @@ const Members = () => {
                 <option value="active">Active</option>
                 <option value="pendingactivation">Pending Activation</option>
                 <option value="paused">Paused</option>
-                <option value="canceled">Cancelled</option>
+                <option value="past_due">Payment Failed</option>
+                <option value="canceled">Inactive</option>
                 <option value="resumed">Resumed</option>
-                <option value="inactive">Inactive</option>
               </select>
             </div>
           </div>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button
-              className="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+              className="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isLoading}
               type="button"
               onClick={handleClearFilters}
             >
               Reset
             </button>
             <button
-              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isLoading}
               type="button"
               onClick={handleApplyFilters}
             >
@@ -375,87 +378,153 @@ const Members = () => {
           </div>
         </div>
 
-        {/* Statistics Section - Right Side */}
-        {/* <div className="flex w-full flex-row gap-3 lg:col-span-2"> */}
-        {/* Members Statistics Card */}
-        {/* <div className="group relative flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300"> */}
-        {/* Gradient Background */}
-        {/* <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-blue-600 to-cyan-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div> */}
+        {/* Statistics Section - 60% on lg */}
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row lg:flex-[3_1_0%]">
+          {membersCount && (
+            <>
+              {/* Members Statistics Card */}
+              <div className="group relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 sm:p-5">
+                <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-blue-600 to-cyan-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div>
 
-        {/* <div className="relative"> */}
-        {/* <div className="mb-3"> */}
-        {/* <h3 className="mb-1 text-xs font-semibold text-gray-600">Total Members</h3> */}
-        {/* <p className="text-3xl font-bold text-gray-900">{memberStats.total.toLocaleString()}</p> */}
-        {/* </div> */}
-        {/* <div className="space-y-1.5 border-t border-gray-100 pt-3"> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-green-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Active</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.active.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-gray-400"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Inactive</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.inactive.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
+                <div className="relative">
+                  <div className="mb-3">
+                    <h3 className="mb-1 text-xs font-semibold text-gray-600">Total Members</h3>
+                    <p className="text-2xl font-bold text-gray-900 sm:text-3xl">
+                      {membersCount.total.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="space-y-1.5 border-t border-gray-100 pt-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                        <span className="text-sm font-medium text-gray-600">Active</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">
+                        {membersCount.activeMembersCount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+                        <span className="text-sm font-medium text-gray-600">Inactive</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">
+                        {membersCount.inactiveMembersCount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-amber-500"></div>
+                        <span className="text-sm font-medium text-gray-600">Pending Activation</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">
+                        {membersCount.pendingActivationCount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-        {/* Subscriptions Statistics Card */}
-        {/* <div className="group relative flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300"> */}
-        {/* Gradient Background */}
-        {/* <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-green-600 to-emerald-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div> */}
+              {/* Subscriptions Statistics Card - by type with Annual / Fortnightly */}
+              <div className="group relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 sm:p-5">
+                <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-green-600 to-emerald-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div>
 
-        {/* <div className="relative"> */}
-        {/* <div className="mb-3"> */}
-        {/* <h3 className="mb-1 text-xs font-semibold text-gray-600">Subscriptions</h3> */}
-        {/* <p className="text-3xl font-bold text-gray-900"> */}
-        {/* {( */}
-        {/* memberStats.standard + */}
-        {/* memberStats.premium + */}
-        {/* memberStats.family + */}
-        {/* memberStats.offpeak */}
-        {/* ).toLocaleString()} */}
-        {/* </p> */}
-        {/* </div> */}
-        {/* <div className="space-y-1.5 border-t border-gray-100 pt-3"> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-blue-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Standard</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.standard.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-purple-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Premium</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.premium.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-pink-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Family</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.family.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* <div className="flex items-center justify-between"> */}
-        {/* <div className="flex items-center gap-2"> */}
-        {/* <div className="h-2 w-2 rounded-full bg-orange-500"></div> */}
-        {/* <span className="text-sm font-medium text-gray-600">Offpeak</span> */}
-        {/* </div> */}
-        {/* <span className="text-sm font-bold text-gray-900">{memberStats.offpeak.toLocaleString()}</span> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
-        {/* </div> */}
+                <div className="relative min-w-0 overflow-x-auto">
+                  <div className="mb-3">
+                    <h3 className="mb-1 text-xs font-semibold text-gray-600">Subscriptions</h3>
+                    <p className="text-2xl font-bold text-gray-900 sm:text-3xl">
+                      {(
+                        membersCount.standardFortnightly +
+                        membersCount.standardAnnual +
+                        membersCount.premiumFortnightly +
+                        membersCount.premiumAnnual +
+                        membersCount.familyFortnightly +
+                        membersCount.familyAnnual +
+                        membersCount.offpeakFortnightly +
+                        membersCount.offpeakAnnual
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                  {/* Header: Billing cycle columns - scrollable on narrow */}
+                  <div className="border-t border-gray-100 pt-3">
+                    <div className="mb-2 grid min-w-[280px] grid-cols-[1fr_auto_auto_auto] items-center gap-2 text-xs font-semibold text-gray-500">
+                      <span>Plan</span>
+                      <span className="w-12 text-right">Annual</span>
+                      <span className="w-14 text-right">Fortnightly</span>
+                      <span className="w-10 text-right">Total</span>
+                    </div>
+                    <div className="space-y-2">
+                      {/* Standard */}
+                      <div className="flex items-center gap-2 rounded-lg bg-blue-50/70 px-2 py-1.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Standard</span>
+                        </div>
+                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.standardAnnual.toLocaleString()}
+                        </span>
+                        <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.standardFortnightly.toLocaleString()}
+                        </span>
+                        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-blue-700">
+                          {(membersCount.standardAnnual + membersCount.standardFortnightly).toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Premium */}
+                      <div className="flex items-center gap-2 rounded-lg bg-purple-50/70 px-2 py-1.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-purple-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Premium</span>
+                        </div>
+                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.premiumAnnual.toLocaleString()}
+                        </span>
+                        <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.premiumFortnightly.toLocaleString()}
+                        </span>
+                        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-purple-700">
+                          {(membersCount.premiumAnnual + membersCount.premiumFortnightly).toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Family */}
+                      <div className="flex items-center gap-2 rounded-lg bg-pink-50/70 px-2 py-1.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-pink-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Family</span>
+                        </div>
+                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.familyAnnual.toLocaleString()}
+                        </span>
+                        <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.familyFortnightly.toLocaleString()}
+                        </span>
+                        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-pink-700">
+                          {(membersCount.familyAnnual + membersCount.familyFortnightly).toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Offpeak */}
+                      <div className="flex items-center gap-2 rounded-lg bg-orange-50/70 px-2 py-1.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-orange-500"></div>
+                          <span className="text-sm font-medium text-gray-700">Offpeak</span>
+                        </div>
+                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.offpeakAnnual.toLocaleString()}
+                        </span>
+                        <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
+                          {membersCount.offpeakFortnightly.toLocaleString()}
+                        </span>
+                        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-orange-700">
+                          {(membersCount.offpeakAnnual + membersCount.offpeakFortnightly).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div>
@@ -488,7 +557,7 @@ const Members = () => {
             }
           }}
           onRowClick={(row: any) => {
-            navigate(`/members/${row.userId}`);
+            navigate(`/members/${row.userId}`, { state: { listSearch: location.search } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
             // When changing rows per page, reset to first page

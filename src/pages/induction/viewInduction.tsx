@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import { getInductionStepsDetails, updateInductionSteps, userInductionDetails } from '../../store/induction/api';
 import { SubStep } from '../../store/induction/types';
 import { activateUserSubscription } from '../../store/members/api';
 import { RootState, AppDispatch } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
+import { logger } from '../../utils/logger';
 
 import InductionAccordionItem from './components/InductionAccordionItem';
 
@@ -23,6 +25,8 @@ const ViewInduction = () => {
 
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? '';
   const { userId } = useParams<{ userId: string | any }>();
 
   const [data, setData] = useState<any>(induction?.userInductionDetails);
@@ -50,7 +54,7 @@ const ViewInduction = () => {
           }
         })
         .catch((error: any) => {
-          console.error('Error fetching user induction details:', error);
+          logger.error('Error fetching user induction details', error, { userId });
           toast.error('Failed to load induction details');
         })
         .finally(() => {
@@ -137,26 +141,11 @@ const ViewInduction = () => {
           search={false}
           title="View Induction"
           value=""
-          onBackClick={() => navigate('/induction')}
+          onBackClick={() => navigate(`/induction${listSearch}`)}
           onSearch={() => undefined}
         />
         <div className="flex items-center justify-center rounded-lg bg-white p-12 shadow-md">
-          <div className="flex flex-col items-center space-y-4">
-            <svg
-              className="h-12 w-12 animate-spin text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path
-                className="opacity-75"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                fill="currentColor"
-              ></path>
-            </svg>
-            <p className="text-gray-600">Loading induction details...</p>
-          </div>
+          <LoaderComponent message="Loading induction details..." size="lg" variant="inline" />
         </div>
       </div>
     );
@@ -172,7 +161,7 @@ const ViewInduction = () => {
           search={false}
           title="View Induction"
           value=""
-          onBackClick={() => navigate('/induction')}
+          onBackClick={() => navigate(`/induction${listSearch}`)}
           onSearch={() => undefined}
         />
         <div className="rounded-lg bg-white p-12 shadow-md">
@@ -180,7 +169,7 @@ const ViewInduction = () => {
             <p className="text-lg text-gray-600">No induction details found</p>
             <button
               className="mt-4 rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-              onClick={() => navigate('/induction')}
+              onClick={() => navigate(`/induction${listSearch}`)}
             >
               Back to Inductions
             </button>
@@ -199,7 +188,7 @@ const ViewInduction = () => {
         search={false}
         title="View Induction"
         value=""
-        onBackClick={() => navigate('/induction')}
+        onBackClick={() => navigate(`/induction${listSearch}`)}
         onSearch={() => undefined}
       />
 

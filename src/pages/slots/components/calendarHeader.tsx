@@ -77,6 +77,14 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
         behavior: 'smooth',
       });
     }
+    if (isPrevDisabled) {
+      return;
+    }
+
+    const previousDate = displayedDates[currentDateIndex - 1];
+    if (previousDate) {
+      setSelectedDate({ day: previousDate.day, month: previousDate.month, fullDate: previousDate.fullDate });
+    }
   };
 
   const handleNavigateNext = () => {
@@ -87,6 +95,14 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
         left: scrollContainerRef.current.scrollLeft + 60,
         behavior: 'smooth',
       });
+    }
+    if (isNextDisabled) {
+      return;
+    }
+
+    const nextDate = displayedDates[currentDateIndex + 1];
+    if (nextDate) {
+      setSelectedDate({ day: nextDate.day, month: nextDate.month, fullDate: nextDate.fullDate });
     }
   };
 
@@ -99,89 +115,28 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
     setSelectedDate({ day: today.day, month: today.month, fullDate: today.fullDate });
   };
 
-  const handleSelectPrevious = () => {
-    if (isPrevDisabled) {
-      return;
-    }
-
-    const previousDate = displayedDates[currentDateIndex - 1];
-    if (previousDate) {
-      setSelectedDate({ day: previousDate.day, month: previousDate.month, fullDate: previousDate.fullDate });
-    }
-  };
-
-  const handleSelectNext = () => {
-    if (isNextDisabled) {
-      return;
-    }
-
-    const nextDate = displayedDates[currentDateIndex + 1];
-    if (nextDate) {
-      setSelectedDate({ day: nextDate.day, month: nextDate.month, fullDate: nextDate.fullDate });
-    }
-  };
-
   return (
     <div>
-      <div className="relative flex w-[100%] flex-col gap-3 rounded-[10px] border border-[#E2E8F0] bg-[#fff] px-3 py-3.5 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-2 desktop:px-5 desktop:py-5">
+      <div className="relative flex w-[100%] flex-col gap-2 rounded-[10px] border border-[#E2E8F0] bg-[#fff] px-3 py-2.5 desktop:flex-row desktop:items-center desktop:justify-between desktop:gap-2 desktop:px-4 desktop:py-3">
         {/* Mobile: Date display at top */}
-        <div className="block text-center text-[15px] font-[400] text-[#21295A] desktop:absolute desktop:left-1/2 desktop:-translate-x-1/2 desktop:text-[18px]">
+        <div className="block text-center text-[14px] font-[400] text-[#21295A] desktop:text-[16px]">
           {selectedDate?.day}, {monthName}{' '}
           {selectedDate?.fullDate ? selectedDate.fullDate.getFullYear() : new Date().getFullYear()}
         </div>
-
-        {/* Mobile: Navigation controls */}
-        <div className="flex flex-row items-center justify-center gap-2 desktop:justify-start desktop:gap-2">
-          <span
-            className={`rounded-[8px] border border-[#E2E8F0] p-2 desktop:rounded-[10px] desktop:p-2 ${isPrevDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[#F8FAFC]'}`}
-            role="button"
-            tabIndex={0}
-            onClick={handleSelectPrevious}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleSelectPrevious();
-              }
-            }}
-          >
-            <img alt="arrow left" className="h-5 w-5 desktop:h-6 desktop:w-6" src={'../../assets/svg/arrow_left.svg'} />
-          </span>
-          <button
-            className={`rounded-[8px] border border-[#E2E8F0] px-4 py-2 text-[13px] font-medium desktop:rounded-[10px] desktop:px-5 desktop:py-2 desktop:text-[14px] ${
-              isTodaySelected
-                ? 'cursor-not-allowed bg-[#F8FAFC] text-[#94A3B8]'
-                : 'cursor-pointer text-[#1E293B] hover:bg-[#F8FAFC]'
-            }`}
-            disabled={isTodaySelected}
-            type="button"
-            onClick={handleSelectToday}
-          >
-            Today
-          </button>
-          <span
-            className={`rounded-[8px] border border-[#E2E8F0] p-2 desktop:rounded-[10px] desktop:p-2 ${isNextDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[#F8FAFC]'}`}
-            role="button"
-            tabIndex={0}
-            onClick={handleSelectNext}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleSelectNext();
-              }
-            }}
-          >
-            <img
-              alt="arrow right"
-              className="h-5 w-5 desktop:h-6 desktop:w-6"
-              src={'../../assets/svg/arrow_right.svg'}
-            />
-          </span>
-        </div>
-
         {/* Week navigation with dates */}
-        <div className="flex flex-row items-center justify-center gap-1.5 desktop:gap-2">
+        <div className="flex flex-row items-center justify-center gap-1 desktop:gap-1.5">
+          {!isTodaySelected && (
+            <button
+              className="mt-5 cursor-pointer rounded-[8px] border border-[#E2E8F0] px-3 py-1.5 text-[12px] font-medium text-[#1E293B] hover:bg-[#F8FAFC] desktop:rounded-[10px] desktop:px-4 desktop:py-1.5 desktop:text-[13px]"
+              type="button"
+              onClick={handleSelectToday}
+            >
+              Today
+            </button>
+          )}
+
           <span
-            className="relative top-[10px] flex-shrink-0 cursor-pointer rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] desktop:relative desktop:top-[13px] desktop:rounded-[10px] desktop:p-2.5"
+            className="relative top-[8px] flex-shrink-0 cursor-pointer rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC] desktop:relative desktop:top-[10px] desktop:rounded-[10px] desktop:p-2"
             role="button"
             tabIndex={0}
             onClick={handleNavigatePrevious}
@@ -196,7 +151,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
           </span>
           <div
             ref={scrollContainerRef}
-            className="scrollbar-hide flex flex-row items-end gap-1.5 overflow-x-auto desktop:gap-4"
+            className="scrollbar-hide flex flex-row items-end gap-1 overflow-x-auto desktop:gap-3"
           >
             {displayedDates.map((date, index) => {
               const isSelected = selectedDate?.day === date.day && selectedDate?.month === date.month;
@@ -204,10 +159,10 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
                 ? date.fullDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
                 : '';
               return (
-                <div key={index} className="flex flex-shrink-0 flex-col items-center gap-1 text-center desktop:gap-2">
-                  <span className="text-[10px] font-medium text-[#7A7F9C] desktop:text-[12px]">{weekdayLabel}</span>
+                <div key={index} className="flex flex-shrink-0 flex-col items-center gap-0.5 text-center desktop:gap-1">
+                  <span className="text-[9px] font-medium text-[#7A7F9C] desktop:text-[11px]">{weekdayLabel}</span>
                   <span
-                    className={`cursor-pointer rounded-[8px] border border-[#E2E8F0] px-3 py-2 text-[13px] font-medium text-[#1E293B] desktop:rounded-[10px] desktop:px-4 desktop:py-2.5 desktop:text-[15px] ${isSelected ? 'bg-[#21295A] text-white' : ''}`}
+                    className={`cursor-pointer rounded-[8px] border border-[#E2E8F0] px-2.5 py-1.5 text-[12px] font-medium text-[#1E293B] desktop:rounded-[10px] desktop:px-3 desktop:py-2 desktop:text-[14px] ${isSelected ? 'bg-[#21295A] text-white' : ''}`}
                     role="button"
                     tabIndex={0}
                     onClick={() => setSelectedDate({ day: date.day, month: date.month, fullDate: date.fullDate })}
@@ -225,7 +180,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
             })}
           </div>
           <span
-            className="relative top-[10px] flex-shrink-0 cursor-pointer rounded-[8px] border border-[#E2E8F0] p-2.5 hover:bg-[#F8FAFC] desktop:relative desktop:top-[13px] desktop:rounded-[10px] desktop:p-2.5"
+            className="relative top-[8px] flex-shrink-0 cursor-pointer rounded-[8px] border border-[#E2E8F0] p-2 hover:bg-[#F8FAFC] desktop:relative desktop:top-[10px] desktop:rounded-[10px] desktop:p-2"
             role="button"
             tabIndex={0}
             onClick={handleNavigateNext}

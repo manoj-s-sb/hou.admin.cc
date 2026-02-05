@@ -4,8 +4,8 @@ import { isTokenExpired } from '../utils/tokenUtils';
 
 // Create axios instance with default configuration
 const api = axios.create({
-  baseURL: 'https://houston-facilityadmin-func-epcvgvfcesezf7dr.canadacentral-01.azurewebsites.net/',
-  //baseURL: 'https://adminportal-func-gxfraygwfuecb7fn.southindia-01.azurewebsites.net',
+  //baseURL: 'https://houston-facilityadmin-func-epcvgvfcesezf7dr.canadacentral-01.azurewebsites.net/',
+  baseURL: 'https://adminportal-func-gxfraygwfuecb7fn.southindia-01.azurewebsites.net',
   headers: {
     'Content-Type': 'application/json',
   },

@@ -9,13 +9,14 @@ import {
   TableRow,
   TableSortLabel,
   Paper,
-  CircularProgress,
   Box,
   Typography,
   TablePagination,
   SxProps,
   Theme,
 } from '@mui/material';
+
+import { LoaderSpinner } from '../Loader';
 
 import { TableColumn, TableProps, SortDirection } from './types';
 
@@ -33,7 +34,7 @@ function DataTable<T = any>({
   onSortChange,
   pagination = true,
   page: externalPage,
-  rowsPerPage: externalRowsPerPage = 10,
+  rowsPerPage: externalRowsPerPage = 20,
   totalRows: externalTotalRows,
   onPageChange,
   onRowsPerPageChange,
@@ -45,7 +46,7 @@ function DataTable<T = any>({
   hideHeader = false,
 }: TableProps<T>) {
   const [internalPage, setInternalPage] = useState(0);
-  const [internalRowsPerPage, setInternalRowsPerPage] = useState(externalRowsPerPage ?? 10);
+  const [internalRowsPerPage, setInternalRowsPerPage] = useState(externalRowsPerPage ?? 20);
   const [sortField, setSortField] = useState<string>(defaultSortField || columns[0]?.id || '');
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
 
@@ -195,7 +196,7 @@ function DataTable<T = any>({
     <TableRow>
       <TableCell align="center" colSpan={columns.length} sx={{ py: 8 }}>
         <Box alignItems="center" display="flex" flexDirection="column" gap={2}>
-          <CircularProgress />
+          <LoaderSpinner className="text-blue-600" size="lg" />
           <Typography color="text.secondary" variant="body2">
             Loading...
           </Typography>
@@ -310,7 +311,7 @@ function DataTable<T = any>({
           labelRowsPerPage="Rows per page:"
           page={page}
           rowsPerPage={rowsPerPage}
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
+          rowsPerPageOptions={[20, 30, 50, 100]}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
         />

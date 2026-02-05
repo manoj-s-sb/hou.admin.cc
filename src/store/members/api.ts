@@ -59,7 +59,7 @@ export const activateUserSubscription = createAsyncThunk(
       //uat: 'https://century-subscription-func-uat-fkapb0bphngbgnfb.centralindia-01.azurewebsites.net/subscription/admin/activate',
       //prod: 'https://subscription-func-g4dvhpbhemd9hsbd.centralus-01.azurewebsites.net/subscription/admin/activate',
       const response = await axios.post(
-        'https://subscription-func-g4dvhpbhemd9hsbd.centralus-01.azurewebsites.net/subscription/admin/activate',
+        'https://century-subscription-func-uat-fkapb0bphngbgnfb.centralindia-01.azurewebsites.net/subscription/admin/activate',
         {
           userId,
           adminId,
@@ -75,8 +75,20 @@ export const activateUserSubscription = createAsyncThunk(
 
       return response?.data;
     } catch (error: any) {
-      // Return the actual API error response, not the transformed message
       return rejectWithValue(error.response?.data || error.message || 'Failed to activate user subscription');
+    }
+  }
+);
+export const getMembersCount = createAsyncThunk(
+  'members/getMembersCount',
+  async ({ facilityCode }: { facilityCode: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.members.membersCount, {
+        facilityCode,
+      });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch members count'));
     }
   }
 );

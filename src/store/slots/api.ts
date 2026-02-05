@@ -19,7 +19,10 @@ export const getSlots = createAsyncThunk(
 );
 export const updateLaneStatus = createAsyncThunk(
   'slots/updateLaneStatus',
-  async ({ date, facilityCode, laneCode, action, reason, slotCode }: UpdateLaneStatusRequest, { rejectWithValue }) => {
+  async (
+    { date, facilityCode, laneCode, action, reason, slotCode, blockLaneApp }: UpdateLaneStatusRequest,
+    { rejectWithValue }
+  ) => {
     try {
       const response = await api.post(endpoints.slots.updateLaneStatus, {
         date,
@@ -28,6 +31,7 @@ export const updateLaneStatus = createAsyncThunk(
         action,
         reason,
         slotCode,
+        blockLaneApp,
       });
       return response.data?.data;
     } catch (error: any) {

@@ -87,13 +87,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     setSelectedLane(null);
   };
 
-  const handleUnblockLane = async () => {
+  const handleUnblockLane = async (blockReason?: string, blockLaneApp?: boolean) => {
     if (selectedLane) {
       try {
         // Check if lane is currently blocked (all slots are disabled)
         const isLaneBlocked = selectedLane.slots.some(slot => slot.status?.toLowerCase() === 'disabled');
         const action = isLaneBlocked ? 'available' : 'disable';
-        const reason = isLaneBlocked ? 'Manual unblock from admin' : 'Manual block from admin';
+        const reason = isLaneBlocked ? 'Manual unblock from admin' : blockReason || 'Manual block from admin';
 
         await dispatch(
           updateLaneStatus({
@@ -102,6 +102,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
             laneCode: selectedLane.laneCode,
             action,
             reason,
+            blockLaneApp,
           })
         ).unwrap();
 
@@ -142,13 +143,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     setSelectedSlot(null);
   };
 
-  const handleBlockSlot = async () => {
+  const handleBlockSlot = async (reason: string) => {
     if (selectedSlot) {
       try {
         await dispatch(
           updateLaneStatus({
             action: 'disable',
-            reason: 'Manual block from admin',
+            reason: reason || 'Manual block from admin',
             slotCode: selectedSlot.slot.slotCode,
           })
         ).unwrap();

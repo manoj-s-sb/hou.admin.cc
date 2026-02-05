@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
@@ -11,32 +11,68 @@ import { inductionList } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
 
+type FilterState = {
+  date: string;
+  email: string;
+  status: string;
+};
+
+const defaultFilters: FilterState = {
+  date: '',
+  email: '',
+  status: 'pending',
+};
+
+function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterState {
+  return {
+    date: searchParams.get('date') ?? '',
+    email: searchParams.get('email') ?? '',
+    status: searchParams.get('status') ?? 'pending',
+  };
+}
+
+function filtersToSearchParams(filters: FilterState): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (filters.date) params.date = filters.date;
+  if (filters.email.trim()) params.email = filters.email.trim();
+  if (filters.status && filters.status !== 'pending') params.status = filters.status;
+  return params;
+}
+
 const Induction = () => {
   const { inductionList: inductionListData, isLoading } = useSelector((state: RootState) => state.induction);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [selectedDate, setSelectedDate] = useState('');
-  const [emailFilter, setEmailFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('pending');
+  const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
 
   const applyFilters = () => {
-    dispatch(
-      inductionList({
-        date: selectedDate,
-        page: 1,
-        type: 'inductionbooking',
-        listLimit: 20,
-        email: emailFilter,
-        status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
-      })
-    );
+    const params = filtersToSearchParams(filters);
+    setSearchParams(params, { replace: true });
   };
 
+  // Sync filter state from URL when search params change (e.g. back from view-induction)
   useEffect(() => {
-    applyFilters();
+    setFilters(parseFiltersFromSearchParams(searchParams));
+  }, [searchParams]);
+
+  // Fetch list when URL/search params change (restores filtered list on return from view-induction)
+  useEffect(() => {
+    const applied = parseFiltersFromSearchParams(searchParams);
+    dispatch(
+      inductionList({
+        date: applied.date,
+        page: 1,
+        type: 'inductionbooking',
+        listLimit: inductionListData?.limit || 20,
+        email: applied.email,
+        status: applied.status === 'pending' ? 'confirmed' : applied.status,
+      })
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch]);
+  }, [dispatch, searchParams]);
 
   // Define custom columns for the induction table
   const currentPage = inductionListData?.page ? inductionListData.page - 1 : 0;
@@ -131,8 +167,9 @@ const Induction = () => {
         <button
           className="rounded-full p-2 transition-colors hover:bg-gray-100 max-[560px]:p-1"
           title="View Details"
-          onClick={() => {
-            navigate(`/view-induction/${params.row.userId}`);
+          onClick={e => {
+            e.stopPropagation();
+            navigate(`/view-induction/${params.row.userId}`, { state: { listSearch: location.search } });
             // dispatch(setSelectedInduction(params.row));
           }}
         >
@@ -181,8 +218,8 @@ const Induction = () => {
               id="induction-email-filter"
               placeholder="Search by email"
               type="text"
-              value={emailFilter}
-              onChange={e => setEmailFilter(e.target.value)}
+              value={filters.email}
+              onChange={e => setFilters(prev => ({ ...prev, email: e.target.value }))}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -193,8 +230,8 @@ const Induction = () => {
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
               id="induction-date"
               type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
+              value={filters.date}
+              onChange={e => setFilters(prev => ({ ...prev, date: e.target.value }))}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -204,8 +241,8 @@ const Induction = () => {
             <select
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
               id="induction-status-filter"
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              value={filters.status}
+              onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
             >
               <option value="all">All</option>
               <option value="pending">Pending</option>
@@ -215,18 +252,18 @@ const Induction = () => {
         </div>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
-            className="rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+            className="rounded-xl border border-gray-200 px-5 py-2 text-[13px] font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLoading}
             type="button"
             onClick={() => {
-              setEmailFilter('');
-              setSelectedDate('');
-              setStatusFilter('pending');
+              setFilters(defaultFilters);
+              setSearchParams({}, { replace: true });
               dispatch(
                 inductionList({
                   date: '',
                   page: 1,
                   type: 'inductionbooking',
-                  listLimit: 20,
+                  listLimit: inductionListData?.limit || 20,
                   email: '',
                 })
               );
@@ -235,7 +272,8 @@ const Induction = () => {
             Reset
           </button>
           <button
-            className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+            className="rounded-xl bg-indigo-600 px-5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLoading}
             type="button"
             onClick={applyFilters}
           >
@@ -309,32 +347,30 @@ const Induction = () => {
           serverSide={true}
           totalRows={inductionListData?.total || 0}
           onPageChange={(page: number) => {
-            // Convert 0-based page to 1-based for API
             const pageNumber = page + 1;
             dispatch(
               inductionList({
                 page: pageNumber,
-                date: selectedDate,
+                date: filters.date,
                 type: 'inductionbooking',
                 listLimit: inductionListData?.limit || 20,
-                email: emailFilter,
-                status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
+                email: filters.email,
+                status: filters.status === 'pending' ? 'confirmed' : filters.status,
               })
             );
           }}
           onRowClick={(row: any) => {
-            navigate(`/view-induction/${row.userId}`);
+            navigate(`/view-induction/${row.userId}`, { state: { listSearch: location.search } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
-            // When changing rows per page, reset to first page
             dispatch(
               inductionList({
                 page: 1,
-                date: selectedDate,
+                date: filters.date,
                 type: 'inductionbooking',
                 listLimit: rowsPerPage,
-                email: emailFilter,
-                status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
+                email: filters.email,
+                status: filters.status === 'pending' ? 'confirmed' : filters.status,
               })
             );
           }}

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 
+import { toast } from 'react-hot-toast';
+
+import { LoaderSpinner } from '../../../components/Loader';
 import { getInductionStepsDetails } from '../../../store/induction/api';
 import { SubStep } from '../../../store/induction/types';
 import { formatDateTimeChicago } from '../../../utils/dateUtils';
@@ -105,8 +108,28 @@ const InductionAccordionItem = ({
   }, [isSaving, isOpen, userId, dispatch, prevIsSaving]);
 
   const toggleStep = (stepId: string) => {
-    setSteps(prevSteps =>
-      prevSteps.map(step =>
+    setSteps(prevSteps => {
+      // Find the index of the step being toggled
+      const stepIndex = prevSteps.findIndex(step => step.id === stepId);
+
+      // Check if this is the 5th step (index 4) and user is primary
+      if (stepIndex === 4 && isPrimary) {
+        // Check if trying to mark as completed
+        const currentStep = prevSteps.find(step => step.id === stepId);
+        if (currentStep?.status !== 'completed') {
+          // Verify that steps 1-4 (indices 0-3) are all completed
+          const firstFourSteps = prevSteps.slice(0, 4);
+          const allFirstFourCompleted = firstFourSteps.every(step => step.status === 'completed');
+
+          if (!allFirstFourCompleted) {
+            toast.error('Please complete all previous steps before completing this step');
+            return prevSteps; // Return unchanged steps
+          }
+        }
+      }
+
+      // Proceed with the toggle
+      return prevSteps.map(step =>
         step.id === stepId
           ? {
               ...step,
@@ -115,8 +138,8 @@ const InductionAccordionItem = ({
               completedBy: step.status === 'completed' ? null : userId,
             }
           : step
-      )
-    );
+      );
+    });
   };
 
   const handleSaveClick = () => {
@@ -152,6 +175,17 @@ const InductionAccordionItem = ({
   const totalSteps = steps?.length || 0;
   const isInductionCompletedFromAPI = totalSteps > 0 && completedCount === totalSteps;
 
+  // Check if steps have been modified (local changes to save)
+  const hasLocalChanges =
+    steps.length === originalSteps.length &&
+    steps.some(step => {
+      const orig = originalSteps.find(s => s.id === step.id);
+      return orig ? orig.status !== step.status : true;
+    });
+
+  // Save button: disabled when no check selected, no local changes, or while saving
+  const isSaveDisabled = isSaving || completedCount === 0 || !hasLocalChanges;
+
   return (
     <div className="mb-3 overflow-hidden rounded-lg border border-gray-200">
       {/* Accordion Header */}
@@ -181,27 +215,31 @@ const InductionAccordionItem = ({
             </div>
             <p className="truncate text-xs text-gray-600 sm:text-sm">{email}</p>
 
-            {/* Mobile Progress - shown on small screens */}
-            <div className="mt-1 sm:hidden">
-              <p className="text-xs font-medium text-gray-700">
-                {completedCount} / {totalSteps} Steps
-              </p>
-              <p className={`text-xs ${isInductionCompletedFromAPI ? 'text-green-600' : 'text-orange-600'}`}>
-                {isInductionCompletedFromAPI ? 'Completed' : 'In Progress'}
-              </p>
-            </div>
+            {/* Mobile Progress - shown on small screens, only for primary members or when accordion is open */}
+            {(isPrimary || isOpen) && (
+              <div className="mt-1 sm:hidden">
+                <p className="text-xs font-medium text-gray-700">
+                  {completedCount} / {totalSteps} Steps
+                </p>
+                <p className={`text-xs ${isInductionCompletedFromAPI ? 'text-green-600' : 'text-orange-600'}`}>
+                  {isInductionCompletedFromAPI ? 'Completed' : 'In Progress'}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Progress Badge - hidden on mobile */}
+          {/* Progress Badge - hidden on mobile, only for primary members or when accordion is open */}
           <div className="hidden items-center space-x-3 sm:flex">
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-700">
-                {completedCount} / {totalSteps} Steps
-              </p>
-              <p className={`text-xs ${isInductionCompletedFromAPI ? 'text-green-600' : 'text-orange-600'}`}>
-                {isInductionCompletedFromAPI ? 'Completed' : 'In Progress'}
-              </p>
-            </div>
+            {(isPrimary || isOpen) && (
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-700">
+                  {completedCount} / {totalSteps} Steps
+                </p>
+                <p className={`text-xs ${isInductionCompletedFromAPI ? 'text-green-600' : 'text-orange-600'}`}>
+                  {isInductionCompletedFromAPI ? 'Completed' : 'In Progress'}
+                </p>
+              </div>
+            )}
 
             {/* Chevron Icon */}
             <svg
@@ -240,26 +278,7 @@ const InductionAccordionItem = ({
             {isLoadingSteps ? (
               <div className="rounded-lg border border-gray-200 bg-white p-4">
                 <div className="flex items-center justify-center space-x-2">
-                  <svg
-                    className="h-5 w-5 animate-spin text-blue-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      fill="currentColor"
-                    ></path>
-                  </svg>
+                  <LoaderSpinner className="text-blue-600" size="sm" />
                   <span className="text-sm text-gray-600">Loading induction steps...</span>
                 </div>
               </div>
@@ -350,11 +369,9 @@ const InductionAccordionItem = ({
             {isPrimary && data.subscriptionStatus !== 'active' && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
-                  isInductionCompleted || isSaving
-                    ? 'cursor-not-allowed bg-blue-400'
-                    : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
+                  isSaveDisabled ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
                 }`}
-                disabled={isInductionCompleted || isSaving}
+                disabled={isSaveDisabled}
                 onClick={handleSaveClick}
               >
                 {isSaving && <ButtonLoader />}
@@ -364,11 +381,9 @@ const InductionAccordionItem = ({
             {isInductionCompleted === false && !isPrimary && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
-                  isInductionCompleted || isSaving
-                    ? 'cursor-not-allowed bg-blue-400'
-                    : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
+                  isSaveDisabled ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
                 }`}
-                disabled={isInductionCompleted || isSaving}
+                disabled={isSaveDisabled}
                 onClick={handleSaveClick}
               >
                 {isSaving && <ButtonLoader />}

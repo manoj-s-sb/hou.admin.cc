@@ -139,7 +139,33 @@ function App() {
   return (
     <Provider store={store}>
       <Router>
-        <Toaster position="top-right" />
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+              fontSize: '14px',
+              padding: '16px',
+              borderRadius: '8px',
+              maxWidth: '500px',
+              zIndex: 9999,
+            },
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
         <AppRoutes />
       </Router>
     </Provider>
