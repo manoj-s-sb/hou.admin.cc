@@ -154,9 +154,6 @@ const Tours = () => {
                 <LoaderSpinner className="text-current" size="xs" />
               ) : (
                 <>
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-                  </svg>
                   Mark Complete
                 </>
               )}
@@ -171,10 +168,7 @@ const Tours = () => {
                 <LoaderSpinner className="text-current" size="xs" />
               ) : (
                 <>
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-                  </svg>
-                  No Show
+                  Mark No Show
                 </>
               )}
             </button>

@@ -5,6 +5,7 @@ import {
   getInductionStepsDetails,
   updateInductionSteps,
   updateTourStatus,
+  updateInductionBookingStatus,
   userInductionDetails,
 } from './api';
 import { initialState } from './types';
@@ -76,6 +77,18 @@ const inductionSlice = createSlice({
     builder.addCase(updateTourStatus.rejected, (state, action) => {
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to update tour status. Please try again.';
+    });
+    builder.addCase(updateInductionBookingStatus.pending, state => {
+      state.isLoading = true;
+      state.error = '';
+    });
+    builder.addCase(updateInductionBookingStatus.fulfilled, state => {
+      state.isLoading = false;
+      state.error = '';
+    });
+    builder.addCase(updateInductionBookingStatus.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = (action.payload as string) || 'Failed to update induction booking status. Please try again.';
     });
     builder.addCase(userInductionDetails.pending, state => {
       state.isLoading = true;
