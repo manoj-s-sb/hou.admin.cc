@@ -146,7 +146,7 @@ const Members = () => {
         if (type === 'pendingactivation') return 'Activation Pending';
         if (type === 'active') return 'Active';
         if (type === 'paused') return 'Paused';
-        if (type === 'canceled') return 'Inactive';
+        if (type === 'canceled') return 'Cancelled';
         if (type === 'resumed') return 'Resumed';
         if (type === 'inactive') return 'Inactive';
         return type;
@@ -353,7 +353,7 @@ const Members = () => {
                 <option value="pendingactivation">Pending Activation</option>
                 <option value="paused">Paused</option>
                 <option value="past_due">Payment Failed</option>
-                <option value="canceled">Inactive</option>
+                <option value="canceled">Cancelled</option>
                 <option value="resumed">Resumed</option>
               </select>
             </div>
