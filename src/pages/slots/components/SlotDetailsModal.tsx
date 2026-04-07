@@ -122,7 +122,7 @@ const SlotDetailsModal = ({
                           </span>
                           {slot.disableReason.length > 120 && (
                             <button
-                              className="mt-1 text-[12px] font-medium text-red-600 underline underline-offset-2"
+                              className="mt-1 text-[12px] font-medium text-blue-600 underline underline-offset-2"
                               type="button"
                               onClick={() => setShowFullDisableReason(prev => !prev)}
                             >
@@ -246,13 +246,24 @@ const SlotDetailsModal = ({
                   ))}
                 </select>
                 {selectedReason && (
-                  <input
-                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
-                    placeholder={`Enter details for ${selectedReason}...`}
-                    type="text"
-                    value={customReason}
-                    onChange={e => setCustomReason(e.target.value)}
-                  />
+                  <>
+                    <textarea
+                      className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                      maxLength={500}
+                      placeholder={`Enter details for ${selectedReason} (max 500 characters)...`}
+                      rows={4}
+                      value={customReason}
+                      onChange={e => setCustomReason(e.target.value)}
+                    />
+                    <div className="flex justify-between text-[12px]">
+                      <span className={customReason.length >= 500 ? 'text-red-500' : 'text-gray-500'}>
+                        {customReason.length}/500 characters
+                      </span>
+                      {customReason.length >= 500 && (
+                        <span className="text-red-500">Maximum 500 characters allowed</span>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -263,7 +274,7 @@ const SlotDetailsModal = ({
             {isAvailable && (
               <button
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                disabled={isLoading || !selectedReason || !customReason.trim()}
+                disabled={isLoading || !selectedReason || !customReason.trim() || customReason.length > 500}
                 onClick={() => {
                   const reason = `${selectedReason}: ${customReason.trim()}`;
                   onBlockSlot(reason);
