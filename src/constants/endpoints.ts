@@ -14,6 +14,9 @@ const endpoints = {
   tour: {
     updateTourStatus: '/admin/bookings/tour/status/update',
   },
+  maintenance: {
+    workList: '/admin/work/list',
+  },
   induction: {
     list: '/admin/bookings/list',
     search: '/admin/induction/search',

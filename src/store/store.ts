@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 
 import authReducer from './auth/reducers';
 import inductionReducer from './induction/reducers';
+import maintenanceReducer from './maintenance/reducers';
 import membersReducer from './members/reducers';
 import slotsReducer from './slots/reducers';
 
@@ -9,6 +10,7 @@ const store = configureStore({
   reducer: {
     auth: authReducer,
     induction: inductionReducer,
+    maintenance: maintenanceReducer,
     members: membersReducer,
     slots: slotsReducer,
   },

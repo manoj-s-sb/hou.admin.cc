@@ -3,6 +3,7 @@ import Dashboard from './dashboard';
 import Induction from './induction';
 import ViewInduction from './induction/viewInduction';
 import Login from './login';
+import Maintenance from './maintenance';
 import Members from './members';
 import ViewMembers from './members/viewMembers';
 import SlotBookings from './slots';
@@ -20,4 +21,5 @@ export {
   ViewMembers,
   SlotBookings,
   CoachSchedule,
+  Maintenance,
 };

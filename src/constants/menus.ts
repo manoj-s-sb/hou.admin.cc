@@ -34,6 +34,11 @@ const menus = [
     label: 'Coach Schedule',
     icon: '/assets/coach-schedule.svg',
   },
+  // {
+  //   path: '/maintenance',
+  //   label: 'Maintenance',
+  //   icon: '/assets/maintenance.svg',
+  // },
 ];
 
 export default menus;
