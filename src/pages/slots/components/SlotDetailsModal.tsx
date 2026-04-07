@@ -122,8 +122,8 @@ const SlotDetailsModal = ({
                           </span>
                           {slot.disableReason.length > 120 && (
                             <button
-                              type="button"
                               className="mt-1 text-[12px] font-medium text-red-600 underline underline-offset-2"
+                              type="button"
                               onClick={() => setShowFullDisableReason(prev => !prev)}
                             >
                               {showFullDisableReason ? 'Show less' : 'Show more'}
