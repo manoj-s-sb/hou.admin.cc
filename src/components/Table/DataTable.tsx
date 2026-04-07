@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 
 import {
   Table,
@@ -11,26 +11,14 @@ import {
   Paper,
   Box,
   Typography,
+  TablePagination,
+  SxProps,
+  Theme,
 } from '@mui/material';
 
 import { LoaderSpinner } from '../Loader';
 
 import { TableColumn, TableProps, SortDirection } from './types';
-
-function getPageNumbers(currentPage: number, totalPages: number): (number | '...')[] {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, i) => i);
-  }
-  const pages: (number | '...')[] = [];
-  if (currentPage <= 3) {
-    pages.push(0, 1, 2, 3, '...', totalPages - 2, totalPages - 1);
-  } else if (currentPage >= totalPages - 4) {
-    pages.push(0, 1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
-  } else {
-    pages.push(0, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages - 1);
-  }
-  return pages;
-}
 
 function DataTable<T = any>({
   columns,
@@ -62,30 +50,47 @@ function DataTable<T = any>({
   const [sortField, setSortField] = useState<string>(defaultSortField || columns[0]?.id || '');
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
 
+  // Use external or internal state for pagination
   const page = externalPage !== undefined ? externalPage : internalPage;
   const rowsPerPage = externalRowsPerPage !== undefined ? externalRowsPerPage : internalRowsPerPage;
   const totalRows = serverSide && externalTotalRows !== undefined ? externalTotalRows : data.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
 
   const handleSort = (field: string, columnSortable?: boolean) => {
+    // Check if sorting is disabled at table level or column level
     if (!sortable || columnSortable === false) return;
+
     const isAsc = sortField === field && sortDirection === 'asc';
     const newDirection: SortDirection = isAsc ? 'desc' : 'asc';
+
     setSortField(field);
     setSortDirection(newDirection);
-    if (onSortChange) onSortChange(field, newDirection);
+
+    if (onSortChange) {
+      onSortChange(field, newDirection);
+    }
   };
 
   const sortedData = useMemo(() => {
-    if (serverSide && !onSortChange) return data;
-    if (!sortField) return data;
+    // If serverSide is true and no onSortChange handler, skip client-side sorting (server handles it)
+    if (serverSide && !onSortChange) {
+      return data;
+    }
+    // If no sort field selected, return data as-is
+    if (!sortField) {
+      return data;
+    }
+
     return [...data].sort((a, b) => {
       const column = columns.find(col => col.id === sortField);
       if (!column) return 0;
+
+      // Use custom sortValue function if provided, otherwise fall back to direct property access
       const aValue = column.sortValue ? column.sortValue(a) : (a as any)[sortField];
       const bValue = column.sortValue ? column.sortValue(b) : (b as any)[sortField];
+
       if (aValue === null || aValue === undefined) return 1;
       if (bValue === null || bValue === undefined) return -1;
+
       let comparison = 0;
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         comparison = aValue.localeCompare(bValue);
@@ -94,17 +99,19 @@ function DataTable<T = any>({
       } else {
         comparison = String(aValue).localeCompare(String(bValue));
       }
+
       return sortDirection === 'asc' ? comparison : -comparison;
     });
   }, [data, sortField, sortDirection, columns, serverSide, onSortChange]);
 
   const paginatedData = useMemo(() => {
-    if (!pagination || serverSide) return sortedData;
+    if (!pagination || serverSide) {
+      return sortedData;
+    }
     return sortedData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   }, [sortedData, page, rowsPerPage, pagination, serverSide]);
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 0 || newPage >= totalPages) return;
+  const handleChangePage = (_event: unknown, newPage: number) => {
     if (onPageChange) {
       onPageChange(newPage);
     } else {
@@ -112,24 +119,49 @@ function DataTable<T = any>({
     }
   };
 
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    if (onRowsPerPageChange) {
+      onRowsPerPageChange(newRowsPerPage);
+    } else {
+      setInternalRowsPerPage(newRowsPerPage);
+    }
+    if (onPageChange) {
+      onPageChange(0);
+    } else {
+      setInternalPage(0);
+    }
+  };
+
   const getCellValue = (row: T, column: TableColumn<T>, index: number) => {
     const value = (row as any)[column.id];
-    if (column.renderCell) return column.renderCell(value, row, index);
-    if (column.format) return column.format(value, row);
+    if (column.renderCell) {
+      return column.renderCell(value, row, index);
+    }
+    if (column.format) {
+      return column.format(value, row);
+    }
     return value ?? '';
   };
 
-  const tableContainerSx = {
+  const tableContainerSx: SxProps<Theme> = {
     maxHeight: maxHeight || 'auto',
     overflowX: 'auto',
-    '&::-webkit-scrollbar': { height: '6px' },
-    '&::-webkit-scrollbar-track': { backgroundColor: 'rgba(0,0,0,0.03)' },
-    '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: '4px' },
+    '&::-webkit-scrollbar': {
+      height: '8px',
+    },
+    '&::-webkit-scrollbar-track': {
+      backgroundColor: 'rgba(0,0,0,0.05)',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      backgroundColor: 'rgba(0,0,0,0.2)',
+      borderRadius: '4px',
+    },
   };
 
   const renderEmptyState = () => (
     <TableRow>
-      <TableCell align="center" colSpan={columns.length} sx={{ py: 8, border: 'none' }}>
+      <TableCell align="center" colSpan={columns.length} sx={{ py: 8 }}>
         <Box alignItems="center" display="flex" flexDirection="column" gap={2}>
           {emptyState?.icon || (
             <Box
@@ -162,7 +194,7 @@ function DataTable<T = any>({
 
   const renderLoadingState = () => (
     <TableRow>
-      <TableCell align="center" colSpan={columns.length} sx={{ py: 8, border: 'none' }}>
+      <TableCell align="center" colSpan={columns.length} sx={{ py: 8 }}>
         <Box alignItems="center" display="flex" flexDirection="column" gap={2}>
           <LoaderSpinner className="text-blue-600" size="lg" />
           <Typography color="text.secondary" variant="body2">
@@ -173,20 +205,8 @@ function DataTable<T = any>({
     </TableRow>
   );
 
-  const pageNumbers = getPageNumbers(page, totalPages);
-
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        width: '100%',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        border: '1px solid #e5e7eb',
-        borderRadius: '12px',
-      }}
-    >
+    <Paper sx={{ width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <TableContainer sx={tableContainerSx}>
         <Table size={size} stickyHeader={stickyHeader}>
           {!hideHeader && (
@@ -196,17 +216,18 @@ function DataTable<T = any>({
                   <TableCell
                     key={column.id}
                     align={column.align || 'left'}
-                    style={{ minWidth: column.minWidth, width: column.width }}
+                    style={{
+                      minWidth: column.minWidth,
+                      width: column.width,
+                    }}
                     sx={{
-                      backgroundColor: '#ffffff',
-                      color: '#111827',
+                      backgroundColor: 'grey.50',
                       fontWeight: 600,
-                      fontSize: '0.8125rem',
-                      padding: '14px 16px',
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      padding: { xs: '8px 4px', sm: '16px' },
                       whiteSpace: 'nowrap',
-                      borderBottom: '1px solid #e5e7eb',
-                      '&:first-of-type': { borderTopLeftRadius: '12px' },
-                      '&:last-of-type': { borderTopRightRadius: '12px' },
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     {column.sortable !== false && sortable ? (
@@ -214,17 +235,17 @@ function DataTable<T = any>({
                         active={sortField === column.id}
                         direction={sortField === column.id ? sortDirection : 'asc'}
                         sx={{
-                          color: '#111827 !important',
-                          fontSize: '0.8125rem',
-                          '&.Mui-active': { color: '#111827 !important' },
-                          '& .MuiTableSortLabel-icon': { color: '#111827 !important' },
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          '& .MuiTableSortLabel-icon': {
+                            fontSize: { xs: '1rem', sm: '1.25rem' },
+                          },
                         }}
                         onClick={() => handleSort(column.id, column.sortable)}
                       >
                         {column.label}
                       </TableSortLabel>
                     ) : (
-                      <span>{column.label}</span>
+                      <span style={{ fontSize: 'inherit' }}>{column.label}</span>
                     )}
                   </TableCell>
                 ))}
@@ -240,19 +261,21 @@ function DataTable<T = any>({
                     const rowId = getRowId(row);
                     const isSelected = selectedRowId !== undefined && selectedRowId === rowId;
                     const className = rowClassName ? rowClassName(row, index) : '';
+
                     return (
                       <TableRow
                         key={rowId}
+                        hover
                         className={className}
                         selected={isSelected}
                         sx={{
                           cursor: onRowClick ? 'pointer' : 'default',
-                          backgroundColor: '#ffffff',
                           '&:hover': {
-                            backgroundColor: onRowClick ? '#f9fafb' : '#ffffff',
+                            backgroundColor: onRowClick ? 'action.hover' : 'transparent',
                           },
-                          '&:last-child td': { borderBottom: 'none' },
-                          ...(isSelected && { backgroundColor: '#f0f4ff' }),
+                          ...(isSelected && {
+                            backgroundColor: 'action.selected',
+                          }),
                         }}
                         onClick={() => onRowClick?.(row, index)}
                       >
@@ -261,14 +284,14 @@ function DataTable<T = any>({
                             key={column.id}
                             align={column.align || 'left'}
                             sx={{
-                              fontSize: '0.875rem',
-                              padding: '14px 16px',
-                              color: '#374151',
-                              borderBottom: '1px solid #f3f4f6',
+                              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                              padding: { xs: '8px 4px', sm: '16px' },
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
-                              ...(isSelected && { backgroundColor: '#f0f4ff' }),
+                              ...(isSelected && {
+                                backgroundColor: 'action.selected',
+                              }),
                             }}
                           >
                             {getCellValue(row, column, index)}
@@ -280,75 +303,18 @@ function DataTable<T = any>({
           </TableBody>
         </Table>
       </TableContainer>
-
-      {pagination && totalPages > 0 && (
-        <div className="flex items-center justify-between border-t border-gray-100 bg-white px-4 py-3">
-          {/* Rows per page */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Rows per page:</span>
-            <select
-              className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-indigo-400 focus:outline-none"
-              value={rowsPerPage}
-              onChange={e => {
-                const val = parseInt(e.target.value, 10);
-                if (onRowsPerPageChange) {
-                  onRowsPerPageChange(val);
-                } else {
-                  setInternalRowsPerPage(val);
-                  setInternalPage(0);
-                }
-              }}
-            >
-              {[20, 30, 50, 100].map(opt => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-            <span className="text-xs text-gray-400">
-              {page * rowsPerPage + 1}–{Math.min((page + 1) * rowsPerPage, totalRows)} of {totalRows}
-            </span>
-          </div>
-
-          {/* Pagination buttons */}
-          <div className="flex items-center gap-1">
-            <button
-              className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={page === 0}
-              onClick={() => handlePageChange(page - 1)}
-            >
-              ← Previous
-            </button>
-
-            <div className="flex items-center gap-1 px-1">
-              {pageNumbers.map((p, i) =>
-                p === '...' ? (
-                  <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={p}
-                    className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
-                      p === page ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                    onClick={() => handlePageChange(p as number)}
-                  >
-                    {(p as number) + 1}
-                  </button>
-                )
-              )}
-            </div>
-
-            <button
-              className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={page >= totalPages - 1}
-              onClick={() => handlePageChange(page + 1)}
-            >
-              Next →
-            </button>
-          </div>
-        </div>
+      {pagination && (
+        <TablePagination
+          component="div"
+          count={totalRows}
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`}
+          labelRowsPerPage="Rows per page:"
+          page={page}
+          rowsPerPage={rowsPerPage}
+          rowsPerPageOptions={[20, 30, 50, 100]}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
       )}
     </Paper>
   );

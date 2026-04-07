@@ -102,13 +102,12 @@ const Tours = () => {
           completed: 'bg-green-100 text-green-800',
           pending: 'bg-yellow-100 text-yellow-800',
           cancelled: 'bg-red-100 text-red-800',
-          noshow: 'bg-orange-100 text-orange-800',
         };
         const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
 
         return (
           <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${colorClass}`}>
-            {status === 'confirmed' ? 'Pending' : status === 'noshow' ? 'No Show' : status}
+            {status === 'confirmed' ? 'Pending' : status}
           </span>
         );
       },
@@ -116,53 +115,35 @@ const Tours = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 240,
+      width: 200,
       sortable: false,
-      renderCell: (params: any) => {
-        const isSettled = params.row?.status === 'completed' || params.row?.status === 'noshow';
-        const handleStatusUpdate = (status: string) => {
-          dispatch(
-            updateTourStatus({
-              userId: params.row.userId,
-              bookingCode: params.row.bookingCode,
-              status,
-            })
-          )
-            .unwrap()
-            .then(res => {
-              if (res?.status === 'success') {
-                applyFilters();
-                toast.success('Tour status updated successfully!');
-              } else {
-                toast.error('Failed to update tour status!');
-              }
-            })
-            .catch(err => {
-              console.error('Failed to update tour status:', err);
-              toast.error(err || 'Failed to update tour status!');
-            });
-        };
-        return (
-          <div className="flex items-center gap-2">
-            <button
-              className={`flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700 shadow-sm transition-all duration-200 hover:border-green-600 hover:bg-green-600 hover:text-white ${isSettled ? 'cursor-not-allowed opacity-40' : ''}`}
-              disabled={isSettled}
-              title="Mark tour as completed"
-              onClick={() => handleStatusUpdate('completed')}
-            >
-              {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : <>Mark Complete</>}
-            </button>
-            <button
-              className={`flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 shadow-sm transition-all duration-200 hover:border-orange-600 hover:bg-orange-600 hover:text-white ${isSettled ? 'cursor-not-allowed opacity-40' : ''}`}
-              disabled={isSettled}
-              title="Mark tour as no show"
-              onClick={() => handleStatusUpdate('noshow')}
-            >
-              {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : <>Mark No Show</>}
-            </button>
-          </div>
-        );
-      },
+      renderCell: (params: any) => (
+        <button
+          className={`rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-600 ${params.row?.status === 'completed' ? 'cursor-not-allowed opacity-50' : ''}`}
+          disabled={params.row?.status === 'completed'}
+          title="Mark tour as completed"
+          onClick={() => {
+            dispatch(
+              updateTourStatus({
+                userId: params.row.userId,
+                bookingCode: params.row.bookingCode,
+                status: 'completed',
+              })
+            )
+              .unwrap()
+              .then(res => {
+                if (res?.status === 'success') {
+                  applyFilters();
+                  toast.success('Tour status updated successfully!');
+                } else {
+                  toast.error('Failed to update tour status!');
+                }
+              });
+          }}
+        >
+          {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'Mark Complete'}
+        </button>
+      ),
     },
   ];
 
@@ -222,7 +203,6 @@ const Tours = () => {
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="completed">Completed</option>
-              <option value="noshow">No Show</option>
             </select>
           </div>
         </div>

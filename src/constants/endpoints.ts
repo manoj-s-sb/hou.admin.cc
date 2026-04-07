@@ -18,7 +18,6 @@ const endpoints = {
     list: '/admin/bookings/list',
     search: '/admin/induction/search',
     update: '/admin/induction/status/update',
-    updateBookingStatus: '/admin/induction/bookingstatus/update',
     activateSubscription: 'subscription/admin/activate',
     userInductionDetails: '/admin/induction/details',
   },

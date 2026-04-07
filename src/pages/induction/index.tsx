@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 
-import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
-import { LoaderSpinner } from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
-import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
+import { inductionList } from '../../store/induction/api';
 // import { setSelectedInduction } from '../../store/induction/reducers';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -152,114 +150,46 @@ const Induction = () => {
       headerName: 'Status',
       flex: 1.3,
       sortable: true,
-      renderCell: (params: any) => {
-        const status = params.row?.status || '';
-        const statusColors: Record<string, string> = {
-          completed: 'bg-green-100 text-green-800',
-          confirmed: 'bg-yellow-100 text-yellow-800',
-          cancelled: 'bg-red-100 text-red-800',
-          noshow: 'bg-orange-100 text-orange-800',
-        };
-        const label =
-          status === 'confirmed'
-            ? 'Pending'
-            : status === 'noshow'
-              ? 'No Show'
-              : status
-                ? status.charAt(0).toUpperCase() + status.slice(1)
-                : '';
-        const colorClass = statusColors[status] || 'bg-gray-100 text-gray-800';
-        return <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${colorClass}`}>{label}</span>;
+      valueGetter: params => {
+        const type = params.row?.status || '';
+        if (type === 'completed') return 'Completed';
+        if (type === 'confirmed') return 'Pending';
+        if (type === 'cancelled') return 'Cancelled';
+        return type;
       },
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 220,
+      width: 100,
       sortable: false,
-      renderCell: (params: any) => {
-        const isSettled = params.row?.status === 'noshow';
-        const handleStatusUpdate = (status: string) => {
-          dispatch(
-            updateInductionBookingStatus({
-              userId: params.row.userId,
-              bookingCode: params.row.bookingCode,
-              status,
-            })
-          )
-            .unwrap()
-            .then(res => {
-              if (res?.status === 'success') {
-                const applied = parseFiltersFromSearchParams(searchParams);
-                dispatch(
-                  inductionList({
-                    date: applied.date,
-                    page: inductionListData?.page || 1,
-                    type: 'inductionbooking',
-                    listLimit: inductionListData?.limit || 20,
-                    email: applied.email,
-                    status: applied.status === 'pending' ? 'confirmed' : applied.status,
-                  })
-                );
-                toast.success('Induction status updated successfully!');
-              } else {
-                toast.error('Failed to update induction status!');
-              }
-            })
-            .catch(err => {
-              console.error('Failed to update induction status:', err);
-              toast.error(err || 'Failed to update induction status!');
-            });
-        };
-        return (
-          <div className="flex items-center gap-2">
-            <button
-              className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 shadow-sm transition-all duration-200 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"
-              title="View induction details"
-              onClick={e => {
-                e.stopPropagation();
-                navigate(`/view-induction/${params.row.userId}`, { state: { listSearch: location.search } });
-              }}
-            >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-                <path
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
-              View
-            </button>
-            <button
-              className={`flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 shadow-sm transition-all duration-200 hover:border-orange-600 hover:bg-orange-600 hover:text-white ${isSettled ? 'cursor-not-allowed opacity-40' : ''}`}
-              disabled={isSettled}
-              title="Mark induction as no show"
-              onClick={e => {
-                e.stopPropagation();
-                handleStatusUpdate('noshow');
-              }}
-            >
-              {isLoading ? (
-                <LoaderSpinner className="text-current" size="xs" />
-              ) : (
-                <>
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-                  </svg>
-                  Mark No Show
-                </>
-              )}
-            </button>
-          </div>
-        );
-      },
+      renderCell: (params: any) => (
+        <button
+          className="rounded-full p-2 transition-colors hover:bg-gray-100 max-[560px]:p-1"
+          title="View Details"
+          onClick={e => {
+            e.stopPropagation();
+            navigate(`/view-induction/${params.row.userId}`, { state: { listSearch: location.search } });
+            // dispatch(setSelectedInduction(params.row));
+          }}
+        >
+          <svg
+            className="h-5 w-5 text-gray-600 hover:text-blue-600 max-[560px]:h-4 max-[560px]:w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+            <path
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
+          </svg>
+        </button>
+      ),
     },
   ];
 
@@ -317,7 +247,6 @@ const Induction = () => {
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="completed">Completed</option>
-              <option value="noshow">No Show</option>
             </select>
           </div>
         </div>

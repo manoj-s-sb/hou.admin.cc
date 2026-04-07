@@ -141,19 +141,15 @@ const Members = () => {
       flex: 1.3,
       minWidth: 170,
       sortable: false,
-      renderCell: (params: any) => {
+      valueGetter: params => {
         const type = params.row?.subscriptionStatus || '';
-        const map: Record<string, { label: string; className: string }> = {
-          active: { label: 'Active', className: 'bg-green-100 text-green-700' },
-          pendingactivation: { label: 'Activation Pending', className: 'bg-yellow-100 text-yellow-700' },
-          paused: { label: 'Paused', className: 'bg-blue-100 text-blue-700' },
-          canceled: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
-          resumed: { label: 'Resumed', className: 'bg-indigo-100 text-indigo-700' },
-          inactive: { label: 'Inactive', className: 'bg-gray-100 text-gray-600' },
-          past_due: { label: 'Payment Failed', className: 'bg-orange-100 text-orange-700' },
-        };
-        const { label, className } = map[type] || { label: type, className: 'bg-gray-100 text-gray-600' };
-        return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${className}`}>{label}</span>;
+        if (type === 'pendingactivation') return 'Activation Pending';
+        if (type === 'active') return 'Active';
+        if (type === 'paused') return 'Paused';
+        if (type === 'canceled') return 'Inactive';
+        if (type === 'resumed') return 'Resumed';
+        if (type === 'inactive') return 'Inactive';
+        return type;
       },
     },
     {
@@ -357,7 +353,7 @@ const Members = () => {
                 <option value="pendingactivation">Pending Activation</option>
                 <option value="paused">Paused</option>
                 <option value="past_due">Payment Failed</option>
-                <option value="canceled">Cancelled</option>
+                <option value="canceled">Inactive</option>
                 <option value="resumed">Resumed</option>
               </select>
             </div>
