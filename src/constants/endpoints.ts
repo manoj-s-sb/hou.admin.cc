@@ -16,6 +16,8 @@ const endpoints = {
   },
   maintenance: {
     workList: '/admin/work/list',
+    createWork: '/admin/work/create',
+    updateWork: '/admin/work/update',
   },
   induction: {
     list: '/admin/bookings/list',

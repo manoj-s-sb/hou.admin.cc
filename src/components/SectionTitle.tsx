@@ -10,6 +10,8 @@ interface SectionTitleProps {
   onSearchClick?: () => void;
   onBackClick?: () => void;
   onClear?: () => void;
+  actionButtonLabel?: string;
+  onActionButtonClick?: () => void;
 }
 
 const SectionTitle: React.FC<SectionTitleProps> = ({
@@ -22,6 +24,8 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   onSearchClick,
   onBackClick,
   onClear,
+  actionButtonLabel,
+  onActionButtonClick,
 }) => {
   return (
     <div className="mb-5 flex flex-wrap items-center justify-between gap-6 max-[560px]:mb-6 max-[560px]:gap-3">
@@ -53,6 +57,18 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
           </p>
         )}
       </div>
+      {actionButtonLabel && onActionButtonClick && (
+        <button
+          className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1a2149]"
+          type="button"
+          onClick={onActionButtonClick}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+          </svg>
+          {actionButtonLabel}
+        </button>
+      )}
       {search && (
         <div className="min-w-[250px] max-w-xl flex-1">
           <div className="relative flex items-center">

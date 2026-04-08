@@ -1,3 +1,36 @@
+export interface UpdateWorkRequest {
+  itemId: string;
+  scheduledDate?: string;
+  status?: string;
+  lastCompletedAt?: string;
+  nextDueDate?: string;
+  updatedBy?: string;
+  actionTaken?: string;
+}
+
+export interface CreateWorkRequest {
+  facilityCode: string;
+  type: string;
+  title: string;
+  category: string;
+  frequency?: string;
+  priority: string;
+  laneId?: number;
+  laneIds?: number[];
+  notes?: string;
+  status?: string;
+  raisedBy?: string;
+  raisedByName?: string;
+  assignedTo?: string;
+  steps?: {
+    stepId: string;
+    order: number;
+    title: string;
+    imageUrl: string | null;
+    videoUrl: string | null;
+  }[];
+}
+
 export interface WorkListRequest {
   facilityCode: string;
   page: number;
@@ -7,6 +40,8 @@ export interface WorkListRequest {
   category?: string;
   frequency?: string;
   scheduledDate?: string;
+  fromDate?: string;
+  toDate?: string;
   laneId?: number;
   isActive?: boolean;
 }
@@ -31,6 +66,9 @@ export interface Work {
   status: string | null;
   priority: string | null;
   scheduledDate: string | null;
+  lastCompletedAt: string | null;
+  nextDueDate: string | null;
+  actionTaken: string | null;
   notes: string | null;
   templateId: string | null;
   isActive: boolean | null;
