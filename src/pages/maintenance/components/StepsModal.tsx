@@ -25,6 +25,21 @@ const StepsModal = ({ item, onClose }: StepsModalProps) => (
       </div>
 
       <div className="overflow-y-auto px-6 py-6">
+        {/* Task-level video */}
+        {item.videoUrl && (
+          <div className="mb-5">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Task Video</p>
+            <video
+              className="w-full rounded-xl border border-gray-100 bg-black"
+              controls
+              src={item.videoUrl}
+              style={{ maxHeight: 200 }}
+            >
+              <track kind="captions" />
+            </video>
+          </div>
+        )}
+
         {item.steps && item.steps.length > 0 ? (
           <div className="flex flex-col">
             {item.steps.map((step: WorkStep, index: number) => (
@@ -42,23 +57,20 @@ const StepsModal = ({ item, onClose }: StepsModalProps) => (
                   {step.imageUrl && (
                     <img
                       alt={`Step ${step.order}`}
-                      className="mt-2 rounded-lg object-cover"
+                      className="mt-2 w-full rounded-lg object-cover"
                       src={step.imageUrl}
                       style={{ maxHeight: 140 }}
                     />
                   )}
                   {step.videoUrl && (
-                    <a
-                      className="mt-2 flex items-center gap-1 text-xs text-indigo-600 hover:underline"
-                      href={step.videoUrl}
-                      rel="noreferrer"
-                      target="_blank"
+                    <video
+                      className="mt-2 w-full rounded-lg bg-black"
+                      controls
+                      src={step.videoUrl}
+                      style={{ maxHeight: 140 }}
                     >
-                      <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                      Watch video
-                    </a>
+                      <track kind="captions" />
+                    </video>
                   )}
                 </div>
               </div>

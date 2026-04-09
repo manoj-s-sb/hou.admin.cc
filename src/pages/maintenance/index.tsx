@@ -23,6 +23,19 @@ import StepsModal from './components/StepsModal';
 import TaskCard from './components/TaskCard';
 import { FACILITY_CODE, Tab, TaskFrequency, getLocalUser, tabs, taskFrequencies } from './constants';
 
+type IssueFilter = 'new' | 'active' | 'closed';
+const issueFilterStatus: Record<IssueFilter, string> = {
+  new: 'open',
+  active: 'inprogress',
+  closed: 'closed',
+};
+
+const issueFilterMeta: Record<IssueFilter, { label: string; activeText: string; underline: string }> = {
+  new: { label: 'New', activeText: 'text-gray-800', underline: 'bg-[#21295A]' },
+  active: { label: 'Active', activeText: 'text-orange-500', underline: 'bg-orange-500' },
+  closed: { label: 'Closed', activeText: 'text-green-600', underline: 'bg-green-500' },
+};
+
 const Maintenance = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { workList, isLoading } = useSelector((state: RootState) => state.maintenance);
@@ -48,7 +61,8 @@ const Maintenance = () => {
   const [markDoneItem, setMarkDoneItem] = useState<Work | null>(null);
   const [flagIssueItem, setFlagIssueItem] = useState<Work | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
-  const [issueCount, setIssueCount] = useState<number | null>(null);
+  const [issueCounts, setIssueCounts] = useState({ new: 0, active: 0, closed: 0 });
+  const [issueFilter, setIssueFilter] = useState<IssueFilter>('new');
   const [viewIssue, setViewIssue] = useState<{ item: Work; index: number } | null>(null);
 
   const fetchList = (
@@ -56,7 +70,8 @@ const Maintenance = () => {
     frequency: TaskFrequency,
     page = 1,
     limit = workList.limit || 20,
-    lane = selectedLane
+    lane = selectedLane,
+    status?: string
   ) => {
     dispatch(
       getWorkList({
@@ -65,6 +80,7 @@ const Maintenance = () => {
         limit,
         type,
         ...(type === 'task' && { frequency, laneNo: lane }),
+        ...(status ? { status } : {}),
       })
     );
   };
@@ -72,29 +88,35 @@ const Maintenance = () => {
   // Non-schedule tabs: re-fetch on filter change
   useEffect(() => {
     if (activeTab !== 'schedule') {
-      fetchList(activeTab, taskFrequency, 1, workList.limit || 20, selectedLane);
+      fetchList(activeTab, taskFrequency, 1, workList.limit || 20, selectedLane,
+        activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined);
     } else if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
       dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 100, type: 'task', toDate: yesterday }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, taskFrequency, selectedLane, selectedScheduleDate]);
+  }, [activeTab, taskFrequency, selectedLane, selectedScheduleDate, issueFilter]);
 
-  // Fetch issue count on mount without touching Redux workList state
-  useEffect(() => {
-    api
-      .post(endpoints.maintenance.workList, { facilityCode: FACILITY_CODE, page: 1, limit: 1, type: 'issue' })
-      .then((res: any) => {
-        const data = res.data?.data;
-        const total = Array.isArray(data) ? data.length : (data?.total ?? 0);
-        setIssueCount(total);
+  const fetchIssueCounts = () => {
+    const getCount = (status: string) =>
+      api.post(endpoints.maintenance.workList, { facilityCode: FACILITY_CODE, page: 1, limit: 1, type: 'issue', status })
+        .then((res: any) => {
+          const data = res.data?.data;
+          return Array.isArray(data) ? data.length : (data?.total ?? 0);
+        })
+        .catch(() => 0);
+
+    Promise.all([getCount('open'), getCount('inprogress'), getCount('closed')])
+      .then(([newCount, activeCount, closedCount]) => {
+        setIssueCounts({ new: newCount, active: activeCount, closed: closedCount });
       });
-  }, []);
+  };
 
-  // Keep issue count in sync whenever issue tab data refreshes
+  // Fetch all 3 issue counts on mount
   useEffect(() => {
-    if (activeTab === 'issue') setIssueCount(workList.total);
-  }, [activeTab, workList.total]);
+    fetchIssueCounts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Schedule tab: fetch full 7-day range once, filter client-side
   useEffect(() => {
@@ -147,8 +169,12 @@ const Maintenance = () => {
     }
   };
 
-  const onSuccess = () =>
-    activeTab === 'schedule' ? refreshSchedule() : fetchList(activeTab, taskFrequency, workList.page || 1);
+  const onSuccess = () => {
+    if (activeTab === 'schedule') { refreshSchedule(); return; }
+    fetchList(activeTab, taskFrequency, workList.page || 1, workList.limit || 20, selectedLane,
+      activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined);
+    if (activeTab === 'issue') fetchIssueCounts();
+  };
 
   const handleUndo = (item: Work) => {
     const { name: updatedByName } = getLocalUser();
@@ -390,9 +416,9 @@ const Maintenance = () => {
                     onClick={() => setActiveTab(tab.key)}
                   >
                     {tab.label}
-                    {tab.key === 'issue' && issueCount !== null && issueCount > 0 && (
+                    {tab.key === 'issue' && (issueCounts.new + issueCounts.active + issueCounts.closed) > 0 && (
                       <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                        {issueCount > 99 ? '99+' : issueCount}
+                        {(issueCounts.new + issueCounts.active + issueCounts.closed) > 99 ? '99+' : issueCounts.new + issueCounts.active + issueCounts.closed}
                       </span>
                     )}
                     {activeTab === tab.key && (
@@ -564,43 +590,74 @@ const Maintenance = () => {
                   {scheduleDisplayItems.map(item => (
                     <ScheduleCard
                       key={item.itemId}
+                      dispatch={dispatch}
                       item={item}
+                      updatedBy={currentUserId}
                       onFlagIssue={setFlagIssueItem}
                       onMarkDone={setMarkDoneItem}
                       onSchedule={setSchedulingItem}
                       onStepsView={setSelectedItem}
+                      onSuccess={onSuccess}
                       onUndo={handleUndo}
                     />
                   ))}
                 </div>
               )
             ) : activeTab === 'issue' ? (
-              isLoading ? (
-                <div className="flex items-center justify-center py-16 text-gray-400">Loading...</div>
-              ) : (workList.items || []).length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <svg className="mb-3 h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5v4m0-4h14"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                    />
-                  </svg>
-                  <p className="text-sm font-medium text-gray-500">No issues found</p>
+              <>
+                <div className="mb-4 flex border-b border-gray-200">
+                  {(['new', 'active', 'closed'] as IssueFilter[]).map(f => {
+                    const meta = issueFilterMeta[f];
+                    const isActive = issueFilter === f;
+                    return (
+                      <button
+                        key={f}
+                        className={`relative flex items-center gap-2 px-5 pb-3 pt-1 text-sm font-semibold transition-colors ${
+                          isActive ? meta.activeText : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                        type="button"
+                        onClick={() => setIssueFilter(f)}
+                      >
+                        {meta.label}
+                        {issueCounts[f] > 0 && (
+                          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-gray-700">
+                            {issueCounts[f] > 99 ? '99+' : issueCounts[f]}
+                          </span>
+                        )}
+                        {isActive && (
+                          <span className={`absolute bottom-0 left-0 h-0.5 w-full rounded-full ${meta.underline}`} />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {(workList.items || []).map((item, index) => (
-                    <IssueCard
-                      key={item.itemId}
-                      index={index}
-                      item={item}
-                      onViewIssue={(i, idx) => setViewIssue({ item: i, index: idx })}
-                    />
-                  ))}
-                </div>
-              )
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-16 text-gray-400">Loading...</div>
+                ) : (workList.items || []).length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <svg className="mb-3 h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5v4m0-4h14"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                      />
+                    </svg>
+                    <p className="text-sm font-medium text-gray-500">No issues found</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {(workList.items || []).map((item, index) => (
+                      <IssueCard
+                        key={item.itemId}
+                        index={index}
+                        item={item}
+                        onViewIssue={(i, idx) => setViewIssue({ item: i, index: idx })}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
               <DataTable
                 columns={adaptColumns(columnsMap[activeTab])}

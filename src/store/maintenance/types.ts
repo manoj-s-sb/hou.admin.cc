@@ -7,6 +7,7 @@ export interface UpdateWorkRequest {
   updatedBy?: string;
   updatedByName?: string;
   actionTaken?: string;
+  attachments?: string[];
 }
 
 export interface CreateWorkRequest {
@@ -18,6 +19,7 @@ export interface CreateWorkRequest {
   priority: string;
   laneNo?: number;
   notes?: string;
+  videoUrl?: string;
   status?: string;
   raisedBy?: string;
   raisedByName?: string;
@@ -82,6 +84,8 @@ export interface Work {
   nextDueDate: string | null;
   actionTaken: string | null;
   notes: string | null;
+  videoUrl: string | null;
+  attachments: string[] | null;
   raisedBy: string | null;
   raisedByName: string | null;
   assignedTo: string | null;

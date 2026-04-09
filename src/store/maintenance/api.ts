@@ -6,6 +6,27 @@ import { handleApiError } from '../../utils/errorUtils';
 
 import { CreateWorkRequest, UpdateWorkRequest, WorkListRequest } from './types';
 
+export const getWorkUploadUrl = async (
+  facilityCode: string,
+  fileName: string
+): Promise<{ uploadUrl: string; blobName: string }> => {
+  const response = await api.post(endpoints.maintenance.uploadUrl, { facilityCode, fileName });
+  const data = response?.data?.data;
+  return { uploadUrl: data?.uploadUrl as string, blobName: data?.blobName as string };
+};
+
+export const deleteWorkMedia = async (blobName: string): Promise<void> => {
+  await api.post(endpoints.maintenance.deleteMedia, { blobName });
+};
+
+export const uploadFileToBlob = async (uploadUrl: string, file: File): Promise<void> => {
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'x-ms-blob-type': 'BlockBlob' },
+    body: file,
+  });
+};
+
 export const getWorkList = createAsyncThunk(
   'maintenance/getWorkList',
   async (payload: WorkListRequest, { rejectWithValue }) => {

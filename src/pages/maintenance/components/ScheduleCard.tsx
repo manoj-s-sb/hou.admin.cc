@@ -1,18 +1,55 @@
+import { useRef, useState } from 'react';
+
 import { toast } from 'react-hot-toast';
 
+import { getWorkUploadUrl, updateWork, uploadFileToBlob } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
+import { FACILITY_CODE, getLocalUser } from '../constants';
 
 interface ScheduleCardProps {
   item: Work;
+  dispatch: any;
+  updatedBy: string;
   onMarkDone: (item: Work) => void;
   onFlagIssue: (item: Work) => void;
   onSchedule: (item: Work) => void;
   onStepsView: (item: Work) => void;
   onUndo: (item: Work) => void;
+  onSuccess: () => void;
 }
 
-const ScheduleCard = ({ item, onMarkDone, onFlagIssue, onSchedule, onStepsView, onUndo }: ScheduleCardProps) => {
+const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSchedule, onStepsView, onUndo, onSuccess }: ScheduleCardProps) => {
   const isIssue = item.status === 'issue';
+  const [attaching, setAttaching] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAttach = async (files: FileList) => {
+    if (!files.length) return;
+    setAttaching(true);
+    try {
+      const blobNames = await Promise.all(
+        Array.from(files).map(async file => {
+          const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+          await uploadFileToBlob(uploadUrl, file);
+          return blobName;
+        })
+      );
+      const { name: updatedByName } = getLocalUser();
+      const existing = item.attachments || [];
+      await dispatch(updateWork({
+        itemId: item.itemId,
+        attachments: [...existing, ...blobNames],
+        ...(updatedBy ? { updatedBy } : {}),
+        ...(updatedByName ? { updatedByName } : {}),
+      })).unwrap();
+      toast.success(`${blobNames.length} file${blobNames.length > 1 ? 's' : ''} attached.`);
+      onSuccess();
+    } catch {
+      toast.error('Failed to attach files.');
+    } finally {
+      setAttaching(false);
+    }
+  };
 
   return (
     <div className={`flex items-start justify-between rounded-xl border bg-white px-5 py-4 shadow-sm ${isIssue ? 'border-red-100' : 'border-blue-100'}`}>
@@ -110,20 +147,30 @@ const ScheduleCard = ({ item, onMarkDone, onFlagIssue, onSchedule, onStepsView, 
           Flag Issue
         </button>
         <button
-          disabled={isIssue}
+          disabled={isIssue || attaching}
           className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-xs font-medium transition-colors ${
-            isIssue
+            isIssue || attaching
               ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300'
               : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
           }`}
           type="button"
-          onClick={() => !isIssue && toast('Attach feature coming soon.')}
+          onClick={() => !isIssue && !attaching && fileInputRef.current?.click()}
         >
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
           </svg>
-          Attach
+          {attaching ? 'Uploading...' : 'Attach'}
         </button>
+        <input
+          ref={fileInputRef}
+          className="hidden"
+          multiple
+          type="file"
+          onChange={e => {
+            if (e.target.files) handleAttach(e.target.files);
+            e.target.value = '';
+          }}
+        />
 
         {/* Undo — only visible when status is issue */}
         {isIssue && (

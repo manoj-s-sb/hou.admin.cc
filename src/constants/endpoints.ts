@@ -19,6 +19,8 @@ const endpoints = {
     createWork: '/admin/work/create',
     updateWork: '/admin/work/update',
     workDetail: '/admin/work/detail',
+    uploadUrl: '/admin/work/uploadurl',
+    deleteMedia: '/admin/work/deletemedia',
   },
   induction: {
     list: '/admin/bookings/list',

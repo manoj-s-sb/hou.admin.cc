@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import { createWork } from '../../../store/maintenance/api';
+import { createWork, deleteWorkMedia, getWorkUploadUrl, uploadFileToBlob } from '../../../store/maintenance/api';
 import { CreateWorkRequest } from '../../../store/maintenance/types';
 import { ALL_LANES, FACILITY_CODE, getLocalUser, inputCls } from '../constants';
 
 type AddTaskForm = Omit<CreateWorkRequest, 'facilityCode' | 'type' | 'steps'> & {
-  steps: { stepId: string; order: number; title: string; imageUrl: string; videoUrl: string }[];
+  steps: { stepId: string; order: number; title: string; imageUrl: string }[];
 };
 
 const emptyStep = (order: number) => ({
@@ -15,7 +15,6 @@ const emptyStep = (order: number) => ({
   order,
   title: '',
   imageUrl: '',
-  videoUrl: '',
 });
 
 interface AddTaskModalProps {
@@ -32,10 +31,13 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
     priority: 'medium',
     laneNo: 1,
     notes: '',
+    videoUrl: '',
     steps: [emptyStep(1)],
   });
   const [selectedLanes, setSelectedLanes] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const setField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -62,6 +64,35 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
       steps: prev.steps.map((s, i) => (i === index ? { ...s, [key]: value } : s)),
     }));
 
+  const handleFileUpload = async (index: number, file: File) => {
+    const uploadKey = `${index}_imageUrl`;
+    setUploading(prev => ({ ...prev, [uploadKey]: true }));
+    try {
+      const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+      await uploadFileToBlob(uploadUrl, file);
+      updateStep(index, 'imageUrl', blobName);
+      toast.success('Image uploaded.');
+    } catch {
+      toast.error('Upload failed. Try again.');
+    } finally {
+      setUploading(prev => ({ ...prev, [uploadKey]: false }));
+    }
+  };
+
+  const handleVideoUpload = async (file: File) => {
+    setUploading(prev => ({ ...prev, task_video: true }));
+    try {
+      const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+      await uploadFileToBlob(uploadUrl, file);
+      setField('videoUrl', blobName);
+      toast.success('Video uploaded.');
+    } catch {
+      toast.error('Upload failed. Try again.');
+    } finally {
+      setUploading(prev => ({ ...prev, task_video: false }));
+    }
+  };
+
   const handleSubmit = () => {
     if (!form.title.trim() || !form.category || !form.frequency) {
       toast.error('Title, category and frequency are required.');
@@ -74,9 +105,11 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
     setSaving(true);
     const { userId: createdBy, name: createdByName } = getLocalUser();
     const steps = form.steps.map(s => ({
-      ...s,
+      stepId: s.stepId,
+      order: s.order,
+      title: s.title,
       imageUrl: s.imageUrl || null,
-      videoUrl: s.videoUrl || null,
+      videoUrl: null,
     }));
     Promise.all(
       selectedLanes.map(laneNo =>
@@ -229,8 +262,8 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
                       <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor={`step-title-${index}`}>Step Title</label>
                       <input
                         className={inputCls}
@@ -242,31 +275,89 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor={`step-image-${index}`}>Image URL</label>
+                      <p className="mb-1 text-xs font-medium text-gray-600">Image</p>
                       <input
-                        className={inputCls}
-                        id={`step-image-${index}`}
-                        placeholder="https://..."
-                        type="text"
-                        value={step.imageUrl || ''}
-                        onChange={e => updateStep(index, 'imageUrl', e.target.value)}
+                        ref={el => { fileInputRefs.current[`${index}_imageUrl`] = el; }}
+                        accept="image/*"
+                        className="hidden"
+                        type="file"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(index, file);
+                          e.target.value = '';
+                        }}
                       />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor={`step-video-${index}`}>Video URL</label>
-                      <input
-                        className={inputCls}
-                        id={`step-video-${index}`}
-                        placeholder="https://..."
-                        type="text"
-                        value={step.videoUrl || ''}
-                        onChange={e => updateStep(index, 'videoUrl', e.target.value)}
-                      />
+                      {step.imageUrl ? (
+                        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                          <span className="flex-1 truncate text-xs text-gray-600">{step.imageUrl.split('/').pop()}</span>
+                          <button
+                            className="text-xs text-red-400 hover:text-red-600"
+                            type="button"
+                            onClick={() => { deleteWorkMedia(step.imageUrl); updateStep(index, 'imageUrl', ''); }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 py-2 text-xs text-gray-500 hover:border-indigo-400 hover:text-indigo-500 disabled:opacity-50"
+                          disabled={uploading[`${index}_imageUrl`]}
+                          type="button"
+                          onClick={() => fileInputRefs.current[`${index}_imageUrl`]?.click()}
+                        >
+                          {uploading[`${index}_imageUrl`] ? 'Uploading...' : 'Upload Image'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Task-level video */}
+          <div className="mt-5">
+            <p className="mb-2 text-sm font-semibold text-gray-800">Task Video</p>
+            <input
+              ref={el => { fileInputRefs.current.task_video = el; }}
+              accept="video/*"
+              className="hidden"
+              type="file"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) handleVideoUpload(file);
+                e.target.value = '';
+              }}
+            />
+            {form.videoUrl ? (
+              <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                <svg className="h-4 w-4 shrink-0 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                  <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                </svg>
+                <span className="flex-1 truncate text-xs text-gray-600">{form.videoUrl.split('/').pop()}</span>
+                <button
+                  className="text-xs text-red-400 hover:text-red-600"
+                  type="button"
+                  onClick={() => { if (form.videoUrl) deleteWorkMedia(form.videoUrl); setField('videoUrl', ''); }}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <button
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 py-3 text-sm text-gray-500 hover:border-indigo-400 hover:text-indigo-500 disabled:opacity-50"
+                disabled={uploading.task_video}
+                type="button"
+                onClick={() => fileInputRefs.current.task_video?.click()}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                  <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                </svg>
+                {uploading.task_video ? 'Uploading...' : 'Upload Task Video'}
+              </button>
+            )}
           </div>
         </div>
 

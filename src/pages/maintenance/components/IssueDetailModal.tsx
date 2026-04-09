@@ -75,8 +75,37 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
         label: resolveActivityLabel(a),
         by: `${a.byName ? `${a.byName} · ` : ''}${formatDate(a.at)}`,
         done: true,
+        action: a.action,
       }))
-    : [{ label: `Raised by ${resolvedRaisedBy}`, by: `${resolvedRaisedBy} · ${formatDate(currentItem.createdAt)}`, done: true }];
+    : [{ label: `Raised by ${resolvedRaisedBy}`, by: `${resolvedRaisedBy} · ${formatDate(currentItem.createdAt)}`, done: true, action: 'raised' }];
+
+  const stepIcon = (action: string) => {
+    if (action === 'inprogress') return (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
+      </svg>
+    );
+    if (action === 'closed') return (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
+      </svg>
+    );
+    if (action === 'reassigned') return (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
+      </svg>
+    );
+    if (action === 'assigned') return (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
+      </svg>
+    );
+    return (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
+      </svg>
+    );
+  };
 
   // Activity log — always derived from activities array
   const activityEntries: { text: string; at: string }[] =
@@ -175,23 +204,14 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
                     {/* Circle */}
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 font-bold text-sm ${
                       step.done
-                        ? i === 0 ? 'border-gray-400 bg-gray-400 text-white'
-                          : i === 1 ? 'border-red-500 bg-red-500 text-white'
-                          : i === 2 ? 'border-purple-600 bg-purple-600 text-white'
-                          : 'border-blue-500 bg-blue-500 text-white'
-                        : 'border-blue-500 bg-white text-blue-600'
+                        ? 'border-[#21295A] bg-[#21295A] text-white'
+                        : 'border-[#21295A] bg-white text-[#21295A]'
                     }`}>
-                      {step.done ? (
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-                        </svg>
-                      ) : (
-                        i + 1
-                      )}
+                      {step.done ? stepIcon(step.action) : i + 1}
                     </div>
                     {/* Connector line */}
                     {i < steps.length - 1 && (
-                      <div className="h-0.5 flex-1 bg-green-400" />
+                      <div className="h-0.5 flex-1 bg-[#21295A]/20" />
                     )}
                   </div>
                   <div className="mt-2 w-full pr-2">
@@ -256,38 +276,40 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
           </div>}
 
           {/* ── Assign / action footer ── */}
-          <div className="bg-blue-50/60 px-6 py-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm font-semibold text-gray-800">
+          <div className="px-6 py-4">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <p className="mb-3 text-sm font-bold text-gray-800">
                 Assigned to:{' '}
-                <span className="text-teal-600">{assignedTo ? teamLabel(assignedTo) : '—'}</span>
+                <span className="text-blue-600">{assignedTo ? teamLabel(assignedTo) : '—'}</span>
               </p>
-              {currentItem.status !== 'inprogress' && currentItem.status !== 'resolved' && currentItem.status !== 'closed' && (
-                <button
-                  className="rounded-lg bg-[#21295A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1a2149] disabled:opacity-50"
-                  disabled={saving}
-                  type="button"
-                  onClick={handleMarkInProgress}
-                >
-                  Mark In Progress
-                </button>
-              )}
-              {currentItem.status !== 'closed' && reassignTargets.length > 0 && (
-                <>
-                  <span className="text-xs text-gray-400">or reassign to:</span>
-                  {reassignTargets.map(team => (
-                    <button
-                      key={team}
-                      className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${teamColor[team]}`}
-                      disabled={saving}
-                      type="button"
-                      onClick={() => handleReassign(team)}
-                    >
-                      {teamLabel(team)}
-                    </button>
-                  ))}
-                </>
-              )}
+              <div className="flex flex-wrap items-center gap-3">
+                {currentItem.status !== 'inprogress' && currentItem.status !== 'resolved' && currentItem.status !== 'closed' && (
+                  <button
+                    className="rounded-lg bg-[#21295A] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1a2149] disabled:opacity-50"
+                    disabled={saving}
+                    type="button"
+                    onClick={handleMarkInProgress}
+                  >
+                    Mark In Progress
+                  </button>
+                )}
+                {currentItem.status !== 'closed' && reassignTargets.length > 0 && (
+                  <>
+                    <span className="text-sm text-gray-500">or reassign to:</span>
+                    {reassignTargets.map(team => (
+                      <button
+                        key={team}
+                        className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${teamColor[team]}`}
+                        disabled={saving}
+                        type="button"
+                        onClick={() => handleReassign(team)}
+                      >
+                        {teamLabel(team)}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
