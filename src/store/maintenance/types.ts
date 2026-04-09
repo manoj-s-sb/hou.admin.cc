@@ -54,6 +54,16 @@ export interface WorkStep {
   videoUrl: string | null;
 }
 
+export interface WorkActivity {
+  action: string;
+  label: string;
+  byId: string | null;
+  byName: string | null;
+  toId: string | null;
+  toName: string | null;
+  at: string;
+}
+
 export interface Work {
   itemId: string;
   facilityCode: string;
@@ -70,6 +80,9 @@ export interface Work {
   nextDueDate: string | null;
   actionTaken: string | null;
   notes: string | null;
+  raisedBy: string | null;
+  raisedByName: string | null;
+  assignedTo: string | null;
   templateId: string | null;
   isActive: boolean | null;
   laneId: number | null;
@@ -77,6 +90,7 @@ export interface Work {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
+  activities: WorkActivity[] | null;
 }
 
 export interface WorkListResponse {

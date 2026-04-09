@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 
+import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
 import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
-import { getWorkList } from '../../store/maintenance/api';
+import { getWorkList, updateWork } from '../../store/maintenance/api';
 import { Work } from '../../store/maintenance/types';
 import { AppDispatch, RootState } from '../../store/store';
 
 import AddTaskModal from './components/AddTaskModal';
 import FlagIssueModal from './components/FlagIssueModal';
+import IssueCard from './components/IssueCard';
+import IssueDetailModal from './components/IssueDetailModal';
 import MarkDoneModal from './components/MarkDoneModal';
 import ScheduleCard from './components/ScheduleCard';
 import ScheduleModal from './components/ScheduleModal';
@@ -37,6 +40,8 @@ const Maintenance = () => {
   const [markDoneItem, setMarkDoneItem] = useState<Work | null>(null);
   const [flagIssueItem, setFlagIssueItem] = useState<Work | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [issueCount, setIssueCount] = useState<number | null>(null);
+  const [viewIssue, setViewIssue] = useState<{ item: Work; index: number } | null>(null);
 
   const fetchList = (
     type: Tab,
@@ -66,6 +71,11 @@ const Maintenance = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, taskFrequency, selectedLane, selectedScheduleDate]);
+
+  // Capture issue count whenever issue tab result updates
+  useEffect(() => {
+    if (activeTab === 'issue') setIssueCount(workList.total);
+  }, [activeTab, workList.total]);
 
   // Schedule tab: fetch full 7-day range once, filter client-side
   useEffect(() => {
@@ -106,6 +116,16 @@ const Maintenance = () => {
 
   const onSuccess = () =>
     activeTab === 'schedule' ? refreshSchedule() : fetchList(activeTab, taskFrequency, workList.page || 1);
+
+  const handleUndo = (item: Work) => {
+    dispatch(updateWork({ itemId: item.itemId, status: 'pending' }))
+      .unwrap()
+      .then(() => {
+        toast.success('Issue undone — task set back to pending.');
+        refreshSchedule();
+      })
+      .catch((err: any) => toast.error(err || 'Failed to undo.'));
+  };
 
   // ─── Column definitions ───────────────────────────────────────────────────
 
@@ -206,7 +226,7 @@ const Maintenance = () => {
           return <span className="capitalize text-gray-500">{s || '-'}</span>;
         },
       },
-      { field: 'createdBy', headerName: 'Created By', flex: 1, sortable: true, valueGetter: p => p.row?.createdBy || '-' },
+      { field: 'createdBy', headerName: 'Created By', flex: 1, sortable: true, valueGetter: p => p.row?.raisedByName || p.row?.updatedBy || p.row?.createdBy || '-' },
       {
         field: 'createdAt',
         headerName: 'Date & Time',
@@ -262,27 +282,32 @@ const Maintenance = () => {
           {/* Tabs + Frequency toggle */}
           <div className="border-b border-gray-200 px-6">
             <div className="flex items-center justify-between">
-              <div className="flex gap-6">
+              <div className="flex">
                 {tabs.map(tab => (
                   <button
                     key={tab.key}
-                    className={`relative pb-3 pt-4 text-sm transition-colors ${
-                      activeTab === tab.key ? 'font-bold text-[#21295A]' : 'font-medium text-gray-400 hover:text-gray-600'
+                    className={`relative flex items-center gap-1.5 px-5 pb-3.5 pt-4 text-sm transition-colors ${
+                      activeTab === tab.key ? 'font-semibold text-[#21295A]' : 'font-medium text-gray-400 hover:text-gray-600'
                     }`}
                     type="button"
                     onClick={() => setActiveTab(tab.key)}
                   >
                     {tab.label}
-                    {activeTab === tab.key && <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-[#21295A]" />}
+                    {tab.key === 'issue' && issueCount !== null && issueCount > 0 && (
+                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                        {issueCount > 99 ? '99+' : issueCount}
+                      </span>
+                    )}
+                    {activeTab === tab.key && <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#21295A]" />}
                   </button>
                 ))}
               </div>
-              <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
+              <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
                 {taskFrequencies.map(f => (
                   <button
                     key={f.key}
-                    className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                      taskFrequency === f.key ? 'bg-white text-[#21295A] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                      taskFrequency === f.key ? 'bg-white text-[#21295A] shadow-sm' : 'text-gray-400 hover:text-gray-600'
                     }`}
                     type="button"
                     onClick={() => { setTaskFrequency(f.key); setActiveTab('task'); }}
@@ -293,6 +318,26 @@ const Maintenance = () => {
               </div>
             </div>
           </div>
+
+          {/* Lane filter strip — task tab only */}
+          {activeTab === 'task' && (
+            <div className="flex gap-2 border-b border-gray-100 bg-gray-50/60 px-6 py-3">
+              {Array.from({ length: 7 }, (_, i) => i + 1).map(lane => (
+                <button
+                  key={lane}
+                  className={`rounded-full px-4 py-1 text-xs font-semibold transition-all ${
+                    selectedLane === lane
+                      ? 'bg-[#21295A] text-white shadow-sm'
+                      : 'border border-gray-200 bg-white text-gray-500 hover:border-[#21295A]/40 hover:text-[#21295A]'
+                  }`}
+                  type="button"
+                  onClick={() => setSelectedLane(lane)}
+                >
+                  Lane {lane}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* 7-day date strip — schedule tab only */}
           {activeTab === 'schedule' && (
@@ -355,26 +400,6 @@ const Maintenance = () => {
 
           {/* Content */}
           <div className="p-4">
-            {/* Lane filter — task tab only */}
-            {activeTab === 'task' && (
-              <div className="mb-4 flex flex-wrap gap-2">
-                {Array.from({ length: 7 }, (_, i) => i + 1).map(lane => (
-                  <button
-                    key={lane}
-                    className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
-                      selectedLane === lane
-                        ? 'bg-[#21295A] text-white shadow-sm'
-                        : 'border border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                    }`}
-                    type="button"
-                    onClick={() => setSelectedLane(lane)}
-                  >
-                    Lane {lane}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {activeTab === 'task' ? (
               isLoading ? (
                 <div className="flex items-center justify-center py-16 text-gray-400">Loading...</div>
@@ -418,6 +443,29 @@ const Maintenance = () => {
                       onMarkDone={setMarkDoneItem}
                       onSchedule={setSchedulingItem}
                       onStepsView={setSelectedItem}
+                      onUndo={handleUndo}
+                    />
+                  ))}
+                </div>
+              )
+            ) : activeTab === 'issue' ? (
+              isLoading ? (
+                <div className="flex items-center justify-center py-16 text-gray-400">Loading...</div>
+              ) : (workList.items || []).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <svg className="mb-3 h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5v4m0-4h14" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
+                  </svg>
+                  <p className="text-sm font-medium text-gray-500">No issues found</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {(workList.items || []).map((item, index) => (
+                    <IssueCard
+                      key={item.itemId}
+                      index={index}
+                      item={item}
+                      onViewIssue={(i, idx) => setViewIssue({ item: i, index: idx })}
                     />
                   ))}
                 </div>
@@ -479,6 +527,20 @@ const Maintenance = () => {
           item={schedulingItem}
           onClose={() => setSchedulingItem(null)}
           onSuccess={onSuccess}
+        />
+      )}
+
+      {viewIssue && (
+        <IssueDetailModal
+          dispatch={dispatch}
+          index={viewIssue.index}
+          item={viewIssue.item}
+          updatedBy={currentUserId}
+          onClose={() => setViewIssue(null)}
+          onSuccess={() => {
+            fetchList('issue', taskFrequency, workList.page || 1);
+            setViewIssue(null);
+          }}
         />
       )}
     </>
