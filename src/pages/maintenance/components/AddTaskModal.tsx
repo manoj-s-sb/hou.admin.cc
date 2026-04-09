@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 
 import { createWork } from '../../../store/maintenance/api';
 import { CreateWorkRequest } from '../../../store/maintenance/types';
-import { ALL_LANES, FACILITY_CODE, inputCls } from '../constants';
+import { ALL_LANES, FACILITY_CODE, getLocalUser, inputCls } from '../constants';
 
 type AddTaskForm = Omit<CreateWorkRequest, 'facilityCode' | 'type' | 'steps'> & {
   steps: { stepId: string; order: number; title: string; imageUrl: string; videoUrl: string }[];
@@ -30,7 +30,7 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
     category: '',
     frequency: 'weekly',
     priority: 'medium',
-    laneId: 1,
+    laneNo: 1,
     notes: '',
     steps: [emptyStep(1)],
   });
@@ -62,7 +62,7 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
       steps: prev.steps.map((s, i) => (i === index ? { ...s, [key]: value } : s)),
     }));
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!form.title.trim() || !form.category || !form.frequency) {
       toast.error('Title, category and frequency are required.');
       return;
@@ -72,15 +72,24 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
       return;
     }
     setSaving(true);
+    const { userId: createdBy, name: createdByName } = getLocalUser();
     const steps = form.steps.map(s => ({
       ...s,
       imageUrl: s.imageUrl || null,
       videoUrl: s.videoUrl || null,
     }));
     Promise.all(
-      selectedLanes.map(laneId =>
+      selectedLanes.map(laneNo =>
         dispatch(
-          createWork({ facilityCode: FACILITY_CODE, type: 'task', ...form, laneId, steps } as CreateWorkRequest)
+          createWork({
+            facilityCode: FACILITY_CODE,
+            type: 'task',
+            ...form,
+            laneNo,
+            steps,
+            ...(createdBy ? { createdBy } : {}),
+            ...(createdByName ? { createdByName } : {}),
+          } as CreateWorkRequest)
         ).unwrap()
       )
     )

@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 
 import { createWork, updateWork } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
-import { AssignedTo, IssuePriority, RaisedBy, inputCls, toggleCls } from '../constants';
+import { AssignedTo, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
 
 interface FlagIssueModalProps {
   item: Work;
@@ -35,6 +35,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
     }
     setSaving(true);
     const lastCompletedAt = new Date().toISOString().replace(/\.(\d{3})Z$/, '.$1000+00:00');
+    const { userId: createdBy, name: createdByName } = getLocalUser();
 
     const issuePayload = {
       facilityCode,
@@ -42,19 +43,23 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
       title: issueTitle.trim(),
       category: item.category || '',
       priority,
-      laneId: item.laneId || 0,
+      laneNo: item.laneNo || 0,
       notes: description.trim(),
       raisedBy,
       assignedTo,
+      ...(item.frequency ? { frequency: item.frequency } : {}),
       ...(raisedByName.trim() ? { raisedByName: raisedByName.trim() } : {}),
+      ...(createdBy ? { createdBy } : {}),
+      ...(createdByName ? { createdByName } : {}),
     };
-
+    const updatedByName = createdByName;
     dispatch(
       updateWork({
         itemId: item.itemId,
         status: 'issue',
         lastCompletedAt,
-        updatedBy,
+        ...(updatedBy ? { updatedBy } : {}),
+        ...(updatedByName ? { updatedByName } : {}),
         actionTaken: description.trim(),
       })
     )
@@ -77,7 +82,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
           <div>
             <p className="text-base font-bold text-gray-900">Flag Issue</p>
             <p className="mt-0.5 text-sm text-gray-400">
-              {item.title}{item.laneId ? ` · Lane ${item.laneId}` : ''}
+              {item.title}{item.laneNo ? ` · Lane ${item.laneNo}` : ''}
             </p>
           </div>
           <button className="ml-4 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" type="button" onClick={onClose}>

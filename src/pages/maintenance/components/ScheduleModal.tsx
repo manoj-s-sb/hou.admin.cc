@@ -4,15 +4,17 @@ import { toast } from 'react-hot-toast';
 
 import { updateWork } from '../../../store/maintenance/api';
 import { UpdateWorkRequest, Work } from '../../../store/maintenance/types';
+import { getLocalUser } from '../constants';
 
 interface ScheduleModalProps {
   item: Work;
+  updatedBy?: string;
   onClose: () => void;
   onSuccess: () => void;
   dispatch: any;
 }
 
-const ScheduleModal = ({ item, onClose, onSuccess, dispatch }: ScheduleModalProps) => {
+const ScheduleModal = ({ item, updatedBy, onClose, onSuccess, dispatch }: ScheduleModalProps) => {
   const [scheduledDate, setScheduledDate] = useState(item.scheduledDate || '');
   const [saving, setSaving] = useState(false);
 
@@ -22,7 +24,13 @@ const ScheduleModal = ({ item, onClose, onSuccess, dispatch }: ScheduleModalProp
       return;
     }
     setSaving(true);
-    dispatch(updateWork({ itemId: item.itemId, scheduledDate } as UpdateWorkRequest))
+    const { name: updatedByName } = getLocalUser();
+    dispatch(updateWork({
+      itemId: item.itemId,
+      scheduledDate,
+      ...(updatedBy ? { updatedBy } : {}),
+      ...(updatedByName ? { updatedByName } : {}),
+    } as UpdateWorkRequest))
       .unwrap()
       .then(() => {
         toast.success('Task scheduled successfully!');
@@ -55,8 +63,8 @@ const ScheduleModal = ({ item, onClose, onSuccess, dispatch }: ScheduleModalProp
               {item.frequency && (
                 <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium capitalize text-green-700">{item.frequency}</span>
               )}
-              {item.laneId && (
-                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneId}</span>
+              {item.laneNo && (
+                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneNo}</span>
               )}
               {item.priority && (
                 <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium capitalize text-red-600">{item.priority} priority</span>

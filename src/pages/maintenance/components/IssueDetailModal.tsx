@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 
 import { updateWork } from '../../../store/maintenance/api';
 import { Work, WorkActivity } from '../../../store/maintenance/types';
+import { getLocalUser } from '../constants';
 
 interface IssueDetailModalProps {
   item: Work;
@@ -17,10 +18,10 @@ interface IssueDetailModalProps {
 type TeamOption = 'centre_staff' | 'noc' | 'others';
 
 const teamLabel = (t: string) =>
-  t === 'centre_staff' ? 'Centre Staff' : t === 'noc' ? 'NOC' : 'Others';
+  t === 'centre_staff' ? 'Centre Staff' : t === 'noc' ? 'NOC' : t === 'admin' ? 'Admin' : 'Others';
 
 const teamColor: Record<string, string> = {
-  centre_staff: 'text-teal-600',
+  centre_staff: 'bg-teal-500 text-white hover:bg-teal-600',
   noc: 'bg-orange-500 text-white hover:bg-orange-600',
   others: 'bg-purple-600 text-white hover:bg-purple-700',
 };
@@ -40,6 +41,7 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
   const [currentItem, setCurrentItem] = useState<Work>(item);
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
+
   const issueNum = `ISS-${String(index + 1).padStart(3, '0')}`;
   const statusCls = statusBadgeCls[currentItem.status?.toLowerCase() || ''] || 'bg-gray-400 text-white';
   const categoryLabel = currentItem.category
@@ -82,34 +84,40 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
       ? acts.map((a: WorkActivity) => ({ text: resolveActivityLabel(a), at: a.at }))
       : [{ text: `Issue raised by ${resolvedRaisedBy}`, at: currentItem.createdAt }];
 
-  const callUpdate = (payload: object) => {
+  const callUpdate = (payload: object, onDone?: () => void) => {
     setSaving(true);
-    dispatch(updateWork({ itemId: currentItem.itemId, updatedBy, ...payload }))
+    const { name: updatedByName } = getLocalUser();
+    dispatch(updateWork({
+      itemId: currentItem.itemId,
+      ...(updatedBy ? { updatedBy } : {}),
+      ...(updatedByName ? { updatedByName } : {}),
+      ...payload,
+    }))
       .unwrap()
       .then((res: any) => {
         const updated = res?.data;
         if (updated?.itemId) setCurrentItem(updated);
         onSuccess();
+        onDone?.();
       })
       .catch((err: any) => toast.error(err || 'Failed.'))
       .finally(() => setSaving(false));
   };
 
   const handleMarkInProgress = () => {
-    callUpdate({ status: 'inprogress' });
-    toast.success('Issue marked as in progress.');
+    callUpdate({ status: 'inprogress' }, () => toast.success('Issue marked as in progress.'));
   };
 
   const handleReassign = (team: TeamOption) => {
-    callUpdate({ assignedTo: team });
-    toast.success(`Reassigned to ${teamLabel(team)}.`);
+    callUpdate({ assignedTo: team }, () => toast.success(`Reassigned to ${teamLabel(team)}.`));
   };
 
   const handleSendComment = () => {
     if (!comment.trim()) return;
-    callUpdate({ notes: comment.trim() });
-    toast.success('Comment sent.');
-    setComment('');
+    callUpdate({ notes: comment.trim() }, () => {
+      toast.success('Comment sent.');
+      setComment('');
+    });
   };
 
   const handleCloseIssue = () => {
@@ -117,9 +125,10 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
       toast.error('Add a comment before closing.');
       return;
     }
-    callUpdate({ status: 'closed', notes: comment.trim() });
-    toast.success('Issue closed.');
-    onClose();
+    callUpdate({ status: 'closed', notes: comment.trim() }, () => {
+      toast.success('Issue closed.');
+      onClose();
+    });
   };
 
   return (
@@ -144,8 +153,8 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
           </div>
           <p className="text-xl font-bold text-gray-900">{currentItem.title}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-gray-500">
-            {currentItem.laneId && <span>Lane {currentItem.laneId}</span>}
-            {currentItem.laneId && currentItem.category && <span>·</span>}
+            {currentItem.laneNo && <span>Lane {currentItem.laneNo}</span>}
+            {currentItem.laneNo && currentItem.category && <span>·</span>}
             {currentItem.category && <span>{currentItem.category}</span>}
             {resolvedRaisedBy !== 'Unknown' && <><span>·</span><span>Raised by {resolvedRaisedBy}</span></>}
             <span>·</span>

@@ -23,7 +23,7 @@ export const getWorkList = createAsyncThunk(
       if (payload.scheduledDate) body.scheduledDate = payload.scheduledDate;
       if (payload.fromDate) body.fromDate = payload.fromDate;
       if (payload.toDate) body.toDate = payload.toDate;
-      if (payload.laneId !== undefined) body.laneId = payload.laneId;
+      if (payload.laneNo !== undefined) body.laneNo = payload.laneNo;
       if (payload.isActive !== undefined) body.isActive = payload.isActive;
 
       const response = await api.post(`${endpoints.maintenance.workList}`, body);

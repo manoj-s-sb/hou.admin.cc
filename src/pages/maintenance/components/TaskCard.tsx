@@ -31,8 +31,8 @@ const TaskCard = ({ item, onSchedule, onStepsView }: TaskCardProps) => (
             {item.frequency.charAt(0).toUpperCase() + item.frequency.slice(1)}
           </span>
         )}
-        {item.laneId && (
-          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneId}</span>
+        {item.laneNo && (
+          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneNo}</span>
         )}
       </div>
 

@@ -1,5 +1,15 @@
 export const FACILITY_CODE = 'HOU01';
 
+export const getLocalUser = (): { userId: string; name: string } => {
+  try {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    const name = [u.firstName, u.lastName].filter(Boolean).join(' ');
+    return { userId: u.userId || '', name };
+  } catch {
+    return { userId: '', name: '' };
+  }
+};
+
 export const inputCls =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200';
 

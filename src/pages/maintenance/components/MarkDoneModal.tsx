@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 
 import { createWork, updateWork } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
+import { getLocalUser } from '../constants';
 
 interface MarkDoneModalProps {
   item: Work;
@@ -17,6 +18,9 @@ interface MarkDoneModalProps {
 const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess, dispatch }: MarkDoneModalProps) => {
   const [actionNotes, setActionNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const { userId: createdBy, name: createdByName } = getLocalUser();
+  const updatedByName = createdByName;
 
   const handleSubmit = () => {
     if (!actionNotes.trim()) {
@@ -38,7 +42,8 @@ const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess, disp
         itemId: item.itemId,
         status: 'completed',
         lastCompletedAt,
-        updatedBy,
+        ...(updatedBy ? { updatedBy } : {}),
+        ...(updatedByName ? { updatedByName } : {}),
         actionTaken: actionNotes.trim(),
         ...(item.frequency ? { nextDueDate, scheduledDate: nextDueDate } : {}),
       })
@@ -53,9 +58,12 @@ const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess, disp
             title: item.title,
             category: item.category || '',
             priority: item.priority || 'medium',
-            laneId: item.laneId || 0,
+            laneNo: item.laneNo || 0,
             notes: actionNotes.trim(),
             ...(item.frequency ? { frequency: item.frequency } : {}),
+            ...(updatedBy ? { raisedBy: updatedBy, raisedByName: updatedByName } : {}),
+            ...(createdBy ? { createdBy } : {}),
+            ...(createdByName ? { createdByName } : {}),
           })
         ).unwrap()
       )
@@ -97,8 +105,8 @@ const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess, disp
               {item.frequency && (
                 <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 capitalize">{item.frequency}</span>
               )}
-              {item.laneId && (
-                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneId}</span>
+              {item.laneNo && (
+                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneNo}</span>
               )}
               {item.priority && (
                 <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-600 capitalize">{item.priority} priority</span>

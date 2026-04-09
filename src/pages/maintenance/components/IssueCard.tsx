@@ -16,6 +16,7 @@ const statusBadge: Record<string, string> = {
   open: 'bg-orange-100 text-orange-700',
   assigned: 'bg-orange-100 text-orange-700',
   issue: 'bg-orange-100 text-orange-700',
+  inprogress: 'bg-blue-100 text-blue-700',
   resolved: 'bg-green-100 text-green-700',
   closed: 'bg-gray-100 text-gray-600',
   completed: 'bg-green-100 text-green-700',
@@ -82,8 +83,8 @@ const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
 
         {/* Lane · category */}
         <p className="mb-2.5 text-xs text-gray-500">
-          {item.laneId ? `Lane ${item.laneId}` : ''}
-          {item.laneId && item.category ? ' · ' : ''}
+          {item.laneNo ? `Lane ${item.laneNo}` : ''}
+          {item.laneNo && item.category ? ' · ' : ''}
           {item.category}
         </p>
 

@@ -19,8 +19,8 @@ const ScheduleCard = ({ item, onMarkDone, onFlagIssue, onSchedule, onStepsView, 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <p className="text-sm font-bold text-gray-900">{item.title}</p>
-          {item.laneId && (
-            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneId}</span>
+          {item.laneNo && (
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneNo}</span>
           )}
           {isIssue && (
             <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600">Issue Raised</span>

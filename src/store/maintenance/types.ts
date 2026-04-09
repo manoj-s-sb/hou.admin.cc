@@ -5,6 +5,7 @@ export interface UpdateWorkRequest {
   lastCompletedAt?: string;
   nextDueDate?: string;
   updatedBy?: string;
+  updatedByName?: string;
   actionTaken?: string;
 }
 
@@ -15,13 +16,14 @@ export interface CreateWorkRequest {
   category: string;
   frequency?: string;
   priority: string;
-  laneId?: number;
-  laneIds?: number[];
+  laneNo?: number;
   notes?: string;
   status?: string;
   raisedBy?: string;
   raisedByName?: string;
   assignedTo?: string;
+  createdBy?: string;
+  createdByName?: string;
   steps?: {
     stepId: string;
     order: number;
@@ -42,7 +44,7 @@ export interface WorkListRequest {
   scheduledDate?: string;
   fromDate?: string;
   toDate?: string;
-  laneId?: number;
+  laneNo?: number;
   isActive?: boolean;
 }
 
@@ -85,11 +87,13 @@ export interface Work {
   assignedTo: string | null;
   templateId: string | null;
   isActive: boolean | null;
-  laneId: number | null;
+  laneNo: number | null;
   createdAt: string;
   createdBy: string;
+  createdByName: string | null;
   updatedAt: string;
   updatedBy: string;
+  updatedByName: string | null;
   activities: WorkActivity[] | null;
 }
 
