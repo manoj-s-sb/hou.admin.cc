@@ -18,7 +18,17 @@ interface ScheduleCardProps {
   onSuccess: () => void;
 }
 
-const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSchedule, onStepsView, onUndo, onSuccess }: ScheduleCardProps) => {
+const ScheduleCard = ({
+  item,
+  dispatch,
+  updatedBy,
+  onMarkDone,
+  onFlagIssue,
+  onSchedule,
+  onStepsView,
+  onUndo,
+  onSuccess,
+}: ScheduleCardProps) => {
   const isIssue = item.status === 'issue';
   const [attaching, setAttaching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -35,12 +45,14 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
         })
       );
       const { name: updatedByName } = getLocalUser();
-      await dispatch(updateWork({
-        itemId: item.itemId,
-        attachments: blobNames,
-        ...(updatedBy ? { updatedBy } : {}),
-        ...(updatedByName ? { updatedByName } : {}),
-      })).unwrap();
+      await dispatch(
+        updateWork({
+          itemId: item.itemId,
+          attachments: blobNames,
+          ...(updatedBy ? { updatedBy } : {}),
+          ...(updatedByName ? { updatedByName } : {}),
+        })
+      ).unwrap();
       toast.success(`${blobNames.length} file${blobNames.length > 1 ? 's' : ''} attached.`);
       onSuccess();
     } catch {
@@ -51,15 +63,21 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
   };
 
   return (
-    <div className={`flex items-start justify-between rounded-xl border bg-white px-5 py-4 shadow-sm ${isIssue ? 'border-red-100' : 'border-blue-100'}`}>
+    <div
+      className={`flex items-start justify-between rounded-xl border bg-white px-5 py-4 shadow-sm ${isIssue ? 'border-red-100' : 'border-blue-100'}`}
+    >
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <p className="text-sm font-bold text-gray-900">{item.title}</p>
           {item.laneNo && (
-            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneNo}</span>
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
+              Lane {item.laneNo}
+            </span>
           )}
           {isIssue && (
-            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600">Issue Raised</span>
+            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600">
+              Issue Raised
+            </span>
           )}
         </div>
 
@@ -73,7 +91,12 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
                   strokeLinejoin="round"
                   strokeWidth={2}
                 />
-                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                <path
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
               </svg>
               {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
             </span>
@@ -86,14 +109,19 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
           {item.scheduledDate && (
             <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-600">
               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                <path
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
               </svg>
               From {new Date(item.scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
           )}
         </div>
 
-        {item.notes && <p className="text-xs text-gray-500">{item.notes}</p>}
+        {item.notes && <p className="break-all text-xs text-gray-500">{item.notes}</p>}
 
         {item.steps && item.steps.length > 0 && (
           <button
@@ -116,12 +144,12 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
 
       <div className="ml-6 flex shrink-0 flex-col gap-2">
         <button
-          disabled={isIssue}
           className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
             isIssue
               ? 'cursor-not-allowed border border-gray-100 bg-gray-50 text-gray-300'
               : 'bg-green-500 text-white hover:bg-green-600'
           }`}
+          disabled={isIssue}
           type="button"
           onClick={() => !isIssue && onMarkDone(item)}
         >
@@ -131,39 +159,49 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
           Mark Done
         </button>
         <button
-          disabled={isIssue}
           className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
             isIssue
               ? 'cursor-not-allowed border border-gray-100 bg-gray-50 text-gray-300'
               : 'bg-red-500 text-white hover:bg-red-600'
           }`}
+          disabled={isIssue}
           type="button"
           onClick={() => !isIssue && onFlagIssue(item)}
         >
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5v4m0-4h14" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+            <path
+              d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5v4m0-4h14"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
           </svg>
           Flag Issue
         </button>
         <button
-          disabled={isIssue || attaching}
           className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-xs font-medium transition-colors ${
             isIssue || attaching
               ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300'
               : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
           }`}
+          disabled={isIssue || attaching}
           type="button"
           onClick={() => !isIssue && !attaching && fileInputRef.current?.click()}
         >
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+            <path
+              d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
           </svg>
           {attaching ? 'Uploading...' : 'Attach'}
         </button>
         <input
           ref={fileInputRef}
-          className="hidden"
           multiple
+          className="hidden"
           type="file"
           onChange={e => {
             if (e.target.files) handleAttach(e.target.files);
@@ -179,7 +217,12 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
             onClick={() => onUndo(item)}
           >
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+              <path
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
             </svg>
             Undo
           </button>
@@ -195,7 +238,12 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
           onClick={() => onSchedule(item)}
         >
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+            <path
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
           </svg>
           {item.scheduledDate ? 'Scheduled' : 'Schedule'}
         </button>

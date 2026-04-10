@@ -42,13 +42,11 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
   const setField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
   const toggleLane = (lane: number) =>
-    setSelectedLanes(prev => prev.includes(lane) ? prev.filter(l => l !== lane) : [...prev, lane]);
+    setSelectedLanes(prev => (prev.includes(lane) ? prev.filter(l => l !== lane) : [...prev, lane]));
 
-  const toggleAll = () =>
-    setSelectedLanes(prev => prev.length === ALL_LANES.length ? [] : [...ALL_LANES]);
+  const toggleAll = () => setSelectedLanes(prev => (prev.length === ALL_LANES.length ? [] : [...ALL_LANES]));
 
-  const addStep = () =>
-    setForm(prev => ({ ...prev, steps: [...prev.steps, emptyStep(prev.steps.length + 1)] }));
+  const addStep = () => setForm(prev => ({ ...prev, steps: [...prev.steps, emptyStep(prev.steps.length + 1)] }));
 
   const removeStep = (index: number) =>
     setForm(prev => ({
@@ -144,7 +142,11 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <p className="text-base font-bold text-gray-900">Add Task</p>
-          <button className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" type="button" onClick={onClose}>
+          <button
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            type="button"
+            onClick={onClose}
+          >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
             </svg>
@@ -170,18 +172,28 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
               <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor="task-category">
                 Category <span className="text-red-500">*</span>
               </label>
-              <select className={inputCls} id="task-category" value={form.category} onChange={e => setField('category', e.target.value)}>
+              <select
+                className={inputCls}
+                id="task-category"
+                value={form.category}
+                onChange={e => setField('category', e.target.value)}
+              >
                 <option value="">Select category</option>
-                <option value="machine">Machine</option>
-                <option value="facility">Facility</option>
-                <option value="equipment">Equipment</option>
+                <option value="mech">Mechanical</option>
+                <option value="elec">Electrical</option>
+                <option value="other">Other</option>
               </select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor="task-frequency">
                 Frequency <span className="text-red-500">*</span>
               </label>
-              <select className={inputCls} id="task-frequency" value={form.frequency} onChange={e => setField('frequency', e.target.value)}>
+              <select
+                className={inputCls}
+                id="task-frequency"
+                value={form.frequency}
+                onChange={e => setField('frequency', e.target.value)}
+              >
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
                 <option value="bi-weekly">Bi-Weekly</option>
@@ -189,8 +201,15 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor="task-priority">Priority</label>
-              <select className={inputCls} id="task-priority" value={form.priority} onChange={e => setField('priority', e.target.value)}>
+              <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor="task-priority">
+                Priority
+              </label>
+              <select
+                className={inputCls}
+                id="task-priority"
+                value={form.priority}
+                onChange={e => setField('priority', e.target.value)}
+              >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -201,7 +220,8 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                 Lanes <span className="text-red-500">*</span>
                 {selectedLanes.length > 0 && (
                   <span className="ml-2 font-normal text-gray-400">
-                    ({selectedLanes.length === ALL_LANES.length ? 'All lanes' : `${selectedLanes.length} selected`} — {selectedLanes.length} task{selectedLanes.length > 1 ? 's' : ''} will be created)
+                    ({selectedLanes.length === ALL_LANES.length ? 'All lanes' : `${selectedLanes.length} selected`} —{' '}
+                    {selectedLanes.length} task{selectedLanes.length > 1 ? 's' : ''} will be created)
                   </span>
                 )}
               </p>
@@ -226,7 +246,9 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
               </div>
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor="task-notes">Notes</label>
+              <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor="task-notes">
+                Notes
+              </label>
               <textarea
                 className={inputCls}
                 id="task-notes"
@@ -257,14 +279,20 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                       {step.order}
                     </span>
                     {form.steps.length > 1 && (
-                      <button className="text-xs text-red-400 hover:text-red-600" type="button" onClick={() => removeStep(index)}>
+                      <button
+                        className="text-xs text-red-400 hover:text-red-600"
+                        type="button"
+                        onClick={() => removeStep(index)}
+                      >
                         Remove
                       </button>
                     )}
                   </div>
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor={`step-title-${index}`}>Step Title</label>
+                      <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor={`step-title-${index}`}>
+                        Step Title
+                      </label>
                       <input
                         className={inputCls}
                         id={`step-title-${index}`}
@@ -277,7 +305,9 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                     <div>
                       <p className="mb-1 text-xs font-medium text-gray-600">Image</p>
                       <input
-                        ref={el => { fileInputRefs.current[`${index}_imageUrl`] = el; }}
+                        ref={el => {
+                          fileInputRefs.current[`${index}_imageUrl`] = el;
+                        }}
                         accept="image/*"
                         className="hidden"
                         type="file"
@@ -289,11 +319,16 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                       />
                       {step.imageUrl ? (
                         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                          <span className="flex-1 truncate text-xs text-gray-600">{step.imageUrl.split('/').pop()}</span>
+                          <span className="flex-1 truncate text-xs text-gray-600">
+                            {step.imageUrl.split('/').pop()}
+                          </span>
                           <button
                             className="text-xs text-red-400 hover:text-red-600"
                             type="button"
-                            onClick={() => { deleteWorkMedia(step.imageUrl); updateStep(index, 'imageUrl', ''); }}
+                            onClick={() => {
+                              void deleteWorkMedia(step.imageUrl);
+                              updateStep(index, 'imageUrl', '');
+                            }}
                           >
                             Remove
                           </button>
@@ -319,7 +354,9 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
           <div className="mt-5">
             <p className="mb-2 text-sm font-semibold text-gray-800">Task Video</p>
             <input
-              ref={el => { fileInputRefs.current.task_video = el; }}
+              ref={el => {
+                fileInputRefs.current.task_video = el;
+              }}
               accept="video/*"
               className="hidden"
               type="file"
@@ -332,14 +369,27 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
             {form.videoUrl ? (
               <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                 <svg className="h-4 w-4 shrink-0 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-                  <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                  <path
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                  <path
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
                 </svg>
                 <span className="flex-1 truncate text-xs text-gray-600">{form.videoUrl.split('/').pop()}</span>
                 <button
                   className="text-xs text-red-400 hover:text-red-600"
                   type="button"
-                  onClick={() => { if (form.videoUrl) deleteWorkMedia(form.videoUrl); setField('videoUrl', ''); }}
+                  onClick={() => {
+                    if (form.videoUrl) void deleteWorkMedia(form.videoUrl);
+                    setField('videoUrl', '');
+                  }}
                 >
                   Remove
                 </button>
@@ -352,8 +402,18 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                 onClick={() => fileInputRefs.current.task_video?.click()}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-                  <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                  <path
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                  <path
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
                 </svg>
                 {uploading.task_video ? 'Uploading...' : 'Upload Task Video'}
               </button>
@@ -362,16 +422,21 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
         </div>
 
         <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
-          <button className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50" disabled={saving} type="button" onClick={onClose}>
+          <button
+            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            disabled={saving}
+            type="button"
+            onClick={onClose}
+          >
             Cancel
           </button>
           <button
             className="rounded-lg bg-[#21295A] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1a2149] disabled:opacity-50"
-            disabled={saving}
+            disabled={saving || Object.values(uploading).some(Boolean)}
             type="button"
             onClick={handleSubmit}
           >
-            {saving ? 'Saving...' : 'Create Task'}
+            {saving ? 'Saving...' : Object.values(uploading).some(Boolean) ? 'Uploading...' : 'Create Task'}
           </button>
         </div>
       </div>

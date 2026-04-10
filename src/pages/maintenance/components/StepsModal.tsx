@@ -30,8 +30,8 @@ const StepsModal = ({ item, onClose }: StepsModalProps) => (
           <div className="mb-5">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Task Video</p>
             <video
-              className="w-full rounded-xl border border-gray-100 bg-black"
               controls
+              className="w-full rounded-xl border border-gray-100 bg-black"
               src={item.videoUrl}
               style={{ maxHeight: 200 }}
             >
@@ -64,8 +64,8 @@ const StepsModal = ({ item, onClose }: StepsModalProps) => (
                   )}
                   {step.videoUrl && (
                     <video
-                      className="mt-2 w-full rounded-lg bg-black"
                       controls
+                      className="mt-2 w-full rounded-lg bg-black"
                       src={step.videoUrl}
                       style={{ maxHeight: 140 }}
                     >

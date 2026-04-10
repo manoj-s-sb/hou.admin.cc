@@ -32,11 +32,13 @@ const TaskCard = ({ item, onSchedule, onStepsView }: TaskCardProps) => (
           </span>
         )}
         {item.laneNo && (
-          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Lane {item.laneNo}</span>
+          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
+            Lane {item.laneNo}
+          </span>
         )}
       </div>
 
-      {item.notes && <p className="text-xs text-gray-500">{item.notes}</p>}
+      {item.notes && <p className="break-all text-xs text-gray-500">{item.notes}</p>}
 
       {(item.lastCompletedAt || item.nextDueDate) && (
         <div className="flex flex-wrap gap-3">
@@ -60,11 +62,20 @@ const TaskCard = ({ item, onSchedule, onStepsView }: TaskCardProps) => (
           {item.nextDueDate && (
             <span className="flex items-center gap-1 text-xs text-gray-400">
               <svg className="h-3 w-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                <path
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
               </svg>
               Next due:{' '}
               <span className="font-medium text-gray-600">
-                {new Date(item.nextDueDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {new Date(item.nextDueDate).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
               </span>
             </span>
           )}
@@ -73,10 +84,15 @@ const TaskCard = ({ item, onSchedule, onStepsView }: TaskCardProps) => (
 
       {item.actionTaken && (
         <div className="flex items-start gap-1.5 rounded-lg bg-gray-50 px-3 py-2">
-          <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
           </svg>
-          <p className="text-xs text-gray-600">
+          <p className="break-all text-xs text-gray-600">
             <span className="font-medium">Action taken:</span> {item.actionTaken}
           </p>
         </div>
@@ -112,7 +128,12 @@ const TaskCard = ({ item, onSchedule, onStepsView }: TaskCardProps) => (
     >
       <span className="flex items-center gap-1.5">
         <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+          <path
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+          />
         </svg>
         {item.scheduledDate ? 'Scheduled' : 'Schedule'}
       </span>

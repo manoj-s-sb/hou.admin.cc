@@ -52,7 +52,7 @@ const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
 
   return (
     <div
-      className="flex overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+      className="flex cursor-pointer overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-shadow hover:shadow-md"
       role="button"
       tabIndex={0}
       onClick={() => onViewIssue?.(item, index)}

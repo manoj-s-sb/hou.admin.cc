@@ -11,6 +11,7 @@ interface SectionTitleProps {
   onBackClick?: () => void;
   onClear?: () => void;
   actionButtonLabel?: string;
+  actionButtonClassName?: string;
   onActionButtonClick?: () => void;
 }
 
@@ -25,6 +26,7 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   onBackClick,
   onClear,
   actionButtonLabel,
+  actionButtonClassName,
   onActionButtonClick,
 }) => {
   return (
@@ -59,7 +61,10 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
       </div>
       {actionButtonLabel && onActionButtonClick && (
         <button
-          className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1a2149]"
+          className={
+            actionButtonClassName ??
+            'flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1a2149]'
+          }
           type="button"
           onClick={onActionButtonClick}
         >

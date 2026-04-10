@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -13,6 +13,7 @@ import { Work } from '../../store/maintenance/types';
 import { AppDispatch, RootState } from '../../store/store';
 
 import AddTaskModal from './components/AddTaskModal';
+import CreateIssueModal from './components/CreateIssueModal';
 import FlagIssueModal from './components/FlagIssueModal';
 import IssueCard from './components/IssueCard';
 import IssueDetailModal from './components/IssueDetailModal';
@@ -58,18 +59,30 @@ const Maintenance = () => {
   const today = toDateStr(new Date());
   const sevenDaysLater = toDateStr(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000));
 
-  const [activeTab, setActiveTab] = useState<Tab>('task');
+  const [activeTab, setActiveTab] = useState<Tab>('issue');
   const [taskFrequency, setTaskFrequency] = useState<TaskFrequency>('weekly');
   const [selectedLane, setSelectedLane] = useState<number>(1);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>('overdue');
   const [allScheduleItems, setAllScheduleItems] = useState<Work[]>([]);
+  const [overdueCount, setOverdueCount] = useState(0);
   const [selectedItem, setSelectedItem] = useState<Work | null>(null);
   const [schedulingItem, setSchedulingItem] = useState<Work | null>(null);
   const [markDoneItem, setMarkDoneItem] = useState<Work | null>(null);
   const [flagIssueItem, setFlagIssueItem] = useState<Work | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [showCreateIssue, setShowCreateIssue] = useState(false);
   const [issueCounts, setIssueCounts] = useState({ new: 0, active: 0, closed: 0 });
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('new');
+  const fetchRequestRef = useRef<any>(null);
+
+  const applyScheduleDelta = (item: Work, newScheduledDate: string) => {
+    const inRange = (d: string) => d >= today && d <= sevenDaysLater;
+    setAllScheduleItems(prev => {
+      const filtered =
+        item.scheduledDate && inRange(item.scheduledDate) ? prev.filter(s => s.itemId !== item.itemId) : prev;
+      return inRange(newScheduledDate) ? [...filtered, { ...item, scheduledDate: newScheduledDate }] : filtered;
+    });
+  };
 
   const applyCountDelta = (prevStatus: string, newStatus: string) => {
     const prevKey = filterKeyFromStatus(prevStatus);
@@ -91,7 +104,8 @@ const Maintenance = () => {
     lane = selectedLane,
     status?: string
   ) => {
-    dispatch(
+    fetchRequestRef.current?.abort();
+    fetchRequestRef.current = dispatch(
       getWorkList({
         facilityCode: FACILITY_CODE,
         page,
@@ -106,47 +120,84 @@ const Maintenance = () => {
   // Non-schedule tabs: re-fetch on filter change
   useEffect(() => {
     if (activeTab !== 'schedule') {
-      fetchList(activeTab, taskFrequency, 1, workList.limit || 20, selectedLane,
-        activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined);
+      fetchList(
+        activeTab,
+        taskFrequency,
+        1,
+        workList.limit || 20,
+        selectedLane,
+        activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined
+      );
     } else if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
       dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', toDate: yesterday }));
     } else {
-      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', scheduledDate: selectedScheduleDate }));
+      dispatch(
+        getWorkList({
+          facilityCode: FACILITY_CODE,
+          page: 1,
+          limit: 20,
+          type: 'task',
+          scheduledDate: selectedScheduleDate,
+        })
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, taskFrequency, selectedLane, selectedScheduleDate, issueFilter]);
 
   const fetchIssueCounts = () => {
     const getCount = (status: string) =>
-      api.post(endpoints.maintenance.workList, { facilityCode: FACILITY_CODE, page: 1, limit: 1, type: 'issue', status })
+      api
+        .post(endpoints.maintenance.workList, { facilityCode: FACILITY_CODE, page: 1, limit: 1, type: 'issue', status })
         .then((res: any) => {
           const data = res.data?.data;
           return Array.isArray(data) ? data.length : (data?.total ?? 0);
         })
         .catch(() => 0);
 
-    Promise.all([getCount('open'), getCount('inprogress'), getCount('closed')])
-      .then(([newCount, activeCount, closedCount]) => {
+    Promise.all([getCount('open'), getCount('inprogress'), getCount('closed')]).then(
+      ([newCount, activeCount, closedCount]) => {
         setIssueCounts({ new: newCount, active: activeCount, closed: closedCount });
-      });
+      }
+    );
   };
 
-  // Fetch all 3 issue counts on mount
+  // Fetch issue counts + schedule counts on mount
   useEffect(() => {
     fetchIssueCounts();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchScheduleCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Schedule tab: fetch 7-day range for count badges only (does not affect workList)
+  // Schedule tab: fetch 7-day range + overdue count for badges only (does not affect workList)
   const fetchScheduleCounts = () => {
-    api.post(endpoints.maintenance.workList, {
-      facilityCode: FACILITY_CODE, page: 1, limit: 100, type: 'task',
-      fromDate: today, toDate: sevenDaysLater,
-    }).then((res: any) => {
-      const data = res.data?.data;
-      setAllScheduleItems(Array.isArray(data) ? data : data?.items || []);
-    });
+    const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    api
+      .post(endpoints.maintenance.workList, {
+        facilityCode: FACILITY_CODE,
+        page: 1,
+        limit: 100,
+        type: 'task',
+        fromDate: today,
+        toDate: sevenDaysLater,
+      })
+      .then((res: any) => {
+        const data = res.data?.data;
+        setAllScheduleItems(Array.isArray(data) ? data : data?.items || []);
+      });
+    api
+      .post(endpoints.maintenance.workList, {
+        facilityCode: FACILITY_CODE,
+        page: 1,
+        limit: 1,
+        type: 'task',
+        toDate: yesterday,
+      })
+      .then((res: any) => {
+        const data = res.data?.data;
+        setOverdueCount(Array.isArray(data) ? data.length : (data?.total ?? 0));
+      })
+      .catch(() => setOverdueCount(0));
   };
 
   useEffect(() => {
@@ -162,30 +213,45 @@ const Maintenance = () => {
   const scheduleDisplayItems = workList.items || [];
 
   const refreshSchedule = () => {
+    const page = workList.page || 1;
+    const limit = workList.limit || 20;
     if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', toDate: yesterday }));
+      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page, limit, type: 'task', toDate: yesterday }));
     } else {
-      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', scheduledDate: selectedScheduleDate }));
+      dispatch(
+        getWorkList({ facilityCode: FACILITY_CODE, page, limit, type: 'task', scheduledDate: selectedScheduleDate })
+      );
     }
     fetchScheduleCounts();
   };
 
   const onSuccess = () => {
-    if (activeTab === 'schedule') { refreshSchedule(); return; }
-    fetchList(activeTab, taskFrequency, workList.page || 1, workList.limit || 20, selectedLane,
-      activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined);
+    if (activeTab === 'schedule') {
+      refreshSchedule();
+      return;
+    }
+    fetchList(
+      activeTab,
+      taskFrequency,
+      workList.page || 1,
+      workList.limit || 20,
+      selectedLane,
+      activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined
+    );
     if (activeTab === 'issue') fetchIssueCounts();
   };
 
   const handleUndo = (item: Work) => {
     const { name: updatedByName } = getLocalUser();
-    dispatch(updateWork({
-      itemId: item.itemId,
-      status: 'pending',
-      ...(currentUserId ? { updatedBy: currentUserId } : {}),
-      ...(updatedByName ? { updatedByName } : {}),
-    }))
+    dispatch(
+      updateWork({
+        itemId: item.itemId,
+        status: 'pending',
+        ...(currentUserId ? { updatedBy: currentUserId } : {}),
+        ...(updatedByName ? { updatedByName } : {}),
+      })
+    )
       .unwrap()
       .then(() => {
         toast.success('Issue undone — task set back to pending.');
@@ -201,7 +267,7 @@ const Maintenance = () => {
     headerName: 'S.No',
     width: 70,
     sortable: false,
-    renderCell: (params: any) => (workList.page - 1) * workList.limit + (params.index || 0) + 1,
+    renderCell: (params: any) => ((workList.page || 1) - 1) * (workList.limit || 20) + (params.index || 0) + 1,
   };
 
   const statusRenderCell = (params: any) => {
@@ -331,7 +397,13 @@ const Maintenance = () => {
         headerName: 'Created By',
         flex: 1,
         sortable: true,
-        valueGetter: p => p.row?.createdByName || p.row?.raisedByName || p.row?.updatedByName || p.row?.updatedBy || p.row?.createdBy || '-',
+        valueGetter: p =>
+          p.row?.createdByName ||
+          p.row?.raisedByName ||
+          p.row?.updatedByName ||
+          p.row?.updatedBy ||
+          p.row?.createdBy ||
+          '-',
       },
       {
         field: 'createdAt',
@@ -392,13 +464,24 @@ const Maintenance = () => {
     <>
       <div className="w-full max-w-full">
         <SectionTitle
-          actionButtonLabel="Add Task"
+          actionButtonClassName={
+            activeTab === 'issue'
+              ? 'flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700'
+              : 'flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1a2149]'
+          }
+          actionButtonLabel={activeTab === 'task' ? 'Add Task' : activeTab === 'issue' ? 'Create Issue' : undefined}
           description="Manage facility maintenance tasks and schedules."
           inputPlaceholder=""
           search={false}
           title="Maintenance"
           value=""
-          onActionButtonClick={() => setShowAddTask(true)}
+          onActionButtonClick={
+            activeTab === 'task'
+              ? () => setShowAddTask(true)
+              : activeTab === 'issue'
+                ? () => setShowCreateIssue(true)
+                : undefined
+          }
         />
 
         <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -415,12 +498,22 @@ const Maintenance = () => {
                         : 'font-medium text-gray-400 hover:text-gray-600'
                     }`}
                     type="button"
-                    onClick={() => setActiveTab(tab.key)}
+                    onClick={() => {
+                      setActiveTab(tab.key);
+                      if (tab.key === 'schedule') setSelectedScheduleDate('overdue');
+                    }}
                   >
                     {tab.label}
-                    {tab.key === 'issue' && (issueCounts.new + issueCounts.active + issueCounts.closed) > 0 && (
+                    {tab.key === 'issue' && issueCounts.new + issueCounts.active + issueCounts.closed > 0 && (
                       <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                        {(issueCounts.new + issueCounts.active + issueCounts.closed) > 99 ? '99+' : issueCounts.new + issueCounts.active + issueCounts.closed}
+                        {issueCounts.new + issueCounts.active + issueCounts.closed > 99
+                          ? '99+'
+                          : issueCounts.new + issueCounts.active + issueCounts.closed}
+                      </span>
+                    )}
+                    {tab.key === 'schedule' && allScheduleItems.length + overdueCount > 0 && (
+                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#21295A] px-1 text-[10px] font-bold text-white">
+                        {allScheduleItems.length + overdueCount > 99 ? '99+' : allScheduleItems.length + overdueCount}
                       </span>
                     )}
                     {activeTab === tab.key && (
@@ -429,14 +522,15 @@ const Maintenance = () => {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
+              <div className="flex items-center rounded-full border border-gray-200 bg-gray-100 p-1">
+                <span className="px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Tasks</span>
                 {taskFrequencies.map(f => (
                   <button
                     key={f.key}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
-                      taskFrequency === f.key
-                        ? 'bg-white text-[#21295A] shadow-sm'
-                        : 'text-gray-400 hover:text-gray-600'
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                      taskFrequency === f.key && activeTab === 'task'
+                        ? 'bg-[#21295A] text-white shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
                     }`}
                     type="button"
                     onClick={() => {
@@ -714,13 +808,29 @@ const Maintenance = () => {
         />
       )}
 
+      {showCreateIssue && (
+        <CreateIssueModal
+          dispatch={dispatch}
+          facilityCode={FACILITY_CODE}
+          updatedBy={currentUserId}
+          onClose={() => setShowCreateIssue(false)}
+          onSuccess={() => {
+            setIssueCounts(prev => ({ ...prev, new: prev.new + 1 }));
+            fetchList('issue', taskFrequency, 1, workList.limit || 20, selectedLane, issueFilterStatus[issueFilter]);
+          }}
+        />
+      )}
+
       {schedulingItem && (
         <ScheduleModal
           dispatch={dispatch}
           item={schedulingItem}
           updatedBy={currentUserId}
           onClose={() => setSchedulingItem(null)}
-          onSuccess={onSuccess}
+          onSuccess={scheduledDate => {
+            applyScheduleDelta(schedulingItem, scheduledDate);
+            onSuccess();
+          }}
         />
       )}
 
@@ -732,11 +842,17 @@ const Maintenance = () => {
           updatedBy={currentUserId}
           onClose={() => setViewIssue(null)}
           onSuccess={(prevStatus, newStatus) => {
-            fetchList('issue', taskFrequency, workList.page || 1, workList.limit || 20, selectedLane, issueFilterStatus[issueFilter]);
+            fetchList(
+              'issue',
+              taskFrequency,
+              workList.page || 1,
+              workList.limit || 20,
+              selectedLane,
+              issueFilterStatus[issueFilter]
+            );
             if (prevStatus !== undefined && newStatus !== undefined) {
               applyCountDelta(prevStatus, newStatus);
             }
-            setViewIssue(null);
           }}
         />
       )}

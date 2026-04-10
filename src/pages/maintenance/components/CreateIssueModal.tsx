@@ -2,18 +2,18 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import {
-  createWork,
-  deleteWorkMedia,
-  getWorkUploadUrl,
-  updateWork,
-  uploadFileToBlob,
-} from '../../../store/maintenance/api';
-import { Work } from '../../../store/maintenance/types';
-import { AssignedTo, FACILITY_CODE, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
+import { createWork, deleteWorkMedia, getWorkUploadUrl, uploadFileToBlob } from '../../../store/maintenance/api';
+import { ALL_LANES, AssignedTo, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
 
-interface FlagIssueModalProps {
-  item: Work;
+type IssueCategory = 'customer_support' | 'feature_request' | 'others';
+
+const categoryOptions: { key: IssueCategory; label: string }[] = [
+  { key: 'customer_support', label: 'Customer Support' },
+  { key: 'feature_request', label: 'Feature Request' },
+  { key: 'others', label: 'Others' },
+];
+
+interface CreateIssueModalProps {
   facilityCode: string;
   updatedBy: string;
   onClose: () => void;
@@ -21,9 +21,11 @@ interface FlagIssueModalProps {
   dispatch: any;
 }
 
-const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dispatch }: FlagIssueModalProps) => {
-  const [issueTitle, setIssueTitle] = useState('');
+const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatch }: CreateIssueModalProps) => {
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<IssueCategory>('customer_support');
+  const [selectedLanes, setSelectedLanes] = useState<number[]>([]);
   const [raisedBy, setRaisedBy] = useState<RaisedBy>('centre_staff');
   const [raisedByName, setRaisedByName] = useState('');
   const [assignedTo, setAssignedTo] = useState<AssignedTo>('centre_staff');
@@ -33,13 +35,18 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const toggleLane = (lane: number) =>
+    setSelectedLanes(prev => (prev.includes(lane) ? prev.filter(l => l !== lane) : [...prev, lane]));
+
+  const selectAllLanes = () => setSelectedLanes([...ALL_LANES]);
+
   const handleAttach = async (files: FileList) => {
     if (!files.length) return;
     setAttaching(true);
     try {
       const blobNames = await Promise.all(
         Array.from(files).map(async file => {
-          const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+          const { uploadUrl, blobName } = await getWorkUploadUrl(facilityCode, file.name);
           await uploadFileToBlob(uploadUrl, file);
           return blobName;
         })
@@ -57,71 +64,60 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
     setAttachments(prev => prev.filter(a => a !== blobName));
   };
 
-  const categoryLabel = item.category
-    ? `Maintenance – ${item.category.charAt(0).toUpperCase() + item.category.slice(1)}`
-    : 'Maintenance';
-
   const handleSubmit = () => {
-    if (!issueTitle.trim()) {
+    if (!title.trim()) {
       toast.error('Issue title is required.');
       return;
     }
+    if (selectedLanes.length === 0) {
+      toast.error('Please select at least one lane.');
+      return;
+    }
+
     setSaving(true);
-    const lastCompletedAt = new Date().toISOString().replace(/\.(\d{3})Z$/, '.$1000+00:00');
     const { userId: createdBy, name: createdByName } = getLocalUser();
 
-    const issuePayload = {
-      facilityCode,
-      type: 'issue' as const,
-      title: issueTitle.trim(),
-      category: item.category || '',
-      priority,
-      laneNo: item.laneNo || 0,
-      notes: description.trim(),
-      raisedBy,
-      assignedTo,
-      ...(item.frequency ? { frequency: item.frequency } : {}),
-      ...(raisedByName.trim() ? { raisedByName: raisedByName.trim() } : {}),
-      ...(createdBy ? { createdBy } : {}),
-      ...(createdByName ? { createdByName } : {}),
-      ...(attachments.length > 0 ? { attachments } : {}),
-    };
-    const updatedByName = createdByName;
-    dispatch(
-      updateWork({
-        itemId: item.itemId,
-        status: 'issue',
-        lastCompletedAt,
-        ...(updatedBy ? { updatedBy } : {}),
-        ...(updatedByName ? { updatedByName } : {}),
-        actionTaken: description.trim(),
-      })
+    Promise.all(
+      selectedLanes.map(laneNo =>
+        dispatch(
+          createWork({
+            facilityCode,
+            type: 'issue',
+            title: title.trim(),
+            category,
+            priority,
+            laneNo,
+            notes: description.trim(),
+            raisedBy,
+            assignedTo,
+            ...(raisedByName.trim() ? { raisedByName: raisedByName.trim() } : {}),
+            ...(updatedBy ? { updatedBy } : {}),
+            ...(createdBy ? { createdBy } : {}),
+            ...(createdByName ? { createdByName } : {}),
+            ...(attachments.length > 0 ? { attachments } : {}),
+          })
+        ).unwrap()
+      )
     )
-      .unwrap()
-      .then(() => dispatch(createWork(issuePayload)).unwrap())
-      .then(() => dispatch(createWork({ ...issuePayload, type: 'log', status: 'issue' })).unwrap())
       .then(() => {
-        toast.success('Issue raised, task updated and log created!');
+        toast.success(
+          selectedLanes.length > 1 ? `${selectedLanes.length} issues created!` : 'Issue created successfully!'
+        );
         onSuccess();
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to raise issue.'))
+      .catch((err: any) => toast.error(err || 'Failed to create issue.'))
       .finally(() => setSaving(false));
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
-          <div>
-            <p className="text-base font-bold text-gray-900">Flag Issue</p>
-            <p className="mt-0.5 text-sm text-gray-400">
-              {item.title}
-              {item.laneNo ? ` · Lane ${item.laneNo}` : ''}
-            </p>
-          </div>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <p className="text-lg font-bold text-gray-900">Create Issue</p>
           <button
-            className="ml-4 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             type="button"
             onClick={onClose}
           >
@@ -131,43 +127,60 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
           </button>
         </div>
 
-        <div className="overflow-y-auto px-6 py-5">
-          <div className="mb-5 flex items-center gap-3">
-            <span className="text-sm text-gray-500">Category:</span>
-            <span className="rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold text-white">
-              {categoryLabel}
-            </span>
-          </div>
-
-          <div className="mb-4">
-            <label className="mb-1.5 block text-sm font-semibold text-gray-800" htmlFor="issue-title">
+        <div className="space-y-5 overflow-y-auto px-6 py-5">
+          {/* Issue title */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-gray-800" htmlFor="ci-title">
               Issue title <span className="text-red-500">*</span>
             </label>
             <input
               className={inputCls}
-              id="issue-title"
+              id="ci-title"
               placeholder="Describe the issue..."
               type="text"
-              value={issueTitle}
-              onChange={e => setIssueTitle(e.target.value)}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
             />
           </div>
 
-          <div className="mb-5">
-            <label className="mb-1.5 block text-sm font-semibold text-gray-800" htmlFor="issue-description">
+          {/* Description */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-gray-800" htmlFor="ci-description">
               Description
             </label>
             <textarea
               className={inputCls}
-              id="issue-description"
-              placeholder="Additional details..."
+              id="ci-description"
+              placeholder=""
               rows={4}
               value={description}
               onChange={e => setDescription(e.target.value)}
             />
           </div>
 
-          <div className="mb-5">
+          {/* Category */}
+          <div>
+            <p className="mb-2 text-sm font-semibold text-gray-800">Category</p>
+            <div className="flex flex-wrap gap-2">
+              {categoryOptions.map(opt => (
+                <button
+                  key={opt.key}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                    category === opt.key
+                      ? 'border-transparent bg-[#21295A] text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                  type="button"
+                  onClick={() => setCategory(opt.key)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Raised by */}
+          <div>
             <p className="mb-2 text-sm font-semibold text-gray-800">Raised by</p>
             <div className="flex gap-2">
               {(['centre_staff', 'noc', 'admin'] as RaisedBy[]).map(opt => (
@@ -183,7 +196,6 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
             </div>
             <input
               className={`${inputCls} mt-3`}
-              id="raised-by-name"
               placeholder="Name (optional)..."
               type="text"
               value={raisedByName}
@@ -191,7 +203,8 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
             />
           </div>
 
-          <div className="mb-5">
+          {/* Assign to team */}
+          <div>
             <p className="mb-2 text-sm font-semibold text-gray-800">Assign to team</p>
             <div className="flex gap-2">
               {(['centre_staff', 'noc', 'others'] as AssignedTo[]).map(opt => (
@@ -207,7 +220,38 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
             </div>
           </div>
 
-          <div className="mb-5">
+          {/* Lanes affected */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-800">Lanes affected</p>
+              <button
+                className="text-sm font-medium text-blue-600 hover:underline"
+                type="button"
+                onClick={selectAllLanes}
+              >
+                All lanes
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {ALL_LANES.map(lane => (
+                <button
+                  key={lane}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                    selectedLanes.includes(lane)
+                      ? 'border-transparent bg-[#21295A] text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                  type="button"
+                  onClick={() => toggleLane(lane)}
+                >
+                  Lane {lane}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Priority */}
+          <div>
             <p className="mb-2 text-sm font-semibold text-gray-800">Priority</p>
             <div className="flex gap-2">
               {(
@@ -219,7 +263,11 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
               ).map(opt => (
                 <button
                   key={opt.key}
-                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${priority === opt.key ? 'border-transparent bg-[#21295A] text-white' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                    priority === opt.key
+                      ? 'border-transparent bg-[#21295A] text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
                   type="button"
                   onClick={() => setPriority(opt.key)}
                 >
@@ -230,6 +278,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
             </div>
           </div>
 
+          {/* Attachments */}
           <div>
             <p className="mb-2 text-sm font-semibold text-gray-800">Attachments</p>
             <input
@@ -275,7 +324,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
               </div>
             )}
             <button
-              className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 disabled:opacity-50"
               disabled={attaching}
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -293,9 +342,10 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
+        {/* Footer */}
+        <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
           <button
-            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            className="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
             disabled={saving || attaching}
             type="button"
             onClick={onClose}
@@ -303,12 +353,12 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
             Cancel
           </button>
           <button
-            className="rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            className="rounded-lg bg-[#21295A] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1a2149] disabled:opacity-50"
             disabled={saving || attaching}
             type="button"
             onClick={handleSubmit}
           >
-            {saving ? 'Raising...' : attaching ? 'Uploading...' : 'Raise Issue'}
+            {saving ? 'Creating...' : attaching ? 'Uploading...' : 'Create Issue'}
           </button>
         </div>
       </div>
@@ -316,4 +366,4 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
   );
 };
 
-export default FlagIssueModal;
+export default CreateIssueModal;

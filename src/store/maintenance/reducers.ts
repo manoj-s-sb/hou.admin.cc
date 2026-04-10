@@ -37,29 +37,12 @@ const maintenanceSlice = createSlice({
     builder.addCase(getWorkList.rejected, (state, action) => {
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to fetch work list. Please try again.';
-    });
-    builder.addCase(createWork.pending, state => {
-      state.isLoading = true;
-      state.error = '';
-    });
-    builder.addCase(createWork.fulfilled, state => {
-      state.isLoading = false;
-      state.error = '';
+      state.workList = { items: [], total: 0, page: 1, limit: state.workList.limit || 20, totalPages: 1 };
     });
     builder.addCase(createWork.rejected, (state, action) => {
-      state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to create work item. Please try again.';
     });
-    builder.addCase(updateWork.pending, state => {
-      state.isLoading = true;
-      state.error = '';
-    });
-    builder.addCase(updateWork.fulfilled, state => {
-      state.isLoading = false;
-      state.error = '';
-    });
     builder.addCase(updateWork.rejected, (state, action) => {
-      state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to update work item. Please try again.';
     });
   },
