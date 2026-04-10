@@ -118,9 +118,9 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
   const workList = useSelector((state: RootState) => state.maintenance.workList);
   useEffect(() => {
     if (!workList?.items?.length) return;
-    const fresh = workList.items.find((i: Work) => i.itemId === currentItem.itemId);
+    const fresh = workList.items.find((i: Work) => i.itemId === item.itemId);
     if (fresh) setCurrentItem(fresh);
-  }, [workList]);
+  }, [workList, item.itemId]);
 
   const issueNum = `ISS-${String(index + 1).padStart(3, '0')}`;
   const statusCls = statusBadgeCls[currentItem.status?.toLowerCase() || ''] || 'bg-gray-400 text-white';
