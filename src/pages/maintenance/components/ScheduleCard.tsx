@@ -35,10 +35,9 @@ const ScheduleCard = ({ item, dispatch, updatedBy, onMarkDone, onFlagIssue, onSc
         })
       );
       const { name: updatedByName } = getLocalUser();
-      const existing = item.attachments || [];
       await dispatch(updateWork({
         itemId: item.itemId,
-        attachments: [...existing, ...blobNames],
+        attachments: blobNames,
         ...(updatedBy ? { updatedBy } : {}),
         ...(updatedByName ? { updatedByName } : {}),
       })).unwrap();

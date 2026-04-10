@@ -178,7 +178,6 @@ const Induction = () => {
       width: 220,
       sortable: false,
       renderCell: (params: any) => {
-        const isSettled = params.row?.status === 'noshow';
         const handleStatusUpdate = (status: string) => {
           dispatch(
             updateInductionBookingStatus({
@@ -237,26 +236,27 @@ const Induction = () => {
               </svg>
               View
             </button>
-            <button
-              className={`flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 shadow-sm transition-all duration-200 hover:border-orange-600 hover:bg-orange-600 hover:text-white ${isSettled ? 'cursor-not-allowed opacity-40' : ''}`}
-              disabled={isSettled}
-              title="Mark induction as no show"
-              onClick={e => {
-                e.stopPropagation();
-                handleStatusUpdate('noshow');
-              }}
-            >
-              {isLoading ? (
-                <LoaderSpinner className="text-current" size="xs" />
-              ) : (
-                <>
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-                  </svg>
-                  Mark No Show
-                </>
-              )}
-            </button>
+            {params.row?.status === 'confirmed' && (
+              <button
+                className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 shadow-sm transition-all duration-200 hover:border-orange-600 hover:bg-orange-600 hover:text-white"
+                title="Mark induction as no show"
+                onClick={e => {
+                  e.stopPropagation();
+                  handleStatusUpdate('noshow');
+                }}
+              >
+                {isLoading ? (
+                  <LoaderSpinner className="text-current" size="xs" />
+                ) : (
+                  <>
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
+                    </svg>
+                    Mark No Show
+                  </>
+                )}
+              </button>
+            )}
           </div>
         );
       },

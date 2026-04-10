@@ -119,7 +119,6 @@ const Tours = () => {
       width: 240,
       sortable: false,
       renderCell: (params: any) => {
-        const isSettled = params.row?.status === 'completed' || params.row?.status === 'noshow';
         const handleStatusUpdate = (status: string) => {
           dispatch(
             updateTourStatus({
@@ -142,19 +141,20 @@ const Tours = () => {
               toast.error(err || 'Failed to update tour status!');
             });
         };
+        if (params.row?.status !== 'confirmed') {
+          return <span className="text-gray-400">-</span>;
+        }
         return (
           <div className="flex items-center gap-2">
             <button
-              className={`flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700 shadow-sm transition-all duration-200 hover:border-green-600 hover:bg-green-600 hover:text-white ${isSettled ? 'cursor-not-allowed opacity-40' : ''}`}
-              disabled={isSettled}
+              className="flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700 shadow-sm transition-all duration-200 hover:border-green-600 hover:bg-green-600 hover:text-white"
               title="Mark tour as completed"
               onClick={() => handleStatusUpdate('completed')}
             >
               {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : <>Mark Complete</>}
             </button>
             <button
-              className={`flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 shadow-sm transition-all duration-200 hover:border-orange-600 hover:bg-orange-600 hover:text-white ${isSettled ? 'cursor-not-allowed opacity-40' : ''}`}
-              disabled={isSettled}
+              className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 shadow-sm transition-all duration-200 hover:border-orange-600 hover:bg-orange-600 hover:text-white"
               title="Mark tour as no show"
               onClick={() => handleStatusUpdate('noshow')}
             >

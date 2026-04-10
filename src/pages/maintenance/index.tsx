@@ -30,6 +30,13 @@ const issueFilterStatus: Record<IssueFilter, string> = {
   closed: 'closed',
 };
 
+const filterKeyFromStatus = (status: string): IssueFilter | null => {
+  if (status === 'open' || status === 'issue') return 'new';
+  if (status === 'inprogress') return 'active';
+  if (status === 'closed') return 'closed';
+  return null;
+};
+
 const issueFilterMeta: Record<IssueFilter, { label: string; activeText: string; underline: string }> = {
   new: { label: 'New', activeText: 'text-gray-800', underline: 'bg-[#21295A]' },
   active: { label: 'Active', activeText: 'text-orange-500', underline: 'bg-orange-500' },
@@ -54,7 +61,7 @@ const Maintenance = () => {
   const [activeTab, setActiveTab] = useState<Tab>('task');
   const [taskFrequency, setTaskFrequency] = useState<TaskFrequency>('weekly');
   const [selectedLane, setSelectedLane] = useState<number>(1);
-  const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>(today);
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>('overdue');
   const [allScheduleItems, setAllScheduleItems] = useState<Work[]>([]);
   const [selectedItem, setSelectedItem] = useState<Work | null>(null);
   const [schedulingItem, setSchedulingItem] = useState<Work | null>(null);
@@ -63,6 +70,17 @@ const Maintenance = () => {
   const [showAddTask, setShowAddTask] = useState(false);
   const [issueCounts, setIssueCounts] = useState({ new: 0, active: 0, closed: 0 });
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('new');
+
+  const applyCountDelta = (prevStatus: string, newStatus: string) => {
+    const prevKey = filterKeyFromStatus(prevStatus);
+    const newKey = filterKeyFromStatus(newStatus);
+    setIssueCounts(prev => {
+      const next = { ...prev };
+      if (prevKey) next[prevKey] = Math.max(0, next[prevKey] - 1);
+      if (newKey) next[newKey] = next[newKey] + 1;
+      return next;
+    });
+  };
   const [viewIssue, setViewIssue] = useState<{ item: Work; index: number } | null>(null);
 
   const fetchList = (
@@ -92,7 +110,9 @@ const Maintenance = () => {
         activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined);
     } else if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 100, type: 'task', toDate: yesterday }));
+      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', toDate: yesterday }));
+    } else {
+      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', scheduledDate: selectedScheduleDate }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, taskFrequency, selectedLane, selectedScheduleDate, issueFilter]);
@@ -118,23 +138,19 @@ const Maintenance = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Schedule tab: fetch full 7-day range once, filter client-side
+  // Schedule tab: fetch 7-day range for count badges only (does not affect workList)
+  const fetchScheduleCounts = () => {
+    api.post(endpoints.maintenance.workList, {
+      facilityCode: FACILITY_CODE, page: 1, limit: 100, type: 'task',
+      fromDate: today, toDate: sevenDaysLater,
+    }).then((res: any) => {
+      const data = res.data?.data;
+      setAllScheduleItems(Array.isArray(data) ? data : data?.items || []);
+    });
+  };
+
   useEffect(() => {
-    if (activeTab === 'schedule') {
-      dispatch(
-        getWorkList({
-          facilityCode: FACILITY_CODE,
-          page: 1,
-          limit: 100,
-          type: 'task',
-          fromDate: today,
-          toDate: sevenDaysLater,
-        })
-      ).then((result: any) => {
-        const data = result.payload?.data;
-        setAllScheduleItems(Array.isArray(data) ? data : data?.items || []);
-      });
-    }
+    if (activeTab === 'schedule') fetchScheduleCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -143,30 +159,16 @@ const Maintenance = () => {
     return acc;
   }, {});
 
-  const scheduleDisplayItems =
-    selectedScheduleDate === 'overdue'
-      ? workList.items || []
-      : allScheduleItems.filter(item => item.scheduledDate === selectedScheduleDate);
+  const scheduleDisplayItems = workList.items || [];
 
   const refreshSchedule = () => {
     if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 100, type: 'task', toDate: yesterday }));
+      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', toDate: yesterday }));
     } else {
-      dispatch(
-        getWorkList({
-          facilityCode: FACILITY_CODE,
-          page: 1,
-          limit: 100,
-          type: 'task',
-          fromDate: today,
-          toDate: sevenDaysLater,
-        })
-      ).then((result: any) => {
-        const data = result.payload?.data;
-        setAllScheduleItems(Array.isArray(data) ? data : data?.items || []);
-      });
+      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', scheduledDate: selectedScheduleDate }));
     }
+    fetchScheduleCounts();
   };
 
   const onSuccess = () => {
@@ -686,7 +688,10 @@ const Maintenance = () => {
           item={flagIssueItem}
           updatedBy={currentUserId}
           onClose={() => setFlagIssueItem(null)}
-          onSuccess={onSuccess}
+          onSuccess={() => {
+            onSuccess();
+            setIssueCounts(prev => ({ ...prev, new: prev.new + 1 }));
+          }}
         />
       )}
 
@@ -726,8 +731,11 @@ const Maintenance = () => {
           item={viewIssue.item}
           updatedBy={currentUserId}
           onClose={() => setViewIssue(null)}
-          onSuccess={() => {
-            fetchList('issue', taskFrequency, workList.page || 1);
+          onSuccess={(prevStatus, newStatus) => {
+            fetchList('issue', taskFrequency, workList.page || 1, workList.limit || 20, selectedLane, issueFilterStatus[issueFilter]);
+            if (prevStatus !== undefined && newStatus !== undefined) {
+              applyCountDelta(prevStatus, newStatus);
+            }
             setViewIssue(null);
           }}
         />

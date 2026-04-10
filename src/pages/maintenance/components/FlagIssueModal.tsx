@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import { createWork, updateWork } from '../../../store/maintenance/api';
+import { createWork, deleteWorkMedia, getWorkUploadUrl, updateWork, uploadFileToBlob } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
-import { AssignedTo, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
+import { AssignedTo, FACILITY_CODE, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
 
 interface FlagIssueModalProps {
   item: Work;
@@ -22,7 +22,34 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
   const [raisedByName, setRaisedByName] = useState('');
   const [assignedTo, setAssignedTo] = useState<AssignedTo>('centre_staff');
   const [priority, setPriority] = useState<IssuePriority>('medium');
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attaching, setAttaching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAttach = async (files: FileList) => {
+    if (!files.length) return;
+    setAttaching(true);
+    try {
+      const blobNames = await Promise.all(
+        Array.from(files).map(async file => {
+          const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+          await uploadFileToBlob(uploadUrl, file);
+          return blobName;
+        })
+      );
+      setAttachments(prev => [...prev, ...blobNames]);
+    } catch {
+      toast.error('Failed to upload attachment.');
+    } finally {
+      setAttaching(false);
+    }
+  };
+
+  const handleRemoveAttachment = (blobName: string) => {
+    deleteWorkMedia(blobName);
+    setAttachments(prev => prev.filter(a => a !== blobName));
+  };
 
   const categoryLabel = item.category
     ? `Maintenance – ${item.category.charAt(0).toUpperCase() + item.category.slice(1)}`
@@ -51,6 +78,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
       ...(raisedByName.trim() ? { raisedByName: raisedByName.trim() } : {}),
       ...(createdBy ? { createdBy } : {}),
       ...(createdByName ? { createdByName } : {}),
+      ...(attachments.length > 0 ? { attachments } : {}),
     };
     const updatedByName = createdByName;
     dispatch(
@@ -177,16 +205,40 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
 
           <div>
             <p className="mb-2 text-sm font-semibold text-gray-800">Attachments</p>
-            <label
-              className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700"
-              htmlFor="issue-file"
+            <input
+              ref={fileInputRef}
+              multiple
+              className="hidden"
+              type="file"
+              onChange={e => {
+                if (e.target.files) handleAttach(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            {attachments.length > 0 && (
+              <div className="mb-2 flex flex-col gap-1.5">
+                {attachments.map(blobName => (
+                  <div key={blobName} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                    <svg className="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                    </svg>
+                    <span className="flex-1 truncate text-xs text-gray-600">{blobName.split('/').pop()}</span>
+                    <button className="text-xs text-red-400 hover:text-red-600" type="button" onClick={() => handleRemoveAttachment(blobName)}>Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 disabled:opacity-50"
+              disabled={attaching}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
               </svg>
-              Attach file
-            </label>
-            <input className="hidden" id="issue-file" multiple={true} type="file" />
+              {attaching ? 'Uploading...' : 'Attach file'}
+            </button>
           </div>
         </div>
 

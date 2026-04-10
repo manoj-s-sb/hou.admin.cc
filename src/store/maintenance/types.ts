@@ -8,6 +8,8 @@ export interface UpdateWorkRequest {
   updatedByName?: string;
   actionTaken?: string;
   attachments?: string[];
+  comment?: string;
+  commentAttachment?: string;
 }
 
 export interface CreateWorkRequest {
@@ -26,6 +28,7 @@ export interface CreateWorkRequest {
   assignedTo?: string;
   createdBy?: string;
   createdByName?: string;
+  attachments?: string[];
   steps?: {
     stepId: string;
     order: number;
@@ -66,6 +69,7 @@ export interface WorkActivity {
   toId: string | null;
   toName: string | null;
   at: string;
+  attachmentUrl?: string | null;
 }
 
 export interface Work {
@@ -85,7 +89,7 @@ export interface Work {
   actionTaken: string | null;
   notes: string | null;
   videoUrl: string | null;
-  attachments: string[] | null;
+  attachments: { blobName: string; addedAt: string; addedBy: string; addedByName: string }[] | null;
   raisedBy: string | null;
   raisedByName: string | null;
   assignedTo: string | null;
