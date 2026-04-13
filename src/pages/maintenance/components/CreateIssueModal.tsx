@@ -30,7 +30,7 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
   const [raisedByName, setRaisedByName] = useState('');
   const [assignedTo, setAssignedTo] = useState<AssignedTo>('centre_staff');
   const [priority, setPriority] = useState<IssuePriority>('medium');
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<{ blobName: string; file: File }[]>([]);
   const [attaching, setAttaching] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -44,14 +44,14 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
     if (!files.length) return;
     setAttaching(true);
     try {
-      const blobNames = await Promise.all(
+      const items = await Promise.all(
         Array.from(files).map(async file => {
           const { uploadUrl, blobName } = await getWorkUploadUrl(facilityCode, file.name);
           await uploadFileToBlob(uploadUrl, file);
-          return blobName;
+          return { blobName, file };
         })
       );
-      setAttachments(prev => [...prev, ...blobNames]);
+      setAttachments(prev => [...prev, ...items]);
     } catch {
       toast.error('Failed to upload attachment.');
     } finally {
@@ -61,7 +61,12 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
 
   const handleRemoveAttachment = (blobName: string) => {
     void deleteWorkMedia(blobName);
-    setAttachments(prev => prev.filter(a => a !== blobName));
+    setAttachments(prev => prev.filter(a => a.blobName !== blobName));
+  };
+
+  const handlePreview = (file: File) => {
+    const url = URL.createObjectURL(file);
+    window.open(url, '_blank');
   };
 
   const handleSubmit = () => {
@@ -69,16 +74,12 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
       toast.error('Issue title is required.');
       return;
     }
-    if (selectedLanes.length === 0) {
-      toast.error('Please select at least one lane.');
-      return;
-    }
-
     setSaving(true);
     const { userId: createdBy, name: createdByName } = getLocalUser();
+    const lanes = selectedLanes.length > 0 ? selectedLanes : [0];
 
     Promise.all(
-      selectedLanes.map(laneNo =>
+      lanes.map(laneNo =>
         dispatch(
           createWork({
             facilityCode,
@@ -94,15 +95,13 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
             ...(updatedBy ? { updatedBy } : {}),
             ...(createdBy ? { createdBy } : {}),
             ...(createdByName ? { createdByName } : {}),
-            ...(attachments.length > 0 ? { attachments } : {}),
+            ...(attachments.length > 0 ? { attachments: attachments.map(a => a.blobName) } : {}),
           })
         ).unwrap()
       )
     )
       .then(() => {
-        toast.success(
-          selectedLanes.length > 1 ? `${selectedLanes.length} issues created!` : 'Issue created successfully!'
-        );
+        toast.success(lanes.length > 1 ? `${lanes.length} issues created!` : 'Issue created successfully!');
         onSuccess();
         onClose();
       })
@@ -293,7 +292,7 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
             />
             {attachments.length > 0 && (
               <div className="mb-2 flex flex-col gap-1.5">
-                {attachments.map(blobName => (
+                {attachments.map(({ blobName, file }) => (
                   <div
                     key={blobName}
                     className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
@@ -311,7 +310,14 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
                         strokeWidth={2}
                       />
                     </svg>
-                    <span className="flex-1 truncate text-xs text-gray-600">{blobName.split('/').pop()}</span>
+                    <span className="flex-1 truncate text-xs text-gray-600">{file.name}</span>
+                    <button
+                      className="text-xs text-blue-500 hover:text-blue-700"
+                      type="button"
+                      onClick={() => handlePreview(file)}
+                    >
+                      Preview
+                    </button>
                     <button
                       className="text-xs text-red-400 hover:text-red-600"
                       type="button"

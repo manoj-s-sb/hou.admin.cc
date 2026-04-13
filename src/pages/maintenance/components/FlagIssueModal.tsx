@@ -28,7 +28,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
   const [raisedByName, setRaisedByName] = useState('');
   const [assignedTo, setAssignedTo] = useState<AssignedTo>('centre_staff');
   const [priority, setPriority] = useState<IssuePriority>('medium');
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<{ blobName: string; file: File }[]>([]);
   const [attaching, setAttaching] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -37,14 +37,14 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
     if (!files.length) return;
     setAttaching(true);
     try {
-      const blobNames = await Promise.all(
+      const items = await Promise.all(
         Array.from(files).map(async file => {
           const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
           await uploadFileToBlob(uploadUrl, file);
-          return blobName;
+          return { blobName, file };
         })
       );
-      setAttachments(prev => [...prev, ...blobNames]);
+      setAttachments(prev => [...prev, ...items]);
     } catch {
       toast.error('Failed to upload attachment.');
     } finally {
@@ -54,7 +54,12 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
 
   const handleRemoveAttachment = (blobName: string) => {
     void deleteWorkMedia(blobName);
-    setAttachments(prev => prev.filter(a => a !== blobName));
+    setAttachments(prev => prev.filter(a => a.blobName !== blobName));
+  };
+
+  const handlePreview = (file: File) => {
+    const url = URL.createObjectURL(file);
+    window.open(url, '_blank');
   };
 
   const categoryLabel = item.category
@@ -85,7 +90,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
       ...(raisedByName.trim() ? { raisedByName: raisedByName.trim() } : {}),
       ...(createdBy ? { createdBy } : {}),
       ...(createdByName ? { createdByName } : {}),
-      ...(attachments.length > 0 ? { attachments } : {}),
+      ...(attachments.length > 0 ? { attachments: attachments.map(a => a.blobName) } : {}),
     };
     const updatedByName = createdByName;
     dispatch(
@@ -245,7 +250,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
             />
             {attachments.length > 0 && (
               <div className="mb-2 flex flex-col gap-1.5">
-                {attachments.map(blobName => (
+                {attachments.map(({ blobName, file }) => (
                   <div
                     key={blobName}
                     className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
@@ -263,7 +268,14 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
                         strokeWidth={2}
                       />
                     </svg>
-                    <span className="flex-1 truncate text-xs text-gray-600">{blobName.split('/').pop()}</span>
+                    <span className="flex-1 truncate text-xs text-gray-600">{file.name}</span>
+                    <button
+                      className="text-xs text-blue-500 hover:text-blue-700"
+                      type="button"
+                      onClick={() => handlePreview(file)}
+                    >
+                      Preview
+                    </button>
                     <button
                       className="text-xs text-red-400 hover:text-red-600"
                       type="button"

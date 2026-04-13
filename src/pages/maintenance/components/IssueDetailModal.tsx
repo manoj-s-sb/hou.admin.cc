@@ -108,7 +108,7 @@ const CommentBubble = ({
 const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy }: IssueDetailModalProps) => {
   const [currentItem, setCurrentItem] = useState<Work>(item);
   const [comment, setComment] = useState('');
-  const [commentAttachment, setCommentAttachment] = useState<string | null>(null);
+  const [commentAttachment, setCommentAttachment] = useState<{ blobName: string; file: File } | null>(null);
   const [attaching, setAttaching] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -283,7 +283,7 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
     try {
       const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
       await uploadFileToBlob(uploadUrl, file);
-      setCommentAttachment(blobName);
+      setCommentAttachment({ blobName, file });
     } catch {
       toast.error('Failed to upload attachment.');
     } finally {
@@ -292,17 +292,21 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
   };
 
   const handleRemoveCommentAttachment = () => {
-    if (commentAttachment) void deleteWorkMedia(commentAttachment);
+    if (commentAttachment) void deleteWorkMedia(commentAttachment.blobName);
     setCommentAttachment(null);
   };
 
   const handleSendComment = () => {
     if (!comment.trim()) return;
-    callUpdate({ comment: comment.trim(), ...(commentAttachment ? { commentAttachment } : {}) }, {}, () => {
-      toast.success('Comment sent.');
-      setComment('');
-      setCommentAttachment(null);
-    });
+    callUpdate(
+      { comment: comment.trim(), ...(commentAttachment ? { commentAttachment: commentAttachment.blobName } : {}) },
+      {},
+      () => {
+        toast.success('Comment sent.');
+        setComment('');
+        setCommentAttachment(null);
+      }
+    );
   };
 
   const handleCloseIssue = () => {
@@ -311,7 +315,11 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
       return;
     }
     callUpdate(
-      { status: 'closed', comment: comment.trim(), ...(commentAttachment ? { commentAttachment } : {}) },
+      {
+        status: 'closed',
+        comment: comment.trim(),
+        ...(commentAttachment ? { commentAttachment: commentAttachment.blobName } : {}),
+      },
       { status: 'closed' },
       () => {
         toast.success('Issue closed.');
@@ -496,9 +504,17 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
                           strokeWidth={2}
                         />
                       </svg>
-                      <span className="flex-1 truncate text-xs text-gray-600">
-                        {commentAttachment.split('/').pop()}
-                      </span>
+                      <span className="flex-1 truncate text-xs text-gray-600">{commentAttachment.file.name}</span>
+                      <button
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                        type="button"
+                        onClick={() => {
+                          const url = URL.createObjectURL(commentAttachment.file);
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        Preview
+                      </button>
                       <button
                         className="text-xs text-red-400 hover:text-red-600"
                         type="button"

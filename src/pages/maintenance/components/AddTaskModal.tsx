@@ -38,6 +38,8 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const stepImageFiles = useRef<Record<number, File>>({});
+  const [videoFile, setVideoFile] = useState<File | null>(null);
 
   const setField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -68,6 +70,7 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
     try {
       const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
       await uploadFileToBlob(uploadUrl, file);
+      stepImageFiles.current[index] = file;
       updateStep(index, 'imageUrl', blobName);
       toast.success('Image uploaded.');
     } catch {
@@ -82,6 +85,7 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
     try {
       const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
       await uploadFileToBlob(uploadUrl, file);
+      setVideoFile(file);
       setField('videoUrl', blobName);
       toast.success('Video uploaded.');
     } catch {
@@ -89,6 +93,11 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
     } finally {
       setUploading(prev => ({ ...prev, task_video: false }));
     }
+  };
+
+  const handlePreview = (file: File) => {
+    const url = URL.createObjectURL(file);
+    window.open(url, '_blank');
   };
 
   const handleSubmit = () => {
@@ -322,6 +331,15 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                           <span className="flex-1 truncate text-xs text-gray-600">
                             {step.imageUrl.split('/').pop()}
                           </span>
+                          {stepImageFiles.current[index] && (
+                            <button
+                              className="text-xs text-blue-500 hover:text-blue-700"
+                              type="button"
+                              onClick={() => handlePreview(stepImageFiles.current[index])}
+                            >
+                              Preview
+                            </button>
+                          )}
                           <button
                             className="text-xs text-red-400 hover:text-red-600"
                             type="button"
@@ -383,12 +401,22 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                   />
                 </svg>
                 <span className="flex-1 truncate text-xs text-gray-600">{form.videoUrl.split('/').pop()}</span>
+                {videoFile && (
+                  <button
+                    className="text-xs text-blue-500 hover:text-blue-700"
+                    type="button"
+                    onClick={() => handlePreview(videoFile)}
+                  >
+                    Preview
+                  </button>
+                )}
                 <button
                   className="text-xs text-red-400 hover:text-red-600"
                   type="button"
                   onClick={() => {
                     if (form.videoUrl) void deleteWorkMedia(form.videoUrl);
                     setField('videoUrl', '');
+                    setVideoFile(null);
                   }}
                 >
                   Remove
