@@ -19,40 +19,52 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     dispatch(login({ email: username, password }));
   };
 
   useEffect(() => {
     if (isAuthenticated) {
-      toast.success('Logged in successfully!', {
-        duration: 4000,
-      });
-      // Small delay to ensure toast shows before navigation
-      setTimeout(() => {
-        navigate('/members');
-      }, 100);
+      toast.success('Logged in successfully!', { duration: 4000 });
+      setTimeout(() => navigate('/members'), 100);
     }
   }, [isAuthenticated, navigate]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white p-5">
-      <div className="w-full max-w-md rounded-xl border border-gray-100 bg-white p-10 shadow-lg">
-        <div className="mb-6 flex justify-center">
-          <div className="rounded-lg bg-white p-4">
-            <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand.svg" />
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-5">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white px-10 py-10 shadow-xl">
+        {/* Logo */}
+        <div className="mb-5 flex justify-center">
+          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand.svg" />
         </div>
-        <h1 className="mb-2 text-center text-3xl font-bold text-gray-800">Admin Portal</h1>
-        <h2 className="mb-8 text-center text-lg font-normal text-gray-600">Sign In</h2>
-        <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700" htmlFor="username">
+
+        {/* Heading */}
+        <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">Admin Portal</h1>
+        <p className="mb-7 text-center text-sm text-gray-400">Sign in to continue</p>
+
+        {/* Error message */}
+        {error && (
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
+            </svg>
+            <p className="text-sm font-medium text-red-600">{error}</p>
+          </div>
+        )}
+
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          {/* Username */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500" htmlFor="username">
               Username
             </label>
             <input
               required
-              className="rounded-md border border-gray-300 px-3 py-3 text-sm transition-colors focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+              className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-[#21295A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#21295A]/10"
               id="username"
               placeholder="Enter username"
               type="text"
@@ -60,14 +72,16 @@ const Login: React.FC = () => {
               onChange={e => setUsername(e.target.value)}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700" htmlFor="password">
+
+          {/* Password */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500" htmlFor="password">
               Password
             </label>
             <div className="relative">
               <input
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-3 pr-10 text-sm transition-colors focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pr-11 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-[#21295A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#21295A]/10"
                 id="password"
                 placeholder="Enter password"
                 type={showPassword ? 'text' : 'password'}
@@ -76,21 +90,28 @@ const Login: React.FC = () => {
               />
               <button
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
               </button>
             </div>
           </div>
-          {error && <div className="rounded bg-red-50 p-2 text-center text-sm text-red-600">{error}</div>}
+
+          {/* Submit */}
           <button
-            className="cursor-pointer rounded-md bg-indigo-600 px-4 py-3 text-base font-semibold text-white transition-all hover:bg-indigo-700 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:bg-indigo-400"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#21295A] py-3 text-sm font-semibold text-white transition-all hover:bg-[#1a2149] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
             disabled={loading}
             type="submit"
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading && (
+              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" />
+              </svg>
+            )}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </div>

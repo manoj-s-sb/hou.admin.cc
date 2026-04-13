@@ -225,6 +225,12 @@ const ViewInduction = () => {
             </span>
           </div>
           <div className="rounded-lg bg-gray-50 p-3 sm:p-4">
+            <p className="mb-1 text-xs text-gray-600 sm:text-sm">Subscription</p>
+            <p className="text-sm font-semibold capitalize text-gray-900 sm:text-base">
+              {data?.subscriptionCode || 'N/A'}
+            </p>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3 sm:p-4">
             <p className="mb-1 text-xs text-gray-600 sm:text-sm">Time Slot</p>
             <p className="text-xs font-semibold text-gray-900 sm:text-sm">
               {formatTimeRangeChicago(data?.timeSlot?.startTime, data?.timeSlot?.endTime)}

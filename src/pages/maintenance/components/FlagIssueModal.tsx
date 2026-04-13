@@ -73,6 +73,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
     const issuePayload = {
       facilityCode,
       type: 'issue' as const,
+      taskId: item.itemId,
       title: issueTitle.trim(),
       category: item.category || '',
       priority,

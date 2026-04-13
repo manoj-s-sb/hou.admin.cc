@@ -504,11 +504,19 @@ const Maintenance = () => {
                     }}
                   >
                     {tab.label}
-                    {tab.key === 'issue' && issueCounts.new + issueCounts.active + issueCounts.closed > 0 && (
-                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                        {issueCounts.new + issueCounts.active + issueCounts.closed > 99
-                          ? '99+'
-                          : issueCounts.new + issueCounts.active + issueCounts.closed}
+                    {tab.key === 'issue' && (issueCounts.new > 0 || issueCounts.active > 0) && (
+                      <span
+                        className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
+                          issueCounts.new > 0 ? 'bg-red-500' : 'bg-yellow-500'
+                        }`}
+                      >
+                        {issueCounts.new > 0
+                          ? issueCounts.new > 99
+                            ? '99+'
+                            : issueCounts.new
+                          : issueCounts.active > 99
+                            ? '99+'
+                            : issueCounts.active}
                       </span>
                     )}
                     {tab.key === 'schedule' && allScheduleItems.length + overdueCount > 0 && (
@@ -616,9 +624,9 @@ const Maintenance = () => {
                         Overdue
                       </span>
                       <span className="text-xs text-gray-400">Past due</span>
-                      {isSelected && workList.total > 0 ? (
+                      {overdueCount > 0 ? (
                         <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                          {workList.total > 9 ? '9+' : workList.total}
+                          {overdueCount > 9 ? '9+' : overdueCount}
                         </span>
                       ) : (
                         <span className="mt-1 h-5" />
