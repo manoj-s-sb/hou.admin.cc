@@ -59,7 +59,7 @@ const Maintenance = () => {
   const today = toDateStr(new Date());
   const sevenDaysLater = toDateStr(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000));
 
-  const [activeTab, setActiveTab] = useState<Tab>('issue');
+  const [activeTab, setActiveTab] = useState<Tab>('task');
   const [taskFrequency, setTaskFrequency] = useState<TaskFrequency>('weekly');
   const [selectedLane, setSelectedLane] = useState<number>(1);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>('overdue');
