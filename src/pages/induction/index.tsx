@@ -22,7 +22,7 @@ type FilterState = {
 const defaultFilters: FilterState = {
   date: '',
   email: '',
-  status: 'pending',
+  status: 'all',
 };
 
 function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterState {
@@ -37,7 +37,7 @@ function filtersToSearchParams(filters: FilterState): Record<string, string> {
   const params: Record<string, string> = {};
   if (filters.date) params.date = filters.date;
   if (filters.email.trim()) params.email = filters.email.trim();
-  if (filters.status && filters.status !== 'pending') params.status = filters.status;
+  if (filters.status) params.status = filters.status;
   return params;
 }
 
@@ -70,7 +70,7 @@ const Induction = () => {
         type: 'inductionbooking',
         listLimit: inductionListData?.limit || 20,
         email: applied.email,
-        status: applied.status === 'pending' ? 'confirmed' : applied.status,
+        status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
       })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,7 +197,7 @@ const Induction = () => {
                     type: 'inductionbooking',
                     listLimit: inductionListData?.limit || 20,
                     email: applied.email,
-                    status: applied.status === 'pending' ? 'confirmed' : applied.status,
+                    status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
                   })
                 );
                 toast.success('Induction status updated successfully!');
@@ -426,7 +426,7 @@ const Induction = () => {
                 type: 'inductionbooking',
                 listLimit: inductionListData?.limit || 20,
                 email: filters.email,
-                status: filters.status === 'pending' ? 'confirmed' : filters.status,
+                status: filters.status === 'pending' ? 'confirmed' : filters.status === 'all' ? '' : filters.status,
               })
             );
           }}
@@ -441,7 +441,7 @@ const Induction = () => {
                 type: 'inductionbooking',
                 listLimit: rowsPerPage,
                 email: filters.email,
-                status: filters.status === 'pending' ? 'confirmed' : filters.status,
+                status: filters.status === 'pending' ? 'confirmed' : filters.status === 'all' ? '' : filters.status,
               })
             );
           }}
