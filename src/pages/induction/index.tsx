@@ -210,32 +210,35 @@ const Induction = () => {
               toast.error(err || 'Failed to update induction status!');
             });
         };
+        const isNoShow = params.row?.status === 'noshow';
         return (
           <div className="flex items-center gap-2">
-            <button
-              className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 shadow-sm transition-all duration-200 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"
-              title="View induction details"
-              onClick={e => {
-                e.stopPropagation();
-                navigate(`/view-induction/${params.row.userId}`, { state: { listSearch: location.search } });
-              }}
-            >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-                <path
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
-              View
-            </button>
+            {!isNoShow && (
+              <button
+                className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 shadow-sm transition-all duration-200 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"
+                title="View induction details"
+                onClick={e => {
+                  e.stopPropagation();
+                  navigate(`/view-induction/${params.row.userId}`, { state: { listSearch: location.search } });
+                }}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                  <path
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+                View
+              </button>
+            )}
             {params.row?.status === 'confirmed' && (
               <button
                 className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 shadow-sm transition-all duration-200 hover:border-orange-600 hover:bg-orange-600 hover:text-white"
@@ -257,6 +260,26 @@ const Induction = () => {
                 )}
               </button>
             )}
+            {isNoShow && (
+              <button
+                className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition-all duration-200 hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+                title="Undo no show"
+                onClick={e => {
+                  e.stopPropagation();
+                  setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode });
+                }}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+                Undo
+              </button>
+            )}
           </div>
         );
       },
@@ -264,6 +287,7 @@ const Induction = () => {
   ];
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
 
   return (
     <div className="w-full max-w-full max-[560px]:overflow-x-hidden">
@@ -443,6 +467,71 @@ const Induction = () => {
           }}
         />
       </div>
+
+      {/* Undo No Show confirmation modal */}
+      {undoConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-2 text-base font-bold text-gray-900">Undo No Show</h3>
+            <p className="mb-6 text-sm text-gray-500">
+              Are you sure you want to change the status from{' '}
+              <span className="font-semibold text-orange-600">No Show</span> to{' '}
+              <span className="font-semibold text-yellow-600">Pending</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                type="button"
+                onClick={() => setUndoConfirm(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                disabled={isLoading}
+                type="button"
+                onClick={() => {
+                  dispatch(
+                    updateInductionBookingStatus({
+                      userId: undoConfirm.userId,
+                      bookingCode: undoConfirm.bookingCode,
+                      status: 'confirmed',
+                    })
+                  )
+                    .unwrap()
+                    .then(res => {
+                      if (res?.status === 'success') {
+                        const applied = parseFiltersFromSearchParams(searchParams);
+                        dispatch(
+                          inductionList({
+                            date: applied.date,
+                            page: inductionListData?.page || 1,
+                            type: 'inductionbooking',
+                            listLimit: inductionListData?.limit || 20,
+                            email: applied.email,
+                            status:
+                              applied.status === 'pending'
+                                ? 'confirmed'
+                                : applied.status === 'all'
+                                  ? ''
+                                  : applied.status,
+                          })
+                        );
+                        toast.success('Status changed back to Pending!');
+                      } else {
+                        toast.error('Failed to update status!');
+                      }
+                    })
+                    .catch(err => toast.error(err || 'Failed to update status!'))
+                    .finally(() => setUndoConfirm(null));
+                }}
+              >
+                {isLoading ? 'Updating...' : 'Yes, Undo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

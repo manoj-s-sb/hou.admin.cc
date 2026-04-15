@@ -19,6 +19,7 @@ const Tours = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
 
   const currentLimit = inductionListData.limit || 20;
 
@@ -101,6 +102,7 @@ const Tours = () => {
         const statusColors = {
           completed: 'bg-green-100 text-green-800',
           pending: 'bg-yellow-100 text-yellow-800',
+          confirmed: 'bg-yellow-100 text-yellow-800',
           cancelled: 'bg-red-100 text-red-800',
           noshow: 'bg-orange-100 text-orange-800',
         };
@@ -141,6 +143,25 @@ const Tours = () => {
               toast.error(err || 'Failed to update tour status!');
             });
         };
+        if (params.row?.status === 'noshow') {
+          return (
+            <button
+              className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition-all duration-200 hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+              title="Undo no show"
+              onClick={() => setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode })}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+              Undo
+            </button>
+          );
+        }
         if (params.row?.status !== 'confirmed') {
           return <span className="text-gray-400">-</span>;
         }
@@ -306,6 +327,56 @@ const Tours = () => {
           }}
         />
       </div>
+
+      {/* Undo No Show confirmation modal */}
+      {undoConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-2 text-base font-bold text-gray-900">Undo No Show</h3>
+            <p className="mb-6 text-sm text-gray-500">
+              Are you sure you want to change the status from{' '}
+              <span className="font-semibold text-orange-600">No Show</span> to{' '}
+              <span className="font-semibold text-yellow-600">Pending</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                type="button"
+                onClick={() => setUndoConfirm(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                disabled={isLoading}
+                type="button"
+                onClick={() => {
+                  dispatch(
+                    updateTourStatus({
+                      userId: undoConfirm.userId,
+                      bookingCode: undoConfirm.bookingCode,
+                      status: 'confirmed',
+                    })
+                  )
+                    .unwrap()
+                    .then(res => {
+                      if (res?.status === 'success') {
+                        applyFilters();
+                        toast.success('Status changed back to Pending!');
+                      } else {
+                        toast.error('Failed to update status!');
+                      }
+                    })
+                    .catch(err => toast.error(err || 'Failed to update status!'))
+                    .finally(() => setUndoConfirm(null));
+                }}
+              >
+                {isLoading ? 'Updating...' : 'Yes, Undo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
