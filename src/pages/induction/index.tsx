@@ -328,16 +328,7 @@ const Induction = () => {
             type="button"
             onClick={() => {
               setFilters(defaultFilters);
-              setSearchParams({}, { replace: true });
-              dispatch(
-                inductionList({
-                  date: '',
-                  page: 1,
-                  type: 'inductionbooking',
-                  listLimit: inductionListData?.limit || 20,
-                  email: '',
-                })
-              );
+              setSearchParams({ status: 'all' }, { replace: true });
             }}
           >
             Reset
