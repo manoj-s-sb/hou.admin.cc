@@ -443,26 +443,24 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 <Fragment key={slot}>
                   <div
                     className={composeClasses(
-                      'sticky left-0 z-20 flex min-h-[65px] min-w-[75px] flex-col items-center justify-center gap-1 border border-[#B3DADA] bg-[#fff] px-1 py-4 text-[11px] font-medium text-[#212295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]',
+                      'group sticky left-0 z-20 flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-1 py-2 text-[11px] font-medium text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]',
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
                     {formatTimeSlot(slot)}
-                    <span
-                      className="cursor-pointer rounded px-0.5 text-[16px] font-bold leading-none text-[#21295A] hover:bg-gray-100"
-                      role="button"
+                    <button
+                      className="absolute right-0.5 top-1 flex h-5 w-5 items-center justify-center rounded opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100"
                       tabIndex={0}
                       title="Block/unblock this time slot across all lanes"
+                      type="button"
                       onClick={e => handleTimeSlotMenuClick(slot, slotIdx, e)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleTimeSlotMenuClick(slot, slotIdx, e as any);
-                        }
-                      }}
                     >
-                      •••
-                    </span>
+                      <svg className="h-3 w-3 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="5" cy="12" r="2" />
+                        <circle cx="12" cy="12" r="2" />
+                        <circle cx="19" cy="12" r="2" />
+                      </svg>
+                    </button>
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
@@ -575,26 +573,24 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 <Fragment key={slot}>
                   <div
                     className={composeClasses(
-                      'sticky left-0 z-20 flex min-h-[70px] min-w-[110px] flex-col items-center justify-center gap-1 border border-[#B3DADA] bg-[#fff] px-2 py-4 text-[14px] font-medium text-[#212295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]',
+                      'group sticky left-0 z-20 flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-2 text-[14px] font-medium text-[#21295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]',
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
                     {formatTimeSlot(slot)}
-                    <span
-                      className="cursor-pointer rounded px-1 text-[18px] font-bold leading-none text-[#21295A] hover:bg-gray-100"
-                      role="button"
+                    <button
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100"
                       tabIndex={0}
                       title="Block/unblock this time slot across all lanes"
+                      type="button"
                       onClick={e => handleTimeSlotMenuClick(slot, slotIdx, e)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleTimeSlotMenuClick(slot, slotIdx, e as any);
-                        }
-                      }}
                     >
-                      •••
-                    </span>
+                      <svg className="h-3.5 w-3.5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="5" cy="12" r="2" />
+                        <circle cx="12" cy="12" r="2" />
+                        <circle cx="19" cy="12" r="2" />
+                      </svg>
+                    </button>
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
