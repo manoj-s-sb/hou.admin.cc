@@ -21,7 +21,7 @@ export const toggleCls = (active: boolean) =>
   }`;
 
 export type Tab = 'task' | 'issue' | 'log' | 'schedule';
-export type TaskFrequency = 'weekly' | 'bi-weekly' | 'monthly';
+export type TaskFrequency = 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly';
 export type RaisedBy = 'centre_staff' | 'noc' | 'admin';
 export type AssignedTo = 'centre_staff' | 'noc' | 'others';
 export type IssuePriority = 'high' | 'medium' | 'low';
@@ -34,9 +34,11 @@ export const tabs: { key: Tab; label: string }[] = [
 ];
 
 export const taskFrequencies: { key: TaskFrequency; label: string }[] = [
+  { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'bi-weekly', label: 'Bi-Weekly' },
   { key: 'monthly', label: 'Monthly' },
+  { key: 'quarterly', label: 'Quarterly' },
 ];
 
 export const actionTypes: { key: ActionType; label: string }[] = [

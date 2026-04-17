@@ -63,9 +63,10 @@ export interface UpdateLaneStatusRequest {
   facilityCode?: string;
   laneCode?: string;
   action: string;
-  reason: string;
+  reason?: string;
   slotCode?: string;
   blockLaneApp?: boolean;
+  startTime?: string;
 }
 
 export interface CoachSlotsRequest {

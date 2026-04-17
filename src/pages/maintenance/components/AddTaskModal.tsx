@@ -204,9 +204,11 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
                 onChange={e => setField('frequency', e.target.value)}
               >
                 <option value="daily">Daily</option>
+                <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
                 <option value="bi-weekly">Bi-Weekly</option>
                 <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
               </select>
             </div>
             <div>

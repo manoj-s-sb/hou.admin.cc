@@ -8,6 +8,7 @@ import { getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
 
+import BlockTimeSlotModal from './BlockTimeSlotModal';
 import LaneDetailsModal from './LaneDetailsModal';
 import SlotDetailsModal from './SlotDetailsModal';
 
@@ -68,6 +69,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   const dispatch = useDispatch<AppDispatch>();
   const { isBlockLaneLoading } = useSelector((state: RootState) => state.slots);
   const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ startTime: string; slotIndex: number } | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{
     slot: Slot;
     laneNo: number;
@@ -85,6 +87,39 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
   const handleCloseModal = () => {
     setSelectedLane(null);
+  };
+
+  const handleTimeSlotMenuClick = (startTime: string, slotIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedTimeSlot({ startTime, slotIndex });
+  };
+
+  const handleBlockTimeSlot = async (reason?: string) => {
+    if (!selectedTimeSlot) return;
+    const isBlocked = lanes.every(
+      lane => lane.slots[selectedTimeSlot.slotIndex]?.status?.toLowerCase() === 'disabled'
+    );
+    try {
+      await dispatch(
+        updateLaneStatus({
+          date,
+          facilityCode,
+          startTime: selectedTimeSlot.startTime,
+          action: isBlocked ? 'available' : 'disable',
+          reason: isBlocked ? 'Manual unblock from admin' : reason || 'Manual block from admin',
+        })
+      ).unwrap();
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success(
+        isBlocked
+          ? `Time slot ${selectedTimeSlot.startTime} has been unblocked across all lanes!`
+          : `Time slot ${selectedTimeSlot.startTime} has been blocked across all lanes!`,
+        { duration: 4000 }
+      );
+      setSelectedTimeSlot(null);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update time slot status. Please try again.', { duration: 5000 });
+    }
   };
 
   const handleUnblockLane = async (blockReason?: string, blockLaneApp?: boolean) => {
@@ -257,11 +292,26 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 <Fragment key={slot}>
                   <div
                     className={composeClasses(
-                      'sticky left-0 z-20 flex min-h-[65px] min-w-[75px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-2 py-4 text-[11px] font-medium text-[#212295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]',
+                      'sticky left-0 z-20 flex min-h-[65px] min-w-[75px] flex-col items-center justify-center gap-1 border border-[#B3DADA] bg-[#fff] px-1 py-4 text-[11px] font-medium text-[#212295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]',
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
                     {formatTimeSlot(slot)}
+                    <span
+                      className="cursor-pointer rounded px-0.5 text-[16px] font-bold leading-none text-[#21295A] hover:bg-gray-100"
+                      role="button"
+                      tabIndex={0}
+                      title="Block/unblock this time slot across all lanes"
+                      onClick={e => handleTimeSlotMenuClick(slot, slotIdx, e)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleTimeSlotMenuClick(slot, slotIdx, e as any);
+                        }
+                      }}
+                    >
+                      •••
+                    </span>
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
@@ -360,11 +410,26 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 <Fragment key={slot}>
                   <div
                     className={composeClasses(
-                      'sticky left-0 z-20 flex min-h-[70px] min-w-[110px] items-center justify-center border border-[#B3DADA] bg-[#fff] px-4 py-6 text-[14px] font-medium text-[#212295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)] sm:px-10',
+                      'sticky left-0 z-20 flex min-h-[70px] min-w-[110px] flex-col items-center justify-center gap-1 border border-[#B3DADA] bg-[#fff] px-2 py-4 text-[14px] font-medium text-[#212295A] shadow-[2px_0_4px_rgba(0,0,0,0.05)]',
                       slotIdx !== 0 && 'border-t-0'
                     )}
                   >
                     {formatTimeSlot(slot)}
+                    <span
+                      className="cursor-pointer rounded px-1 text-[18px] font-bold leading-none text-[#21295A] hover:bg-gray-100"
+                      role="button"
+                      tabIndex={0}
+                      title="Block/unblock this time slot across all lanes"
+                      onClick={e => handleTimeSlotMenuClick(slot, slotIdx, e)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleTimeSlotMenuClick(slot, slotIdx, e as any);
+                        }
+                      }}
+                    >
+                      •••
+                    </span>
                   </div>
                   {lanes.map((lane, laneIdx) => {
                     const currentSlot = lane.slots[slotIdx];
@@ -427,6 +492,22 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           </div>
         </div>
       </div>
+
+      {/* Block Time Slot Modal */}
+      {selectedTimeSlot && (
+        <BlockTimeSlotModal
+          date={date}
+          isBlocked={lanes.every(
+            lane => lane.slots[selectedTimeSlot.slotIndex]?.status?.toLowerCase() === 'disabled'
+          )}
+          isLoading={isBlockLaneLoading}
+          isOpen={!!selectedTimeSlot}
+          laneCount={lanes.length}
+          startTime={formatTimeSlot(selectedTimeSlot.startTime)}
+          onClose={() => setSelectedTimeSlot(null)}
+          onConfirm={handleBlockTimeSlot}
+        />
+      )}
 
       {/* Lane Modal */}
       {selectedLane && (

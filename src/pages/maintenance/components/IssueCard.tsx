@@ -13,18 +13,41 @@ const priorityDot: Record<string, string> = {
 };
 
 const statusBadge: Record<string, string> = {
-  open: 'bg-orange-100 text-orange-700',
-  assigned: 'bg-orange-100 text-orange-700',
-  issue: 'bg-orange-100 text-orange-700',
-  inprogress: 'bg-blue-100 text-blue-700',
+  open: 'bg-red-100 text-red-700',
+  assigned: 'bg-red-100 text-red-700',
+  issue: 'bg-red-100 text-red-700',
+  inprogress: 'bg-yellow-100 text-yellow-700',
   resolved: 'bg-green-100 text-green-700',
-  closed: 'bg-gray-100 text-gray-600',
+  closed: 'bg-green-100 text-green-700',
+  completed: 'bg-green-100 text-green-700',
+};
+
+const statusAccent: Record<string, string> = {
+  open: 'bg-red-500',
+  assigned: 'bg-red-500',
+  issue: 'bg-red-500',
+  inprogress: 'bg-yellow-400',
+  resolved: 'bg-green-500',
+  closed: 'bg-green-500',
+  completed: 'bg-green-500',
+};
+
+const statusTag: Record<string, string> = {
+  open: 'bg-red-100 text-red-700',
+  assigned: 'bg-red-100 text-red-700',
+  issue: 'bg-red-100 text-red-700',
+  inprogress: 'bg-yellow-100 text-yellow-700',
+  resolved: 'bg-green-100 text-green-700',
+  closed: 'bg-green-100 text-green-700',
   completed: 'bg-green-100 text-green-700',
 };
 
 const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
   const issueNum = `ISS-${String(index + 1).padStart(3, '0')}`;
-  const statusCls = statusBadge[item.status?.toLowerCase() || ''] || 'bg-gray-100 text-gray-600';
+  const statusKey = item.status?.toLowerCase() || '';
+  const statusCls = statusBadge[statusKey] || 'bg-gray-100 text-gray-600';
+  const accentCls = statusAccent[statusKey] || 'bg-gray-300';
+  const tagCls = statusTag[statusKey] || 'bg-gray-100 text-gray-600';
   const dotCls = priorityDot[item.priority?.toLowerCase() || ''] || 'bg-gray-400';
 
   const categoryLabel = item.category
@@ -59,7 +82,7 @@ const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
       onKeyDown={e => e.key === 'Enter' && onViewIssue?.(item, index)}
     >
       {/* Left accent */}
-      <div className="w-1 shrink-0 bg-orange-500" />
+      <div className={`w-1 shrink-0 ${accentCls}`} />
 
       <div className="flex-1 px-5 py-4">
         {/* Top row: issue number, status, priority */}
@@ -96,11 +119,11 @@ const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
               {raisedByLabel && formattedDate ? ` · ${formattedDate}` : formattedDate}
             </span>
           )}
-          <span className="rounded-full bg-orange-500 px-3 py-0.5 text-xs font-semibold text-white">
+          <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${tagCls}`}>
             {categoryLabel}
           </span>
           {assignedToLabel && (
-            <span className="rounded-full bg-orange-500 px-3 py-0.5 text-xs font-semibold text-white">
+            <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${tagCls}`}>
               {assignedToLabel}
             </span>
           )}

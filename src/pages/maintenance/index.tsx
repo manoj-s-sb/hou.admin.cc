@@ -38,10 +38,10 @@ const filterKeyFromStatus = (status: string): IssueFilter | null => {
   return null;
 };
 
-const issueFilterMeta: Record<IssueFilter, { label: string; activeText: string; underline: string }> = {
-  new: { label: 'New', activeText: 'text-gray-800', underline: 'bg-[#21295A]' },
-  active: { label: 'Active', activeText: 'text-orange-500', underline: 'bg-orange-500' },
-  closed: { label: 'Closed', activeText: 'text-green-600', underline: 'bg-green-500' },
+const issueFilterMeta: Record<IssueFilter, { label: string; activeText: string; underline: string; badgeCls: string }> = {
+  new: { label: 'New', activeText: 'text-gray-800', underline: 'bg-[#21295A]', badgeCls: 'bg-red-100 text-red-700' },
+  active: { label: 'Active', activeText: 'text-yellow-600', underline: 'bg-yellow-400', badgeCls: 'bg-yellow-100 text-yellow-700' },
+  closed: { label: 'Closed', activeText: 'text-green-600', underline: 'bg-green-500', badgeCls: 'bg-green-100 text-green-700' },
 };
 
 const Maintenance = () => {
@@ -60,7 +60,7 @@ const Maintenance = () => {
   const sevenDaysLater = toDateStr(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000));
 
   const [activeTab, setActiveTab] = useState<Tab>('task');
-  const [taskFrequency, setTaskFrequency] = useState<TaskFrequency>('weekly');
+  const [taskFrequency, setTaskFrequency] = useState<TaskFrequency | null>(null);
   const [selectedLane, setSelectedLane] = useState<number>(1);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>('overdue');
   const [allScheduleItems, setAllScheduleItems] = useState<Work[]>([]);
@@ -98,7 +98,7 @@ const Maintenance = () => {
 
   const fetchList = (
     type: Tab,
-    frequency: TaskFrequency,
+    frequency: TaskFrequency | null,
     page = 1,
     limit = workList.limit || 20,
     lane = selectedLane,
@@ -111,7 +111,7 @@ const Maintenance = () => {
         page,
         limit,
         type,
-        ...(type === 'task' && { frequency, laneNo: lane }),
+        ...(type === 'task' && { ...(frequency ? { frequency } : {}), laneNo: lane }),
         ...(status ? { status } : {}),
       })
     );
@@ -466,10 +466,10 @@ const Maintenance = () => {
         <SectionTitle
           actionButtonClassName={
             activeTab === 'issue'
-              ? 'flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700'
+              ? 'flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700'
               : 'flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1a2149]'
           }
-          actionButtonLabel={activeTab === 'task' ? 'Add Task' : activeTab === 'issue' ? 'Create Issue' : undefined}
+          actionButtonLabel={activeTab === 'task' ? 'Add Task' : activeTab === 'issue' ? 'Create Ticket' : undefined}
           description="Manage facility maintenance tasks and schedules."
           inputPlaceholder=""
           search={false}
@@ -500,6 +500,7 @@ const Maintenance = () => {
                     type="button"
                     onClick={() => {
                       setActiveTab(tab.key);
+                      if (tab.key === 'task') setTaskFrequency(null);
                       if (tab.key === 'schedule') setSelectedScheduleDate('overdue');
                     }}
                   >
@@ -511,12 +512,8 @@ const Maintenance = () => {
                         }`}
                       >
                         {issueCounts.new > 0
-                          ? issueCounts.new > 99
-                            ? '99+'
-                            : issueCounts.new
-                          : issueCounts.active > 99
-                            ? '99+'
-                            : issueCounts.active}
+                          ? issueCounts.new > 99 ? '99+' : issueCounts.new
+                          : issueCounts.active > 99 ? '99+' : issueCounts.active}
                       </span>
                     )}
                     {tab.key === 'schedule' && allScheduleItems.length + overdueCount > 0 && (
@@ -531,7 +528,20 @@ const Maintenance = () => {
                 ))}
               </div>
               <div className="flex items-center rounded-full border border-gray-200 bg-gray-100 p-1">
-                <span className="px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Tasks</span>
+                <button
+                  className={`rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-all duration-200 ${
+                    activeTab === 'task' && taskFrequency === null
+                      ? 'bg-[#21295A] text-white shadow-sm'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                  type="button"
+                  onClick={() => {
+                    setTaskFrequency(null);
+                    setActiveTab('task');
+                  }}
+                >
+                  Tasks
+                </button>
                 {taskFrequencies.map(f => (
                   <button
                     key={f.key}
@@ -724,7 +734,7 @@ const Maintenance = () => {
                       >
                         {meta.label}
                         {issueCounts[f] > 0 && (
-                          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-gray-700">
+                          <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold ${meta.badgeCls}`}>
                             {issueCounts[f] > 99 ? '99+' : issueCounts[f]}
                           </span>
                         )}
