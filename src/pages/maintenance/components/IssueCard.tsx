@@ -119,13 +119,9 @@ const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
               {raisedByLabel && formattedDate ? ` · ${formattedDate}` : formattedDate}
             </span>
           )}
-          <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${tagCls}`}>
-            {categoryLabel}
-          </span>
+          <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${tagCls}`}>{categoryLabel}</span>
           {assignedToLabel && (
-            <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${tagCls}`}>
-              {assignedToLabel}
-            </span>
+            <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${tagCls}`}>{assignedToLabel}</span>
           )}
         </div>
       </div>

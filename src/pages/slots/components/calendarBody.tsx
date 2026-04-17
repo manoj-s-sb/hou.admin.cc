@@ -10,6 +10,7 @@ import { AppDispatch, RootState } from '../../../store/store';
 
 import BlockTimeSlotModal from './BlockTimeSlotModal';
 import LaneDetailsModal from './LaneDetailsModal';
+import MultiBlockModal from './MultiBlockModal';
 import SlotDetailsModal from './SlotDetailsModal';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
@@ -70,6 +71,10 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   const { isBlockLaneLoading } = useSelector((state: RootState) => state.slots);
   const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ startTime: string; slotIndex: number } | null>(null);
+  const [isMultiSelect, setIsMultiSelect] = useState(false);
+  const [selectedSlotCodes, setSelectedSlotCodes] = useState<string[]>([]);
+  const [selectionType, setSelectionType] = useState<'block' | 'unblock' | null>(null);
+  const [showMultiBlockModal, setShowMultiBlockModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{
     slot: Slot;
     laneNo: number;
@@ -96,9 +101,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
   const handleBlockTimeSlot = async (reason?: string) => {
     if (!selectedTimeSlot) return;
-    const isBlocked = lanes.every(
-      lane => lane.slots[selectedTimeSlot.slotIndex]?.status?.toLowerCase() === 'disabled'
-    );
+    const isBlocked = lanes.every(lane => lane.slots[selectedTimeSlot.slotIndex]?.status?.toLowerCase() === 'disabled');
     try {
       await dispatch(
         updateLaneStatus({
@@ -168,7 +171,77 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     }
   };
 
+  const toggleMultiSelect = () => {
+    setIsMultiSelect(prev => !prev);
+    setSelectedSlotCodes([]);
+    setSelectionType(null);
+  };
+
+  const handleMultiSlotToggle = (slot: Slot) => {
+    if (!slot?.slotCode) return;
+    const isDisabled = slot.status?.toLowerCase() === 'disabled';
+    const slotType: 'block' | 'unblock' = isDisabled ? 'unblock' : 'block';
+
+    // If deselecting, allow regardless
+    if (selectedSlotCodes.includes(slot.slotCode)) {
+      const next = selectedSlotCodes.filter(c => c !== slot.slotCode);
+      setSelectedSlotCodes(next);
+      if (next.length === 0) setSelectionType(null);
+      return;
+    }
+
+    // First selection sets the mode
+    if (selectionType === null) {
+      setSelectionType(slotType);
+      setSelectedSlotCodes([slot.slotCode]);
+      return;
+    }
+
+    // Subsequent selections must match the mode
+    if (slotType !== selectionType) {
+      toast.error(
+        selectionType === 'block'
+          ? 'You can only select available slots in this session.'
+          : 'You can only select blocked slots in this session.',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    setSelectedSlotCodes(prev => [...prev, slot.slotCode]);
+  };
+
+  const handleMultiAction = async (reason?: string) => {
+    try {
+      await dispatch(
+        updateLaneStatus({
+          action: selectionType === 'unblock' ? 'available' : 'disable',
+          reason: selectionType === 'unblock' ? 'Manual unblock from admin' : reason,
+          slotCode: selectedSlotCodes,
+        })
+      ).unwrap();
+      await dispatch(getSlots({ date, facilityCode }));
+      const count = selectedSlotCodes.length;
+      toast.success(
+        selectionType === 'unblock'
+          ? `${count} slot${count !== 1 ? 's' : ''} unblocked successfully!`
+          : `${count} slot${count !== 1 ? 's' : ''} blocked successfully!`,
+        { duration: 4000 }
+      );
+      setShowMultiBlockModal(false);
+      setSelectedSlotCodes([]);
+      setSelectionType(null);
+      setIsMultiSelect(false);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update slots. Please try again.', { duration: 5000 });
+    }
+  };
+
   const handleSlotClick = (slot: Slot, lane: Lanes, slotIndex: number) => {
+    if (isMultiSelect) {
+      handleMultiSlotToggle(slot);
+      return;
+    }
     // Only open modal for booked slots to show booking details
     // For available/blocked slots, only StanceBeam admins can interact
     setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
@@ -248,6 +321,84 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
   return (
     <div className="rounded-[10px] bg-white">
+      {/* Multi-select toolbar */}
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-[13px] font-semibold transition-all ${
+            isMultiSelect
+              ? 'border-[#21295A] bg-[#21295A] text-white shadow-md'
+              : 'border-gray-200 bg-white text-[#21295A] hover:border-[#21295A] hover:bg-gray-50'
+          }`}
+          type="button"
+          onClick={toggleMultiSelect}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
+          </svg>
+          {isMultiSelect ? 'Cancel Multi-Select' : 'Multi-Select'}
+        </button>
+
+        {isMultiSelect && selectedSlotCodes.length > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] font-medium text-gray-600">
+              {selectedSlotCodes.length} slot{selectedSlotCodes.length !== 1 ? 's' : ''} selected
+            </span>
+            <button
+              className="rounded-xl border border-gray-200 px-3 py-1.5 text-[12px] font-medium text-gray-500 hover:bg-gray-50"
+              type="button"
+              onClick={() => {
+                setSelectedSlotCodes([]);
+                setSelectionType(null);
+              }}
+            >
+              Clear
+            </button>
+            {selectionType === 'unblock' ? (
+              <button
+                className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-1.5 text-[13px] font-semibold text-white shadow-sm hover:bg-blue-700"
+                type="button"
+                onClick={() => handleMultiAction()}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+                Unblock Selected
+              </button>
+            ) : (
+              <button
+                className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-1.5 text-[13px] font-semibold text-white shadow-sm hover:bg-red-700"
+                type="button"
+                onClick={() => setShowMultiBlockModal(true)}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+                Block Selected
+              </button>
+            )}
+          </div>
+        )}
+
+        {isMultiSelect && selectedSlotCodes.length === 0 && (
+          <p className="text-[12px] text-gray-400">Click any slot to select it</p>
+        )}
+      </div>
+
       <div className="relative max-h-[calc(45vh)] overflow-x-auto overflow-y-auto desktop:max-h-[calc(58vh)]">
         <div className="min-w-fit">
           {/* Mobile Layout */}
@@ -320,13 +471,27 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                       <button
                         key={`${slot}-${lane.laneNo}`}
                         className={composeClasses(
-                          'flex min-h-[65px] min-w-[95px] items-center justify-center border border-[#B3DADA] bg-[transparent] text-[11px] font-medium text-[#21295A] transition hover:border-[#B3DADA] hover:bg-[#fff] hover:text-[#21295A]',
+                          'relative flex min-h-[65px] min-w-[95px] items-center justify-center border border-[#B3DADA] bg-[transparent] text-[11px] font-medium text-[#21295A] transition hover:border-[#B3DADA] hover:bg-[#fff] hover:text-[#21295A]',
                           slotIdx !== 0 && 'border-t-0',
                           laneIdx !== 0 && 'border-l-0'
                         )}
                         type="button"
                         onClick={() => handleSlotClick(currentSlot, lane, slotIdx)}
                       >
+                        {isMultiSelect && currentSlot?.slotCode && selectedSlotCodes.includes(currentSlot.slotCode) && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-blue-500/30 backdrop-blur-[1px]">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 shadow">
+                              <svg
+                                className="h-3.5 w-3.5 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div
                             className={composeClasses(
@@ -447,6 +612,15 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                           handleSlotClick(currentSlot, lane, slotIdx);
                         }}
                       >
+                        {isMultiSelect && currentSlot?.slotCode && selectedSlotCodes.includes(currentSlot.slotCode) && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-blue-500/30 backdrop-blur-[1px]">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500 shadow">
+                              <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
                         {currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'confirmed' ? (
                           <div
                             className={composeClasses(
@@ -493,13 +667,20 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         </div>
       </div>
 
+      {/* Multi-Block Modal */}
+      <MultiBlockModal
+        isLoading={isBlockLaneLoading}
+        isOpen={showMultiBlockModal}
+        slotCount={selectedSlotCodes.length}
+        onClose={() => setShowMultiBlockModal(false)}
+        onConfirm={handleMultiAction}
+      />
+
       {/* Block Time Slot Modal */}
       {selectedTimeSlot && (
         <BlockTimeSlotModal
           date={date}
-          isBlocked={lanes.every(
-            lane => lane.slots[selectedTimeSlot.slotIndex]?.status?.toLowerCase() === 'disabled'
-          )}
+          isBlocked={lanes.every(lane => lane.slots[selectedTimeSlot.slotIndex]?.status?.toLowerCase() === 'disabled')}
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedTimeSlot}
           laneCount={lanes.length}

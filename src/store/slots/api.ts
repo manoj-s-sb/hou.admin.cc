@@ -24,13 +24,14 @@ export const updateLaneStatus = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
+      const normalizedSlotCode = slotCode ? (Array.isArray(slotCode) ? slotCode : [slotCode]) : undefined;
       const response = await api.post(endpoints.slots.updateLaneStatus, {
         date,
         facilityCode,
         laneCode,
         action,
         reason,
-        slotCode,
+        slotCode: normalizedSlotCode,
         blockLaneApp,
         startTime,
       });

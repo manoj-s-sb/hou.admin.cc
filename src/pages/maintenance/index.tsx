@@ -38,11 +38,22 @@ const filterKeyFromStatus = (status: string): IssueFilter | null => {
   return null;
 };
 
-const issueFilterMeta: Record<IssueFilter, { label: string; activeText: string; underline: string; badgeCls: string }> = {
-  new: { label: 'New', activeText: 'text-gray-800', underline: 'bg-[#21295A]', badgeCls: 'bg-red-100 text-red-700' },
-  active: { label: 'Active', activeText: 'text-yellow-600', underline: 'bg-yellow-400', badgeCls: 'bg-yellow-100 text-yellow-700' },
-  closed: { label: 'Closed', activeText: 'text-green-600', underline: 'bg-green-500', badgeCls: 'bg-green-100 text-green-700' },
-};
+const issueFilterMeta: Record<IssueFilter, { label: string; activeText: string; underline: string; badgeCls: string }> =
+  {
+    new: { label: 'New', activeText: 'text-gray-800', underline: 'bg-[#21295A]', badgeCls: 'bg-red-100 text-red-700' },
+    active: {
+      label: 'Active',
+      activeText: 'text-yellow-600',
+      underline: 'bg-yellow-400',
+      badgeCls: 'bg-yellow-100 text-yellow-700',
+    },
+    closed: {
+      label: 'Closed',
+      activeText: 'text-green-600',
+      underline: 'bg-green-500',
+      badgeCls: 'bg-green-100 text-green-700',
+    },
+  };
 
 const Maintenance = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -512,8 +523,12 @@ const Maintenance = () => {
                         }`}
                       >
                         {issueCounts.new > 0
-                          ? issueCounts.new > 99 ? '99+' : issueCounts.new
-                          : issueCounts.active > 99 ? '99+' : issueCounts.active}
+                          ? issueCounts.new > 99
+                            ? '99+'
+                            : issueCounts.new
+                          : issueCounts.active > 99
+                            ? '99+'
+                            : issueCounts.active}
                       </span>
                     )}
                     {tab.key === 'schedule' && allScheduleItems.length + overdueCount > 0 && (
@@ -734,7 +749,9 @@ const Maintenance = () => {
                       >
                         {meta.label}
                         {issueCounts[f] > 0 && (
-                          <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold ${meta.badgeCls}`}>
+                          <span
+                            className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold ${meta.badgeCls}`}
+                          >
                             {issueCounts[f] > 99 ? '99+' : issueCounts[f]}
                           </span>
                         )}

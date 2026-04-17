@@ -64,7 +64,7 @@ export interface UpdateLaneStatusRequest {
   laneCode?: string;
   action: string;
   reason?: string;
-  slotCode?: string;
+  slotCode?: string | string[];
   blockLaneApp?: boolean;
   startTime?: string;
 }

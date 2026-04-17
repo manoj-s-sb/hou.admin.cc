@@ -156,7 +156,9 @@ const BlockTimeSlotModal = ({
                       value={customReason}
                       onChange={e => setCustomReason(e.target.value)}
                     />
-                    <p className={`text-right text-[12px] ${customReason.length >= 500 ? 'text-red-500' : 'text-gray-400'}`}>
+                    <p
+                      className={`text-right text-[12px] ${customReason.length >= 500 ? 'text-red-500' : 'text-gray-400'}`}
+                    >
                       {customReason.length}/500
                     </p>
                   </>
