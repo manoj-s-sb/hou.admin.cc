@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
-import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
 import { decodeToken } from '../../helpers';
@@ -45,6 +44,13 @@ function filtersToSearchParams(filters: FilterState): Record<string, string> {
   return params;
 }
 
+const planConfig: Record<string, { label: string; color: string; dot: string }> = {
+  standard: { label: 'Standard', color: 'text-blue-700', dot: 'bg-blue-500' },
+  premium: { label: 'Premium', color: 'text-purple-700', dot: 'bg-purple-500' },
+  family: { label: 'Family', color: 'text-pink-700', dot: 'bg-pink-500' },
+  offpeak: { label: 'Offpeak', color: 'text-orange-700', dot: 'bg-orange-500' },
+};
+
 const Members = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -53,16 +59,17 @@ const Members = () => {
   const { membersList: membersListData, isLoading, membersCount } = useSelector((state: RootState) => state.members);
 
   const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
+
   const membersColumns: ColumnDef[] = [
     {
       field: 'sno',
       headerName: 'S.No',
       flex: 0.5,
-      minWidth: 80,
+      minWidth: 60,
       sortable: false,
       renderCell: (params: any) => {
         const currentSkip = membersListData.skip || 0;
-        return <span className="font-medium text-gray-600">{currentSkip + params.index + 1}</span>;
+        return <span className="text-[13px] font-medium text-gray-400">{currentSkip + params.index + 1}</span>;
       },
       valueGetter: (params: any) => {
         const currentSkip = membersListData.skip || 0;
@@ -71,7 +78,7 @@ const Members = () => {
     },
     {
       field: 'name',
-      headerName: 'Name',
+      headerName: 'Member',
       flex: 1.5,
       minWidth: 220,
       sortable: false,
@@ -83,13 +90,16 @@ const Members = () => {
           <div className="flex items-center gap-3">
             <img
               alt="Profile"
-              className={`h-11 w-11 rounded-full border-2 object-cover ${isDefaultImage ? 'p-2' : ''}`}
+              className={`h-9 w-9 rounded-full border border-gray-200 object-cover ${isDefaultImage ? 'p-1.5' : ''}`}
               src={imageUrl}
               onError={e => {
                 (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
               }}
             />
-            <span className="font-semibold text-gray-900">{fullName}</span>
+            <div>
+              <p className="text-[13px] font-semibold text-[#21295A]">{fullName}</p>
+              <p className="text-[11px] text-gray-400">{params.row?.email || ''}</p>
+            </div>
           </div>
         );
       },
@@ -98,21 +108,18 @@ const Members = () => {
       },
     },
     {
-      field: 'email',
-      headerName: 'Email',
-      flex: 1.5,
-      minWidth: 200,
-      sortable: false,
-      valueGetter: params => {
-        return params.row?.email || '';
-      },
-    },
-    {
       field: 'Billing Cycle',
-      headerName: 'Billing Cycle',
-      flex: 1.3,
-      minWidth: 170,
+      headerName: 'Billing',
+      flex: 0.9,
+      minWidth: 120,
       sortable: false,
+      renderCell: (params: any) => {
+        const cycle = params.row?.billingCycle || '';
+        const label = cycle === 'fortnightly' ? 'Fortnightly' : cycle === 'annual' ? 'Annual' : cycle;
+        return (
+          <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-600">{label}</span>
+        );
+      },
       valueGetter: params => {
         const billingCycle = params.row?.billingCycle || '';
         if (billingCycle === 'fortnightly') return 'Fortnightly';
@@ -122,30 +129,37 @@ const Members = () => {
     },
     {
       field: 'Subscription Type',
-      headerName: 'Subscription Type',
-      flex: 1,
-      minWidth: 170,
+      headerName: 'Plan',
+      flex: 0.9,
+      minWidth: 120,
       sortable: false,
+      renderCell: (params: any) => {
+        const type = params.row?.subscriptionCode || '';
+        const cfg = planConfig[type];
+        if (!cfg) return <span className="text-[13px] text-gray-500">{type}</span>;
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+            <span className={`text-[13px] font-medium ${cfg.color}`}>{cfg.label}</span>
+          </div>
+        );
+      },
       valueGetter: params => {
         const type = params.row?.subscriptionCode || '';
-        if (type === 'standard') return 'Standard';
-        if (type === 'premium') return 'Premium';
-        if (type === 'family') return 'Family';
-        if (type === 'offpeak') return 'Offpeak';
-        return type;
+        return planConfig[type]?.label || type;
       },
     },
     {
       field: 'Subscription Status',
-      headerName: 'Subscription Status',
-      flex: 1.3,
-      minWidth: 170,
+      headerName: 'Status',
+      flex: 1,
+      minWidth: 150,
       sortable: false,
       renderCell: (params: any) => {
         const type = params.row?.subscriptionStatus || '';
         const map: Record<string, { label: string; className: string }> = {
           active: { label: 'Active', className: 'bg-green-100 text-green-700' },
-          pendingactivation: { label: 'Activation Pending', className: 'bg-yellow-100 text-yellow-700' },
+          pendingactivation: { label: 'Pending Activation', className: 'bg-yellow-100 text-yellow-700' },
           paused: { label: 'Paused', className: 'bg-blue-100 text-blue-700' },
           canceled: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
           resumed: { label: 'Resumed', className: 'bg-indigo-100 text-indigo-700' },
@@ -153,50 +167,58 @@ const Members = () => {
           past_due: { label: 'Payment Failed', className: 'bg-orange-100 text-orange-700' },
         };
         const { label, className } = map[type] || { label: type, className: 'bg-gray-100 text-gray-600' };
-        return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${className}`}>{label}</span>;
+        return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
       },
     },
     {
       field: 'Cycle Limits',
-      headerName: 'Slots Cycle Limits',
-      flex: 1.3,
-      minWidth: 170,
+      headerName: 'Slots Used / Total',
+      flex: 1,
+      minWidth: 140,
       sortable: false,
-      valueGetter: params => {
-        return params.row?.cycleLimits || '';
-      },
       renderCell: (params: any) => {
         const used = params.row?.cycleLimits?.used ?? '-';
         const total = params.row?.cycleLimits?.total ?? '-';
-        return <span className="font-medium text-gray-600">{`${used} / ${total}`}</span>;
+        const pct = total && total !== '-' && used !== '-' ? Math.round((used / total) * 100) : null;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[13px] font-semibold text-[#21295A]">
+              {used} <span className="font-normal text-gray-400">/ {total}</span>
+            </span>
+            {pct !== null && (
+              <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-[#21295A] transition-all"
+                  style={{ width: `${Math.min(pct, 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      },
+      valueGetter: params => {
+        const used = params.row?.cycleLimits?.used ?? '';
+        const total = params.row?.cycleLimits?.total ?? '';
+        return `${used} / ${total}`;
       },
     },
     {
       field: 'actions',
-      headerName: 'Actions',
-      flex: 0.8,
-      minWidth: 120,
+      headerName: '',
+      flex: 0.6,
+      minWidth: 80,
       sortable: false,
       renderCell: (params: any) => {
         return (
           <button
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-600 shadow-sm transition-all duration-200 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white hover:shadow-md"
+            className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
             title="View member details"
             onClick={e => {
               e.stopPropagation();
               navigate(`/members/${params.row.userId}`, { state: { listSearch: location.search } });
             }}
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-              <path
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-            <span className="hidden sm:inline">View</span>
+            View
           </button>
         );
       },
@@ -235,12 +257,10 @@ const Members = () => {
 
   const facilityCode = decodeToken()?.facilityCode;
 
-  // Sync filter state from URL when search params change (e.g. back from detail)
   useEffect(() => {
     setFilters(parseFiltersFromSearchParams(searchParams));
   }, [searchParams]);
 
-  // Fetch members when URL/search params or facility/limit change (restores filtered list on return)
   useEffect(() => {
     const applied = parseFiltersFromSearchParams(searchParams);
     const payload: MemberRequest = {
@@ -284,254 +304,182 @@ const Members = () => {
 
   return (
     <div className="w-full">
-      <SectionTitle
-        description="View and manage all member subscriptions and account details"
-        inputPlaceholder=""
-        search={false}
-        title="Members & Subscriptions"
-        value=""
-      />
+      {/* ── Page Header ─────────────────────────────────────── */}
+      <div className="mb-5">
+        <h1 className="text-[22px] font-bold text-[#21295A]">Members</h1>
+        <p className="mt-0.5 text-[13px] text-gray-400">Manage subscriptions and member accounts · HOU01</p>
+      </div>
 
-      <div className="mb-8 flex w-full flex-col gap-4 lg:flex-row lg:flex-nowrap lg:items-stretch lg:justify-between">
-        {/* Filters Section - 40% on lg */}
-        <div className="w-full min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm lg:flex-[2_1_0%]">
-          <h3 className="mb-3 text-base font-semibold text-gray-900">Filters</h3>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-600" htmlFor="member-email-filter">
-                Email
-              </label>
-              <input
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                id="member-email-filter"
-                placeholder="Search members by email"
-                type="text"
-                value={filters.email}
-                onChange={e => handleFilterChange('email', e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-600" htmlFor="member-billing-cycle-filter">
-                Billing Cycle
-              </label>
-              <select
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                id="member-billing-cycle-filter"
-                value={filters.billingCycle}
-                onChange={e => handleFilterChange('billingCycle', e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="annual">Annual</option>
-                <option value="fortnightly">Fortnightly</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-600" htmlFor="member-subscription-type-filter">
-                Subscription Type
-              </label>
-              <select
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                id="member-subscription-type-filter"
-                value={filters.subscriptionType}
-                onChange={e => handleFilterChange('subscriptionType', e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="standard">Standard</option>
-                <option value="premium">Premium</option>
-                <option value="family">Family</option>
-                <option value="offpeak">Offpeak</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-gray-600" htmlFor="member-status-filter">
-                Status
-              </label>
-              <select
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                id="member-status-filter"
-                value={filters.status}
-                onChange={e => handleFilterChange('status', e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="active">Active</option>
-                <option value="pendingactivation">Pending Activation</option>
-                <option value="paused">Paused</option>
-                <option value="past_due">Payment Failed</option>
-                <option value="canceled">Cancelled</option>
-                <option value="resumed">Resumed</option>
-              </select>
-            </div>
+      {/* ── Stats Row ───────────────────────────────────────── */}
+      {membersCount && (
+        <div className="mb-5 flex flex-nowrap gap-3 overflow-x-auto">
+          {/* Total Members */}
+          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-[#21295A]/15 bg-[#21295A]/5 px-4 py-3 lg:flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#21295A]/60">Total</p>
+            <p className="text-[22px] font-bold text-[#21295A]">{membersCount.total.toLocaleString()}</p>
           </div>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <button
-              className="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isLoading}
-              type="button"
-              onClick={handleClearFilters}
-            >
-              Reset
-            </button>
-            <button
-              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isLoading}
-              type="button"
-              onClick={handleApplyFilters}
-            >
-              Apply Filters
-            </button>
+
+          {/* Member status cards */}
+          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-green-100 bg-green-50 px-4 py-3 lg:flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-green-600">Active</p>
+            <p className="text-[22px] font-bold text-green-700">{membersCount.activeMembersCount.toLocaleString()}</p>
           </div>
+          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 lg:flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">Inactive</p>
+            <p className="text-[22px] font-bold text-gray-700">{membersCount.inactiveMembersCount.toLocaleString()}</p>
+          </div>
+          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 lg:flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">Pending</p>
+            <p className="text-[22px] font-bold text-amber-700">{membersCount.pendingActivationCount.toLocaleString()}</p>
+          </div>
+
+          {/* Divider */}
+          <div className="flex shrink-0 items-center justify-center px-1">
+            <div className="h-10 w-px bg-gray-200" />
+          </div>
+
+          {/* Plan breakdown */}
+          {[
+            { key: 'standard', annual: membersCount.standardAnnual, fortnightly: membersCount.standardFortnightly },
+            { key: 'premium', annual: membersCount.premiumAnnual, fortnightly: membersCount.premiumFortnightly },
+            { key: 'family', annual: membersCount.familyAnnual, fortnightly: membersCount.familyFortnightly },
+            { key: 'offpeak', annual: membersCount.offpeakAnnual, fortnightly: membersCount.offpeakFortnightly },
+          ].map(plan => {
+            const cfg = planConfig[plan.key];
+            const total = plan.annual + plan.fortnightly;
+            return (
+              <div
+                key={plan.key}
+                className="flex shrink-0 flex-col gap-1 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm lg:flex-1"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${cfg.color}`}>{cfg.label}</p>
+                </div>
+                <p className="text-[18px] font-bold text-[#21295A]">{total.toLocaleString()}</p>
+                <p className="text-[10px] text-gray-400">
+                  {plan.annual} annual · {plan.fortnightly} fortnightly
+                </p>
+              </div>
+            );
+          })}
         </div>
+      )}
 
-        {/* Statistics Section - 60% on lg */}
-        <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row lg:flex-[3_1_0%]">
-          {membersCount && (
-            <>
-              {/* Members Statistics Card */}
-              <div className="group relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 sm:p-5">
-                <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-blue-600 to-cyan-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div>
-
+      {/* ── Filter Bar ──────────────────────────────────────── */}
+      <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div className="px-4 py-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Email */}
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400" htmlFor="filter-email">
+                  Email
+                </label>
                 <div className="relative">
-                  <div className="mb-3">
-                    <h3 className="mb-1 text-xs font-semibold text-gray-600">Total Members</h3>
-                    <p className="text-2xl font-bold text-gray-900 sm:text-3xl">
-                      {membersCount.total.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5 border-t border-gray-100 pt-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                        <span className="text-sm font-medium text-gray-600">Active</span>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900">
-                        {membersCount.activeMembersCount.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-gray-400"></div>
-                        <span className="text-sm font-medium text-gray-600">Inactive</span>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900">
-                        {membersCount.inactiveMembersCount.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-amber-500"></div>
-                        <span className="text-sm font-medium text-gray-600">Pending Activation</span>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900">
-                        {membersCount.pendingActivationCount.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
+                  <svg
+                    className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
+                  </svg>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                    id="filter-email"
+                    placeholder="Search by email…"
+                    type="text"
+                    value={filters.email}
+                    onChange={e => handleFilterChange('email', e.target.value)}
+                  />
                 </div>
               </div>
 
-              {/* Subscriptions Statistics Card - by type with Annual / Fortnightly */}
-              <div className="group relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 sm:p-5">
-                <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br from-green-600 to-emerald-600 opacity-10 blur-3xl transition-all duration-300 group-hover:scale-150"></div>
-
-                <div className="relative min-w-0 overflow-x-auto">
-                  <div className="mb-3">
-                    <h3 className="mb-1 text-xs font-semibold text-gray-600">Subscriptions</h3>
-                    <p className="text-2xl font-bold text-gray-900 sm:text-3xl">
-                      {(
-                        membersCount.standardFortnightly +
-                        membersCount.standardAnnual +
-                        membersCount.premiumFortnightly +
-                        membersCount.premiumAnnual +
-                        membersCount.familyFortnightly +
-                        membersCount.familyAnnual +
-                        membersCount.offpeakFortnightly +
-                        membersCount.offpeakAnnual
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                  {/* Header: Billing cycle columns - scrollable on narrow */}
-                  <div className="border-t border-gray-100 pt-3">
-                    <div className="mb-2 grid min-w-[280px] grid-cols-[1fr_auto_auto_auto] items-center gap-2 text-xs font-semibold text-gray-500">
-                      <span>Plan</span>
-                      <span className="w-12 text-right">Annual</span>
-                      <span className="w-14 text-right">Fortnightly</span>
-                      <span className="w-10 text-right">Total</span>
-                    </div>
-                    <div className="space-y-2">
-                      {/* Standard */}
-                      <div className="flex items-center gap-2 rounded-lg bg-blue-50/70 px-2 py-1.5">
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                          <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500"></div>
-                          <span className="text-sm font-medium text-gray-700">Standard</span>
-                        </div>
-                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
-                          {membersCount.standardAnnual.toLocaleString()}
-                        </span>
-                        <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
-                          {membersCount.standardFortnightly.toLocaleString()}
-                        </span>
-                        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-blue-700">
-                          {(membersCount.standardAnnual + membersCount.standardFortnightly).toLocaleString()}
-                        </span>
-                      </div>
-                      {/* Premium */}
-                      <div className="flex items-center gap-2 rounded-lg bg-purple-50/70 px-2 py-1.5">
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                          <div className="h-2 w-2 shrink-0 rounded-full bg-purple-500"></div>
-                          <span className="text-sm font-medium text-gray-700">Premium</span>
-                        </div>
-                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
-                          {membersCount.premiumAnnual.toLocaleString()}
-                        </span>
-                        <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
-                          {membersCount.premiumFortnightly.toLocaleString()}
-                        </span>
-                        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-purple-700">
-                          {(membersCount.premiumAnnual + membersCount.premiumFortnightly).toLocaleString()}
-                        </span>
-                      </div>
-                      {/* Family */}
-                      <div className="flex items-center gap-2 rounded-lg bg-pink-50/70 px-2 py-1.5">
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                          <div className="h-2 w-2 shrink-0 rounded-full bg-pink-500"></div>
-                          <span className="text-sm font-medium text-gray-700">Family</span>
-                        </div>
-                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
-                          {membersCount.familyAnnual.toLocaleString()}
-                        </span>
-                        <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
-                          {membersCount.familyFortnightly.toLocaleString()}
-                        </span>
-                        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-pink-700">
-                          {(membersCount.familyAnnual + membersCount.familyFortnightly).toLocaleString()}
-                        </span>
-                      </div>
-                      {/* Offpeak */}
-                      <div className="flex items-center gap-2 rounded-lg bg-orange-50/70 px-2 py-1.5">
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                          <div className="h-2 w-2 shrink-0 rounded-full bg-orange-500"></div>
-                          <span className="text-sm font-medium text-gray-700">Offpeak</span>
-                        </div>
-                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
-                          {membersCount.offpeakAnnual.toLocaleString()}
-                        </span>
-                        <span className="w-14 shrink-0 text-right text-sm font-semibold tabular-nums text-gray-900">
-                          {membersCount.offpeakFortnightly.toLocaleString()}
-                        </span>
-                        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-orange-700">
-                          {(membersCount.offpeakAnnual + membersCount.offpeakFortnightly).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {/* Billing Cycle */}
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400" htmlFor="filter-billing-cycle">
+                  Billing Cycle
+                </label>
+                <select
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                  id="filter-billing-cycle"
+                  value={filters.billingCycle}
+                  onChange={e => handleFilterChange('billingCycle', e.target.value)}
+                >
+                  <option value="">All Cycles</option>
+                  <option value="annual">Annual</option>
+                  <option value="fortnightly">Fortnightly</option>
+                </select>
               </div>
-            </>
-          )}
+
+              {/* Subscription Type */}
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400" htmlFor="filter-plan">
+                  Plan
+                </label>
+                <select
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                  id="filter-plan"
+                  value={filters.subscriptionType}
+                  onChange={e => handleFilterChange('subscriptionType', e.target.value)}
+                >
+                  <option value="">All Plans</option>
+                  <option value="standard">Standard</option>
+                  <option value="premium">Premium</option>
+                  <option value="family">Family</option>
+                  <option value="offpeak">Offpeak</option>
+                </select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400" htmlFor="filter-status">
+                  Status
+                </label>
+                <select
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                  id="filter-status"
+                  value={filters.status}
+                  onChange={e => handleFilterChange('status', e.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="pendingactivation">Pending Activation</option>
+                  <option value="paused">Paused</option>
+                  <option value="past_due">Payment Failed</option>
+                  <option value="canceled">Cancelled</option>
+                  <option value="resumed">Resumed</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+                disabled={isLoading}
+                onClick={handleClearFilters}
+              >
+                Reset
+              </button>
+              <button
+                className="rounded-lg bg-[#21295A] px-5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
+                disabled={isLoading}
+                onClick={handleApplyFilters}
+              >
+                Apply Filters
+              </button>
+            </div>
         </div>
       </div>
 
-      <div>
+      {/* ── Members Table ───────────────────────────────────── */}
+      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+
         <DataTable
           columns={membersColumns.map(col => ({
             id: col.field,
@@ -555,7 +503,6 @@ const Members = () => {
           onPageChange={(page: number) => {
             const limit = membersListData.limit || 15;
             const newSkip = page * limit;
-            // Only dispatch if skip actually changed
             if (newSkip !== membersListData.skip) {
               dispatch(getMembers(buildRequestPayload({ skip: newSkip })));
             }
@@ -564,7 +511,6 @@ const Members = () => {
             navigate(`/members/${row.userId}`, { state: { listSearch: location.search } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
-            // When changing rows per page, reset to first page
             dispatch(getMembers(buildRequestPayload({ limit: rowsPerPage, skip: 0 })));
           }}
         />

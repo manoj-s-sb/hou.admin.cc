@@ -5,11 +5,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { LoaderSpinner } from '../../components/Loader';
-import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
-// import { setSelectedInduction } from '../../store/induction/reducers';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
 
@@ -41,6 +39,13 @@ function filtersToSearchParams(filters: FilterState): Record<string, string> {
   return params;
 }
 
+const statusMap: Record<string, { label: string; className: string }> = {
+  completed: { label: 'Completed', className: 'bg-green-100 text-green-700' },
+  confirmed: { label: 'Pending', className: 'bg-yellow-100 text-yellow-700' },
+  cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
+  noshow: { label: 'No Show', className: 'bg-orange-100 text-orange-700' },
+};
+
 const Induction = () => {
   const { inductionList: inductionListData, isLoading } = useSelector((state: RootState) => state.induction);
   const dispatch = useDispatch<AppDispatch>();
@@ -49,18 +54,17 @@ const Induction = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
+  const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
 
   const applyFilters = () => {
     const params = filtersToSearchParams(filters);
     setSearchParams(params, { replace: true });
   };
 
-  // Sync filter state from URL when search params change (e.g. back from view-induction)
   useEffect(() => {
     setFilters(parseFiltersFromSearchParams(searchParams));
   }, [searchParams]);
 
-  // Fetch list when URL/search params change (restores filtered list on return from view-induction)
   useEffect(() => {
     const applied = parseFiltersFromSearchParams(searchParams);
     dispatch(
@@ -76,7 +80,6 @@ const Induction = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, searchParams]);
 
-  // Define custom columns for the induction table
   const currentPage = inductionListData?.page ? inductionListData.page - 1 : 0;
   const rowsPerPage = inductionListData?.limit || 20;
 
@@ -84,11 +87,11 @@ const Induction = () => {
     {
       field: 'S.No',
       headerName: 'S.No',
-      width: 80,
+      width: 60,
       sortable: false,
       renderCell: (params: any) => {
         const serialNumber = currentPage * rowsPerPage + (params.index || 0) + 1;
-        return serialNumber;
+        return <span className="text-[13px] font-medium text-gray-400">{serialNumber}</span>;
       },
     },
     {
@@ -96,49 +99,66 @@ const Induction = () => {
       headerName: 'Name',
       flex: 1.2,
       sortable: true,
-      valueGetter: params => {
+      renderCell: (params: any) => {
         const firstName = params.row?.firstName || '';
         const lastName = params.row?.lastName || '';
-        return `${firstName} ${lastName}`.trim();
+        const fullName = `${firstName} ${lastName}`.trim();
+        return (
+          <div>
+            <p className="text-[13px] font-semibold text-[#21295A]">{fullName}</p>
+            <p className="text-[11px] text-gray-400">{params.row?.email || ''}</p>
+          </div>
+        );
       },
-    },
-    {
-      field: 'email',
-      headerName: 'Email',
-      flex: 1.5,
-      sortable: true,
       valueGetter: params => {
-        return params.row?.email || '';
+        return `${params.row?.firstName || ''} ${params.row?.lastName || ''}`.trim();
       },
     },
     {
       field: 'bookingCode',
       headerName: 'Booking Date',
-      flex: 1.2,
+      flex: 1,
       sortable: false,
-      valueGetter: params => {
-        return formatDateChicago(params.row?.timeSlot?.startTime);
-      },
+      renderCell: (params: any) => (
+        <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
+      ),
+      valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
     },
     {
       field: 'Slot Time',
       headerName: 'Slot Time',
-      flex: 1.2,
+      flex: 1,
       sortable: true,
+      renderCell: (params: any) => {
+        const startTime = params.row?.timeSlot?.startTime;
+        const endTime = params.row?.timeSlot?.endTime;
+        if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
+        return <span className="text-[13px] text-gray-700">{formatTimeRangeChicago(startTime, endTime)}</span>;
+      },
       valueGetter: params => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
-
         if (!startTime || !endTime) return '';
-
         return formatTimeRangeChicago(startTime, endTime);
       },
     },
     {
       field: 'onboardingType',
-      headerName: 'Subscription Type',
-      flex: 1.3,
+      headerName: 'Plan',
+      flex: 0.9,
       sortable: true,
+      renderCell: (params: any) => {
+        const type = params.row?.subscriptionCode || '';
+        const label =
+          type === 'standard'
+            ? 'Standard'
+            : type === 'premium'
+              ? 'Premium'
+              : type === 'family'
+                ? 'Family'
+                : type;
+        return <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-600">{label}</span>;
+      },
       valueGetter: params => {
         const type = params.row?.subscriptionCode || '';
         if (type === 'standard') return 'Standard';
@@ -150,32 +170,18 @@ const Induction = () => {
     {
       field: 'status',
       headerName: 'Status',
-      flex: 1.3,
+      flex: 1,
       sortable: true,
       renderCell: (params: any) => {
         const status = params.row?.status || '';
-        const statusColors: Record<string, string> = {
-          completed: 'bg-green-100 text-green-800',
-          confirmed: 'bg-yellow-100 text-yellow-800',
-          cancelled: 'bg-red-100 text-red-800',
-          noshow: 'bg-orange-100 text-orange-800',
-        };
-        const label =
-          status === 'confirmed'
-            ? 'Pending'
-            : status === 'noshow'
-              ? 'No Show'
-              : status
-                ? status.charAt(0).toUpperCase() + status.slice(1)
-                : '';
-        const colorClass = statusColors[status] || 'bg-gray-100 text-gray-800';
-        return <span className={`rounded-full px-3 py-1 text-sm font-medium capitalize ${colorClass}`}>{label}</span>;
+        const { label, className } = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
+        return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
       },
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 220,
+      width: 200,
       sortable: false,
       renderCell: (params: any) => {
         const handleStatusUpdate = (status: string) => {
@@ -197,7 +203,8 @@ const Induction = () => {
                     type: 'inductionbooking',
                     listLimit: inductionListData?.limit || 20,
                     email: applied.email,
-                    status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+                    status:
+                      applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
                   })
                 );
                 toast.success('Induction status updated successfully!');
@@ -210,73 +217,43 @@ const Induction = () => {
               toast.error(err || 'Failed to update induction status!');
             });
         };
+
         const isNoShow = params.row?.status === 'noshow';
         return (
           <div className="flex items-center gap-2">
             {!isNoShow && (
               <button
-                className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 shadow-sm transition-all duration-200 hover:border-indigo-600 hover:bg-indigo-600 hover:text-white"
+                className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
                 title="View induction details"
                 onClick={e => {
                   e.stopPropagation();
                   navigate(`/view-induction/${params.row.userId}`, { state: { listSearch: location.search } });
                 }}
               >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                  <path
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
                 View
               </button>
             )}
             {params.row?.status === 'confirmed' && (
               <button
-                className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-xs font-medium text-orange-700 shadow-sm transition-all duration-200 hover:border-orange-600 hover:bg-orange-600 hover:text-white"
-                title="Mark induction as no show"
+                className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-all hover:bg-orange-600 hover:text-white"
+                title="Mark as no show"
                 onClick={e => {
                   e.stopPropagation();
                   handleStatusUpdate('noshow');
                 }}
               >
-                {isLoading ? (
-                  <LoaderSpinner className="text-current" size="xs" />
-                ) : (
-                  <>
-                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-                    </svg>
-                    Mark No Show
-                  </>
-                )}
+                {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'No Show'}
               </button>
             )}
             {isNoShow && (
               <button
-                className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition-all duration-200 hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 transition-all hover:bg-blue-600 hover:text-white"
                 title="Undo no show"
                 onClick={e => {
                   e.stopPropagation();
                   setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode });
                 }}
               >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
                 Undo
               </button>
             )}
@@ -286,89 +263,116 @@ const Induction = () => {
     },
   ];
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
-
   return (
-    <div className="w-full max-w-full max-[560px]:overflow-x-hidden">
-      <SectionTitle
-        description="Manage induction Bookings."
-        inputPlaceholder="Search induction..."
-        search={false}
-        title="Induction"
-        value={searchTerm}
-        onSearch={setSearchTerm}
-      />
+    <div className="w-full">
+      {/* ── Page Header ─────────────────────────────────────── */}
+      <div className="mb-5">
+        <h1 className="text-[22px] font-bold text-[#21295A]">Induction</h1>
+        <p className="mt-0.5 text-[13px] text-gray-400">Manage induction bookings and attendance</p>
+      </div>
 
-      {/* Filters */}
-      <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-600" htmlFor="induction-email-filter">
-              Email
-            </label>
-            <input
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              id="induction-email-filter"
-              placeholder="Search by email"
-              type="text"
-              value={filters.email}
-              onChange={e => setFilters(prev => ({ ...prev, email: e.target.value }))}
-            />
+      {/* ── Filter Bar ──────────────────────────────────────── */}
+      <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div className="px-4 py-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {/* Email */}
+            <div>
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                htmlFor="induction-email-filter"
+              >
+                Email
+              </label>
+              <div className="relative">
+                <svg
+                  className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+                <input
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                  id="induction-email-filter"
+                  placeholder="Search by email…"
+                  type="text"
+                  value={filters.email}
+                  onChange={e => setFilters(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Date */}
+            <div>
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                htmlFor="induction-date-filter"
+              >
+                Date
+              </label>
+              <input
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="induction-date-filter"
+                type="date"
+                value={filters.date}
+                onChange={e => setFilters(prev => ({ ...prev, date: e.target.value }))}
+              />
+            </div>
+
+            {/* Status */}
+            <div>
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                htmlFor="induction-status-filter"
+              >
+                Status
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="induction-status-filter"
+                value={filters.status}
+                onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="noshow">No Show</option>
+              </select>
+            </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-600" htmlFor="induction-date">
-              Select Date
-            </label>
-            <input
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              id="induction-date"
-              type="date"
-              value={filters.date}
-              onChange={e => setFilters(prev => ({ ...prev, date: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-600" htmlFor="induction-status-filter">
-              Status
-            </label>
-            <select
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              id="induction-status-filter"
-              value={filters.status}
-              onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+              disabled={isLoading}
+              type="button"
+              onClick={() => {
+                setFilters(defaultFilters);
+                setSearchParams({ status: 'all' }, { replace: true });
+              }}
             >
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="noshow">No Show</option>
-            </select>
+              Reset
+            </button>
+            <button
+              className="rounded-lg bg-[#21295A] px-5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
+              disabled={isLoading}
+              type="button"
+              onClick={applyFilters}
+            >
+              Apply Filters
+            </button>
           </div>
-        </div>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            className="rounded-xl border border-gray-200 px-5 py-2 text-[13px] font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isLoading}
-            type="button"
-            onClick={() => {
-              setFilters(defaultFilters);
-              setSearchParams({ status: 'all' }, { replace: true });
-            }}
-          >
-            Reset
-          </button>
-          <button
-            className="rounded-xl bg-indigo-600 px-5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isLoading}
-            type="button"
-            onClick={applyFilters}
-          >
-            Apply Filters
-          </button>
         </div>
       </div>
 
-      <div>
+      {/* ── Induction Table ─────────────────────────────────── */}
+      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <DataTable
           columns={inductionColumns.map(col => ({
             id: col.field,
@@ -381,33 +385,14 @@ const Induction = () => {
               : col.valueGetter
                 ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
                 : undefined,
-            // Add sortValue function to extract sortable value from raw data properties
             sortValue: (row: any) => {
-              // Map column field names to actual data property names for sorting
-              if (col.field === 'firstName') {
-                return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
-              }
-              if (col.field === 'email') {
-                return (row?.email || '').toLowerCase();
-              }
-              if (col.field === 'Slot Time') {
-                // Sort by start time
-                return row?.timeSlot?.startTime || '';
-              }
-              if (col.field === 'onboardingType') {
-                return row?.subscriptionCode || '';
-              }
-              if (col.field === 'status') {
-                return row?.status || '';
-              }
-              if (col.field === 'bookingCode') {
-                return row?.timeSlot?.startTime || '';
-              }
-              // For S.No and actions, return empty string (not sortable)
-              if (col.field === 'S.No' || col.field === 'actions') {
-                return '';
-              }
-              // Fallback to direct property access
+              if (col.field === 'firstName') return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
+              if (col.field === 'email') return (row?.email || '').toLowerCase();
+              if (col.field === 'Slot Time') return row?.timeSlot?.startTime || '';
+              if (col.field === 'onboardingType') return row?.subscriptionCode || '';
+              if (col.field === 'status') return row?.status || '';
+              if (col.field === 'bookingCode') return row?.timeSlot?.startTime || '';
+              if (col.field === 'S.No' || col.field === 'actions') return '';
               return row?.[col.field] || '';
             },
           }))}
@@ -424,7 +409,7 @@ const Induction = () => {
               </svg>
             ),
             subtitle: 'Try adjusting your search criteria',
-            title: 'No induction found',
+            title: 'No induction bookings found',
           }}
           getRowId={(row: any) => row.userId || row.bookingCode}
           loading={isLoading}
@@ -460,34 +445,34 @@ const Induction = () => {
               })
             );
           }}
-          onSortChange={() => {
-            // Handle server-side sorting if API supports it
-            // For now, this will allow client-side sorting on current page
-            // TODO: Add sort parameters to API call when backend supports it
-          }}
+          onSortChange={_sort => { /* client-side sort handled by DataTable */ }}
         />
       </div>
 
-      {/* Undo No Show confirmation modal */}
+      {/* ── Undo No Show Modal ──────────────────────────────── */}
       {undoConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-            <h3 className="mb-2 text-base font-bold text-gray-900">Undo No Show</h3>
-            <p className="mb-6 text-sm text-gray-500">
-              Are you sure you want to change the status from{' '}
-              <span className="font-semibold text-orange-600">No Show</span> to{' '}
-              <span className="font-semibold text-yellow-600">Pending</span>?
-            </p>
-            <div className="flex justify-end gap-3">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-gray-100 px-5 py-4">
+              <h3 className="text-[15px] font-bold text-[#21295A]">Undo No Show</h3>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[13px] text-gray-500">
+                Change status from{' '}
+                <span className="font-semibold text-orange-600">No Show</span> back to{' '}
+                <span className="font-semibold text-yellow-600">Pending</span>?
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-3">
               <button
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
                 type="button"
                 onClick={() => setUndoConfirm(null)}
               >
                 Cancel
               </button>
               <button
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                className="rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#2d3570] disabled:opacity-50"
                 disabled={isLoading}
                 type="button"
                 onClick={() => {
@@ -526,7 +511,7 @@ const Induction = () => {
                     .finally(() => setUndoConfirm(null));
                 }}
               >
-                {isLoading ? 'Updating...' : 'Yes, Undo'}
+                {isLoading ? 'Updating…' : 'Yes, Undo'}
               </button>
             </div>
           </div>
