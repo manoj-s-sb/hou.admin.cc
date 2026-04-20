@@ -150,14 +150,10 @@ const Induction = () => {
       renderCell: (params: any) => {
         const type = params.row?.subscriptionCode || '';
         const label =
-          type === 'standard'
-            ? 'Standard'
-            : type === 'premium'
-              ? 'Premium'
-              : type === 'family'
-                ? 'Family'
-                : type;
-        return <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-600">{label}</span>;
+          type === 'standard' ? 'Standard' : type === 'premium' ? 'Premium' : type === 'family' ? 'Family' : type;
+        return (
+          <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-600">{label}</span>
+        );
       },
       valueGetter: params => {
         const type = params.row?.subscriptionCode || '';
@@ -203,8 +199,7 @@ const Induction = () => {
                     type: 'inductionbooking',
                     listLimit: inductionListData?.limit || 20,
                     email: applied.email,
-                    status:
-                      applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+                    status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
                   })
                 );
                 toast.success('Induction status updated successfully!');
@@ -386,7 +381,8 @@ const Induction = () => {
                 ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
                 : undefined,
             sortValue: (row: any) => {
-              if (col.field === 'firstName') return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
+              if (col.field === 'firstName')
+                return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
               if (col.field === 'email') return (row?.email || '').toLowerCase();
               if (col.field === 'Slot Time') return row?.timeSlot?.startTime || '';
               if (col.field === 'onboardingType') return row?.subscriptionCode || '';
@@ -445,7 +441,9 @@ const Induction = () => {
               })
             );
           }}
-          onSortChange={_sort => { /* client-side sort handled by DataTable */ }}
+          onSortChange={_sort => {
+            /* client-side sort handled by DataTable */
+          }}
         />
       </div>
 
@@ -458,8 +456,7 @@ const Induction = () => {
             </div>
             <div className="px-5 py-4">
               <p className="text-[13px] text-gray-500">
-                Change status from{' '}
-                <span className="font-semibold text-orange-600">No Show</span> back to{' '}
+                Change status from <span className="font-semibold text-orange-600">No Show</span> back to{' '}
                 <span className="font-semibold text-yellow-600">Pending</span>?
               </p>
             </div>

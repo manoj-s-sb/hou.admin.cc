@@ -330,7 +330,9 @@ const Members = () => {
           </div>
           <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 lg:flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">Pending</p>
-            <p className="text-[22px] font-bold text-amber-700">{membersCount.pendingActivationCount.toLocaleString()}</p>
+            <p className="text-[22px] font-bold text-amber-700">
+              {membersCount.pendingActivationCount.toLocaleString()}
+            </p>
           </div>
 
           {/* Divider */}
@@ -369,117 +371,128 @@ const Members = () => {
       {/* ── Filter Bar ──────────────────────────────────────── */}
       <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <div className="px-4 py-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Email */}
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400" htmlFor="filter-email">
-                  Email
-                </label>
-                <div className="relative">
-                  <svg
-                    className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  <input
-                    className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                    id="filter-email"
-                    placeholder="Search by email…"
-                    type="text"
-                    value={filters.email}
-                    onChange={e => handleFilterChange('email', e.target.value)}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Email */}
+            <div>
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                htmlFor="filter-email"
+              >
+                Email
+              </label>
+              <div className="relative">
+                <svg
+                  className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
                   />
-                </div>
-              </div>
-
-              {/* Billing Cycle */}
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400" htmlFor="filter-billing-cycle">
-                  Billing Cycle
-                </label>
-                <select
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                  id="filter-billing-cycle"
-                  value={filters.billingCycle}
-                  onChange={e => handleFilterChange('billingCycle', e.target.value)}
-                >
-                  <option value="">All Cycles</option>
-                  <option value="annual">Annual</option>
-                  <option value="fortnightly">Fortnightly</option>
-                </select>
-              </div>
-
-              {/* Subscription Type */}
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400" htmlFor="filter-plan">
-                  Plan
-                </label>
-                <select
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                  id="filter-plan"
-                  value={filters.subscriptionType}
-                  onChange={e => handleFilterChange('subscriptionType', e.target.value)}
-                >
-                  <option value="">All Plans</option>
-                  <option value="standard">Standard</option>
-                  <option value="premium">Premium</option>
-                  <option value="family">Family</option>
-                  <option value="offpeak">Offpeak</option>
-                </select>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400" htmlFor="filter-status">
-                  Status
-                </label>
-                <select
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                  id="filter-status"
-                  value={filters.status}
-                  onChange={e => handleFilterChange('status', e.target.value)}
-                >
-                  <option value="">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="pendingactivation">Pending Activation</option>
-                  <option value="paused">Paused</option>
-                  <option value="past_due">Payment Failed</option>
-                  <option value="canceled">Cancelled</option>
-                  <option value="resumed">Resumed</option>
-                </select>
+                </svg>
+                <input
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                  id="filter-email"
+                  placeholder="Search by email…"
+                  type="text"
+                  value={filters.email}
+                  onChange={e => handleFilterChange('email', e.target.value)}
+                />
               </div>
             </div>
 
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
-                disabled={isLoading}
-                onClick={handleClearFilters}
+            {/* Billing Cycle */}
+            <div>
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                htmlFor="filter-billing-cycle"
               >
-                Reset
-              </button>
-              <button
-                className="rounded-lg bg-[#21295A] px-5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
-                disabled={isLoading}
-                onClick={handleApplyFilters}
+                Billing Cycle
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="filter-billing-cycle"
+                value={filters.billingCycle}
+                onChange={e => handleFilterChange('billingCycle', e.target.value)}
               >
-                Apply Filters
-              </button>
+                <option value="">All Cycles</option>
+                <option value="annual">Annual</option>
+                <option value="fortnightly">Fortnightly</option>
+              </select>
             </div>
+
+            {/* Subscription Type */}
+            <div>
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                htmlFor="filter-plan"
+              >
+                Plan
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="filter-plan"
+                value={filters.subscriptionType}
+                onChange={e => handleFilterChange('subscriptionType', e.target.value)}
+              >
+                <option value="">All Plans</option>
+                <option value="standard">Standard</option>
+                <option value="premium">Premium</option>
+                <option value="family">Family</option>
+                <option value="offpeak">Offpeak</option>
+              </select>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                htmlFor="filter-status"
+              >
+                Status
+              </label>
+              <select
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="filter-status"
+                value={filters.status}
+                onChange={e => handleFilterChange('status', e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="pendingactivation">Pending Activation</option>
+                <option value="paused">Paused</option>
+                <option value="past_due">Payment Failed</option>
+                <option value="canceled">Cancelled</option>
+                <option value="resumed">Resumed</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+              disabled={isLoading}
+              onClick={handleClearFilters}
+            >
+              Reset
+            </button>
+            <button
+              className="rounded-lg bg-[#21295A] px-5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
+              disabled={isLoading}
+              onClick={handleApplyFilters}
+            >
+              Apply Filters
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Members Table ───────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-
         <DataTable
           columns={membersColumns.map(col => ({
             id: col.field,

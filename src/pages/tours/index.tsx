@@ -359,8 +359,7 @@ const Tours = () => {
             </div>
             <div className="px-5 py-4">
               <p className="text-[13px] text-gray-500">
-                Change status from{' '}
-                <span className="font-semibold text-orange-600">No Show</span> back to{' '}
+                Change status from <span className="font-semibold text-orange-600">No Show</span> back to{' '}
                 <span className="font-semibold text-yellow-600">Pending</span>?
               </p>
             </div>

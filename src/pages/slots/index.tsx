@@ -113,17 +113,15 @@ const SlotBookings: React.FC = () => {
 
   return (
     <div className="w-full">
-      {/* Page header */}
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-bold text-[#21295A]">Slot Bookings</h1>
-          <p className="mt-0.5 text-[13px] text-gray-400">
-            {selectedDayName}, {selectedMonthName} {selectedDate.day} · {facilityCode}
-          </p>
-        </div>
+      {/* ── Page Header ─────────────────────────────────────── */}
+      <div className="mb-5">
+        <h1 className="text-[22px] font-bold text-[#21295A]">Slot Bookings</h1>
+        <p className="mt-0.5 text-[13px] text-gray-400">
+          {selectedDayName}, {selectedMonthName} {selectedDate.day} · {facilityCode}
+        </p>
       </div>
 
-      {/* Stats row */}
+      {/* ── Stats Row ───────────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {statCards.map(card => (
           <div
@@ -136,8 +134,8 @@ const SlotBookings: React.FC = () => {
               </svg>
             </div>
             <div>
-              <p className="text-[10px] font-medium text-gray-400">{card.label}</p>
-              <p className="text-[16px] font-bold leading-tight text-[#21295A]">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{card.label}</p>
+              <p className="text-[20px] font-bold leading-tight text-[#21295A]">
                 {slotStats[card.key].toLocaleString()}
               </p>
             </div>
@@ -145,10 +143,10 @@ const SlotBookings: React.FC = () => {
         ))}
       </div>
 
-      {/* Calendar section */}
-      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+      {/* ── Calendar Section ────────────────────────────────── */}
+      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         {/* Date picker strip */}
-        <div className="border-b border-gray-100 px-4 py-3">
+        <div className="border-b border-gray-100 bg-gray-50/50 px-4 py-3">
           <CalendarHeader
             monthName={selectedMonthName}
             nextSevenDates={nextSevenDates}
