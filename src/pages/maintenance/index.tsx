@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
-import SectionTitle from '../../components/SectionTitle';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
 import endpoints from '../../constants/endpoints';
@@ -474,26 +473,39 @@ const Maintenance = () => {
   return (
     <>
       <div className="w-full max-w-full">
-        <SectionTitle
-          actionButtonClassName={
-            activeTab === 'issue'
-              ? 'flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700'
-              : 'flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1a2149]'
-          }
-          actionButtonLabel={activeTab === 'task' ? 'Add Task' : activeTab === 'issue' ? 'Create Ticket' : undefined}
-          description="Manage facility maintenance tasks and schedules."
-          inputPlaceholder=""
-          search={false}
-          title="Maintenance"
-          value=""
-          onActionButtonClick={
-            activeTab === 'task'
-              ? () => setShowAddTask(true)
-              : activeTab === 'issue'
-                ? () => setShowCreateIssue(true)
-                : undefined
-          }
-        />
+        {/* ── Page Header ─────────────────────────────────────── */}
+        <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4">
+          <div>
+            <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Maintenance</h1>
+            <p className="mt-1 text-[12px] font-medium text-gray-400">
+              Manage facility maintenance tasks and schedules
+            </p>
+          </div>
+          {activeTab === 'task' && (
+            <button
+              className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1a2149]"
+              type="button"
+              onClick={() => setShowAddTask(true)}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+              </svg>
+              Add Task
+            </button>
+          )}
+          {activeTab === 'issue' && (
+            <button
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              type="button"
+              onClick={() => setShowCreateIssue(true)}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+              </svg>
+              Create Ticket
+            </button>
+          )}
+        </div>
 
         <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
           {/* Tabs + Frequency toggle */}
