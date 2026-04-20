@@ -39,6 +39,7 @@ const ViewMembers = () => {
   const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? '';
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [expandedCycles, setExpandedCycles] = useState<number[]>([]);
+  const [showAllCycles, setShowAllCycles] = useState(false);
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
 
   const { userId } = useParams();
@@ -248,164 +249,186 @@ const ViewMembers = () => {
           </div>
 
           {/* Slot Usage & Cycle Details - Accordion Style */}
-          {memberDetails.slotUsageTable?.cycles && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Activity className="mr-2 h-5 w-5 text-blue-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Slot Usage & Cycle Details</h2>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Total Cycles:{' '}
-                    <span className="font-semibold text-blue-600">{memberDetails.slotUsageTable.cycles.length}</span>
+          {memberDetails.slotUsageTable?.cycles && (() => {
+            const statusMeta: Record<string, { label: string; cls: string }> = {
+              active: { label: 'Active', cls: 'bg-green-100 text-green-700' },
+              completed: { label: 'Completed', cls: 'bg-gray-100 text-gray-600' },
+              cancelled: { label: 'Cancelled', cls: 'bg-red-100 text-red-700' },
+              hold_started: { label: 'Hold Started', cls: 'bg-orange-100 text-orange-700' },
+              on_hold: { label: 'On Hold', cls: 'bg-orange-100 text-orange-700' },
+              hold_ended: { label: 'Hold Ended', cls: 'bg-blue-100 text-blue-700' },
+            };
+            const fmt = (d: string | null) =>
+              d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+            const { summary } = memberDetails.slotUsageTable;
+
+            return (
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-200 px-4 py-3 sm:px-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-blue-600" />
+                      <h2 className="text-[15px] font-semibold text-gray-900">Slot Usage & Cycle Details</h2>
+                    </div>
+                    <span className="text-[13px] text-gray-500">
+                      Total Cycles:{' '}
+                      <span className="font-semibold text-blue-600">{memberDetails.slotUsageTable.cycles.length}</span>
+                    </span>
                   </div>
                 </div>
-              </div>
 
-              <div className="px-4 py-3 sm:px-6 sm:py-4">
-                {/* Cycles Accordion */}
-                <div className="space-y-2">
-                  {memberDetails.slotUsageTable.cycles.map((cycle, index) => {
-                    const isExpanded = expandedCycles.includes(cycle.cycleNumber);
+                <div className="px-4 py-3 sm:px-6 sm:py-4">
+                  <div className="space-y-2">
+                    {(showAllCycles
+                      ? memberDetails.slotUsageTable.cycles
+                      : memberDetails.slotUsageTable.cycles.slice(0, 5)
+                    ).map((cycle: any, index: number) => {
+                      const isExpanded = expandedCycles.includes(cycle.cycleNumber);
+                      const meta = statusMeta[cycle.status] ?? { label: cycle.status, cls: 'bg-gray-100 text-gray-600' };
+                      const hasHold = ['hold_started', 'on_hold', 'hold_ended'].includes(cycle.status);
 
-                    return (
-                      <div
-                        key={index}
-                        className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md"
-                      >
-                        {/* Accordion Header - Clickable */}
-                        <button
-                          className="w-full text-left transition-colors hover:bg-gray-50"
-                          type="button"
-                          onClick={() => toggleCycle(cycle.cycleNumber)}
-                        >
-                          <div className="flex items-center justify-between px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                                <TrendingUp className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div>
-                                <h3 className="text-base font-bold text-gray-900">
-                                  Cycle {cycle.cycleNumber} -
-                                  <span className="px-2.5 py-0.5 text-xs font-semibold uppercase text-gray-700">
-                                    {cycle.billingCycle}
+                      return (
+                        <div key={index} className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+                          {/* Collapsed row */}
+                          <button
+                            className="w-full text-left transition-colors hover:bg-gray-50"
+                            type="button"
+                            onClick={() => toggleCycle(cycle.cycleNumber)}
+                          >
+                            <div className="flex items-center justify-between px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50">
+                                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <span className="text-[13px] font-bold text-gray-900">Cycle {cycle.cycleNumber}</span>
+                                <span className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                  {cycle.billingCycle}
+                                </span>
+                                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.cls}`}>
+                                  {meta.label}
+                                </span>
+                                {cycle.planChange && (
+                                  <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-semibold text-purple-700">
+                                    {cycle.planChange.type === 'upgrade' ? '↑' : '↓'} {cycle.planChange.from} →{' '}
+                                    {cycle.planChange.to}
                                   </span>
-                                </h3>
+                                )}
                               </div>
-                            </div>
-
-                            {/* Quick Stats + Expand Icon */}
-                            <div className="flex items-center gap-4">
-                              <div className="hidden items-center gap-4 sm:flex">
-                                <div className="text-right">
-                                  <p className="text-xs text-gray-500">Available</p>
-                                  <p className="text-sm font-bold text-green-600">{cycle.totalAvailable}</p>
+                              <div className="flex items-center gap-4">
+                                <div className="hidden items-center gap-4 sm:flex">
+                                  {[
+                                    { label: 'Available', value: cycle.totalAvailable },
+                                    { label: 'Used', value: cycle.slotsUsed },
+                                    { label: 'Remaining', value: cycle.unused },
+                                  ].map(s => (
+                                    <div key={s.label} className="text-right">
+                                      <p className="text-[10px] text-gray-400">{s.label}</p>
+                                      <p className="text-[13px] font-bold text-gray-700">{s.value}</p>
+                                    </div>
+                                  ))}
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-xs text-gray-500">Used</p>
-                                  <p className="text-sm font-bold text-orange-600">{cycle.slotsUsed}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-xs text-gray-500">Remaining</p>
-                                  <p className="text-sm font-bold text-teal-600">{cycle.unused}</p>
-                                </div>
-                              </div>
-
-                              <div
-                                className={`rounded-full p-1 transition-all duration-200 ${isExpanded ? 'bg-blue-100' : 'bg-gray-100'}`}
-                              >
                                 {isExpanded ? (
-                                  <ChevronUp className="h-5 w-5 text-blue-600" />
+                                  <ChevronUp className="h-4 w-4 text-gray-400" />
                                 ) : (
-                                  <ChevronDown className="h-5 w-5 text-gray-600" />
+                                  <ChevronDown className="h-4 w-4 text-gray-400" />
                                 )}
                               </div>
                             </div>
-                          </div>
-                        </button>
+                          </button>
 
-                        {/* Accordion Content - Expandable */}
-                        <div
-                          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                            isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-                          }`}
-                        >
-                          <div className="border-t border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3">
-                            {/* Detailed Stats Table */}
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                              {/* New Slots */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
-                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                  New Slots
-                                </p>
-                                <p className="text-2xl font-bold text-blue-600">{cycle.newSlots}</p>
-                              </div>
+                          {/* Expanded content */}
+                          <div
+                            className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}
+                          >
+                            <div className="border-t border-gray-100 bg-gray-50 px-4 py-4">
+                              {/* Status-specific banners */}
+                              {cycle.status === 'cancelled' && cycle.cancelledAt && (
+                                <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                                  <span className="text-[11px] font-medium text-red-600">Cancelled on</span>
+                                  <span className="text-[12px] font-semibold text-red-700">{fmt(cycle.cancelledAt)}</span>
+                                </div>
+                              )}
+                              {hasHold && (cycle.holdFrom || cycle.holdUntil) && (
+                                <div className="mb-3 flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2">
+                                  <span className="text-[11px] font-medium text-orange-600">Hold period:</span>
+                                  <span className="text-[12px] font-semibold text-orange-700">
+                                    {fmt(cycle.holdFrom)} → {fmt(cycle.holdUntil)}
+                                  </span>
+                                </div>
+                              )}
+                              {cycle.planChange && (
+                                <div className="mb-3 flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2">
+                                  <span className="text-[11px] font-medium text-purple-600">Plan change:</span>
+                                  <span className="text-[12px] font-semibold capitalize text-purple-700">
+                                    {cycle.planChange.type} — {cycle.planChange.from} → {cycle.planChange.to}
+                                  </span>
+                                  {cycle.planChange.effectiveDate && (
+                                    <span className="text-[11px] text-purple-500">
+                                      ({fmt(cycle.planChange.effectiveDate)})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
 
-                              {/* Carried Forward */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
-                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                  Carried Over
-                                </p>
-                                <p className="text-2xl font-bold text-purple-600">{cycle.carriedFromPrevious}</p>
-                              </div>
-
-                              {/* Total Available */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
-                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                  Total Available
-                                </p>
-                                <p className="text-2xl font-bold text-green-600">{cycle.totalAvailable}</p>
-                              </div>
-
-                              {/* Slots Used */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
-                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                  Slots Used
-                                </p>
-                                <p className="text-2xl font-bold text-orange-600">{cycle.slotsUsed}</p>
-                              </div>
-
-                              {/* Unused Slots */}
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-white p-3 shadow-sm">
-                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                  Remaining
-                                </p>
-                                <p className="text-2xl font-bold text-teal-600">{cycle.unused}</p>
+                              {/* Slot breakdown */}
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                {[
+                                  { label: 'New Slots', value: cycle.newSlots, color: 'text-blue-600' },
+                                  { label: 'Carried Over', value: cycle.carriedFromPrevious, color: 'text-purple-600' },
+                                  { label: 'Total Available', value: cycle.totalAvailable, color: 'text-green-600' },
+                                  { label: 'Slots Used', value: cycle.slotsUsed, color: 'text-orange-600' },
+                                  { label: 'Remaining', value: cycle.unused, color: 'text-teal-600' },
+                                ].map(stat => (
+                                  <div
+                                    key={stat.label}
+                                    className="flex flex-col items-center rounded-lg border border-gray-100 bg-white px-3 py-3 shadow-sm"
+                                  >
+                                    <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                                      {stat.label}
+                                    </p>
+                                    <p className={`text-[22px] font-bold ${stat.color}`}>{stat.value}</p>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-
-                            {/* Usage Percentage Bar */}
-                            {/* <div className="mt-4 rounded-lg bg-white p-4 shadow-sm">
-                              <div className="mb-2 flex items-center justify-between">
-                                <span className="text-xs font-medium text-gray-500">Usage Progress</span>
-                                <span className="text-xs font-bold text-gray-900">
-                                  {cycle.totalAvailable > 0
-                                    ? `${Math.round((cycle.slotsUsed / cycle.totalAvailable) * 100)}%`
-                                    : '0%'}
-                                </span>
-                              </div>
-                              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                                <div
-                                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500"
-                                  style={{
-                                    width:
-                                      cycle.totalAvailable > 0
-                                        ? `${Math.min((cycle.slotsUsed / cycle.totalAvailable) * 100, 100)}%`
-                                        : '0%',
-                                  }}
-                                />
-                              </div>
-                            </div> */}
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+
+                  {/* Show more / less */}
+                  {memberDetails.slotUsageTable.cycles.length > 5 && (
+                    <button
+                      className="mt-1 w-full rounded-lg border border-gray-200 py-2 text-[13px] font-medium text-gray-500 transition hover:bg-gray-50"
+                      type="button"
+                      onClick={() => setShowAllCycles(prev => !prev)}
+                    >
+                      {showAllCycles
+                        ? 'Show Less'
+                        : `Show ${memberDetails.slotUsageTable.cycles.length - 5} More Cycles`}
+                    </button>
+                  )}
+
+                  {/* Summary totals */}
+                  {summary && (
+                    <div className="mt-4 grid grid-cols-3 gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                      {[
+                        { label: 'Total New Slots', value: summary.totalNewSlots, color: 'text-blue-600' },
+                        { label: 'Total Used', value: summary.totalUsed, color: 'text-orange-600' },
+                        { label: 'Current Unused', value: summary.currentUnused, color: 'text-teal-600' },
+                      ].map(s => (
+                        <div key={s.label} className="text-center">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{s.label}</p>
+                          <p className={`text-[18px] font-bold ${s.color}`}>{s.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Player Profile Section */}
           {memberDetails.playerProfile && (
