@@ -35,6 +35,11 @@ const menus = [
     icon: '/assets/coach-schedule.svg',
   },
   {
+    path: '/tailgate',
+    label: 'Tailgate',
+    icon: '/assets/tailgate.svg',
+  },
+  {
     path: '/maintenance',
     label: 'Maintenance',
     icon: '/assets/maintenance.svg',

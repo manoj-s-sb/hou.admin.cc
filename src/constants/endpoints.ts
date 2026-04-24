@@ -22,6 +22,11 @@ const endpoints = {
     uploadUrl: '/admin/work/uploadurl',
     deleteMedia: '/admin/work/deletemedia',
   },
+  tailgate: {
+    // TODO: add real endpoints when backend is ready
+    logs: '/admin/tailgate/logs',
+    stats: '/admin/tailgate/stats',
+  },
   induction: {
     list: '/admin/bookings/list',
     search: '/admin/induction/search',

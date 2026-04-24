@@ -46,7 +46,7 @@ function DataTable<T = any>({
   onSortChange,
   pagination = true,
   page: externalPage,
-  rowsPerPage: externalRowsPerPage = 20,
+  rowsPerPage: externalRowsPerPage = 10,
   totalRows: externalTotalRows,
   onPageChange,
   onRowsPerPageChange,
@@ -58,7 +58,7 @@ function DataTable<T = any>({
   hideHeader = false,
 }: TableProps<T>) {
   const [internalPage, setInternalPage] = useState(0);
-  const [internalRowsPerPage, setInternalRowsPerPage] = useState(externalRowsPerPage ?? 20);
+  const [internalRowsPerPage, setInternalRowsPerPage] = useState(externalRowsPerPage ?? 10);
   const [sortField, setSortField] = useState<string>(defaultSortField || columns[0]?.id || '');
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
 
@@ -299,7 +299,7 @@ function DataTable<T = any>({
                 }
               }}
             >
-              {[20, 30, 50, 100].map(opt => (
+              {[10, 20, 30, 50, 100].map(opt => (
                 <option key={opt} value={opt}>
                   {opt}
                 </option>
