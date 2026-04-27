@@ -34,7 +34,7 @@ const statusBadgeCls: Record<string, string> = {
   issue: 'bg-orange-500 text-white',
   inprogress: 'bg-blue-500 text-white',
   resolved: 'bg-green-500 text-white',
-  closed: 'bg-gray-400 text-white',
+  closed: 'bg-green-500 text-white',
 };
 
 const ALL_TEAMS: TeamOption[] = ['centre_staff', 'noc', 'others'];

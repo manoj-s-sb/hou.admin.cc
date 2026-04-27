@@ -251,6 +251,7 @@ export interface MembersCountResponse {
   total: number;
   activeMembersCount: number;
   inactiveMembersCount: number;
+  pausedCount?: number;
 }
 export interface MembersInitialState {
   isLoading: boolean;

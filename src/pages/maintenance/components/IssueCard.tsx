@@ -6,10 +6,10 @@ interface IssueCardProps {
   onViewIssue?: (item: Work, index: number) => void;
 }
 
-const priorityDot: Record<string, string> = {
-  high: 'bg-red-500',
-  medium: 'bg-orange-400',
-  low: 'bg-green-500',
+const priorityBadge: Record<string, string> = {
+  high: 'bg-red-100 text-red-700',
+  medium: 'bg-orange-100 text-orange-700',
+  low: 'bg-green-100 text-green-700',
 };
 
 const statusBadge: Record<string, string> = {
@@ -32,23 +32,12 @@ const statusAccent: Record<string, string> = {
   completed: 'bg-green-500',
 };
 
-const statusTag: Record<string, string> = {
-  open: 'bg-red-100 text-red-700',
-  assigned: 'bg-red-100 text-red-700',
-  issue: 'bg-red-100 text-red-700',
-  inprogress: 'bg-yellow-100 text-yellow-700',
-  resolved: 'bg-green-100 text-green-700',
-  closed: 'bg-green-100 text-green-700',
-  completed: 'bg-green-100 text-green-700',
-};
-
 const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
   const issueNum = `ISS-${String(index + 1).padStart(3, '0')}`;
   const statusKey = item.status?.toLowerCase() || '';
   const statusCls = statusBadge[statusKey] || 'bg-gray-100 text-gray-600';
   const accentCls = statusAccent[statusKey] || 'bg-gray-300';
-  const tagCls = statusTag[statusKey] || 'bg-gray-100 text-gray-600';
-  const dotCls = priorityDot[item.priority?.toLowerCase() || ''] || 'bg-gray-400';
+  const priorityCls = priorityBadge[item.priority?.toLowerCase() || ''] || 'bg-gray-100 text-gray-600';
 
   const categoryLabel = item.category
     ? `Maintenance – ${item.category.charAt(0).toUpperCase() + item.category.slice(1)}`
@@ -94,9 +83,8 @@ const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
             </span>
           )}
           {item.priority && (
-            <span className="flex items-center gap-1.5 text-xs text-gray-500">
-              <span className={`h-2 w-2 rounded-full ${dotCls}`} />
-              {item.priority.charAt(0).toUpperCase() + item.priority.slice(1)}
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${priorityCls}`}>
+              {item.priority}
             </span>
           )}
         </div>
@@ -119,9 +107,9 @@ const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
               {raisedByLabel && formattedDate ? ` · ${formattedDate}` : formattedDate}
             </span>
           )}
-          <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${tagCls}`}>{categoryLabel}</span>
+          <span className="rounded-full border border-blue-400 px-3 py-0.5 text-xs font-semibold text-blue-500">{categoryLabel}</span>
           {assignedToLabel && (
-            <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${tagCls}`}>{assignedToLabel}</span>
+            <span className="rounded-full border border-blue-400 px-3 py-0.5 text-xs font-semibold text-blue-500">{assignedToLabel}</span>
           )}
         </div>
       </div>
