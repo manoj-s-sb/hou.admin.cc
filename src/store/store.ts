@@ -6,7 +6,7 @@ import maintenanceReducer from './maintenance/reducers';
 import membersReducer from './members/reducers';
 import slotsReducer from './slots/reducers';
 
-const store = configureStore({
+const store = configureStore({ //store
   reducer: {
     auth: authReducer,
     induction: inductionReducer,
