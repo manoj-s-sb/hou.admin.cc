@@ -107,9 +107,13 @@ const IssueCard = ({ item, index, onViewIssue }: IssueCardProps) => {
               {raisedByLabel && formattedDate ? ` · ${formattedDate}` : formattedDate}
             </span>
           )}
-          <span className="rounded-full border border-blue-400 px-3 py-0.5 text-xs font-semibold text-blue-500">{categoryLabel}</span>
+          <span className="rounded-full border border-blue-400 px-3 py-0.5 text-xs font-semibold text-blue-500">
+            {categoryLabel}
+          </span>
           {assignedToLabel && (
-            <span className="rounded-full border border-blue-400 px-3 py-0.5 text-xs font-semibold text-blue-500">{assignedToLabel}</span>
+            <span className="rounded-full border border-blue-400 px-3 py-0.5 text-xs font-semibold text-blue-500">
+              {assignedToLabel}
+            </span>
           )}
         </div>
       </div>

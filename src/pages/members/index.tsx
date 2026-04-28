@@ -314,7 +314,9 @@ const Members = () => {
       {membersCount && (
         <div className="mb-5 grid grid-cols-5 gap-3">
           {/* Section label — Subscription Overview */}
-          <p className="col-span-5 text-[11px] font-semibold uppercase tracking-widest text-gray-400">Subscription Overview</p>
+          <p className="col-span-5 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+            Subscription Overview
+          </p>
 
           <div className="flex flex-col gap-1 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-600">Total</p>
@@ -330,7 +332,9 @@ const Members = () => {
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">Pending</p>
-            <p className="text-[22px] font-bold text-amber-700">{membersCount.pendingActivationCount.toLocaleString()}</p>
+            <p className="text-[22px] font-bold text-amber-700">
+              {membersCount.pendingActivationCount.toLocaleString()}
+            </p>
           </div>
           <div className="flex flex-col gap-1 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-500">On Hold</p>
@@ -338,7 +342,9 @@ const Members = () => {
           </div>
 
           {/* Section label — Subscription Plans */}
-          <p className="col-span-5 mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">Subscription Plans</p>
+          <p className="col-span-5 mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+            Subscription Plans
+          </p>
 
           {[
             { key: 'standard', annual: membersCount.standardAnnual, fortnightly: membersCount.standardFortnightly },
@@ -347,7 +353,7 @@ const Members = () => {
             { key: 'offpeak', annual: membersCount.offpeakAnnual, fortnightly: membersCount.offpeakFortnightly },
           ].map(plan => {
             const cfg = planConfig[plan.key];
-            const total = plan.annual + plan.fortnightly;
+            const total = (plan.annual ?? 0) + (plan.fortnightly ?? 0);
             return (
               <div
                 key={plan.key}
@@ -358,6 +364,9 @@ const Members = () => {
                   <p className={`text-[10px] font-semibold uppercase tracking-widest ${cfg.color}`}>{cfg.label}</p>
                 </div>
                 <p className="text-[22px] font-bold text-[#21295A]">{total.toLocaleString()}</p>
+                <p className="text-[11px] text-gray-400">
+                  {plan.annual ?? 0} annual · {plan.fortnightly ?? 0} fortnightly
+                </p>
               </div>
             );
           })}
