@@ -220,7 +220,7 @@ const ViewInduction = () => {
               }`}
             >
               {data?.status === 'confirmed'
-                ? 'Pending'
+                ? 'Pending Activation'
                 : data?.status?.charAt(0).toUpperCase() + (data?.status?.slice(1) || '')}
             </span>
           </div>
