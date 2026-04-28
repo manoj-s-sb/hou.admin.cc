@@ -79,6 +79,11 @@ const ViewMembers = () => {
     dispatch(getSingleMemberDetails({ userId: userId as string }));
   }, [dispatch, userId]);
 
+  const formatShortDate = (dateString: string | null | undefined) => {
+    if (!dateString) return '—';
+    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) {
       return '-';
@@ -262,6 +267,10 @@ const ViewMembers = () => {
               const fmt = (d: string | null) =>
                 d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
               const { summary } = memberDetails.slotUsageTable;
+              const totalPurchasedFromCycles = memberDetails.slotUsageTable.cycles.reduce(
+                (sum: number, c: any) => sum + (c.purchasedSlotCount ?? 0),
+                0
+              );
 
               return (
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -292,6 +301,7 @@ const ViewMembers = () => {
                           cls: 'bg-gray-100 text-gray-600',
                         };
                         const hasHold = ['hold_started', 'on_hold', 'hold_ended'].includes(cycle.status);
+                        const purchasedInCycle = cycle.purchasedSlotCount ?? 0;
 
                         return (
                           <div key={index} className="overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -323,13 +333,14 @@ const ViewMembers = () => {
                                 <div className="flex items-center gap-4">
                                   <div className="hidden items-center gap-4 sm:flex">
                                     {[
-                                      { label: 'Available', value: cycle.totalAvailable },
-                                      { label: 'Used', value: cycle.slotsUsed },
-                                      { label: 'Remaining', value: cycle.unused },
+                                      { label: 'Available', value: cycle.totalAvailable, color: 'text-gray-700' },
+                                      { label: 'Used', value: cycle.slotsUsed, color: 'text-gray-700' },
+                                      { label: 'Remaining', value: cycle.unused, color: 'text-gray-700' },
+                                      { label: 'Purchased', value: purchasedInCycle, color: 'text-violet-600' },
                                     ].map(s => (
                                       <div key={s.label} className="text-right">
                                         <p className="text-[10px] text-gray-400">{s.label}</p>
-                                        <p className="text-[13px] font-bold text-gray-700">{s.value}</p>
+                                        <p className={`text-[13px] font-bold ${s.color}`}>{s.value}</p>
                                       </div>
                                     ))}
                                   </div>
@@ -379,7 +390,7 @@ const ViewMembers = () => {
                                 )}
 
                                 {/* Slot breakdown */}
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
                                   {[
                                     { label: 'New Slots', value: cycle.newSlots, color: 'text-blue-600' },
                                     {
@@ -390,6 +401,7 @@ const ViewMembers = () => {
                                     { label: 'Total Available', value: cycle.totalAvailable, color: 'text-green-600' },
                                     { label: 'Slots Used', value: cycle.slotsUsed, color: 'text-orange-600' },
                                     { label: 'Remaining', value: cycle.unused, color: 'text-teal-600' },
+                                    { label: 'Purchased Slots', value: purchasedInCycle, color: 'text-violet-600' },
                                   ].map(stat => (
                                     <div
                                       key={stat.label}
@@ -424,11 +436,16 @@ const ViewMembers = () => {
 
                     {/* Summary totals */}
                     {summary && (
-                      <div className="mt-4 grid grid-cols-3 gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 sm:grid-cols-4">
                         {[
                           { label: 'Total New Slots', value: summary.totalNewSlots, color: 'text-blue-600' },
                           { label: 'Total Used', value: summary.totalUsed, color: 'text-orange-600' },
                           { label: 'Current Unused', value: summary.currentUnused, color: 'text-teal-600' },
+                          {
+                            label: 'Total Purchased',
+                            value: totalPurchasedFromCycles,
+                            color: 'text-violet-600',
+                          },
                         ].map(s => (
                           <div key={s.label} className="text-center">
                             <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{s.label}</p>

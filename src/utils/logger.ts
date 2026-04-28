@@ -17,8 +17,8 @@ interface LogContext {
 }
 
 class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development';
-  private isProduction = process.env.NODE_ENV === 'production';
+  private isDevelopment = import.meta.env.MODE === 'development';
+  private isProduction = import.meta.env.MODE === 'production';
 
   /**
    * Log an error - always logged (even in production)

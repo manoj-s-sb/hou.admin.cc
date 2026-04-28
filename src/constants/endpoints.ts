@@ -10,6 +10,7 @@ const endpoints = {
     list: '/admin/members/list',
     membersDetails: '/admin/member/details',
     membersCount: '/admin/members/stats',
+    purchasedSlots: '/admin/member/purchased-slots',
   },
   tour: {
     updateTourStatus: '/admin/bookings/tour/status/update',
