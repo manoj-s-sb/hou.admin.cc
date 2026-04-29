@@ -1,4 +1,5 @@
 import { TailgateLog } from '../../../store/tailgate/types';
+import { getEventDisplayType, getLogDate, getLogTime } from '../utils';
 
 interface Actor {
   name: string | null;
@@ -24,14 +25,13 @@ const ViolationsTab = ({ actors }: ViolationsTabProps) => (
       <div>
         <p className="text-[13px] font-semibold text-red-800">Tailgate violations by member</p>
         <p className="mt-0.5 text-[11px] text-red-600">
-          Stored in backend — all flagged violations are retained permanently and shown here regardless of log retention period.
+          Stored in backend — all flagged violations are retained permanently and shown here regardless of log retention
+          period.
         </p>
       </div>
     </div>
 
-    {actors.length === 0 && (
-      <p className="py-10 text-center text-[13px] text-gray-400">No violations recorded.</p>
-    )}
+    {actors.length === 0 && <p className="py-10 text-center text-[13px] text-gray-400">No violations recorded.</p>}
 
     {actors.map((actor, ri) => (
       <div key={ri} className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
@@ -50,7 +50,12 @@ const ViolationsTab = ({ actors }: ViolationsTabProps) => (
           </div>
           <span className="flex items-center gap-1.5 rounded-lg bg-red-100 px-3 py-1.5 text-[13px] font-bold text-red-700">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
+              <path
+                d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+              />
             </svg>
             {actor.incidents.length} Violation{actor.incidents.length > 1 ? 's' : ''}
           </span>
@@ -59,22 +64,31 @@ const ViolationsTab = ({ actors }: ViolationsTabProps) => (
           <thead>
             <tr className="bg-gray-50">
               {['Date', 'Time', 'Event', 'Lane Door', 'Admin Note'].map(h => (
-                <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>
+                <th
+                  key={h}
+                  className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400"
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {actor.incidents.map(inc => (
               <tr key={inc.id} className="border-t border-gray-50 hover:bg-red-50/30">
-                <td className="px-4 py-2.5 text-[12px] text-gray-700">{inc.date}</td>
-                <td className="px-4 py-2.5 text-[12px] text-gray-700">{inc.t}</td>
+                <td className="px-4 py-2.5 text-[12px] text-gray-700">{getLogDate(inc)}</td>
+                <td className="px-4 py-2.5 text-[12px] text-gray-700">{getLogTime(inc)}</td>
                 <td className="px-4 py-2.5">
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">↩ {inc.ev}</span>
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                    ↩ {getEventDisplayType(inc.eventType)}
+                  </span>
                 </td>
                 <td className="px-4 py-2.5">
-                  <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{inc.gate}</span>
+                  <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                    {inc.door?.name ?? '—'}
+                  </span>
                 </td>
-                <td className="px-4 py-2.5 text-[12px] text-gray-500">{inc.notes || '—'}</td>
+                <td className="px-4 py-2.5 text-[12px] text-gray-500">{inc.review?.comment || '—'}</td>
               </tr>
             ))}
           </tbody>

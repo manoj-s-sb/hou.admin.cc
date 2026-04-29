@@ -24,7 +24,7 @@ const endpoints = {
   },
   tailgate: {
     createEvent: '/admin/tailgate/events',
-    review:      '/admin/tailgate/review',
+    review: '/admin/tailgate/review',
   },
   induction: {
     list: '/admin/bookings/list',

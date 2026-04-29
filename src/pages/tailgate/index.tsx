@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { AppDispatch, RootState } from '../../store/store';
-import { createTailgateEvent } from '../../store/tailgate/api';
-import { TailgateLog, TailgateStatus } from '../../store/tailgate/types';
+import { fetchTailgateEvents } from '../../store/tailgate/api';
+import { TailgateLog } from '../../store/tailgate/types';
 
 import AllLogsTable from './components/AllLogsTable';
 import LogFilters from './components/LogFilters';
@@ -16,13 +16,13 @@ import VideoModal from './components/VideoModal';
 import ViewModal from './components/ViewModal';
 import ViolationsTab from './components/ViolationsTab';
 import { DEFAULT_FILTERS, TailgateFilters } from './constants';
+import { getAvatarData, getEffectiveEventType, getLogDate, getLogDateVal, getLogStatus } from './utils';
 
 type TailgateTab = 'logs' | 'unid' | 'viol';
 
 const FACILITY_TZ = 'America/Chicago';
 
-const toLocalDateStr = (d: Date) =>
-  d.toLocaleDateString('en-CA', { timeZone: FACILITY_TZ }); // YYYY-MM-DD in Houston time
+const toLocalDateStr = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: FACILITY_TZ });
 const toApiDate = (isoDate: string) => {
   const [y, m, d] = isoDate.split('-');
   return `${d}-${m}-${y}`;
@@ -47,86 +47,106 @@ const Tailgate = () => {
     setPage(0);
   };
 
-  const handleSaveReview = (status: TailgateStatus) => {
-    setToast(status === 'violation'
-      ? { message: 'Violation flagged and saved', type: 'danger' }
-      : { message: 'Review saved successfully', type: 'success' }
+  const handleSaveReview = (isViolation: boolean) => {
+    setToast(
+      isViolation
+        ? { message: 'Violation flagged and saved', type: 'danger' }
+        : { message: 'Review saved successfully', type: 'success' }
     );
   };
 
   useEffect(() => {
-    const payload: Parameters<typeof createTailgateEvent>[0] = {};
-    if (filters.from) payload.from_date = toApiDate(filters.from);
-    if (filters.to) payload.to_date = toApiDate(filters.to);
-    if (filters.type) payload.event_type = filters.type.toLowerCase();
-    if (filters.name) payload.member_name = filters.name;
-    if (filters.door) payload.lane_door = filters.door;
-    dispatch(createTailgateEvent(payload));
+    const payload: Parameters<typeof fetchTailgateEvents>[0] = {};
+    if (filters.from) payload.fromDate = toApiDate(filters.from);
+    if (filters.to) payload.toDate = toApiDate(filters.to);
+    if (filters.name) payload.memberName = filters.name;
+    if (filters.door) payload.laneDoor = filters.door;
+    dispatch(fetchTailgateEvents(payload));
   }, [dispatch, filters.from, filters.to, filters.type, filters.name, filters.door]);
 
   const todayVal = toLocalDateStr(new Date());
-  const todayLogs = logs.filter(l => l.dateVal === todayVal);
+  const todayLogs = logs.filter(l => getLogDateVal(l) === todayVal);
   const computedStats = {
-    today_date: todayLogs[0]?.date ?? new Date().toLocaleDateString('en-US', { timeZone: FACILITY_TZ, month: 'short', day: 'numeric', year: 'numeric' }),
+    today_date: todayLogs[0]
+      ? getLogDate(todayLogs[0])
+      : new Date().toLocaleDateString('en-US', {
+          timeZone: FACILITY_TZ,
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
     today_total: todayLogs.length,
-    today_entries: todayLogs.filter(l => l.ev === 'Entry').length,
-    today_tailgates: todayLogs.filter(l => l.ev === 'Tailgate').length,
-    total_unidentified: logs.filter(l => !l.actorId).length,
-    total_violations: logs.filter(l => l.viol).length,
+    today_entries: todayLogs.filter(l => getEffectiveEventType(l) === 'Entry').length,
+    today_tailgates: todayLogs.filter(l => getEffectiveEventType(l) === 'Tailgate').length,
+    total_unidentified: logs.filter(l => !l.actor).length,
+    total_violations: logs.filter(l => l.review?.isViolation === true).length,
   };
 
-  const pendingCount = logs.filter(l => !l.actorId && l.status === 'pending').length;
-  const violationCount = logs.filter(l => l.viol).length;
+  const pendingCount = logs.filter(l => !l.actor && getLogStatus(l) === 'pending').length;
+  const violationCount = logs.filter(l => l.review?.isViolation === true).length;
   const activeFilterCount = Object.entries(filters).filter(([, v]) => v !== '').length;
 
-  // Filter (date is handled by API via selectedDate — only client-side filters here)
   const filteredLogs = logs.filter(l => {
-    if (filters.name && !(l.name || '').toLowerCase().includes(filters.name.toLowerCase())) return false;
-    if (filters.type && l.ev !== filters.type) return false;
-    if (filters.status && l.status !== filters.status) return false;
-    if (filters.door && l.gate !== filters.door) return false;
+    const displayName = l.review?.reviewed ? (l.review.memberName ?? '') : (l.actor?.name ?? '');
+    if (filters.name && !displayName.toLowerCase().includes(filters.name.toLowerCase())) return false;
+    if (filters.type && getEffectiveEventType(l) !== filters.type) return false;
+    if (filters.status && getLogStatus(l) !== filters.status) return false;
+    if (filters.door && l.door?.name !== filters.door) return false;
     return true;
   });
 
   // Group + sort by date and time
-  const groupedLogs = filteredLogs.reduce<Record<string, { date: string; items: TailgateLog[] }>>(
-    (acc, l) => {
-      if (!acc[l.dateVal]) acc[l.dateVal] = { date: l.date, items: [] };
-      acc[l.dateVal].items.push(l);
-      return acc;
-    },
-    {}
-  );
+  const groupedLogs = filteredLogs.reduce<Record<string, { date: string; items: TailgateLog[] }>>((acc, l) => {
+    const dv = getLogDateVal(l);
+    if (!acc[dv]) acc[dv] = { date: getLogDate(l), items: [] };
+    acc[dv].items.push(l);
+    return acc;
+  }, {});
   const sortedDates = Object.keys(groupedLogs).sort((a, b) => b.localeCompare(a));
   sortedDates.forEach(d => {
     groupedLogs[d].items.sort((a, b) => {
-      const cmp = a.sortTs - b.sortTs;
+      const cmp = a.timeStampms - b.timeStampms;
       return timeSortDir === 'asc' ? cmp : -cmp;
     });
   });
 
   // Paginate
-  const flatItems = sortedDates.flatMap(d => groupedLogs[d].items.map(item => ({ dateVal: d, date: groupedLogs[d].date, item })));
+  const flatItems = sortedDates.flatMap(d =>
+    groupedLogs[d].items.map(item => ({ dateVal: d, date: groupedLogs[d].date, item }))
+  );
   const totalRows = flatItems.length;
   const totalPages = Math.ceil(totalRows / rowsPerPage);
   const pageSlice = flatItems.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-  const pagedGroups = pageSlice.reduce<Record<string, { date: string; items: TailgateLog[] }>>((acc, { dateVal, date, item }) => {
-    if (!acc[dateVal]) acc[dateVal] = { date, items: [] };
-    acc[dateVal].items.push(item);
-    return acc;
-  }, {});
+  const pagedGroups = pageSlice.reduce<Record<string, { date: string; items: TailgateLog[] }>>(
+    (acc, { dateVal, date, item }) => {
+      if (!acc[dateVal]) acc[dateVal] = { date, items: [] };
+      acc[dateVal].items.push(item);
+      return acc;
+    },
+    {}
+  );
   const pagedDates = Array.from(new Set(pageSlice.map(r => r.dateVal)));
 
   // Unidentified tab data
-  const pendingLogs = logs.filter(l => !l.actorId && l.status === 'pending').sort((a, b) => a.dateVal.localeCompare(b.dateVal));
+  const pendingLogs = logs
+    .filter(l => !l.actor && getLogStatus(l) === 'pending')
+    .sort((a, b) => getLogDateVal(a).localeCompare(getLogDateVal(b)));
 
   // Violations tab data
-  const byActor: Record<string, { name: string | null; ini: string; ab: string; ac: string; actorType: string | null; incidents: TailgateLog[] }> = {};
-  logs.filter(l => l.viol).forEach(l => {
-    const k = l.actorId || '__unknown__';
-    if (!byActor[k]) byActor[k] = { name: l.name, ini: l.ini, ab: l.ab, ac: l.ac, actorType: l.actorType, incidents: [] };
-    byActor[k].incidents.push(l);
-  });
+  const byActor: Record<
+    string,
+    { name: string | null; ini: string; ab: string; ac: string; actorType: string | null; incidents: TailgateLog[] }
+  > = {};
+  logs
+    .filter(l => l.review?.isViolation === true)
+    .forEach(l => {
+      const k = l.actor?.id || '__unknown__';
+      if (!byActor[k]) {
+        const { ini, ab, ac } = getAvatarData(l.actor?.name);
+        byActor[k] = { name: l.actor?.name ?? null, ini, ab, ac, actorType: l.actor?.type ?? null, incidents: [] };
+      }
+      byActor[k].incidents.push(l);
+    });
   const actors = Object.values(byActor).sort((a, b) => b.incidents.length - a.incidents.length);
 
   const tabs: { key: TailgateTab; label: string; badge?: number; badgeCls?: string }[] = [
@@ -154,14 +174,19 @@ const Tailgate = () => {
             {tabs.map(tab => (
               <button
                 key={tab.key}
-                className={`relative flex items-center gap-1.5 px-5 pb-3.5 pt-4 text-sm transition-colors ${activeTab === tab.key ? 'font-semibold text-[#21295A]' : 'font-medium text-gray-400 hover:text-gray-600'
-                  }`}
+                className={`relative flex items-center gap-1.5 px-5 pb-3.5 pt-4 text-sm transition-colors ${
+                  activeTab === tab.key
+                    ? 'font-semibold text-[#21295A]'
+                    : 'font-medium text-gray-400 hover:text-gray-600'
+                }`}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
               >
                 {tab.label}
                 {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${tab.badgeCls}`}>
+                  <span
+                    className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${tab.badgeCls}`}
+                  >
                     {tab.badge > 99 ? '99+' : tab.badge}
                   </span>
                 )}
@@ -182,12 +207,17 @@ const Tailgate = () => {
                 activeFilterCount={activeFilterCount}
                 filters={filters}
                 onFilterChange={handleFilterChange}
-                onReset={() => { setFilters(DEFAULT_FILTERS); setPage(0); }}
+                onReset={() => {
+                  setFilters(DEFAULT_FILTERS);
+                  setPage(0);
+                }}
               />
               {isLoading ? (
                 <div className="py-10 text-center text-[13px] text-gray-400">Loading…</div>
               ) : totalRows === 0 ? (
-                <div className="py-10 text-center text-[13px] text-gray-400">No logs found. Try adjusting your filters.</div>
+                <div className="py-10 text-center text-[13px] text-gray-400">
+                  No logs found. Try adjusting your filters.
+                </div>
               ) : (
                 <AllLogsTable
                   page={page}
@@ -199,8 +229,11 @@ const Tailgate = () => {
                   totalRows={totalRows}
                   onPageChange={setPage}
                   onReviewClick={setReviewLog}
-                  onRowsPerPageChange={n => { setRowsPerPage(n); setPage(0); }}
-                  onTimeSortToggle={() => setTimeSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                  onRowsPerPageChange={n => {
+                    setRowsPerPage(n);
+                    setPage(0);
+                  }}
+                  onTimeSortToggle={() => setTimeSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
                   onVideoClick={setVideoLog}
                   onViewClick={setViewLog}
                 />
@@ -210,25 +243,17 @@ const Tailgate = () => {
 
           {/* Unidentified tab */}
           {activeTab === 'unid' && (
-            <UnidentifiedTab onReviewClick={setReviewLog} onVideoClick={setVideoLog} pendingLogs={pendingLogs} />
+            <UnidentifiedTab pendingLogs={pendingLogs} onReviewClick={setReviewLog} onVideoClick={setVideoLog} />
           )}
 
           {/* Violations tab */}
-          {activeTab === 'viol' && (
-            <ViolationsTab actors={actors} />
-          )}
+          {activeTab === 'viol' && <ViolationsTab actors={actors} />}
         </div>
       </div>
 
       {videoLog && <VideoModal log={videoLog} onClose={() => setVideoLog(null)} />}
       {viewLog && <ViewModal log={viewLog} onClose={() => setViewLog(null)} />}
-      {reviewLog && (
-        <ReviewModal
-          log={reviewLog}
-          onClose={() => setReviewLog(null)}
-          onSave={handleSaveReview}
-        />
-      )}
+      {reviewLog && <ReviewModal log={reviewLog} onClose={() => setReviewLog(null)} onSave={handleSaveReview} />}
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </div>
   );

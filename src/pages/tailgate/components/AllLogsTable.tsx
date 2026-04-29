@@ -1,5 +1,13 @@
 import { TailgateLog } from '../../../store/tailgate/types';
 import { eventMap, getPageNumbers, statusConfig, TABLE_HEADERS } from '../constants';
+import {
+  getAvatarData,
+  getEffectiveEventType,
+  getEffectiveName,
+  getLogStatus,
+  getLogTime,
+  getPersonCount,
+} from '../utils';
 
 interface AllLogsTableProps {
   pagedDates: string[];
@@ -17,21 +25,27 @@ interface AllLogsTableProps {
   onViewClick: (row: TailgateLog) => void;
 }
 
-const renderIdentity = (row: TailgateLog) =>
-  row.name ? (
-    <div className="flex items-center gap-2">
-      <div
-        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-        style={{ background: row.ab, color: row.ac }}
-      >
-        {row.ini}
+const renderIdentity = (row: TailgateLog) => {
+  const name = getEffectiveName(row);
+  const memberType = row.review?.reviewed ? row.review.memberType : (row.actor?.type ?? null);
+  if (name) {
+    const { ini, ab, ac } = getAvatarData(name);
+    return (
+      <div className="flex items-center gap-2">
+        <div
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+          style={{ background: ab, color: ac }}
+        >
+          {ini}
+        </div>
+        <div>
+          <p className="text-[13px] font-semibold text-[#21295A]">{name}</p>
+          {memberType && <p className="text-[11px] text-gray-400">{memberType}</p>}
+        </div>
       </div>
-      <div>
-        <p className="text-[13px] font-semibold text-[#21295A]">{row.name}</p>
-        {row.actorType && <p className="text-[11px] text-gray-400">{row.actorType}</p>}
-      </div>
-    </div>
-  ) : (
+    );
+  }
+  return (
     <div className="flex items-center gap-2">
       <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 border-dashed border-yellow-400 bg-yellow-50 text-[11px] font-bold text-yellow-700">
         ?
@@ -42,16 +56,29 @@ const renderIdentity = (row: TailgateLog) =>
       </div>
     </div>
   );
+};
 
 const AllLogsTable = ({
-  pagedDates, pagedGroups, totalRows, totalPages, page, rowsPerPage,
-  timeSortDir, onTimeSortToggle, onPageChange, onRowsPerPageChange,
-  onVideoClick, onReviewClick, onViewClick,
+  pagedDates,
+  pagedGroups,
+  totalRows,
+  totalPages,
+  page,
+  rowsPerPage,
+  timeSortDir,
+  onTimeSortToggle,
+  onPageChange,
+  onRowsPerPageChange,
+  onVideoClick,
+  onReviewClick,
+  onViewClick,
 }: AllLogsTableProps) => {
   const pageNumbers = getPageNumbers(page, totalPages);
 
   const renderVideoCell = (row: TailgateLog) => {
-    const grad = (eventMap[row.ev] || eventMap.Entry).gradient;
+    const evType = getEffectiveEventType(row);
+    const grad = (eventMap[evType] || eventMap.Entry).gradient;
+    const count = getPersonCount(row);
     return (
       <button className="flex flex-col items-center gap-1" type="button" onClick={() => onVideoClick(row)}>
         <div
@@ -69,7 +96,9 @@ const AllLogsTable = ({
             </div>
           </div>
         </div>
-        <span className="text-[10px] text-gray-400">{row.tr}</span>
+        <span className="text-[10px] text-gray-400">
+          {count} person{count !== 1 ? 's' : ''}
+        </span>
       </button>
     );
   };
@@ -80,7 +109,10 @@ const AllLogsTable = ({
         <thead>
           <tr className="bg-gray-50">
             {TABLE_HEADERS.map(h => (
-              <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <th
+                key={h}
+                className="whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+              >
                 {h === 'Time' ? (
                   <button
                     className="group flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 hover:text-[#21295A]"
@@ -92,7 +124,9 @@ const AllLogsTable = ({
                       {timeSortDir === 'asc' ? '↑' : '↓'}
                     </span>
                   </button>
-                ) : h}
+                ) : (
+                  h
+                )}
               </th>
             ))}
           </tr>
@@ -104,8 +138,18 @@ const AllLogsTable = ({
               <tr key={`date-${dateVal}`} className="border-l-4 border-l-[#21295A] bg-[#21295A]/[0.06]">
                 <td className="px-4 py-2.5" colSpan={TABLE_HEADERS.length}>
                   <div className="flex items-center gap-3">
-                    <svg className="h-3.5 w-3.5 flex-shrink-0 text-[#21295A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                    <svg
+                      className="h-3.5 w-3.5 flex-shrink-0 text-[#21295A]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                      />
                     </svg>
                     <span className="text-[12px] font-bold text-[#21295A]">{group.date}</span>
                     <span className="h-px flex-1 bg-[#21295A]/15" />
@@ -116,35 +160,56 @@ const AllLogsTable = ({
                 </td>
               </tr>,
               ...group.items.map((row, idx) => {
-                const { label: evLabel, className: evCls } = eventMap[row.ev] || { label: row.ev, className: 'bg-gray-100 text-gray-600', gradient: '' };
-                const sc = statusConfig[row.status] || statusConfig.pending;
+                const evType = getEffectiveEventType(row);
+                const status = getLogStatus(row);
+                const isViol = row.review?.isViolation === true;
+                const { label: evLabel, className: evCls } = eventMap[evType] || {
+                  label: evType,
+                  className: 'bg-gray-100 text-gray-600',
+                  gradient: '',
+                };
+                const sc = statusConfig[status] || statusConfig.pending;
+                const reviewMemberId = row.review?.reviewed ? (row.review.memberId ?? null) : (row.actor?.id ?? null);
                 return (
                   <tr
                     key={row.id}
                     className={`border-t border-gray-100 transition-colors ${
-                      row.viol ? 'bg-red-50/40 hover:bg-red-50' : !row.actorId ? 'bg-yellow-50/40 hover:bg-yellow-50' : 'hover:bg-gray-50'
+                      isViol
+                        ? 'bg-red-50/40 hover:bg-red-50'
+                        : !row.actor
+                          ? 'bg-yellow-50/40 hover:bg-yellow-50'
+                          : 'hover:bg-gray-50'
                     }`}
                   >
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] font-medium text-gray-400">{idx + 1}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{row.t}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{getLogTime(row)}</td>
                     <td className="px-4 py-3">{renderVideoCell(row)}</td>
                     <td className="whitespace-nowrap px-4 py-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${evCls}`}>{evLabel}</span>
                     </td>
                     <td className="px-4 py-3">{renderIdentity(row)}</td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      {row.memberId
-                        ? <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-gray-600">{row.memberId}</span>
-                        : <span className="rounded bg-yellow-50 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">—</span>
-                      }
+                      {reviewMemberId ? (
+                        <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-gray-600">
+                          {reviewMemberId}
+                        </span>
+                      ) : (
+                        <span className="rounded bg-yellow-50 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">
+                          —
+                        </span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{row.gate}</span>
+                      <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                        {row.door?.name ?? '—'}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${sc.badgeCls}`}>{sc.label}</span>
-                        {row.status === 'pending' ? (
+                        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${sc.badgeCls}`}>
+                          {sc.label}
+                        </span>
+                        {status === 'pending' ? (
                           <button
                             className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${sc.btnCls}`}
                             type="button"
@@ -190,7 +255,9 @@ const AllLogsTable = ({
             onChange={e => onRowsPerPageChange(parseInt(e.target.value, 10))}
           >
             {[10, 20, 30, 50, 100].map(opt => (
-              <option key={opt} value={opt}>{opt}</option>
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
             ))}
           </select>
           <span className="text-xs text-gray-400">
@@ -209,7 +276,9 @@ const AllLogsTable = ({
           <div className="flex items-center gap-1 px-1">
             {pageNumbers.map((p, i) =>
               p === '...' ? (
-                <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">...</span>
+                <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">
+                  ...
+                </span>
               ) : (
                 <button
                   key={p}

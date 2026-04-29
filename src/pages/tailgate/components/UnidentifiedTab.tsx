@@ -1,5 +1,6 @@
 import { TailgateLog } from '../../../store/tailgate/types';
 import { eventMap } from '../constants';
+import { getEventDisplayType, getLogDate, getLogDateVal, getLogTime, getPersonCount } from '../utils';
 
 interface UnidentifiedTabProps {
   pendingLogs: TailgateLog[];
@@ -10,8 +11,18 @@ interface UnidentifiedTabProps {
 const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick }: UnidentifiedTabProps) => (
   <>
     <div className="mb-4 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
-      <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+      <svg
+        className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-600"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+        />
         <line x1="12" x2="12" y1="9" y2="13" />
         <line x1="12" x2="12.01" y1="17" y2="17" />
       </svg>
@@ -27,32 +38,57 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick }: Unidentif
         <thead>
           <tr className="bg-gray-50">
             {['S.No', 'Date', 'Time', 'Video', 'Event Type', 'Lane Door', 'Actions'].map(h => (
-              <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>
+              <th
+                key={h}
+                className="whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+              >
+                {h}
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {pendingLogs.length === 0 && (
             <tr>
-              <td className="py-10 text-center text-[13px] text-gray-400" colSpan={7}>No pending entries.</td>
+              <td className="py-10 text-center text-[13px] text-gray-400" colSpan={7}>
+                No pending entries.
+              </td>
             </tr>
           )}
           {pendingLogs.map((row, idx) => {
             const todayVal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-            const dayDiff  = Math.round((new Date(todayVal).getTime() - new Date(row.dateVal).getTime()) / (1000 * 60 * 60 * 24));
-            const ageCls   = dayDiff === 0 ? 'bg-green-100 text-green-700' : dayDiff === 1 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700';
+            const dateVal = getLogDateVal(row);
+            const dayDiff = Math.round(
+              (new Date(todayVal).getTime() - new Date(dateVal).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            const ageCls =
+              dayDiff === 0
+                ? 'bg-green-100 text-green-700'
+                : dayDiff === 1
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-red-100 text-red-700';
             const ageLabel = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Yesterday' : `${dayDiff}d old`;
-            const { label: evLabel, className: evCls, gradient } = eventMap[row.ev] || { label: row.ev, className: 'bg-gray-100 text-gray-600', gradient: 'linear-gradient(135deg,#1f2937,#4b5563)' };
+            const evType = getEventDisplayType(row.eventType);
+            const {
+              label: evLabel,
+              className: evCls,
+              gradient,
+            } = eventMap[evType] || {
+              label: evType,
+              className: 'bg-gray-100 text-gray-600',
+              gradient: 'linear-gradient(135deg,#1f2937,#4b5563)',
+            };
+            const count = getPersonCount(row);
             return (
               <tr key={row.id} className="border-t border-gray-100 bg-yellow-50/30 hover:bg-yellow-50">
                 <td className="px-4 py-3 text-[13px] font-medium text-gray-400">{idx + 1}</td>
                 <td className="whitespace-nowrap px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-semibold text-[#21295A]">{row.date}</span>
+                    <span className="text-[13px] font-semibold text-[#21295A]">{getLogDate(row)}</span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ageCls}`}>{ageLabel}</span>
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{row.t}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{getLogTime(row)}</td>
                 <td className="px-4 py-3">
                   <button className="flex flex-col items-center gap-1" type="button" onClick={() => onVideoClick(row)}>
                     <div
@@ -60,7 +96,11 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick }: Unidentif
                       style={{ background: row.snapshotUrl ? undefined : gradient }}
                     >
                       {row.snapshotUrl && (
-                        <img alt="snapshot" className="absolute inset-0 h-full w-full object-cover" src={row.snapshotUrl} />
+                        <img
+                          alt="snapshot"
+                          className="absolute inset-0 h-full w-full object-cover"
+                          src={row.snapshotUrl}
+                        />
                       )}
                       <div className="absolute inset-0 flex items-center justify-center bg-black/25">
                         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90">
@@ -70,14 +110,18 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick }: Unidentif
                         </div>
                       </div>
                     </div>
-                    <span className="text-[10px] text-gray-400">{row.tr}</span>
+                    <span className="text-[10px] text-gray-400">
+                      {count} person{count !== 1 ? 's' : ''}
+                    </span>
                   </button>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
                   <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${evCls}`}>{evLabel}</span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
-                  <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{row.gate}</span>
+                  <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                    {row.door?.name ?? '—'}
+                  </span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
                   <button

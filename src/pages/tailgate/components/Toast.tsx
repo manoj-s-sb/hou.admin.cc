@@ -20,12 +20,10 @@ const Toast = ({ message, type, onDismiss }: ToastProps) => {
       className="fixed bottom-7 right-7 z-[100] flex items-center gap-3 rounded-xl px-5 py-3.5 text-[13px] font-semibold text-white shadow-2xl"
       style={{ background: bg }}
     >
-      <span>{prefix} {message}</span>
-      <button
-        className="ml-2 text-white/70 hover:text-white"
-        type="button"
-        onClick={onDismiss}
-      >
+      <span>
+        {prefix} {message}
+      </span>
+      <button className="ml-2 text-white/70 hover:text-white" type="button" onClick={onDismiss}>
         ✕
       </button>
     </div>

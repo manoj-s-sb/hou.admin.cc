@@ -1,4 +1,5 @@
 import { TailgateLog } from '../../../store/tailgate/types';
+import { getLogDate, getLogTime } from '../utils';
 
 interface VideoModalProps {
   log: TailgateLog;
@@ -20,8 +21,10 @@ const VideoModal = ({ log, onClose }: VideoModalProps) => (
     >
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
         <div>
-          <p className="text-[14px] font-bold text-[#21295A]">Video — {log.date}</p>
-          <p className="text-[11px] text-gray-400">{log.t} · {log.gate}</p>
+          <p className="text-[14px] font-bold text-[#21295A]">Video — {getLogDate(log)}</p>
+          <p className="text-[11px] text-gray-400">
+            {getLogTime(log)} · {log.door?.name ?? '—'}
+          </p>
         </div>
         <button
           className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"

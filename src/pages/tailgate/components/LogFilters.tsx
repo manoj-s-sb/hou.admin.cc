@@ -7,7 +7,8 @@ interface LogFiltersProps {
   onReset: () => void;
 }
 
-const inputCls = 'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
+const inputCls =
+  'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
 const labelCls = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
 
 const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: LogFiltersProps) => (
@@ -16,7 +17,12 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <svg className="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} />
+            <path
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.8}
+            />
           </svg>
           <span className="text-[12px] font-semibold text-gray-500">Filters</span>
           {activeFilterCount > 0 && (
@@ -35,7 +41,9 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <div>
-          <label className={labelCls} htmlFor="tg-from">From Date</label>
+          <label className={labelCls} htmlFor="tg-from">
+            From Date
+          </label>
           <input
             className={inputCls}
             id="tg-from"
@@ -45,7 +53,9 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
           />
         </div>
         <div>
-          <label className={labelCls} htmlFor="tg-to">To Date</label>
+          <label className={labelCls} htmlFor="tg-to">
+            To Date
+          </label>
           <input
             className={inputCls}
             id="tg-to"
@@ -55,7 +65,9 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
           />
         </div>
         <div>
-          <label className={labelCls} htmlFor="tg-name">Member / Name</label>
+          <label className={labelCls} htmlFor="tg-name">
+            Member / Name
+          </label>
           <input
             className={inputCls}
             id="tg-name"
@@ -66,7 +78,9 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
           />
         </div>
         <div>
-          <label className={labelCls} htmlFor="tg-type">Event Type</label>
+          <label className={labelCls} htmlFor="tg-type">
+            Event Type
+          </label>
           <select
             className={inputCls}
             id="tg-type"
@@ -80,7 +94,9 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
           </select>
         </div>
         <div>
-          <label className={labelCls} htmlFor="tg-status">Review Status</label>
+          <label className={labelCls} htmlFor="tg-status">
+            Review Status
+          </label>
           <select
             className={inputCls}
             id="tg-status"
@@ -94,7 +110,9 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
           </select>
         </div>
         <div>
-          <label className={labelCls} htmlFor="tg-door">Lane Door</label>
+          <label className={labelCls} htmlFor="tg-door">
+            Lane Door
+          </label>
           <select
             className={inputCls}
             id="tg-door"
