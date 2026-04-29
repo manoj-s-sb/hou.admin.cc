@@ -8,7 +8,7 @@ export type TailgateFilters = {
 };
 
 export const DEFAULT_FILTERS: TailgateFilters = {
-  from: '', to: '', name: '', type: 'Tailgate', status: '', door: '',
+  from: '', to: '', name: '', type: '', status: '', door: '',
 };
 
 export const TABLE_HEADERS = ['S.No', 'Time', 'Video', 'Event Type', 'Identity', 'Member ID', 'Lane Door', 'Status'];

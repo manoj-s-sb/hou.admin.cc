@@ -1,13 +1,16 @@
-import { TailgateStats } from '../../../store/tailgate/types';
-
 interface StatsCardsProps {
-  stats: TailgateStats;
+  today_total: number;
+  today_date: string;
+  today_entries: number;
+  today_tailgates: number;
+  total_unidentified: number;
+  total_violations: number;
 }
 
-const StatsCards = ({ stats }: StatsCardsProps) => {
+const StatsCards = ({ today_total, today_date, today_entries, today_tailgates, total_unidentified, total_violations }: StatsCardsProps) => {
   const cards = [
     {
-      label: "Today's Events", value: stats.today_total, sub: stats.today_date,
+      label: "Today's Events", value: today_total, sub: today_date,
       color: 'text-[#21295A]', border: 'border-l-4 border-l-[#21295A]',
       icon: (
         <svg className="h-4 w-4 text-[#21295A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -16,7 +19,7 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
       ),
     },
     {
-      label: 'Entries', value: stats.today_entries, sub: 'Lane door entries',
+      label: 'Entries', value: today_entries, sub: 'Lane door entries',
       color: 'text-green-600', border: 'border-l-4 border-l-green-400',
       icon: (
         <svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,7 +28,7 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
       ),
     },
     {
-      label: 'Tailgates', value: stats.today_tailgates, sub: 'Detected today',
+      label: 'Tailgates', value: today_tailgates, sub: 'Detected today',
       color: 'text-red-600', border: 'border-l-4 border-l-red-400',
       icon: (
         <svg className="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,7 +37,7 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
       ),
     },
     {
-      label: 'Unidentified', value: stats.total_unidentified, sub: 'Across all dates',
+      label: 'Unidentified', value: total_unidentified, sub: 'Across all dates',
       color: 'text-yellow-600', border: 'border-l-4 border-l-yellow-400',
       icon: (
         <svg className="h-4 w-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +46,7 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
       ),
     },
     {
-      label: 'Violations', value: stats.total_violations, sub: 'All time',
+      label: 'Violations', value: total_violations, sub: 'All time',
       color: 'text-red-600', border: 'border-l-4 border-l-red-600',
       icon: (
         <svg className="h-4 w-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

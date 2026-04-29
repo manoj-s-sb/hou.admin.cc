@@ -4,9 +4,10 @@ import { eventMap } from '../constants';
 interface UnidentifiedTabProps {
   pendingLogs: TailgateLog[];
   onVideoClick: (row: TailgateLog) => void;
+  onReviewClick: (row: TailgateLog) => void;
 }
 
-const UnidentifiedTab = ({ pendingLogs, onVideoClick }: UnidentifiedTabProps) => (
+const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick }: UnidentifiedTabProps) => (
   <>
     <div className="mb-4 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
       <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,7 +26,7 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick }: UnidentifiedTabProps) =>
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-gray-50">
-            {['S.No', 'Date', 'Time', 'Video', 'Event Type', 'Lane Door'].map(h => (
+            {['S.No', 'Date', 'Time', 'Video', 'Event Type', 'Lane Door', 'Actions'].map(h => (
               <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>
             ))}
           </tr>
@@ -33,11 +34,11 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick }: UnidentifiedTabProps) =>
         <tbody>
           {pendingLogs.length === 0 && (
             <tr>
-              <td className="py-10 text-center text-[13px] text-gray-400" colSpan={6}>No pending entries.</td>
+              <td className="py-10 text-center text-[13px] text-gray-400" colSpan={7}>No pending entries.</td>
             </tr>
           )}
           {pendingLogs.map((row, idx) => {
-            const todayVal = new Date().toISOString().slice(0, 10);
+            const todayVal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
             const dayDiff  = Math.round((new Date(todayVal).getTime() - new Date(row.dateVal).getTime()) / (1000 * 60 * 60 * 24));
             const ageCls   = dayDiff === 0 ? 'bg-green-100 text-green-700' : dayDiff === 1 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700';
             const ageLabel = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Yesterday' : `${dayDiff}d old`;
@@ -56,8 +57,11 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick }: UnidentifiedTabProps) =>
                   <button className="flex flex-col items-center gap-1" type="button" onClick={() => onVideoClick(row)}>
                     <div
                       className="relative flex h-11 w-16 items-center justify-center overflow-hidden rounded-lg"
-                      style={{ background: gradient }}
+                      style={{ background: row.snapshotUrl ? undefined : gradient }}
                     >
+                      {row.snapshotUrl && (
+                        <img alt="snapshot" className="absolute inset-0 h-full w-full object-cover" src={row.snapshotUrl} />
+                      )}
                       <div className="absolute inset-0 flex items-center justify-center bg-black/25">
                         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90">
                           <svg className="ml-0.5 h-2.5 w-2.5 text-[#21295A]" fill="currentColor" viewBox="0 0 10 12">
@@ -74,6 +78,15 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick }: UnidentifiedTabProps) =>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
                   <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{row.gate}</span>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3">
+                  <button
+                    className="rounded-lg bg-yellow-400 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-yellow-500"
+                    type="button"
+                    onClick={() => onReviewClick(row)}
+                  >
+                    Review Now
+                  </button>
                 </td>
               </tr>
             );

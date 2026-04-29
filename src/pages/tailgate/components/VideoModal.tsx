@@ -33,9 +33,11 @@ const VideoModal = ({ log, onClose }: VideoModalProps) => (
       </div>
       <div className="p-5">
         {log.videoUrl ? (
-          <video controls className="w-full rounded-xl" src={log.videoUrl}>
+          <video controls className="w-full rounded-xl" src={log.videoUrl} preload="metadata">
             <track kind="captions" label="Captions" srcLang="en" />
           </video>
+        ) : log.snapshotUrl ? (
+          <img alt="Event snapshot" className="w-full rounded-xl object-cover" src={log.snapshotUrl} />
         ) : (
           <div className="flex h-52 items-center justify-center rounded-xl bg-[#1a2340]">
             <div className="flex flex-col items-center gap-2">
