@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { AppDispatch, RootState } from '../../store/store';
-import { fetchTailgateEvents } from '../../store/tailgate/api';
+import { fetchTailgateEvents, fetchTailgateStats } from '../../store/tailgate/api';
 import { TailgateLog } from '../../store/tailgate/types';
 
 import AllLogsTable from './components/AllLogsTable';
@@ -22,7 +22,6 @@ type TailgateTab = 'logs' | 'unid' | 'viol';
 
 const FACILITY_TZ = 'America/Chicago';
 
-const toLocalDateStr = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: FACILITY_TZ });
 const toApiDate = (isoDate: string) => {
   const [y, m, d] = isoDate.split('-');
   return `${d}-${m}-${y}`;
@@ -30,7 +29,7 @@ const toApiDate = (isoDate: string) => {
 
 const Tailgate = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { logs, isLoading } = useSelector((state: RootState) => state.tailgate);
+  const { logs, isLoading, stats } = useSelector((state: RootState) => state.tailgate);
 
   const [activeTab, setActiveTab] = useState<TailgateTab>('logs');
   const [filters, setFilters] = useState<TailgateFilters>(DEFAULT_FILTERS);
@@ -53,7 +52,18 @@ const Tailgate = () => {
         ? { message: 'Violation flagged and saved', type: 'danger' }
         : { message: 'Review saved successfully', type: 'success' }
     );
+    const payload: Parameters<typeof fetchTailgateEvents>[0] = {};
+    if (filters.from) payload.fromDate = toApiDate(filters.from);
+    if (filters.to) payload.toDate = toApiDate(filters.to);
+    if (filters.name) payload.memberName = filters.name;
+    if (filters.door) payload.laneDoor = filters.door;
+    dispatch(fetchTailgateEvents(payload));
+    dispatch(fetchTailgateStats());
   };
+
+  useEffect(() => {
+    dispatch(fetchTailgateStats());
+  }, [dispatch]);
 
   useEffect(() => {
     const payload: Parameters<typeof fetchTailgateEvents>[0] = {};
@@ -64,25 +74,28 @@ const Tailgate = () => {
     dispatch(fetchTailgateEvents(payload));
   }, [dispatch, filters.from, filters.to, filters.type, filters.name, filters.door]);
 
-  const todayVal = toLocalDateStr(new Date());
-  const todayLogs = logs.filter(l => getLogDateVal(l) === todayVal);
-  const computedStats = {
-    today_date: todayLogs[0]
-      ? getLogDate(todayLogs[0])
+  const apiStats = {
+    today_date: stats?.todayDate
+      ? new Date(stats.todayDate).toLocaleDateString('en-US', {
+          timeZone: FACILITY_TZ,
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
       : new Date().toLocaleDateString('en-US', {
           timeZone: FACILITY_TZ,
           month: 'short',
           day: 'numeric',
           year: 'numeric',
         }),
-    today_total: todayLogs.length,
-    today_entries: todayLogs.filter(l => getEffectiveEventType(l) === 'Entry').length,
-    today_tailgates: todayLogs.filter(l => getEffectiveEventType(l) === 'Tailgate').length,
-    total_unidentified: logs.filter(l => !l.actor).length,
-    total_violations: logs.filter(l => l.review?.isViolation === true).length,
+    today_total: stats?.todayTotal ?? 0,
+    today_entries: stats?.todayEntries ?? 0,
+    today_tailgates: stats?.todayTailgates ?? 0,
+    total_unidentified: stats?.totalUnidentified ?? 0,
+    total_violations: stats?.totalViolations ?? 0,
   };
 
-  const pendingCount = logs.filter(l => !l.actor && getLogStatus(l) === 'pending').length;
+  const pendingCount = logs.filter(l => !l.actor?.name && !l.review?.memberName).length;
   const violationCount = logs.filter(l => l.review?.isViolation === true).length;
   const activeFilterCount = Object.entries(filters).filter(([, v]) => v !== '').length;
 
@@ -129,21 +142,24 @@ const Tailgate = () => {
 
   // Unidentified tab data
   const pendingLogs = logs
-    .filter(l => !l.actor && getLogStatus(l) === 'pending')
+    .filter(l => !l.actor?.name && !l.review?.memberName)
     .sort((a, b) => getLogDateVal(a).localeCompare(getLogDateVal(b)));
 
   // Violations tab data
   const byActor: Record<
     string,
-    { name: string | null; ini: string; ab: string; ac: string; actorType: string | null; incidents: TailgateLog[] }
+    { name: string | null; memberId: string | null; ini: string; ab: string; ac: string; actorType: string | null; incidents: TailgateLog[] }
   > = {};
   logs
     .filter(l => l.review?.isViolation === true)
     .forEach(l => {
-      const k = l.actor?.id || '__unknown__';
+      const isReviewed  = l.review?.reviewed === true;
+      const displayName = isReviewed ? (l.review?.memberName ?? null) : (l.actor?.name ?? null);
+      const displayId   = isReviewed ? (l.review?.memberId ?? null) : (l.actor?.id ?? null);
+      const k           = isReviewed ? (l.review?.memberId || `__rev__${l.review?.memberName ?? ''}`) : (l.actor?.id || '__unknown__');
       if (!byActor[k]) {
-        const { ini, ab, ac } = getAvatarData(l.actor?.name);
-        byActor[k] = { name: l.actor?.name ?? null, ini, ab, ac, actorType: l.actor?.type ?? null, incidents: [] };
+        const { ini, ab, ac } = getAvatarData(displayName);
+        byActor[k] = { name: displayName, memberId: displayId, ini, ab, ac, actorType: l.actor?.type ?? null, incidents: [] };
       }
       byActor[k].incidents.push(l);
     });
@@ -202,7 +218,7 @@ const Tailgate = () => {
           {/* All Logs tab */}
           {activeTab === 'logs' && (
             <>
-              <StatsCards {...computedStats} />
+              <StatsCards {...apiStats} />
               <LogFilters
                 activeFilterCount={activeFilterCount}
                 filters={filters}
@@ -243,11 +259,11 @@ const Tailgate = () => {
 
           {/* Unidentified tab */}
           {activeTab === 'unid' && (
-            <UnidentifiedTab pendingLogs={pendingLogs} onReviewClick={setReviewLog} onVideoClick={setVideoLog} />
+            <UnidentifiedTab pendingLogs={pendingLogs} onReviewClick={setReviewLog} onVideoClick={setVideoLog} onViewClick={setViewLog} />
           )}
 
           {/* Violations tab */}
-          {activeTab === 'viol' && <ViolationsTab actors={actors} />}
+          {activeTab === 'viol' && <ViolationsTab actors={actors} onVideoClick={setVideoLog} />}
         </div>
       </div>
 

@@ -58,14 +58,28 @@ export interface CreateTailgateEventRequest {
   laneDoor?: string;
 }
 
+export interface TailgateStats {
+  facilityCode: string;
+  todayDate: string;
+  todayTotal: number;
+  todayEntries: number;
+  todayTailgates: number;
+  totalUnidentified: number;
+  totalViolations: number;
+}
+
 export interface TailgateState {
   isLoading: boolean;
   error: string | null;
   logs: TailgateLog[];
+  stats: TailgateStats | null;
+  statsLoading: boolean;
 }
 
 export const initialState: TailgateState = {
   isLoading: false,
   error: null,
   logs: [],
+  stats: null,
+  statsLoading: false,
 };

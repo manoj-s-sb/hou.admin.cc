@@ -32,31 +32,27 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     return '';
   };
 
-  const [isViolation, setIsViolation] = useState(currentStatus === 'violation');
+  const [isViolation, setIsViolation] = useState(
+    currentStatus === 'violation' || (isPending && evType === 'Tailgate')
+  );
   const [notes, setNotes] = useState(log.review?.comment || '');
   const [memberName, setMemberName] = useState(log.review?.memberName || log.actor?.name || '');
   const [memberType, setMemberType] = useState<'Member' | 'Non-Member' | ''>(initMemberType());
-  const [memberId, setMemberId] = useState(log.review?.memberId || '');
+  const [memberId, setMemberId] = useState(log.review?.memberId || log.actor?.id || '');
   const [subscription, setSubscription] = useState(log.review?.subscription || '');
-  const [actualEventType, setActualEventType] = useState<'Entry' | 'Exit' | ''>(evType !== 'Tailgate' ? evType : '');
+  const initActualEventType = (): 'Entry' | 'Exit' | '' => {
+    const saved = log.review?.actualEventType?.toLowerCase();
+    if (saved === 'entry') return 'Entry';
+    if (saved === 'exit') return 'Exit';
+    return evType !== 'Tailgate' ? evType : '';
+  };
+  const [actualEventType, setActualEventType] = useState<'Entry' | 'Exit' | ''>(initActualEventType());
   const [validationError, setValidationError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isMember = memberType === 'Member';
 
   const handleSave = async () => {
-    if (!memberName.trim()) {
-      setValidationError('Please enter the person name.');
-      return;
-    }
-    if (!memberType) {
-      setValidationError('Please select Member or Non-Member.');
-      return;
-    }
-    if (!notes.trim()) {
-      setValidationError('Please enter a comment before submitting.');
-      return;
-    }
     setValidationError('');
     setIsSubmitting(true);
     const result = await dispatch(
@@ -89,8 +85,8 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     >
       <div
         className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
-        style={{ maxHeight: '90vh', overflowY: 'auto' }}
         role="presentation"
+        style={{ maxHeight: '90vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
       >
@@ -118,7 +114,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
         <div className="space-y-4 p-5">
           {/* Video / Snapshot */}
           {log.videoUrl ? (
-            <video className="w-full rounded-xl" controls preload="metadata" src={log.videoUrl}>
+            <video controls className="w-full rounded-xl" preload="metadata" src={log.videoUrl}>
               <track kind="captions" label="Captions" srcLang="en" />
             </video>
           ) : log.snapshotUrl ? (
@@ -325,9 +321,8 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
               Cancel
             </button>
             <button
-              className={`rounded-lg px-4 py-2 text-[12px] font-semibold text-white transition disabled:opacity-50 ${
-                isViolation ? 'bg-red-600 hover:bg-red-700' : 'bg-[#21295A] hover:bg-[#1a2147]'
-              }`}
+              className={`rounded-lg px-4 py-2 text-[12px] font-semibold text-white transition disabled:opacity-50 ${isViolation ? 'bg-red-600 hover:bg-red-700' : 'bg-[#21295A] hover:bg-[#1a2147]'
+                }`}
               disabled={isSubmitting}
               type="button"
               onClick={handleSave}

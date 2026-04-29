@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { fetchTailgateEvents, submitTailgateReview } from './api';
+import { fetchTailgateEvents, fetchTailgateStats, submitTailgateReview } from './api';
 import { initialState } from './types';
 
 const tailgateSlice = createSlice({
@@ -28,6 +28,16 @@ const tailgateSlice = createSlice({
       if (log) {
         log.review = review;
       }
+    });
+    builder.addCase(fetchTailgateStats.pending, state => {
+      state.statsLoading = true;
+    });
+    builder.addCase(fetchTailgateStats.fulfilled, (state, action) => {
+      state.statsLoading = false;
+      state.stats = action.payload;
+    });
+    builder.addCase(fetchTailgateStats.rejected, state => {
+      state.statsLoading = false;
     });
   },
 });
