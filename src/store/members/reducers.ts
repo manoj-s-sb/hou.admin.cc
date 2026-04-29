@@ -1,12 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import {
-  getMembers,
-  getSingleMemberDetails,
-  activateUserSubscription,
-  getMembersCount,
-  getMemberPurchasedSlots,
-} from './api';
+import { getMembers, getSingleMemberDetails, activateUserSubscription, getMembersCount } from './api';
 import { initialState } from './types';
 
 const membersSlice = createSlice({
@@ -64,17 +58,6 @@ const membersSlice = createSlice({
     builder.addCase(getMembersCount.rejected, (state, action) => {
       state.membersCountLoading = false;
       state.error = action.payload || 'Failed to fetch members count';
-    });
-    builder.addCase(getMemberPurchasedSlots.pending, state => {
-      state.isPurchasedSlotsLoading = true;
-    });
-    builder.addCase(getMemberPurchasedSlots.fulfilled, (state, action) => {
-      state.isPurchasedSlotsLoading = false;
-      state.purchasedSlotsData = action.payload?.data || null;
-    });
-    builder.addCase(getMemberPurchasedSlots.rejected, state => {
-      state.isPurchasedSlotsLoading = false;
-      state.purchasedSlotsData = null;
     });
   },
 });

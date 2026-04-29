@@ -79,18 +79,6 @@ export const activateUserSubscription = createAsyncThunk(
     }
   }
 );
-export const getMemberPurchasedSlots = createAsyncThunk(
-  'members/getMemberPurchasedSlots',
-  async ({ userId }: { userId: string }, { rejectWithValue }) => {
-    try {
-      const response = await api.post(endpoints.members.purchasedSlots, { userId });
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(handleApiError(error, 'Failed to fetch purchased slots'));
-    }
-  }
-);
-
 export const getMembersCount = createAsyncThunk(
   'members/getMembersCount',
   async ({ facilityCode }: { facilityCode: string }, { rejectWithValue }) => {

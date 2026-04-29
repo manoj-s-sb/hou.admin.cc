@@ -79,11 +79,6 @@ const ViewMembers = () => {
     dispatch(getSingleMemberDetails({ userId: userId as string }));
   }, [dispatch, userId]);
 
-  const formatShortDate = (dateString: string | null | undefined) => {
-    if (!dateString) return '—';
-    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
   const formatDate = (dateString: string | null) => {
     if (!dateString) {
       return '-';
