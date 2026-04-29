@@ -14,6 +14,7 @@ interface AllLogsTableProps {
   onRowsPerPageChange: (n: number) => void;
   onVideoClick: (row: TailgateLog) => void;
   onReviewClick: (row: TailgateLog) => void;
+  onViewClick: (row: TailgateLog) => void;
 }
 
 const renderIdentity = (row: TailgateLog) =>
@@ -45,7 +46,7 @@ const renderIdentity = (row: TailgateLog) =>
 const AllLogsTable = ({
   pagedDates, pagedGroups, totalRows, totalPages, page, rowsPerPage,
   timeSortDir, onTimeSortToggle, onPageChange, onRowsPerPageChange,
-  onVideoClick, onReviewClick,
+  onVideoClick, onReviewClick, onViewClick,
 }: AllLogsTableProps) => {
   const pageNumbers = getPageNumbers(page, totalPages);
 
@@ -55,9 +56,12 @@ const AllLogsTable = ({
       <button className="flex flex-col items-center gap-1" type="button" onClick={() => onVideoClick(row)}>
         <div
           className="relative flex h-11 w-16 items-center justify-center overflow-hidden rounded-lg"
-          style={{ background: grad }}
+          style={{ background: row.snapshotUrl ? undefined : grad }}
         >
-          <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+          {row.snapshotUrl && (
+            <img alt="snapshot" className="absolute inset-0 h-full w-full object-cover" src={row.snapshotUrl} />
+          )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90">
               <svg className="ml-0.5 h-2.5 w-2.5 text-[#21295A]" fill="currentColor" viewBox="0 0 10 12">
                 <polygon points="1,0 9,6 1,12" />
@@ -115,7 +119,12 @@ const AllLogsTable = ({
                 const { label: evLabel, className: evCls } = eventMap[row.ev] || { label: row.ev, className: 'bg-gray-100 text-gray-600', gradient: '' };
                 const sc = statusConfig[row.status] || statusConfig.pending;
                 return (
-                  <tr key={row.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <tr
+                    key={row.id}
+                    className={`border-t border-gray-100 transition-colors ${
+                      row.viol ? 'bg-red-50/40 hover:bg-red-50' : !row.actorId ? 'bg-yellow-50/40 hover:bg-yellow-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] font-medium text-gray-400">{idx + 1}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{row.t}</td>
                     <td className="px-4 py-3">{renderVideoCell(row)}</td>
@@ -135,13 +144,32 @@ const AllLogsTable = ({
                     <td className="whitespace-nowrap px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${sc.badgeCls}`}>{sc.label}</span>
-                        <button
-                          className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${sc.btnCls}`}
-                          type="button"
-                          onClick={() => onReviewClick(row)}
-                        >
-                          {sc.btnLabel}
-                        </button>
+                        {row.status === 'pending' ? (
+                          <button
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${sc.btnCls}`}
+                            type="button"
+                            onClick={() => onReviewClick(row)}
+                          >
+                            Review
+                          </button>
+                        ) : (
+                          <div className="flex gap-1.5">
+                            <button
+                              className="rounded-lg border border-blue-300 px-2.5 py-1 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-50"
+                              type="button"
+                              onClick={() => onViewClick(row)}
+                            >
+                              View
+                            </button>
+                            <button
+                              className="rounded-lg border border-yellow-300 px-2.5 py-1 text-[11px] font-semibold text-yellow-700 transition hover:bg-yellow-50"
+                              type="button"
+                              onClick={() => onReviewClick(row)}
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

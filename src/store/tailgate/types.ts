@@ -1,9 +1,28 @@
 export type TailgateEventType = 'Entry' | 'Exit' | 'Tailgate';
-export type TailgateStatus = 'pending' | 'reviewed' | 'violation';
+export type TailgateStatus   = 'pending' | 'reviewed' | 'violation';
+export type PersonType       = 'Member' | 'Non-Member';
+export type SubscriptionType = 'Standard' | 'Premium' | 'Family' | 'Offpeak';
+
+export interface TailgateReview {
+  reviewed:        boolean;
+  reviewedById:    string;
+  reviewedByName:  string;
+  reviewedAt:      string;
+  comment:         string;
+  memberName:      string | null;
+  memberType:      string | null;
+  memberId:        string | null;
+  subscription:    string | null;
+  isViolation:     boolean | null;
+  actualEventType: string | null;
+}
 
 export interface TailgateLog {
   id: string;
+  cosmosId: string;
+  review: TailgateReview | null;
   date: string;
+  sortTs: number;
   dateVal: string;
   t: string;
   ev: TailgateEventType;
@@ -20,34 +39,30 @@ export interface TailgateLog {
   notes: string | null;
   tr: string;
   videoUrl: string | null;
+  snapshotUrl: string | null;
+  personCount: number | null;
+  personName: string | null;
+  personType: PersonType | null;
+  personMemberId: string | null;
+  subscription: SubscriptionType | null;
 }
 
-export interface TailgateStats {
-  today_total: number;
-  today_date: string;
-  today_entries: number;
-  today_tailgates: number;
-  total_unidentified: number;
-  total_violations: number;
+export interface CreateTailgateEventRequest {
+  from_date?: string;
+  to_date?: string;
+  event_type?: string;
+  member_name?: string;
+  lane_door?: string;
 }
 
 export interface TailgateState {
   isLoading: boolean;
   error: string | null;
   logs: TailgateLog[];
-  stats: TailgateStats;
 }
 
 export const initialState: TailgateState = {
   isLoading: false,
   error: null,
   logs: [],
-  stats: {
-    today_total: 0,
-    today_date: '',
-    today_entries: 0,
-    today_tailgates: 0,
-    total_unidentified: 0,
-    total_violations: 0,
-  },
 };

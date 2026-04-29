@@ -89,8 +89,8 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
           >
             <option value="">All</option>
             <option value="pending">Pending Review</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="violation">Violation</option>
+            <option value="reviewed">Cleared (No Violation)</option>
+            <option value="violation">Flagged as Violation</option>
           </select>
         </div>
         <div>

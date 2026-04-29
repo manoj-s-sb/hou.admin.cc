@@ -23,9 +23,8 @@ const endpoints = {
     deleteMedia: '/admin/work/deletemedia',
   },
   tailgate: {
-    // TODO: add real endpoints when backend is ready
-    logs: '/admin/tailgate/logs',
-    stats: '/admin/tailgate/stats',
+    createEvent: '/admin/tailgate/events',
+    review:      '/admin/tailgate/review',
   },
   induction: {
     list: '/admin/bookings/list',
