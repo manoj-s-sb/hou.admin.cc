@@ -47,9 +47,17 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
           <input
             className={inputCls}
             id="tg-from"
+            max={filters.to || undefined}
             type="date"
             value={filters.from}
-            onChange={e => onFilterChange(f => ({ ...f, from: e.target.value }))}
+            onChange={e => {
+              const from = e.target.value;
+              onFilterChange(f => ({
+                ...f,
+                from,
+                to: f.to && f.to < from ? from : f.to,
+              }));
+            }}
           />
         </div>
         <div>
@@ -59,6 +67,7 @@ const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: Log
           <input
             className={inputCls}
             id="tg-to"
+            min={filters.from || undefined}
             type="date"
             value={filters.to}
             onChange={e => onFilterChange(f => ({ ...f, to: e.target.value }))}
