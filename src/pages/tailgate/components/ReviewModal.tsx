@@ -32,9 +32,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     return '';
   };
 
-  const [isViolation, setIsViolation] = useState(
-    currentStatus === 'violation' || (isPending && evType === 'Tailgate')
-  );
+  const [isViolation, setIsViolation] = useState(currentStatus === 'violation' || (isPending && evType === 'Tailgate'));
   const [notes, setNotes] = useState(log.review?.comment || '');
   const [memberName, setMemberName] = useState(log.review?.memberName || log.actor?.name || '');
   const [memberType, setMemberType] = useState<'Member' | 'Non-Member' | ''>(initMemberType());
@@ -321,8 +319,9 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
               Cancel
             </button>
             <button
-              className={`rounded-lg px-4 py-2 text-[12px] font-semibold text-white transition disabled:opacity-50 ${isViolation ? 'bg-red-600 hover:bg-red-700' : 'bg-[#21295A] hover:bg-[#1a2147]'
-                }`}
+              className={`rounded-lg px-4 py-2 text-[12px] font-semibold text-white transition disabled:opacity-50 ${
+                isViolation ? 'bg-red-600 hover:bg-red-700' : 'bg-[#21295A] hover:bg-[#1a2147]'
+              }`}
               disabled={isSubmitting}
               type="button"
               onClick={handleSave}

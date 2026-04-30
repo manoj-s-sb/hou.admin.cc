@@ -31,13 +31,16 @@ const tailgateSlice = createSlice({
     });
     builder.addCase(fetchTailgateStats.pending, state => {
       state.statsLoading = true;
+      state.statsError = null;
     });
     builder.addCase(fetchTailgateStats.fulfilled, (state, action) => {
       state.statsLoading = false;
       state.stats = action.payload;
+      state.statsError = null;
     });
-    builder.addCase(fetchTailgateStats.rejected, state => {
+    builder.addCase(fetchTailgateStats.rejected, (state, action) => {
       state.statsLoading = false;
+      state.statsError = (action.payload as string) || 'Failed to fetch tailgate stats.';
     });
   },
 });

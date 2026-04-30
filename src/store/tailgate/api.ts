@@ -45,20 +45,17 @@ export const submitTailgateReview = createAsyncThunk(
   }
 );
 
-export const fetchTailgateStats = createAsyncThunk(
-  'tailgate/fetchStats',
-  async (_, { rejectWithValue }) => {
-    try {
-      const now = new Date();
-      const [y, m, d] = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).split('-');
-      const date = `${d}-${m}-${y}`;
-      const response = await api.post(endpoints.tailgate.stats, { date });
-      return response?.data?.data as TailgateStats;
-    } catch (error: any) {
-      return rejectWithValue(handleApiError(error, 'Failed to fetch tailgate stats'));
-    }
+export const fetchTailgateStats = createAsyncThunk('tailgate/fetchStats', async (_, { rejectWithValue }) => {
+  try {
+    const now = new Date();
+    const [y, m, d] = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).split('-');
+    const date = `${d}-${m}-${y}`;
+    const response = await api.post(endpoints.tailgate.stats, { date });
+    return response?.data?.data as TailgateStats;
+  } catch (error: any) {
+    return rejectWithValue(handleApiError(error, 'Failed to fetch tailgate stats'));
   }
-);
+});
 
 export const fetchTailgateEvents = createAsyncThunk(
   'tailgate/fetchEvents',

@@ -74,6 +74,7 @@ export interface TailgateState {
   logs: TailgateLog[];
   stats: TailgateStats | null;
   statsLoading: boolean;
+  statsError: string | null;
 }
 
 export const initialState: TailgateState = {
@@ -82,4 +83,5 @@ export const initialState: TailgateState = {
   logs: [],
   stats: null,
   statsLoading: false,
+  statsError: null,
 };

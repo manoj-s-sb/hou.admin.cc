@@ -72,7 +72,7 @@ const Tailgate = () => {
     if (filters.name) payload.memberName = filters.name;
     if (filters.door) payload.laneDoor = filters.door;
     dispatch(fetchTailgateEvents(payload));
-  }, [dispatch, filters.from, filters.to, filters.type, filters.name, filters.door]);
+  }, [dispatch, filters.from, filters.to, filters.name, filters.door]);
 
   const apiStats = {
     today_date: stats?.todayDate
@@ -148,18 +148,36 @@ const Tailgate = () => {
   // Violations tab data
   const byActor: Record<
     string,
-    { name: string | null; memberId: string | null; ini: string; ab: string; ac: string; actorType: string | null; incidents: TailgateLog[] }
+    {
+      name: string | null;
+      memberId: string | null;
+      ini: string;
+      ab: string;
+      ac: string;
+      actorType: string | null;
+      incidents: TailgateLog[];
+    }
   > = {};
   logs
     .filter(l => l.review?.isViolation === true)
     .forEach(l => {
-      const isReviewed  = l.review?.reviewed === true;
+      const isReviewed = l.review?.reviewed === true;
       const displayName = isReviewed ? (l.review?.memberName ?? null) : (l.actor?.name ?? null);
-      const displayId   = isReviewed ? (l.review?.memberId ?? null) : (l.actor?.id ?? null);
-      const k           = isReviewed ? (l.review?.memberId || `__rev__${l.review?.memberName ?? ''}`) : (l.actor?.id || '__unknown__');
+      const displayId = isReviewed ? (l.review?.memberId ?? null) : (l.actor?.id ?? null);
+      const k = isReviewed
+        ? l.review?.memberId || `__rev__${l.review?.memberName ?? ''}`
+        : l.actor?.id || '__unknown__';
       if (!byActor[k]) {
         const { ini, ab, ac } = getAvatarData(displayName);
-        byActor[k] = { name: displayName, memberId: displayId, ini, ab, ac, actorType: l.actor?.type ?? null, incidents: [] };
+        byActor[k] = {
+          name: displayName,
+          memberId: displayId,
+          ini,
+          ab,
+          ac,
+          actorType: l.actor?.type ?? null,
+          incidents: [],
+        };
       }
       byActor[k].incidents.push(l);
     });
@@ -259,7 +277,12 @@ const Tailgate = () => {
 
           {/* Unidentified tab */}
           {activeTab === 'unid' && (
-            <UnidentifiedTab pendingLogs={pendingLogs} onReviewClick={setReviewLog} onVideoClick={setVideoLog} onViewClick={setViewLog} />
+            <UnidentifiedTab
+              pendingLogs={pendingLogs}
+              onReviewClick={setReviewLog}
+              onVideoClick={setVideoLog}
+              onViewClick={setViewLog}
+            />
           )}
 
           {/* Violations tab */}
