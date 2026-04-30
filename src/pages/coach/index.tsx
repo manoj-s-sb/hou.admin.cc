@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
+import { getLocalUser } from '../../constants/user';
 import { coachSlots } from '../../store/slots/api';
 import { CoachSlotsResponse } from '../../store/slots/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -26,7 +27,7 @@ const CoachSchedule: React.FC = () => {
 
   const fetchCoachSlots = useCallback(
     (startDate: string, endDate: string) => {
-      dispatch(coachSlots({ startDate, endDate, facilityCode: 'HOU01' }));
+      dispatch(coachSlots({ startDate, endDate, facilityCode: getLocalUser().facilityCode }));
     },
     [dispatch]
   );

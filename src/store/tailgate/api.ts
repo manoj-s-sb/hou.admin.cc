@@ -1,7 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
 import endpoints from '../../constants/endpoints';
-import { getLocalUser } from '../../pages/maintenance/constants';
+import { getLocalUser } from '../../constants/user';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
