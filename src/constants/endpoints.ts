@@ -22,6 +22,11 @@ const endpoints = {
     uploadUrl: '/admin/work/uploadurl',
     deleteMedia: '/admin/work/deletemedia',
   },
+  tailgate: {
+    createEvent: '/admin/tailgate/events',
+    review: '/admin/tailgate/review',
+    stats: '/admin/tailgate/stats',
+  },
   induction: {
     list: '/admin/bookings/list',
     search: '/admin/induction/search',

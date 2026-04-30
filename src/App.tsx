@@ -19,6 +19,7 @@ import {
   SlotBookings,
   CoachSchedule,
   Maintenance,
+  Tailgate,
 } from './pages';
 import { setSessionExpiredCallback } from './services';
 import store from './store/store';
@@ -136,6 +137,16 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
           path="/maintenance"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Tailgate />
+              </Layout>
+            </ProtectedRoute>
+          }
+          path="/tailgate"
         />
         <Route element={<Navigate replace to="/induction" />} path="/" />
       </Routes>

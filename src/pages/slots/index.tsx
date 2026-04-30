@@ -3,12 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import LoaderComponent from '../../components/Loader';
+import { getLocalUser } from '../../constants/user';
 import { getSlots } from '../../store/slots/api';
 import { AppDispatch, RootState } from '../../store/store';
-import { getLocalUser } from '../maintenance/constants';
 
-import CalendarBody from './components/calendarBody';
-import CalendarHeader from './components/calendarHeader';
+import CalendarBody from './components/CalendarBody';
+import CalendarHeader from './components/CalendarHeader';
 
 const TIMEZONE = 'America/Chicago';
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -61,7 +61,7 @@ const statCards = [
 const SlotBookings: React.FC = () => {
   const { slots, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
-  const facilityCode = getLocalUser().facilityCode || 'HOU01';
+  const { facilityCode } = getLocalUser();
 
   const nextSevenDates = useMemo(() => getNextSevenDates(), []);
   const [selectedDate, setSelectedDate] = useState<{ day: number; month: number; fullDate?: Date }>({

@@ -5,6 +5,7 @@ import inductionReducer from './induction/reducers';
 import maintenanceReducer from './maintenance/reducers';
 import membersReducer from './members/reducers';
 import slotsReducer from './slots/reducers';
+import tailgateReducer from './tailgate/reducers';
 
 const store = configureStore({
   // store
@@ -14,6 +15,7 @@ const store = configureStore({
     maintenance: maintenanceReducer,
     members: membersReducer,
     slots: slotsReducer,
+    tailgate: tailgateReducer,
   },
 });
 
