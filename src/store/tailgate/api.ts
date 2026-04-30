@@ -45,7 +45,7 @@ export const submitTailgateReview = createAsyncThunk(
   }
 );
 
-export const fetchTailgateStatss = createAsyncThunk('tailgate/fetchStats', async (_, { rejectWithValue }) => {
+export const fetchTailgateStats = createAsyncThunk('tailgate/fetchStats', async (_, { rejectWithValue }) => {
   try {
     const now = new Date();
     const [y, m, d] = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).split('-');
