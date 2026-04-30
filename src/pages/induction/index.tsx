@@ -41,7 +41,7 @@ function filtersToSearchParams(filters: FilterState): Record<string, string> {
 
 const statusMap: Record<string, { label: string; className: string }> = {
   completed: { label: 'Completed', className: 'bg-green-100 text-green-700' },
-  confirmed: { label: 'Pending', className: 'bg-yellow-100 text-yellow-700' },
+  confirmed: { label: 'Pending Activation', className: 'bg-yellow-100 text-yellow-700' },
   cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
   noshow: { label: 'No Show', className: 'bg-orange-100 text-orange-700' },
 };
@@ -335,7 +335,7 @@ const Induction = () => {
                 onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
               >
                 <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
+                <option value="pending">Pending Activation</option>
                 <option value="completed">Completed</option>
                 <option value="noshow">No Show</option>
               </select>
@@ -457,7 +457,7 @@ const Induction = () => {
             <div className="px-5 py-4">
               <p className="text-[13px] text-gray-500">
                 Change status from <span className="font-semibold text-orange-600">No Show</span> back to{' '}
-                <span className="font-semibold text-yellow-600">Pending</span>?
+                <span className="font-semibold text-yellow-600">Pending Activation</span>?
               </p>
             </div>
             <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-3">

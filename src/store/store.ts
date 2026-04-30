@@ -8,6 +8,7 @@ import slotsReducer from './slots/reducers';
 import tailgateReducer from './tailgate/reducers';
 
 const store = configureStore({
+  // store
   reducer: {
     auth: authReducer,
     induction: inductionReducer,

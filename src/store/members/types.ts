@@ -185,6 +185,7 @@ export interface Cycles {
   totalAvailable: number;
   slotsUsed: number;
   unused: number;
+  purchasedSlotCount?: number;
 }
 
 export interface SlotUsageTable {
@@ -251,20 +252,43 @@ export interface MembersCountResponse {
   total: number;
   activeMembersCount: number;
   inactiveMembersCount: number;
+  pausedCount?: number;
 }
+export interface PurchasedSlot {
+  purchaseId: string;
+  slots: number;
+  purchasedAt: string;
+  expiresAt?: string;
+  status: 'active' | 'used' | 'expired';
+  paidAmount?: number;
+  currency?: string;
+}
+
+export interface PurchasedSlotsData {
+  purchases: PurchasedSlot[];
+  summary: {
+    totalPurchased: number;
+    totalUsed: number;
+    remaining: number;
+  };
+}
+
 export interface MembersInitialState {
   isLoading: boolean;
   membersCountLoading: boolean;
+  isPurchasedSlotsLoading: boolean;
   error: string | null | any;
   membersList: MemberListResponse;
   memberDetails: MemberDetailsResponse | null;
   isSubscriptionActivation: boolean;
   membersCount: MembersCountResponse | null;
+  purchasedSlotsData: PurchasedSlotsData | null;
 }
 
 export const initialState: MembersInitialState = {
   isLoading: false,
   membersCountLoading: false,
+  isPurchasedSlotsLoading: false,
   error: '',
   membersList: {
     members: [],
@@ -275,4 +299,5 @@ export const initialState: MembersInitialState = {
   memberDetails: null,
   isSubscriptionActivation: false,
   membersCount: null,
+  purchasedSlotsData: null,
 };

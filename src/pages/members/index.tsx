@@ -160,10 +160,10 @@ const Members = () => {
         const map: Record<string, { label: string; className: string }> = {
           active: { label: 'Active', className: 'bg-green-100 text-green-700' },
           pendingactivation: { label: 'Pending Activation', className: 'bg-yellow-100 text-yellow-700' },
-          paused: { label: 'Paused', className: 'bg-blue-100 text-blue-700' },
+          paused: { label: 'On Hold', className: 'bg-orange-100 text-orange-600' },
           canceled: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
           resumed: { label: 'Resumed', className: 'bg-indigo-100 text-indigo-700' },
-          inactive: { label: 'Inactive', className: 'bg-gray-100 text-gray-600' },
+          inactive: { label: 'Cancelled', className: 'bg-red-100 text-red-600' },
           past_due: { label: 'Payment Failed', className: 'bg-orange-100 text-orange-700' },
         };
         const { label, className } = map[type] || { label: type, className: 'bg-gray-100 text-gray-600' };
@@ -312,35 +312,40 @@ const Members = () => {
 
       {/* ── Stats Row ───────────────────────────────────────── */}
       {membersCount && (
-        <div className="mb-5 flex flex-nowrap gap-3 overflow-x-auto">
-          {/* Total Members */}
-          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-[#21295A]/15 bg-[#21295A]/5 px-4 py-3 lg:flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#21295A]/60">Total</p>
-            <p className="text-[22px] font-bold text-[#21295A]">{membersCount.total.toLocaleString()}</p>
-          </div>
+        <div className="mb-5 grid grid-cols-5 gap-3">
+          {/* Section label — Subscription Overview */}
+          <p className="col-span-5 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+            Subscription Overview
+          </p>
 
-          {/* Member status cards */}
-          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-green-100 bg-green-50 px-4 py-3 lg:flex-1">
+          <div className="flex flex-col gap-1 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-600">Total</p>
+            <p className="text-[22px] font-bold text-indigo-700">{membersCount.total.toLocaleString()}</p>
+          </div>
+          <div className="flex flex-col gap-1 rounded-xl border border-green-100 bg-green-50 px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-green-600">Active</p>
             <p className="text-[22px] font-bold text-green-700">{membersCount.activeMembersCount.toLocaleString()}</p>
           </div>
-          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 lg:flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">Inactive</p>
-            <p className="text-[22px] font-bold text-gray-700">{membersCount.inactiveMembersCount.toLocaleString()}</p>
+          <div className="flex flex-col gap-1 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-red-500">Cancelled</p>
+            <p className="text-[22px] font-bold text-red-600">{membersCount.inactiveMembersCount.toLocaleString()}</p>
           </div>
-          <div className="flex shrink-0 flex-col gap-1 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 lg:flex-1">
+          <div className="flex flex-col gap-1 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">Pending</p>
             <p className="text-[22px] font-bold text-amber-700">
               {membersCount.pendingActivationCount.toLocaleString()}
             </p>
           </div>
-
-          {/* Divider */}
-          <div className="flex shrink-0 items-center justify-center px-1">
-            <div className="h-10 w-px bg-gray-200" />
+          <div className="flex flex-col gap-1 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-500">On Hold</p>
+            <p className="text-[22px] font-bold text-orange-600">{(membersCount.pausedCount ?? 0).toLocaleString()}</p>
           </div>
 
-          {/* Plan breakdown */}
+          {/* Section label — Subscription Plans */}
+          <p className="col-span-5 mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+            Subscription Plans
+          </p>
+
           {[
             { key: 'standard', annual: membersCount.standardAnnual, fortnightly: membersCount.standardFortnightly },
             { key: 'premium', annual: membersCount.premiumAnnual, fortnightly: membersCount.premiumFortnightly },
@@ -348,19 +353,19 @@ const Members = () => {
             { key: 'offpeak', annual: membersCount.offpeakAnnual, fortnightly: membersCount.offpeakFortnightly },
           ].map(plan => {
             const cfg = planConfig[plan.key];
-            const total = plan.annual + plan.fortnightly;
+            const total = (plan.annual ?? 0) + (plan.fortnightly ?? 0);
             return (
               <div
                 key={plan.key}
-                className="flex shrink-0 flex-col gap-1 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm lg:flex-1"
+                className="flex flex-col gap-1 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
               >
                 <div className="flex items-center gap-1.5">
                   <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
                   <p className={`text-[10px] font-semibold uppercase tracking-widest ${cfg.color}`}>{cfg.label}</p>
                 </div>
-                <p className="text-[18px] font-bold text-[#21295A]">{total.toLocaleString()}</p>
-                <p className="text-[10px] text-gray-400">
-                  {plan.annual} annual · {plan.fortnightly} fortnightly
+                <p className="text-[22px] font-bold text-[#21295A]">{total.toLocaleString()}</p>
+                <p className="text-[11px] text-gray-400">
+                  {plan.annual ?? 0} annual · {plan.fortnightly ?? 0} fortnightly
                 </p>
               </div>
             );
@@ -464,10 +469,9 @@ const Members = () => {
                 <option value="">All Statuses</option>
                 <option value="active">Active</option>
                 <option value="pendingactivation">Pending Activation</option>
-                <option value="paused">Paused</option>
+                <option value="paused">On Hold</option>
                 <option value="past_due">Payment Failed</option>
                 <option value="canceled">Cancelled</option>
-                <option value="resumed">Resumed</option>
               </select>
             </div>
           </div>
