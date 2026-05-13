@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
+import { ROUTES } from '../constants/routes';
 import { logout as logoutAction } from '../store/auth/reducers';
+import { persistor, RootState } from '../store/store';
 
 import Sidebar from './Sidebar';
 
@@ -15,7 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const user: any = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = useSelector((state: RootState) => state.auth.user) ?? ({} as any);
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -49,9 +51,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleLogout = () => {
     dispatch(logoutAction());
-    navigate('/login');
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('tokens');
+    persistor.purge();
+    navigate(ROUTES.LOGIN.path);
   };
 
   // Handle sidebar state on resize

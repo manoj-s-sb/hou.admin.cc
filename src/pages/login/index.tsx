@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
+import { ROUTES } from '../../constants/routes';
 import { login } from '../../store/auth/api';
 import { AppDispatch, RootState } from '../../store/store';
 
@@ -25,7 +26,7 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       toast.success('Logged in successfully!', { duration: 4000 });
-      setTimeout(() => navigate('/'), 100);
+      setTimeout(() => navigate(ROUTES.ROOT.path), 100);
     }
   }, [isAuthenticated, navigate]);
 

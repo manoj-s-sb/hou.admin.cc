@@ -3,11 +3,13 @@ import React, { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { Provider } from 'react-redux';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { PersistGate } from 'redux-persist/integration/react';
 
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import SessionExpiredModal from './components/SessionExpiredModal';
 import menus from './constants/menus';
 import { ROUTE_MODULES } from './constants/routePermissions';
+import { ROUTES } from './constants/routes';
 import {
   Login,
   Dashboard,
@@ -23,12 +25,12 @@ import {
   Tailgate,
 } from './pages';
 import { setSessionExpiredCallback } from './services';
-import store from './store/store';
+import store, { persistor } from './store/store';
 import { canRead } from './utils/permissions';
 
 const DefaultLanding: React.FC = () => {
   const firstReadable = menus.find(item => canRead(item.module));
-  return <Navigate replace to={firstReadable?.path ?? '/login'} />;
+  return <Navigate replace to={firstReadable?.path ?? ROUTES.LOGIN.path} />;
 };
 
 const AppRoutes: React.FC = () => {
@@ -43,14 +45,14 @@ const AppRoutes: React.FC = () => {
   return (
     <>
       <Routes>
-        <Route element={<Login />} path="/login" />
+        <Route element={<Login />} path={ROUTES.LOGIN.path} />
         <Route
           element={
             <RoleProtectedRoute module={ROUTE_MODULES.reports}>
               <Dashboard />
             </RoleProtectedRoute>
           }
-          path="/dashboard"
+          path={ROUTES.DASHBOARD.path}
         />
         <Route
           element={
@@ -58,7 +60,7 @@ const AppRoutes: React.FC = () => {
               <UserList />
             </RoleProtectedRoute>
           }
-          path="/users"
+          path={ROUTES.USERS.path}
         />
         <Route
           element={
@@ -66,7 +68,7 @@ const AppRoutes: React.FC = () => {
               <Induction />
             </RoleProtectedRoute>
           }
-          path="/induction"
+          path={ROUTES.INDUCTION.path}
         />
         <Route
           element={
@@ -74,7 +76,7 @@ const AppRoutes: React.FC = () => {
               <ViewInduction />
             </RoleProtectedRoute>
           }
-          path="/view-induction/:userId"
+          path={ROUTES.VIEW_INDUCTION.path}
         />
         <Route
           element={
@@ -82,7 +84,7 @@ const AppRoutes: React.FC = () => {
               <Tours />
             </RoleProtectedRoute>
           }
-          path="/tour"
+          path={ROUTES.TOUR.path}
         />
         <Route
           element={
@@ -90,7 +92,7 @@ const AppRoutes: React.FC = () => {
               <Members />
             </RoleProtectedRoute>
           }
-          path="/members"
+          path={ROUTES.MEMBERS.path}
         />
         <Route
           element={
@@ -98,7 +100,7 @@ const AppRoutes: React.FC = () => {
               <ViewMembers />
             </RoleProtectedRoute>
           }
-          path="/members/:userId"
+          path={ROUTES.VIEW_MEMBERS.path}
         />
         <Route
           element={
@@ -106,7 +108,7 @@ const AppRoutes: React.FC = () => {
               <SlotBookings />
             </RoleProtectedRoute>
           }
-          path="/slot-bookings"
+          path={ROUTES.SLOT_BOOKINGS.path}
         />
         <Route
           element={
@@ -114,7 +116,7 @@ const AppRoutes: React.FC = () => {
               <CoachSchedule />
             </RoleProtectedRoute>
           }
-          path="/coach-schedule"
+          path={ROUTES.COACH_SCHEDULE.path}
         />
         <Route
           element={
@@ -122,7 +124,7 @@ const AppRoutes: React.FC = () => {
               <Maintenance />
             </RoleProtectedRoute>
           }
-          path="/maintenance"
+          path={ROUTES.MAINTENANCE.path}
         />
         <Route
           element={
@@ -130,9 +132,9 @@ const AppRoutes: React.FC = () => {
               <Tailgate />
             </RoleProtectedRoute>
           }
-          path="/tailgate"
+          path={ROUTES.TAILGATE.path}
         />
-        <Route element={<DefaultLanding />} path="/" />
+        <Route element={<DefaultLanding />} path={ROUTES.ROOT.path} />
       </Routes>
 
       {/* Global Session Expired Modal */}
@@ -144,36 +146,38 @@ const AppRoutes: React.FC = () => {
 function App() {
   return (
     <Provider store={store}>
-      <Router>
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-              fontSize: '14px',
-              padding: '16px',
-              borderRadius: '8px',
-              maxWidth: '500px',
-              zIndex: 9999,
-            },
-            success: {
-              iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
+      <PersistGate loading={null} persistor={persistor}>
+        <Router>
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+                fontSize: '14px',
+                padding: '16px',
+                borderRadius: '8px',
+                maxWidth: '500px',
+                zIndex: 9999,
               },
-            },
-            error: {
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
+              success: {
+                iconTheme: {
+                  primary: '#10b981',
+                  secondary: '#fff',
+                },
               },
-            },
-          }}
-        />
-        <AppRoutes />
-      </Router>
+              error: {
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+          <AppRoutes />
+        </Router>
+      </PersistGate>
     </Provider>
   );
 }

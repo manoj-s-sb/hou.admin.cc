@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 
 import { createWork, deleteWorkMedia, getWorkUploadUrl, uploadFileToBlob } from '../../../store/maintenance/api';
 import { CreateWorkRequest } from '../../../store/maintenance/types';
-import { ALL_LANES, FACILITY_CODE, getLocalUser, inputCls } from '../constants';
+import { ALL_LANES, getLocalUser, inputCls } from '../constants';
 
 type AddTaskForm = Omit<CreateWorkRequest, 'facilityCode' | 'type' | 'steps'> & {
   steps: { stepId: string; order: number; title: string; imageUrl: string }[];
@@ -68,7 +68,7 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
     const uploadKey = `${index}_imageUrl`;
     setUploading(prev => ({ ...prev, [uploadKey]: true }));
     try {
-      const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+      const { uploadUrl, blobName } = await getWorkUploadUrl(getLocalUser().facilityCode, file.name);
       await uploadFileToBlob(uploadUrl, file);
       stepImageFiles.current[index] = file;
       updateStep(index, 'imageUrl', blobName);
@@ -83,7 +83,7 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
   const handleVideoUpload = async (file: File) => {
     setUploading(prev => ({ ...prev, task_video: true }));
     try {
-      const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+      const { uploadUrl, blobName } = await getWorkUploadUrl(getLocalUser().facilityCode, file.name);
       await uploadFileToBlob(uploadUrl, file);
       setVideoFile(file);
       setField('videoUrl', blobName);
@@ -122,7 +122,7 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
       selectedLanes.map(laneNo =>
         dispatch(
           createWork({
-            facilityCode: FACILITY_CODE,
+            facilityCode: getLocalUser().facilityCode,
             type: 'task',
             ...form,
             laneNo,

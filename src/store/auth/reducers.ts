@@ -1,25 +1,31 @@
-import { createSlice } from '@reduxjs/toolkit';
-
-import { saveTokenExpirationTime, clearTokenExpirationTime } from '../../utils/tokenUtils';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { login } from './api';
-import { initialState } from './types';
+import { AuthTokens, initialState, Permissions, User } from './types';
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
+    setTokens: (state, action: PayloadAction<AuthTokens | null>) => {
+      state.tokens = action.payload;
+      state.tokenExpirationTime = action.payload?.expires_in ? Date.now() + action.payload.expires_in * 1000 : null;
+    },
+    setUser: (state, action: PayloadAction<User | null>) => {
+      state.user = action.payload;
+    },
+    setPermissions: (state, action: PayloadAction<Permissions | null>) => {
+      state.permissions = action.payload;
+    },
     logout: state => {
       state.isLoading = false;
       state.isAuthenticated = false;
       state.loginResponse = null;
+      state.tokens = null;
+      state.user = null;
+      state.permissions = null;
+      state.tokenExpirationTime = null;
       state.error = null;
-      localStorage.removeItem('loginResponse');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('tokens');
-      localStorage.removeItem('user');
-      localStorage.removeItem('permissions');
-      clearTokenExpirationTime();
     },
   },
   extraReducers: builder => {
@@ -29,23 +35,14 @@ const authSlice = createSlice({
       state.error = null;
     });
     builder.addCase(login.fulfilled, (state, action) => {
-      const tokens = action.payload?.data?.tokens;
-      const permissions = action.payload?.data?.permissions;
-      localStorage.setItem('tokens', JSON.stringify(tokens));
-      localStorage.setItem('isAuthenticated', JSON.stringify(true));
-      localStorage.setItem('user', JSON.stringify(action.payload?.data?.user));
-      if (permissions) {
-        localStorage.setItem('permissions', JSON.stringify(permissions));
-      }
-
-      // Save token expiration time
-      if (tokens?.expires_in) {
-        saveTokenExpirationTime(tokens.expires_in);
-      }
-
-      state.isLoading = false;
+      const data = action.payload?.data;
+      state.tokens = data?.tokens ?? null;
+      state.user = data?.user ?? null;
+      state.permissions = data?.permissions ?? null;
+      state.tokenExpirationTime = data?.tokens?.expires_in ? Date.now() + data.tokens.expires_in * 1000 : null;
       state.loginResponse = action.payload;
       state.isAuthenticated = true;
+      state.isLoading = false;
       state.error = null;
     });
     builder.addCase(login.rejected, (state, action) => {
@@ -57,5 +54,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout } = authSlice.actions;
+export const { logout, setTokens, setUser, setPermissions } = authSlice.actions;
 export default authSlice.reducer;

@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 
 import { getWorkUploadUrl, updateWork, uploadFileToBlob } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
-import { FACILITY_CODE, getLocalUser } from '../constants';
+import { getLocalUser } from '../constants';
 
 interface ScheduleCardProps {
   item: Work;
@@ -39,7 +39,7 @@ const ScheduleCard = ({
     try {
       const blobNames = await Promise.all(
         Array.from(files).map(async file => {
-          const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+          const { uploadUrl, blobName } = await getWorkUploadUrl(getLocalUser().facilityCode, file.name);
           await uploadFileToBlob(uploadUrl, file);
           return blobName;
         })

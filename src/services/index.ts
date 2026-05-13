@@ -1,9 +1,10 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { AxiosError, create, InternalAxiosRequestConfig } from 'axios';
 
+import store from '../store/store';
 import { isTokenExpired } from '../utils/tokenUtils';
 
 // Create axios instance with default configuration
-const api = axios.create({
+const api = create({
   baseURL: process.env.REACT_APP_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -38,16 +39,9 @@ api.interceptors.request.use(
       return Promise.reject(new Error('Token expired'));
     }
 
-    const tokensString = localStorage.getItem('tokens');
-    if (tokensString && config.headers) {
-      try {
-        const tokens = JSON.parse(tokensString);
-        if (tokens.access_token) {
-          config.headers.Authorization = `Bearer ${tokens.access_token}`;
-        }
-      } catch (error) {
-        console.error('Error parsing tokens from localStorage:', error);
-      }
+    const { tokens } = store.getState().auth;
+    if (tokens?.access_token && config.headers) {
+      config.headers.Authorization = `Bearer ${tokens.access_token}`;
     }
     return config;
   },

@@ -1,6 +1,11 @@
 import React from 'react';
 
+import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+
+import { ROUTES } from '../constants/routes';
+import { logout as logoutAction } from '../store/auth/reducers';
+import { persistor } from '../store/store';
 
 interface SessionExpiredModalProps {
   isOpen: boolean;
@@ -8,12 +13,14 @@ interface SessionExpiredModalProps {
 }
 
 const SessionExpiredModal: React.FC<SessionExpiredModalProps> = ({ isOpen, onClose }) => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.clear();
+    dispatch(logoutAction());
+    persistor.purge();
     onClose();
-    navigate('/login');
+    navigate(ROUTES.LOGIN.path);
   };
 
   if (!isOpen) return null;

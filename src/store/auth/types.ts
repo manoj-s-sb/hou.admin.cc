@@ -41,6 +41,10 @@ export interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   loginResponse: LoginResponse | null;
+  tokens: AuthTokens | null;
+  user: User | null;
+  permissions: Permissions | null;
+  tokenExpirationTime: number | null;
   error: string | null | any;
 }
 
@@ -48,5 +52,9 @@ export const initialState: AuthState = {
   isLoading: false,
   isAuthenticated: false,
   loginResponse: null,
+  tokens: null,
+  user: null,
+  permissions: null,
+  tokenExpirationTime: null,
   error: null,
 };

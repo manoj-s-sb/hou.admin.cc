@@ -7,6 +7,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
+import { buildRoute } from '../../constants/routes';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -222,7 +223,7 @@ const Induction = () => {
                 title="View induction details"
                 onClick={e => {
                   e.stopPropagation();
-                  navigate(`/view-induction/${params.row.userId}`, { state: { listSearch: location.search } });
+                  navigate(buildRoute.viewInduction(params.row.userId), { state: { listSearch: location.search } });
                 }}
               >
                 View
@@ -427,7 +428,7 @@ const Induction = () => {
             );
           }}
           onRowClick={(row: any) => {
-            navigate(`/view-induction/${row.userId}`, { state: { listSearch: location.search } });
+            navigate(buildRoute.viewInduction(row.userId), { state: { listSearch: location.search } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
             dispatch(

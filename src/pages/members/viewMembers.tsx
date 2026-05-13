@@ -24,6 +24,7 @@ import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import countries from '../../constants/countries.json';
 import { getRelationshipLabel } from '../../constants/relationship';
+import { ROUTES } from '../../constants/routes';
 import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -102,7 +103,7 @@ const ViewMembers = () => {
           <p className="text-lg text-gray-500">No member details found</p>
           <button
             className="mt-4 font-medium text-blue-600 hover:text-blue-700"
-            onClick={() => navigate(`/members${listSearch}`)}
+            onClick={() => navigate(`${ROUTES.MEMBERS.path}${listSearch}`)}
           >
             Go back to members list
           </button>
@@ -134,7 +135,7 @@ const ViewMembers = () => {
           search={false}
           title="Member Details"
           value=""
-          onBackClick={() => navigate(`/members${listSearch}`)}
+          onBackClick={() => navigate(`${ROUTES.MEMBERS.path}${listSearch}`)}
           onSearch={() => undefined}
         />
 
