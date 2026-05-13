@@ -9,10 +9,18 @@ export type ModuleKey = string | readonly string[];
 
 type ModulesMap = Record<string, PermissionAction[]>;
 
+const META_KEYS = new Set(['role', 'facilityCode', 'modules']);
+
 const getModules = (): ModulesMap | null => {
   const { permissions } = store.getState().auth;
   if (!permissions) return null;
-  return permissions.modules ?? null;
+  if (permissions.modules && typeof permissions.modules === 'object') return permissions.modules;
+  const flat: ModulesMap = {};
+  Object.entries(permissions as unknown as Record<string, unknown>).forEach(([key, value]) => {
+    if (META_KEYS.has(key)) return;
+    if (Array.isArray(value)) flat[key] = value as PermissionAction[];
+  });
+  return Object.keys(flat).length ? flat : null;
 };
 
 export const getRole = (): string => {
