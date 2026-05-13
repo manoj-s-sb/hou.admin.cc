@@ -3,6 +3,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import menus from '../constants/menus';
+import { canRead } from '../utils/permissions';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -18,7 +19,7 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const location = useLocation();
 
-  const menuItems = menus;
+  const menuItems = menus.filter(item => canRead(item.module));
 
   const handleOverlayKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!onClose) return;

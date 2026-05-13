@@ -25,7 +25,7 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       toast.success('Logged in successfully!', { duration: 4000 });
-      setTimeout(() => navigate('/members'), 100);
+      setTimeout(() => navigate('/'), 100);
     }
   }, [isAuthenticated, navigate]);
 

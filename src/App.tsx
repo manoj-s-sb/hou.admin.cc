@@ -4,9 +4,10 @@ import { Toaster } from 'react-hot-toast';
 import { Provider } from 'react-redux';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
+import RoleProtectedRoute from './components/RoleProtectedRoute';
 import SessionExpiredModal from './components/SessionExpiredModal';
+import menus from './constants/menus';
+import { ROUTE_MODULES } from './constants/routePermissions';
 import {
   Login,
   Dashboard,
@@ -23,12 +24,17 @@ import {
 } from './pages';
 import { setSessionExpiredCallback } from './services';
 import store from './store/store';
+import { canRead } from './utils/permissions';
+
+const DefaultLanding: React.FC = () => {
+  const firstReadable = menus.find(item => canRead(item.module));
+  return <Navigate replace to={firstReadable?.path ?? '/login'} />;
+};
 
 const AppRoutes: React.FC = () => {
   const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] = useState(false);
 
   useEffect(() => {
-    // Set up the session expired callback
     setSessionExpiredCallback(() => {
       setIsSessionExpiredModalOpen(true);
     });
@@ -40,115 +46,93 @@ const AppRoutes: React.FC = () => {
         <Route element={<Login />} path="/login" />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.reports}>
+              <Dashboard />
+            </RoleProtectedRoute>
           }
           path="/dashboard"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <UserList />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.superAdmin}>
+              <UserList />
+            </RoleProtectedRoute>
           }
           path="/users"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Induction />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.induction}>
+              <Induction />
+            </RoleProtectedRoute>
           }
           path="/induction"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <ViewInduction />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.induction}>
+              <ViewInduction />
+            </RoleProtectedRoute>
           }
           path="/view-induction/:userId"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Tours />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.tour}>
+              <Tours />
+            </RoleProtectedRoute>
           }
           path="/tour"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Members />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.members}>
+              <Members />
+            </RoleProtectedRoute>
           }
           path="/members"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <ViewMembers />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.members}>
+              <ViewMembers />
+            </RoleProtectedRoute>
           }
           path="/members/:userId"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <SlotBookings />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.bookings}>
+              <SlotBookings />
+            </RoleProtectedRoute>
           }
           path="/slot-bookings"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <CoachSchedule />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.coaches}>
+              <CoachSchedule />
+            </RoleProtectedRoute>
           }
           path="/coach-schedule"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Maintenance />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.maintenance}>
+              <Maintenance />
+            </RoleProtectedRoute>
           }
           path="/maintenance"
         />
         <Route
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Tailgate />
-              </Layout>
-            </ProtectedRoute>
+            <RoleProtectedRoute module={ROUTE_MODULES.tailgate}>
+              <Tailgate />
+            </RoleProtectedRoute>
           }
           path="/tailgate"
         />
-        <Route element={<Navigate replace to="/induction" />} path="/" />
+        <Route element={<DefaultLanding />} path="/" />
       </Routes>
 
       {/* Global Session Expired Modal */}

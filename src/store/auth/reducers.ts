@@ -18,6 +18,7 @@ const authSlice = createSlice({
       localStorage.removeItem('isAuthenticated');
       localStorage.removeItem('tokens');
       localStorage.removeItem('user');
+      localStorage.removeItem('permissions');
       clearTokenExpirationTime();
     },
   },
@@ -29,9 +30,13 @@ const authSlice = createSlice({
     });
     builder.addCase(login.fulfilled, (state, action) => {
       const tokens = action.payload?.data?.tokens;
+      const permissions = action.payload?.data?.permissions;
       localStorage.setItem('tokens', JSON.stringify(tokens));
       localStorage.setItem('isAuthenticated', JSON.stringify(true));
       localStorage.setItem('user', JSON.stringify(action.payload?.data?.user));
+      if (permissions) {
+        localStorage.setItem('permissions', JSON.stringify(permissions));
+      }
 
       // Save token expiration time
       if (tokens?.expires_in) {
