@@ -1,9 +1,10 @@
+import { SUPER_ADMIN_ONLY } from '../constants/routes';
 import { PermissionAction } from '../store/auth/types';
 import store from '../store/store';
 
 export const SUPER_ADMIN_ROLE = 'stancebeamadmin';
 
-export const SUPER_ADMIN_ONLY = '__superadmin__';
+export { SUPER_ADMIN_ONLY };
 
 export type ModuleKey = string | readonly string[];
 
@@ -36,7 +37,6 @@ export const hasPermission = (modules: ModuleKey | undefined, action: Permission
   if (!modules) return true;
   const list = toList(modules);
   if (list.includes(SUPER_ADMIN_ONLY)) return isSuperAdmin();
-  if (isSuperAdmin()) return true;
 
   const storedModules = getModules();
   if (!storedModules) return true;

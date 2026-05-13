@@ -1,5 +1,4 @@
-import { ROUTE_MODULES } from './routePermissions';
-import { ROUTES } from './routes';
+import { ROUTE_MODULES, ROUTES } from './routes';
 
 export interface MenuItem {
   path: string;
@@ -31,7 +30,7 @@ const menus: MenuItem[] = [
     path: ROUTES.SLOT_BOOKINGS.path,
     label: ROUTES.SLOT_BOOKINGS.label,
     icon: '/assets/slot-bookings.svg',
-    module: ROUTE_MODULES.bookings,
+    module: ROUTE_MODULES.slots,
   },
   {
     path: ROUTES.COACH_SCHEDULE.path,

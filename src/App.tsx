@@ -8,8 +8,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import SessionExpiredModal from './components/SessionExpiredModal';
 import menus from './constants/menus';
-import { ROUTE_MODULES } from './constants/routePermissions';
-import { ROUTES } from './constants/routes';
+import { ROUTE_MODULES, ROUTES } from './constants/routes';
 import {
   Login,
   Dashboard,
@@ -104,7 +103,7 @@ const AppRoutes: React.FC = () => {
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.bookings}>
+            <RoleProtectedRoute module={ROUTE_MODULES.slots}>
               <SlotBookings />
             </RoleProtectedRoute>
           }
