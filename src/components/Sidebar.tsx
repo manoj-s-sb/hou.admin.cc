@@ -3,7 +3,8 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import menus from '../constants/menus';
-import { canRead } from '../utils/permissions';
+import { ROUTES } from '../constants/routes';
+import { canRead } from '../rbac/permissions';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -62,12 +63,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4">
           {menuItems.map(item => {
-            // Check if current path matches menu item or is a child route
             const isActive =
               location.pathname === item.path ||
               location.pathname.startsWith(`${item.path}/`) ||
-              (item.path === '/induction' && location.pathname.includes('view-induction')) ||
-              (item.path === '/members' && location.pathname.includes('view-members'));
+              (item.path === ROUTES.INDUCTION.path && location.pathname.startsWith('/view-induction')) ||
+              (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members'));
 
             return (
               <Link

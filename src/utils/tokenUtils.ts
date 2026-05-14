@@ -1,16 +1,17 @@
-import store from '../store/store';
-
-export const isTokenExpired = (): boolean => {
-  const { tokens, tokenExpirationTime } = store.getState().auth;
-  if (!tokenExpirationTime) {
-    return !tokens;
-  }
-  const buffer = 60 * 1000;
-  return Date.now() >= tokenExpirationTime - buffer;
+type AuthSnapshot = {
+  tokens?: { access_token?: string } | null;
+  tokenExpirationTime?: number | null;
 };
 
-export const getTokenRemainingTime = (): number => {
-  const { tokenExpirationTime } = store.getState().auth;
-  if (!tokenExpirationTime) return 0;
-  return Math.max(0, Math.floor((tokenExpirationTime - Date.now()) / 1000));
+export const isTokenExpired = (auth: AuthSnapshot): boolean => {
+  if (!auth.tokenExpirationTime) {
+    return !auth.tokens;
+  }
+  const buffer = 60 * 1000;
+  return Date.now() >= auth.tokenExpirationTime - buffer;
+};
+
+export const getTokenRemainingTime = (auth: AuthSnapshot): number => {
+  if (!auth.tokenExpirationTime) return 0;
+  return Math.max(0, Math.floor((auth.tokenExpirationTime - Date.now()) / 1000));
 };

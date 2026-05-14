@@ -2,7 +2,7 @@ import React from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
-import { getRole } from '../utils/permissions';
+import { getRole } from './permissions';
 
 const RestrictedAccess: React.FC = () => {
   const navigate = useNavigate();

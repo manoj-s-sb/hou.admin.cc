@@ -5,10 +5,9 @@ import { Provider } from 'react-redux';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { PersistGate } from 'redux-persist/integration/react';
 
-import RoleProtectedRoute from './components/RoleProtectedRoute';
 import SessionExpiredModal from './components/SessionExpiredModal';
 import menus from './constants/menus';
-import { ROUTE_MODULES, ROUTES } from './constants/routes';
+import { ROUTES } from './constants/routes';
 import {
   Login,
   Dashboard,
@@ -23,9 +22,9 @@ import {
   Maintenance,
   Tailgate,
 } from './pages';
+import { ACCESS_SCOPES, canRead, PermissionRoute } from './rbac';
 import { setSessionExpiredCallback } from './services';
 import store, { persistor } from './store/store';
-import { canRead } from './utils/permissions';
 
 const DefaultLanding: React.FC = () => {
   const firstReadable = menus.find(item => canRead(item.module));
@@ -47,89 +46,89 @@ const AppRoutes: React.FC = () => {
         <Route element={<Login />} path={ROUTES.LOGIN.path} />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.reports}>
+            <PermissionRoute module={ACCESS_SCOPES.reports}>
               <Dashboard />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.DASHBOARD.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.superAdmin}>
+            <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
               <UserList />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.USERS.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.induction}>
+            <PermissionRoute module={ACCESS_SCOPES.induction}>
               <Induction />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.INDUCTION.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.induction}>
+            <PermissionRoute module={ACCESS_SCOPES.induction}>
               <ViewInduction />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.VIEW_INDUCTION.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.tour}>
+            <PermissionRoute module={ACCESS_SCOPES.tour}>
               <Tours />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.TOUR.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.members}>
+            <PermissionRoute module={ACCESS_SCOPES.members}>
               <Members />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.MEMBERS.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.members}>
+            <PermissionRoute module={ACCESS_SCOPES.members}>
               <ViewMembers />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.VIEW_MEMBERS.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.slots}>
+            <PermissionRoute module={ACCESS_SCOPES.slots}>
               <SlotBookings />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.SLOT_BOOKINGS.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.coaches}>
+            <PermissionRoute module={ACCESS_SCOPES.coaches}>
               <CoachSchedule />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.COACH_SCHEDULE.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.maintenance}>
+            <PermissionRoute module={ACCESS_SCOPES.maintenance}>
               <Maintenance />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.MAINTENANCE.path}
         />
         <Route
           element={
-            <RoleProtectedRoute module={ROUTE_MODULES.tailgate}>
+            <PermissionRoute module={ACCESS_SCOPES.tailgate}>
               <Tailgate />
-            </RoleProtectedRoute>
+            </PermissionRoute>
           }
           path={ROUTES.TAILGATE.path}
         />

@@ -1,4 +1,6 @@
-import { ROUTE_MODULES, ROUTES } from './routes';
+import { ACCESS_SCOPES } from '../rbac/constants';
+
+import { ROUTES } from './routes';
 
 export interface MenuItem {
   path: string;
@@ -12,43 +14,43 @@ const menus: MenuItem[] = [
     path: ROUTES.MEMBERS.path,
     label: ROUTES.MEMBERS.label,
     icon: '/assets/subscription.svg',
-    module: ROUTE_MODULES.members,
+    module: ACCESS_SCOPES.members,
   },
   {
     path: ROUTES.INDUCTION.path,
     label: ROUTES.INDUCTION.label,
     icon: '/assets/induction.svg',
-    module: ROUTE_MODULES.induction,
+    module: ACCESS_SCOPES.induction,
   },
   {
     path: ROUTES.TOUR.path,
     label: ROUTES.TOUR.label,
     icon: '/assets/tour.svg',
-    module: ROUTE_MODULES.tour,
+    module: ACCESS_SCOPES.tour,
   },
   {
     path: ROUTES.SLOT_BOOKINGS.path,
     label: ROUTES.SLOT_BOOKINGS.label,
     icon: '/assets/slot-bookings.svg',
-    module: ROUTE_MODULES.slots,
+    module: ACCESS_SCOPES.slots,
   },
   {
     path: ROUTES.COACH_SCHEDULE.path,
     label: ROUTES.COACH_SCHEDULE.label,
     icon: '/assets/coach-schedule.svg',
-    module: ROUTE_MODULES.coaches,
+    module: ACCESS_SCOPES.coaches,
   },
   {
     path: ROUTES.TAILGATE.path,
     label: ROUTES.TAILGATE.label,
     icon: '/assets/tailgate.svg',
-    module: ROUTE_MODULES.tailgate,
+    module: ACCESS_SCOPES.tailgate,
   },
   {
     path: ROUTES.MAINTENANCE.path,
     label: ROUTES.MAINTENANCE.label,
     icon: '/assets/maintenance.svg',
-    module: ROUTE_MODULES.maintenance,
+    module: ACCESS_SCOPES.maintenance,
   },
 ];
 

@@ -1,17 +1,17 @@
 import React from 'react';
 
-import { canRead, ModuleKey } from '../utils/permissions';
+import Layout from '../components/Layout';
 
-import Layout from './Layout';
+import { canRead, ModuleKey } from './permissions';
 import ProtectedRoute from './ProtectedRoute';
 import RestrictedAccess from './RestrictedAccess';
 
-interface RoleProtectedRouteProps {
+interface PermissionRouteProps {
   module?: ModuleKey;
   children: React.ReactNode;
 }
 
-const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({ module, children }) => {
+const PermissionRoute: React.FC<PermissionRouteProps> = ({ module, children }) => {
   return (
     <ProtectedRoute>
       <Layout>{canRead(module) ? children : <RestrictedAccess />}</Layout>
@@ -19,4 +19,4 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({ module, childre
   );
 };
 
-export default RoleProtectedRoute;
+export default PermissionRoute;

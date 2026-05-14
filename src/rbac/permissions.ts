@@ -1,16 +1,11 @@
-import { SUPER_ADMIN_ONLY } from '../constants/routes';
 import { PermissionAction } from '../store/auth/types';
 import store from '../store/store';
 
-export const SUPER_ADMIN_ROLE = 'stancebeamadmin';
-
-export { SUPER_ADMIN_ONLY };
+import { SUPER_ADMIN_ONLY, SUPER_ADMIN_ROLE } from './constants';
 
 export type ModuleKey = string | readonly string[];
 
 type ModulesMap = Record<string, PermissionAction[]>;
-
-const META_KEYS = new Set(['role', 'facilityCode', 'modules']);
 
 const getModules = (): ModulesMap | null => {
   const { permissions } = store.getState().auth;
@@ -18,7 +13,6 @@ const getModules = (): ModulesMap | null => {
   if (permissions.modules && typeof permissions.modules === 'object') return permissions.modules;
   const flat: ModulesMap = {};
   Object.entries(permissions as unknown as Record<string, unknown>).forEach(([key, value]) => {
-    if (META_KEYS.has(key)) return;
     if (Array.isArray(value)) flat[key] = value as PermissionAction[];
   });
   return Object.keys(flat).length ? flat : null;
