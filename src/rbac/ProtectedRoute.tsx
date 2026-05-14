@@ -3,6 +3,7 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 
+import { ROUTES } from '../constants/routes';
 import { RootState } from '../store/store';
 
 interface ProtectedRouteProps {
@@ -10,13 +11,10 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const isAuthenticatedFromLocalStorage = localStorage.getItem('isAuthenticated');
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
 
-  const isAuth = isAuthenticated || isAuthenticatedFromLocalStorage === 'true';
-
-  if (!isAuth) {
-    return <Navigate replace to="/login" />;
+  if (!isAuthenticated) {
+    return <Navigate replace to={ROUTES.LOGIN.path} />;
   }
 
   return <>{children}</>;

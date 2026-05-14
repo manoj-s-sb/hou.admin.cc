@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { deleteWorkMedia, getWorkUploadUrl, updateWork, uploadFileToBlob } from '../../../store/maintenance/api';
 import { Work, WorkActivity } from '../../../store/maintenance/types';
 import { RootState } from '../../../store/store';
-import { FACILITY_CODE, getLocalUser } from '../constants';
+import { getLocalUser } from '../constants';
 
 interface IssueDetailModalProps {
   item: Work;
@@ -281,7 +281,7 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
   const handleAttachFile = async (file: File) => {
     setAttaching(true);
     try {
-      const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+      const { uploadUrl, blobName } = await getWorkUploadUrl(getLocalUser().facilityCode, file.name);
       await uploadFileToBlob(uploadUrl, file);
       setCommentAttachment({ blobName, file });
     } catch {

@@ -21,7 +21,7 @@ import ScheduleCard from './components/ScheduleCard';
 import ScheduleModal from './components/ScheduleModal';
 import StepsModal from './components/StepsModal';
 import TaskCard from './components/TaskCard';
-import { FACILITY_CODE, Tab, TaskFrequency, getLocalUser, tabs, taskFrequencies } from './constants';
+import { Tab, TaskFrequency, getLocalUser, tabs, taskFrequencies } from './constants';
 
 type IssueFilter = 'new' | 'active' | 'closed';
 const issueFilterStatus: Record<IssueFilter, string> = {
@@ -57,13 +57,7 @@ const issueFilterMeta: Record<IssueFilter, { label: string; activeText: string; 
 const Maintenance = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { workList, isLoading } = useSelector((state: RootState) => state.maintenance);
-  const currentUserId = (() => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || '{}')?.userId || '';
-    } catch {
-      return '';
-    }
-  })();
+  const currentUserId = useSelector((state: RootState) => state.auth.user?.userId) || '';
 
   const toDateStr = (d: Date) => d.toISOString().split('T')[0];
   const today = toDateStr(new Date());
@@ -117,7 +111,7 @@ const Maintenance = () => {
     fetchRequestRef.current?.abort();
     fetchRequestRef.current = dispatch(
       getWorkList({
-        facilityCode: FACILITY_CODE,
+        facilityCode: getLocalUser().facilityCode,
         page,
         limit,
         type,
@@ -140,11 +134,13 @@ const Maintenance = () => {
       );
     } else if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page: 1, limit: 20, type: 'task', toDate: yesterday }));
+      dispatch(
+        getWorkList({ facilityCode: getLocalUser().facilityCode, page: 1, limit: 20, type: 'task', toDate: yesterday })
+      );
     } else {
       dispatch(
         getWorkList({
-          facilityCode: FACILITY_CODE,
+          facilityCode: getLocalUser().facilityCode,
           page: 1,
           limit: 20,
           type: 'task',
@@ -158,7 +154,13 @@ const Maintenance = () => {
   const fetchIssueCounts = () => {
     const getCount = (status: string) =>
       api
-        .post(endpoints.maintenance.workList, { facilityCode: FACILITY_CODE, page: 1, limit: 1, type: 'issue', status })
+        .post(endpoints.maintenance.workList, {
+          facilityCode: getLocalUser().facilityCode,
+          page: 1,
+          limit: 1,
+          type: 'issue',
+          status,
+        })
         .then((res: any) => {
           const data = res.data?.data;
           return Array.isArray(data) ? data.length : (data?.total ?? 0);
@@ -184,7 +186,7 @@ const Maintenance = () => {
     const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
     api
       .post(endpoints.maintenance.workList, {
-        facilityCode: FACILITY_CODE,
+        facilityCode: getLocalUser().facilityCode,
         page: 1,
         limit: 100,
         type: 'task',
@@ -197,7 +199,7 @@ const Maintenance = () => {
       });
     api
       .post(endpoints.maintenance.workList, {
-        facilityCode: FACILITY_CODE,
+        facilityCode: getLocalUser().facilityCode,
         page: 1,
         limit: 1,
         type: 'task',
@@ -227,10 +229,18 @@ const Maintenance = () => {
     const limit = workList.limit || 20;
     if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(getWorkList({ facilityCode: FACILITY_CODE, page, limit, type: 'task', toDate: yesterday }));
+      dispatch(
+        getWorkList({ facilityCode: getLocalUser().facilityCode, page, limit, type: 'task', toDate: yesterday })
+      );
     } else {
       dispatch(
-        getWorkList({ facilityCode: FACILITY_CODE, page, limit, type: 'task', scheduledDate: selectedScheduleDate })
+        getWorkList({
+          facilityCode: getLocalUser().facilityCode,
+          page,
+          limit,
+          type: 'task',
+          scheduledDate: selectedScheduleDate,
+        })
       );
     }
     fetchScheduleCounts();
@@ -825,7 +835,7 @@ const Maintenance = () => {
       {flagIssueItem && (
         <FlagIssueModal
           dispatch={dispatch}
-          facilityCode={FACILITY_CODE}
+          facilityCode={getLocalUser().facilityCode}
           item={flagIssueItem}
           updatedBy={currentUserId}
           onClose={() => setFlagIssueItem(null)}
@@ -839,7 +849,7 @@ const Maintenance = () => {
       {markDoneItem && (
         <MarkDoneModal
           dispatch={dispatch}
-          facilityCode={FACILITY_CODE}
+          facilityCode={getLocalUser().facilityCode}
           item={markDoneItem}
           updatedBy={currentUserId}
           onClose={() => setMarkDoneItem(null)}
@@ -858,7 +868,7 @@ const Maintenance = () => {
       {showCreateIssue && (
         <CreateIssueModal
           dispatch={dispatch}
-          facilityCode={FACILITY_CODE}
+          facilityCode={getLocalUser().facilityCode}
           updatedBy={currentUserId}
           onClose={() => setShowCreateIssue(false)}
           onSuccess={() => {

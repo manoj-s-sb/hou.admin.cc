@@ -10,7 +10,7 @@ import {
   uploadFileToBlob,
 } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
-import { AssignedTo, FACILITY_CODE, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
+import { AssignedTo, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
 
 interface FlagIssueModalProps {
   item: Work;
@@ -39,7 +39,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
     try {
       const items = await Promise.all(
         Array.from(files).map(async file => {
-          const { uploadUrl, blobName } = await getWorkUploadUrl(FACILITY_CODE, file.name);
+          const { uploadUrl, blobName } = await getWorkUploadUrl(getLocalUser().facilityCode, file.name);
           await uploadFileToBlob(uploadUrl, file);
           return { blobName, file };
         })
