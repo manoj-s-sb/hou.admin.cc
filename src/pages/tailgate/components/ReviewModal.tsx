@@ -2,6 +2,8 @@ import { useState } from 'react';
 
 import { useDispatch } from 'react-redux';
 
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 import { AppDispatch } from '../../../store/store';
 import { submitTailgateReview } from '../../../store/tailgate/api';
 import { TailgateLog } from '../../../store/tailgate/types';
@@ -318,16 +320,17 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
             >
               Cancel
             </button>
-            <button
+            <Button
               className={`rounded-lg px-4 py-2 text-[12px] font-semibold text-white transition disabled:opacity-50 ${
                 isViolation ? 'bg-red-600 hover:bg-red-700' : 'bg-[#21295A] hover:bg-[#1a2147]'
               }`}
-              disabled={isSubmitting}
-              type="button"
+              loading={isSubmitting}
+              loadingText="Saving…"
+              module={ACCESS_SCOPES.tailgate}
               onClick={handleSave}
             >
-              {isSubmitting ? 'Saving…' : isPending ? 'Save Review' : 'Update Review'}
-            </button>
+              {isPending ? 'Save Review' : 'Update Review'}
+            </Button>
           </div>
         </div>
       </div>

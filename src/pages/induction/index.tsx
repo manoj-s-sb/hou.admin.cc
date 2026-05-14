@@ -4,10 +4,12 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import Button from '../../components/Button';
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
+import { ACCESS_SCOPES } from '../../rbac';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -230,8 +232,9 @@ const Induction = () => {
               </button>
             )}
             {params.row?.status === 'confirmed' && (
-              <button
+              <Button
                 className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-all hover:bg-orange-600 hover:text-white"
+                module={ACCESS_SCOPES.induction}
                 title="Mark as no show"
                 onClick={e => {
                   e.stopPropagation();
@@ -239,11 +242,12 @@ const Induction = () => {
                 }}
               >
                 {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'No Show'}
-              </button>
+              </Button>
             )}
             {isNoShow && (
-              <button
+              <Button
                 className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 transition-all hover:bg-blue-600 hover:text-white"
+                module={ACCESS_SCOPES.induction}
                 title="Undo no show"
                 onClick={e => {
                   e.stopPropagation();
@@ -251,7 +255,7 @@ const Induction = () => {
                 }}
               >
                 Undo
-              </button>
+              </Button>
             )}
           </div>
         );
@@ -469,10 +473,11 @@ const Induction = () => {
               >
                 Cancel
               </button>
-              <button
+              <Button
                 className="rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#2d3570] disabled:opacity-50"
-                disabled={isLoading}
-                type="button"
+                loading={isLoading}
+                loadingText="Updating…"
+                module={ACCESS_SCOPES.induction}
                 onClick={() => {
                   dispatch(
                     updateInductionBookingStatus({
@@ -509,8 +514,8 @@ const Induction = () => {
                     .finally(() => setUndoConfirm(null));
                 }}
               >
-                {isLoading ? 'Updating…' : 'Yes, Undo'}
-              </button>
+                Yes, Undo
+              </Button>
             </div>
           </div>
         </div>

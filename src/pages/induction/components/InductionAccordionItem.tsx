@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 
 import { toast } from 'react-hot-toast';
 
+import Button from '../../../components/Button';
 import { LoaderSpinner } from '../../../components/Loader';
+import { ACCESS_SCOPES } from '../../../rbac';
 import { getInductionStepsDetails } from '../../../store/induction/api';
 import { SubStep } from '../../../store/induction/types';
 import { formatDateTimeChicago } from '../../../utils/dateUtils';
@@ -367,44 +369,47 @@ const InductionAccordionItem = ({
           <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
             {/* Save Induction Button */}
             {isPrimary && data.subscriptionStatus !== 'active' && (
-              <button
+              <Button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   isSaveDisabled ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
                 }`}
                 disabled={isSaveDisabled}
+                module={ACCESS_SCOPES.induction}
                 onClick={handleSaveClick}
               >
                 {isSaving && <ButtonLoader />}
                 <span>{isSaving ? 'Saving...' : 'Save Induction'}</span>
-              </button>
+              </Button>
             )}
             {isInductionCompleted === false && !isPrimary && (
-              <button
+              <Button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   isSaveDisabled ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
                 }`}
                 disabled={isSaveDisabled}
+                module={ACCESS_SCOPES.induction}
                 onClick={handleSaveClick}
               >
                 {isSaving && <ButtonLoader />}
                 <span>{isSaving ? 'Saving...' : 'Save Induction'}</span>
-              </button>
+              </Button>
             )}
             {/* Activate Subscription Button - Hide when status is completed and subscriptionStatus is active */}
             {isPrimary && data.subscriptionStatus !== 'active' && (
-              <button
+              <Button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader
                     ? 'cursor-not-allowed bg-green-400'
                     : 'bg-green-600 hover:bg-green-700 hover:shadow-lg'
                 }`}
                 disabled={data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader}
+                module={ACCESS_SCOPES.induction}
                 title={data?.status !== 'completed' ? 'Complete all the induction steps to activate subscription' : ''}
                 onClick={handleActivateClick}
               >
                 {isActivatingSubscription && <ButtonLoader />}
                 <span>{isActivatingSubscription ? 'Activating...' : 'Activate Subscription'}</span>
-              </button>
+              </Button>
             )}
           </div>
         </div>
