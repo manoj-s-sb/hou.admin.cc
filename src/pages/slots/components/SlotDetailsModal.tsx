@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import Button from '../../../components/Button';
-import { ACCESS_SCOPES } from '../../../rbac';
+import { ACCESS_SCOPES, canWrite } from '../../../rbac';
 import { Slot } from '../../../store/slots/types';
 
 const BLOCK_REASONS = [
@@ -227,8 +227,8 @@ const SlotDetailsModal = ({
             </div>
           </div>
 
-          {/* Block Reason Selection - Only show for available slots */}
-          {isAvailable && (
+          {/* Block Reason Selection - Only show for available slots and user has write permission */}
+          {isAvailable && canWrite(ACCESS_SCOPES.slots) && (
             <div className="mb-5">
               <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
               <div className="space-y-3">

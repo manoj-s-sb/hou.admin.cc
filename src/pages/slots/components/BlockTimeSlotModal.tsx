@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import Button from '../../../components/Button';
-import { ACCESS_SCOPES } from '../../../rbac';
+import { ACCESS_SCOPES, canWrite } from '../../../rbac';
 
 const BLOCK_REASONS = [
   { value: '', label: 'Select a reason' },
@@ -128,8 +128,8 @@ const BlockTimeSlotModal = ({
             </p>
           </div>
 
-          {/* Reason — only when blocking */}
-          {!isBlocked && (
+          {/* Reason — only when blocking and user has write permission */}
+          {!isBlocked && canWrite(ACCESS_SCOPES.slots) && (
             <div className="mb-5">
               <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
               <div className="space-y-3">

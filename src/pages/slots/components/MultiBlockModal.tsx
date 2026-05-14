@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import Button from '../../../components/Button';
-import { ACCESS_SCOPES } from '../../../rbac';
+import { ACCESS_SCOPES, canWrite } from '../../../rbac';
 
 const BLOCK_REASONS = [
   { value: '', label: 'Select a reason' },
@@ -79,43 +79,45 @@ const MultiBlockModal = ({ isOpen, slotCount, isLoading = false, onClose, onConf
             </p>
           </div>
 
-          {/* Reason */}
-          <div className="mb-5">
-            <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
-            <div className="space-y-3">
-              <select
-                className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
-                value={selectedReason}
-                onChange={e => {
-                  setSelectedReason(e.target.value);
-                  setCustomReason('');
-                }}
-              >
-                {BLOCK_REASONS.map(r => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-              {selectedReason && (
-                <>
-                  <textarea
-                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
-                    maxLength={500}
-                    placeholder={`Enter details for ${selectedReason} (max 500 characters)...`}
-                    rows={4}
-                    value={customReason}
-                    onChange={e => setCustomReason(e.target.value)}
-                  />
-                  <p
-                    className={`text-right text-[12px] ${customReason.length >= 500 ? 'text-red-500' : 'text-gray-400'}`}
-                  >
-                    {customReason.length}/500
-                  </p>
-                </>
-              )}
+          {/* Reason — only when user has write permission */}
+          {canWrite(ACCESS_SCOPES.slots) && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
+              <div className="space-y-3">
+                <select
+                  className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                  value={selectedReason}
+                  onChange={e => {
+                    setSelectedReason(e.target.value);
+                    setCustomReason('');
+                  }}
+                >
+                  {BLOCK_REASONS.map(r => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                {selectedReason && (
+                  <>
+                    <textarea
+                      className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                      maxLength={500}
+                      placeholder={`Enter details for ${selectedReason} (max 500 characters)...`}
+                      rows={4}
+                      value={customReason}
+                      onChange={e => setCustomReason(e.target.value)}
+                    />
+                    <p
+                      className={`text-right text-[12px] ${customReason.length >= 500 ? 'text-red-500' : 'text-gray-400'}`}
+                    >
+                      {customReason.length}/500
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3">
