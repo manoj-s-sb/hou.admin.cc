@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-import { LoaderSpinner } from '../../../components/Loader';
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 
 const BLOCK_REASONS = [
   { value: '', label: 'Select a reason' },
@@ -45,7 +46,7 @@ const BlockTimeSlotModal = ({
     }
   };
 
-  const isConfirmDisabled = isLoading || (!isBlocked && (!selectedReason || !customReason.trim()));
+  const isConfirmDisabled = !isBlocked && (!selectedReason || !customReason.trim());
 
   return (
     <div
@@ -169,22 +170,15 @@ const BlockTimeSlotModal = ({
 
           {/* Actions */}
           <div className="flex gap-3">
-            <button
+            <Button
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-[14px] font-medium text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100 ${
                 isBlocked
                   ? 'bg-blue-600 shadow-blue-600/20 hover:bg-blue-700'
                   : 'bg-[#21295A] shadow-[#21295A]/20 hover:bg-[#2d3570]'
               }`}
               disabled={isConfirmDisabled}
-              onClick={handleConfirm}
-            >
-              {isLoading ? (
-                <>
-                  <LoaderSpinner className="text-white" size="sm" />
-                  Processing…
-                </>
-              ) : isBlocked ? (
-                <>
+              icon={
+                isBlocked ? (
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
@@ -193,10 +187,7 @@ const BlockTimeSlotModal = ({
                       strokeWidth={2}
                     />
                   </svg>
-                  Unblock All Lanes
-                </>
-              ) : (
-                <>
+                ) : (
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
@@ -205,17 +196,21 @@ const BlockTimeSlotModal = ({
                       strokeWidth={2}
                     />
                   </svg>
-                  Block All Lanes
-                </>
-              )}
-            </button>
-            <button
+                )
+              }
+              loading={isLoading}
+              module={ACCESS_SCOPES.slots}
+              onClick={handleConfirm}
+            >
+              {isBlocked ? 'Unblock All Lanes' : 'Block All Lanes'}
+            </Button>
+            <Button
               className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
               disabled={isLoading}
               onClick={onClose}
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </div>

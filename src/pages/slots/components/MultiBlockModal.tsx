@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-import { LoaderSpinner } from '../../../components/Loader';
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 
 const BLOCK_REASONS = [
   { value: '', label: 'Select a reason' },
@@ -118,37 +119,32 @@ const MultiBlockModal = ({ isOpen, slotCount, isLoading = false, onClose, onConf
 
           {/* Actions */}
           <div className="flex gap-3">
-            <button
+            <Button
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-              disabled={isLoading || !selectedReason || !customReason.trim()}
+              disabled={!selectedReason || !customReason.trim()}
+              icon={
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+              }
+              loading={isLoading}
+              module={ACCESS_SCOPES.slots}
               onClick={handleConfirm}
             >
-              {isLoading ? (
-                <>
-                  <LoaderSpinner className="text-white" size="sm" />
-                  Processing…
-                </>
-              ) : (
-                <>
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  Block {slotCount} Slot{slotCount !== 1 ? 's' : ''}
-                </>
-              )}
-            </button>
-            <button
+              Block {slotCount} Slot{slotCount !== 1 ? 's' : ''}
+            </Button>
+            <Button
               className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
               disabled={isLoading}
               onClick={onClose}
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </div>

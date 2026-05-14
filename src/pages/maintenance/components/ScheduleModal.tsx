@@ -2,6 +2,8 @@ import { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 import { updateWork } from '../../../store/maintenance/api';
 import { UpdateWorkRequest, Work } from '../../../store/maintenance/types';
 import { getLocalUser } from '../constants';
@@ -134,22 +136,25 @@ const ScheduleModal = ({ item, updatedBy, onClose, onSuccess, dispatch }: Schedu
           >
             Cancel
           </button>
-          <button
+          <Button
             className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1a2149] disabled:opacity-50"
-            disabled={saving}
-            type="button"
+            icon={
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+            }
+            loading={saving}
+            loadingText="Scheduling..."
+            module={ACCESS_SCOPES.maintenance}
             onClick={handleSubmit}
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-            {saving ? 'Scheduling...' : 'Confirm Schedule'}
-          </button>
+            Confirm Schedule
+          </Button>
         </div>
       </div>
     </div>

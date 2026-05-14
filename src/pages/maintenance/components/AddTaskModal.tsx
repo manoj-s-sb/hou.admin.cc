@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 import { createWork, deleteWorkMedia, getWorkUploadUrl, uploadFileToBlob } from '../../../store/maintenance/api';
 import { CreateWorkRequest } from '../../../store/maintenance/types';
 import { ALL_LANES, getLocalUser, inputCls } from '../constants';
@@ -460,14 +462,16 @@ const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
           >
             Cancel
           </button>
-          <button
+          <Button
             className="rounded-lg bg-[#21295A] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1a2149] disabled:opacity-50"
-            disabled={saving || Object.values(uploading).some(Boolean)}
-            type="button"
+            disabled={Object.values(uploading).some(Boolean)}
+            loading={saving}
+            loadingText={Object.values(uploading).some(Boolean) ? 'Uploading...' : 'Saving...'}
+            module={ACCESS_SCOPES.maintenance}
             onClick={handleSubmit}
           >
-            {saving ? 'Saving...' : Object.values(uploading).some(Boolean) ? 'Uploading...' : 'Create Task'}
-          </button>
+            Create Task
+          </Button>
         </div>
       </div>
     </div>

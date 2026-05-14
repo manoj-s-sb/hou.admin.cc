@@ -3,7 +3,9 @@ import { Fragment, useState, useMemo, useEffect, useRef, useCallback } from 'rea
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
+import Button from '../../../components/Button';
 import LoaderComponent, { LoaderSpinner } from '../../../components/Loader';
+import { ACCESS_SCOPES } from '../../../rbac';
 import { updateCoachSlots } from '../../../store/slots/api';
 import { CoachSlotsResponse, Coach, CoachSlot } from '../../../store/slots/types';
 import { AppDispatch } from '../../../store/store';
@@ -631,22 +633,22 @@ const CoachScheduleGrid: React.FC<{
                     </p>
                   )}
                   <div className="mt-4 flex flex-col gap-2">
-                    <button
+                    <Button
                       className="rounded-lg bg-green-500 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={isCurrentlyAvailable}
-                      type="button"
+                      module={ACCESS_SCOPES.coaches}
                       onClick={() => setSlotAvailability(true)}
                     >
                       Mark as Available
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-[13px] font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={isCurrentlyUnavailable}
-                      type="button"
+                      module={ACCESS_SCOPES.coaches}
                       onClick={() => setSlotAvailability(false)}
                     >
                       Mark as Unavailable
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 px-5 py-3">
@@ -720,22 +722,22 @@ const CoachScheduleGrid: React.FC<{
         {selectionMode && selectedSlots.size > 0 && (
           <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2.5">
             <span className="text-[12px] font-medium text-gray-500">{selectedSlots.size} selected</span>
-            <button
+            <Button
               className="rounded-lg bg-green-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-green-600 disabled:opacity-50"
               disabled={selectionTypeRestriction === 'available'}
-              type="button"
+              module={ACCESS_SCOPES.coaches}
               onClick={() => setMultipleSlotAvailability(true)}
             >
               Mark Available
-            </button>
-            <button
+            </Button>
+            <Button
               className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
               disabled={selectionTypeRestriction === 'unavailable'}
-              type="button"
+              module={ACCESS_SCOPES.coaches}
               onClick={() => setMultipleSlotAvailability(false)}
             >
               Mark Unavailable
-            </button>
+            </Button>
             <button
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:bg-gray-50"
               type="button"

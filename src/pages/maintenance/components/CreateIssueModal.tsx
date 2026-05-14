@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 import { createWork, deleteWorkMedia, getWorkUploadUrl, uploadFileToBlob } from '../../../store/maintenance/api';
 import { ALL_LANES, AssignedTo, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
 
@@ -358,14 +360,16 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
           >
             Cancel
           </button>
-          <button
+          <Button
             className="rounded-lg bg-[#21295A] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1a2149] disabled:opacity-50"
-            disabled={saving || attaching}
-            type="button"
+            disabled={attaching}
+            loading={saving}
+            loadingText={attaching ? 'Uploading...' : 'Creating...'}
+            module={ACCESS_SCOPES.maintenance}
             onClick={handleSubmit}
           >
-            {saving ? 'Creating...' : attaching ? 'Uploading...' : 'Create Issue'}
-          </button>
+            Create Issue
+          </Button>
         </div>
       </div>
     </div>

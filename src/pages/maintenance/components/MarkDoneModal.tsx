@@ -2,6 +2,8 @@ import { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 import { createWork, updateWork } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
 import { ActionType, actionTypes, getLocalUser, toggleCls } from '../constants';
@@ -173,17 +175,20 @@ const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess, disp
           >
             Cancel
           </button>
-          <button
+          <Button
             className="flex items-center gap-1.5 rounded-lg bg-green-500 px-5 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-50"
-            disabled={saving}
-            type="button"
+            icon={
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
+              </svg>
+            }
+            loading={saving}
+            loadingText="Saving..."
+            module={ACCESS_SCOPES.maintenance}
             onClick={handleSubmit}
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-            </svg>
-            {saving ? 'Saving...' : 'Confirm Done'}
-          </button>
+            Confirm Done
+          </Button>
         </div>
       </div>
     </div>

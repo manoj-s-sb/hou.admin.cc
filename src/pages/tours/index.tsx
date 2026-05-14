@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
+import Button from '../../components/Button';
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
+import { ACCESS_SCOPES } from '../../rbac';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -151,12 +153,13 @@ const Tours = () => {
 
         if (params.row?.status === 'noshow') {
           return (
-            <button
+            <Button
               className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 transition-all hover:bg-blue-600 hover:text-white"
+              module={ACCESS_SCOPES.tour}
               onClick={() => setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode })}
             >
               Undo
-            </button>
+            </Button>
           );
         }
 
@@ -166,18 +169,20 @@ const Tours = () => {
 
         return (
           <div className="flex items-center gap-2">
-            <button
+            <Button
               className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-[12px] font-semibold text-green-700 transition-all hover:bg-green-600 hover:text-white"
+              module={ACCESS_SCOPES.tour}
               onClick={() => handleStatusUpdate('completed')}
             >
               {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'Complete'}
-            </button>
-            <button
+            </Button>
+            <Button
               className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-all hover:bg-orange-600 hover:text-white"
+              module={ACCESS_SCOPES.tour}
               onClick={() => handleStatusUpdate('noshow')}
             >
               {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'No Show'}
-            </button>
+            </Button>
           </div>
         );
       },
@@ -371,10 +376,11 @@ const Tours = () => {
               >
                 Cancel
               </button>
-              <button
+              <Button
                 className="rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#2d3570] disabled:opacity-50"
-                disabled={isLoading}
-                type="button"
+                loading={isLoading}
+                loadingText="Updating…"
+                module={ACCESS_SCOPES.tour}
                 onClick={() => {
                   dispatch(
                     updateTourStatus({
@@ -396,8 +402,8 @@ const Tours = () => {
                     .finally(() => setUndoConfirm(null));
                 }}
               >
-                {isLoading ? 'Updating…' : 'Yes, Undo'}
-              </button>
+                Yes, Undo
+              </Button>
             </div>
           </div>
         </div>

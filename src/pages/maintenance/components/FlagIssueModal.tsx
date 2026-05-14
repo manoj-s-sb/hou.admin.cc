@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 import {
   createWork,
   deleteWorkMedia,
@@ -315,14 +317,16 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dis
           >
             Cancel
           </button>
-          <button
+          <Button
             className="rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-            disabled={saving || attaching}
-            type="button"
+            disabled={attaching}
+            loading={saving}
+            loadingText={attaching ? 'Uploading...' : 'Raising...'}
+            module={ACCESS_SCOPES.maintenance}
             onClick={handleSubmit}
           >
-            {saving ? 'Raising...' : attaching ? 'Uploading...' : 'Raise Issue'}
-          </button>
+            Raise Issue
+          </Button>
         </div>
       </div>
     </div>

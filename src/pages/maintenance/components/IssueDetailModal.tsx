@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 
+import Button from '../../../components/Button';
+import { ACCESS_SCOPES } from '../../../rbac';
 import { deleteWorkMedia, getWorkUploadUrl, updateWork, uploadFileToBlob } from '../../../store/maintenance/api';
 import { Work, WorkActivity } from '../../../store/maintenance/types';
 import { RootState } from '../../../store/store';
@@ -550,14 +552,16 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
                         e.target.value = '';
                       }}
                     />
-                    <button
+                    <Button
                       className="rounded-lg bg-[#21295A] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2149] disabled:opacity-40"
-                      disabled={!comment.trim() || saving || attaching}
-                      type="button"
+                      disabled={!comment.trim() || attaching}
+                      loading={saving}
+                      loadingText="Sending..."
+                      module={ACCESS_SCOPES.maintenance}
                       onClick={handleSendComment}
                     >
-                      {saving ? 'Sending...' : 'Send'}
-                    </button>
+                      Send
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -574,28 +578,28 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
                 {currentItem.status !== 'inprogress' &&
                   currentItem.status !== 'resolved' &&
                   currentItem.status !== 'closed' && (
-                    <button
+                    <Button
                       className="rounded-lg bg-[#21295A] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1a2149] disabled:opacity-50"
                       disabled={saving || attaching}
-                      type="button"
+                      module={ACCESS_SCOPES.maintenance}
                       onClick={handleMarkInProgress}
                     >
                       Mark In Progress
-                    </button>
+                    </Button>
                   )}
                 {currentItem.status !== 'closed' && reassignTargets.length > 0 && (
                   <>
                     <span className="text-sm text-gray-500">or reassign to:</span>
                     {reassignTargets.map(team => (
-                      <button
+                      <Button
                         key={team}
                         className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${teamColor[team]}`}
                         disabled={saving || attaching}
-                        type="button"
+                        module={ACCESS_SCOPES.maintenance}
                         onClick={() => handleReassign(team)}
                       >
                         {teamLabel(team)}
-                      </button>
+                      </Button>
                     ))}
                   </>
                 )}
@@ -608,18 +612,18 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy
         {currentItem.status !== 'closed' && (
           <div className="flex items-center justify-between border-t border-gray-100 px-6 py-3">
             <p className="text-xs text-gray-400">Add a comment above to close this issue.</p>
-            <button
+            <Button
               className={`rounded-lg border px-5 py-2 text-sm font-semibold transition-colors ${
                 comment.trim()
                   ? 'border-[#21295A] text-[#21295A] hover:bg-[#21295A] hover:text-white'
                   : 'cursor-not-allowed border-gray-200 text-gray-300'
               }`}
               disabled={!comment.trim() || saving || attaching}
-              type="button"
+              module={ACCESS_SCOPES.maintenance}
               onClick={handleCloseIssue}
             >
               Close Issue
-            </button>
+            </Button>
           </div>
         )}
       </div>
