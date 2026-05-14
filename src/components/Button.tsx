@@ -1,10 +1,9 @@
 import { ButtonHTMLAttributes, forwardRef, ReactNode } from 'react';
 
-import PermissionGate from '../rbac/PermissionGate';
+import { hasPermission, ModuleKey } from '../rbac/permissions';
 
 import { LoaderSpinner } from './Loader';
 
-import type { ModuleKey } from '../rbac/permissions';
 import type { PermissionAction } from '../store/auth/types';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -20,7 +19,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       module,
-      action,
+      action = 'write',
       loading = false,
       loadingText = 'Processing…',
       loaderClassName = 'text-white',
@@ -32,7 +31,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const button = (
+    // Hide entirely when permission is denied
+    if (module && !hasPermission(module, action)) {
+      return null;
+    }
+
+    return (
       <button ref={ref} disabled={disabled || loading} type={type} {...rest}>
         {loading ? (
           <>
@@ -46,13 +50,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           </>
         )}
       </button>
-    );
-
-    if (!module) return button;
-    return (
-      <PermissionGate action={action} module={module}>
-        {button}
-      </PermissionGate>
     );
   }
 );

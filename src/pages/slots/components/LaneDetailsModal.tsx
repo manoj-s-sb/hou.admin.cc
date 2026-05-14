@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import Button from '../../../components/Button';
-import { ACCESS_SCOPES } from '../../../rbac';
+import { ACCESS_SCOPES, canWrite } from '../../../rbac';
 import { Lanes } from '../../../store/slots/types';
 
 const BLOCK_REASONS = [
@@ -86,8 +86,8 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
             </div>
           </div>
 
-          {/* Block Reason Selection - Only show when lane is not blocked */}
-          {!isLaneBlocked && (
+          {/* Block Reason Selection - Only show when lane is not blocked and user has write permission */}
+          {!isLaneBlocked && canWrite(ACCESS_SCOPES.slots) && (
             <div className="mb-5">
               <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
               <div className="space-y-3">
