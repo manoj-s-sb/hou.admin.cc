@@ -51,7 +51,7 @@ export const MODULES = {
 // ─────────────────────────────────────────────────────────────
 export const ROUTE_MODULES = {
   members: [MODULES.MEMBERS],
-  slots: [MODULES.SLOTBOOKING,'slots'],
+  slots: [MODULES.SLOTBOOKING],
   coaches: [MODULES.COACH_SCHEDULE],
   reports: [MODULES.REPORTS],
   induction: [MODULES.INDUCTION],

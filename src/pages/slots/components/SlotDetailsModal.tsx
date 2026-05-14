@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { LoaderSpinner } from '../../../components/Loader';
 import PermissionGate from '../../../components/PermissionGate';
+import { ROUTE_MODULES } from '../../../constants/routes';
 import { Slot } from '../../../store/slots/types';
 
 const BLOCK_REASONS = [
@@ -272,7 +273,7 @@ const SlotDetailsModal = ({
 
           {/* Action Buttons - Only show for StanceBeam admins */}
           <div className="flex justify-center gap-3">
-            <PermissionGate module="slots">
+            <PermissionGate module={ROUTE_MODULES.slots}>
               {isAvailable && (
                 <button
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"

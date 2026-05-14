@@ -39,7 +39,7 @@ export const hasPermission = (modules: ModuleKey | undefined, action: Permission
   if (list.includes(SUPER_ADMIN_ONLY)) return isSuperAdmin();
 
   const storedModules = getModules();
-  if (!storedModules) return true;
+  if (!storedModules) return false;
 
   return list.some(m => storedModules[m]?.includes(action));
 };
