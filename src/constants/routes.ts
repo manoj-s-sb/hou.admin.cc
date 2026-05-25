@@ -13,6 +13,8 @@ export const ROUTES = {
   COACH_SCHEDULE: { path: '/coach-schedule', label: 'Coach Schedule' },
   MAINTENANCE: { path: '/maintenance', label: 'Maintenance' },
   TAILGATE: { path: '/tailgate', label: 'Tailgate' },
+  STAFF_MANAGEMENT: { path: '/staff-management', label: 'Staff Management' },
+  STAFF_MANAGEMENT_ADD: { path: '/staff-management/add', label: 'Add Staff Member' },
 } as const;
 
 // Dynamic-path builders for routes with URL params

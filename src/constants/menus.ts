@@ -52,6 +52,12 @@ const menus: MenuItem[] = [
     icon: '/assets/maintenance.svg',
     module: ACCESS_SCOPES.maintenance,
   },
+  {
+    path: ROUTES.STAFF_MANAGEMENT.path,
+    label: ROUTES.STAFF_MANAGEMENT.label,
+    icon: '/assets/user.svg',
+    module: ACCESS_SCOPES.staff,
+  },
 ];
 
 export default menus;
