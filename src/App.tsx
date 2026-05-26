@@ -23,6 +23,7 @@ import {
   Tailgate,
   StaffManagement,
   AddStaffMember,
+  ViewStaffMember,
 } from './pages';
 import { ACCESS_SCOPES, canRead, PermissionRoute } from './rbac';
 import { setSessionExpiredCallback } from './services';
@@ -149,6 +150,22 @@ const AppRoutes: React.FC = () => {
             </PermissionRoute>
           }
           path={ROUTES.STAFF_MANAGEMENT_ADD.path}
+        />
+        <Route
+          element={
+            <PermissionRoute module={ACCESS_SCOPES.staff}>
+              <AddStaffMember />
+            </PermissionRoute>
+          }
+          path={ROUTES.STAFF_MANAGEMENT_EDIT.path}
+        />
+        <Route
+          element={
+            <PermissionRoute module={ACCESS_SCOPES.staff}>
+              <ViewStaffMember />
+            </PermissionRoute>
+          }
+          path={ROUTES.STAFF_MANAGEMENT_VIEW.path}
         />
         <Route element={<DefaultLanding />} path={ROUTES.ROOT.path} />
       </Routes>

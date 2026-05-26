@@ -3,10 +3,12 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import endpoints from '../../constants/endpoints';
-import { ROUTES } from '../../constants/routes';
+import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
+
+import { formatCentres } from './centres';
 
 type TabKey = 'all' | 'designations' | 'access';
 
@@ -14,6 +16,7 @@ interface StaffRow {
   id: string;
   initials: string;
   initialsBg: string;
+  photoUrl: string;
   name: string;
   subtitle: string;
   primaryRoles: { label: string; tone?: 'primary' | 'muted' }[];
@@ -22,6 +25,7 @@ interface StaffRow {
   twoFa: 'on' | 'off';
   documents: { count: number; tone: 'green' | 'red' | 'amber' };
   status: 'active' | 'invited' | 'draft';
+  raw: StaffApiRow;
 }
 
 interface StaffApiRow {
@@ -39,6 +43,9 @@ interface StaffApiRow {
   documentCount: number;
   createdAt: string;
   lastLoginAt: string | null;
+  photoSasUrl?: string;
+  photoUrl?: string;
+  profileImageUrl?: string;
 }
 
 const accessToneClass: Record<StaffRow['accessLevel']['tone'], string> = {
@@ -120,14 +127,13 @@ const mapStaff = (row: StaffApiRow): StaffRow => {
 
   const roles = (row.userType ?? []).map(role => ({ label: formatRoleLabel(role) }));
 
-  const centres = row.assignedCentres?.length
-    ? row.assignedCentres.join(', ')
-    : row.facilityCode || '—';
+  const centres = formatCentres(row.assignedCentres, row.facilityCode);
 
   return {
     id: row.staffId,
     initials,
     initialsBg: pickInitialsBg(row.staffId || row.email || displayName),
+    photoUrl: row.photoSasUrl ?? row.photoUrl ?? row.profileImageUrl ?? '',
     name: displayName,
     subtitle: row.email,
     primaryRoles: roles,
@@ -142,6 +148,7 @@ const mapStaff = (row: StaffApiRow): StaffRow => {
       tone: (row.documentCount ?? 0) > 0 ? 'green' : 'red',
     },
     status: normalizeStatus(row.status),
+    raw: row,
   };
 };
 
@@ -228,30 +235,29 @@ const StaffManagement: React.FC = () => {
                   <th className="px-4 py-3">Primary Roles</th>
                   <th className="px-4 py-3">Access Level</th>
                   <th className="px-4 py-3">Centres</th>
-                  <th className="px-4 py-3">2FA</th>
                   <th className="px-4 py-3">Documents</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3" />
+                  <th className="px-4 py-3">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading && (
                   <tr>
-                    <td className="px-4 py-16 text-center" colSpan={8}>
+                    <td className="px-4 py-16 text-center" colSpan={7}>
                       <p className="text-[13px] font-semibold text-gray-500">Loading staff…</p>
                     </td>
                   </tr>
                 )}
                 {!isLoading && error && (
                   <tr>
-                    <td className="px-4 py-16 text-center" colSpan={8}>
+                    <td className="px-4 py-16 text-center" colSpan={7}>
                       <p className="text-[13px] font-semibold text-red-500">{error}</p>
                     </td>
                   </tr>
                 )}
                 {!isLoading && !error && staff.length === 0 && (
                   <tr>
-                    <td className="px-4 py-16 text-center" colSpan={8}>
+                    <td className="px-4 py-16 text-center" colSpan={7}>
                       <p className="text-[13px] font-semibold text-gray-500">No staff members yet</p>
                       <p className="mt-1 text-[12px] text-gray-400">
                         Click &quot;Add Staff Member&quot; to add your first one.
@@ -263,20 +269,36 @@ const StaffManagement: React.FC = () => {
                   !error &&
                   staff.map(row => {
                     const status = statusToneClass[row.status];
+                    const openProfile = () =>
+                      navigate(buildRoute.viewStaffMember(row.id), { state: { staff: row.raw } });
                     return (
                       <tr key={row.id} className="border-b border-gray-50 transition hover:bg-gray-50/60">
                         <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-3">
+                          <button
+                            className="flex items-center gap-3 text-left transition hover:opacity-80"
+                            type="button"
+                            onClick={openProfile}
+                          >
                             <div
-                              className={`flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold ${row.initialsBg}`}
+                              className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold ${row.photoUrl ? 'bg-gray-100' : row.initialsBg}`}
                             >
-                              {row.initials}
+                              {row.photoUrl ? (
+                                <img
+                                  alt={row.name}
+                                  className="h-full w-full object-cover"
+                                  src={row.photoUrl}
+                                />
+                              ) : (
+                                row.initials
+                              )}
                             </div>
                             <div>
-                              <p className="text-[13px] font-semibold text-[#21295A]">{row.name}</p>
+                              <p className="text-[13px] font-semibold text-[#21295A] hover:underline">
+                                {row.name}
+                              </p>
                               <p className="text-[11px] text-gray-400">{row.subtitle}</p>
                             </div>
-                          </div>
+                          </button>
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="flex flex-wrap gap-1.5">
@@ -301,28 +323,30 @@ const StaffManagement: React.FC = () => {
                         </td>
                         <td className="px-4 py-3.5 text-[12px] text-gray-700">{row.centres}</td>
                         <td className="px-4 py-3.5">
-                          <span
-                            className={`text-[12px] font-semibold ${
-                              row.twoFa === 'on' ? 'text-emerald-600' : 'text-red-500'
-                            }`}
+                          <button
+                            className={`text-[12px] font-semibold underline-offset-2 transition hover:underline ${docToneClass[row.documents.tone]}`}
+                            type="button"
+                            onClick={openProfile}
                           >
-                            {row.twoFa === 'on' ? 'On' : 'Off'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className={`text-[12px] font-semibold ${docToneClass[row.documents.tone]}`}>
                             {row.documents.count} uploaded
-                          </span>
+                          </button>
                         </td>
                         <td className="px-4 py-3.5">
                           <span className={`text-[12px] font-semibold ${status.className}`}>{status.label}</span>
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-3">
-                            <button className="text-[12px] font-semibold text-gray-600 transition hover:text-[#21295A]">
+                            <button
+                              className="text-[12px] font-semibold text-gray-600 transition hover:text-[#21295A]"
+                              type="button"
+                              onClick={() => navigate(buildRoute.editStaffMember(row.id))}
+                            >
                               Edit
                             </button>
-                            <button className="text-[12px] font-semibold text-red-500 transition hover:text-red-700">
+                            <button
+                              className="text-[12px] font-semibold text-red-500 transition hover:text-red-700"
+                              type="button"
+                            >
                               Suspend
                             </button>
                           </div>

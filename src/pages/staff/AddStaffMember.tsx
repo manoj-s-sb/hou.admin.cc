@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import endpoints from '../../constants/endpoints';
-import { ROUTES } from '../../constants/routes';
+import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
+
+import { StaffDetails, StaffDocument } from './types';
 
 type StepKey = 'profile' | 'roleAccess' | 'documents' | 'account';
 
@@ -231,7 +233,12 @@ const initialProfile: ProfileFormState = {
 
 const AddStaffMember: React.FC = () => {
   const navigate = useNavigate();
-  const goBack = () => navigate(ROUTES.STAFF_MANAGEMENT.path);
+  const { staffId } = useParams<{ staffId?: string }>();
+  const isEditMode = Boolean(staffId);
+  const goBack = () => {
+    if (isEditMode && staffId) navigate(buildRoute.viewStaffMember(staffId));
+    else navigate(ROUTES.STAFF_MANAGEMENT.path);
+  };
 
   const [activeStep, setActiveStep] = useState<StepKey>('profile');
   const [profile, setProfile] = useState<ProfileFormState>(initialProfile);
@@ -243,10 +250,16 @@ const AddStaffMember: React.FC = () => {
   const [documents, setDocuments] = useState<Record<string, File>>({});
   const [docErrors, setDocErrors] = useState<Record<string, string>>({});
   const docInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [existingDocs, setExistingDocs] = useState<StaffDocument[]>([]);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string>('');
+  const [editFacilityCode, setEditFacilityCode] = useState<string>('');
+  const [editAssignedCentres, setEditAssignedCentres] = useState<string[]>([]);
+  const [editStatus, setEditStatus] = useState<string>('active');
   const [loginEmail, setLoginEmail] = useState('');
   const [defaultPassword, setDefaultPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [twoFAEnabled, setTwoFAEnabled] = useState(true);
   const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
   const [qualifications, setQualifications] = useState<ConfigOption[]>([]);
@@ -254,8 +267,70 @@ const AddStaffMember: React.FC = () => {
   const [isConfigLoading, setIsConfigLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDetailsLoading, setIsDetailsLoading] = useState<boolean>(isEditMode);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState<string>('');
   const profileImageInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Load existing staff details in edit mode and prefill the form.
+  useEffect(() => {
+    if (!isEditMode || !staffId) return;
+    let cancelled = false;
+    setIsDetailsLoading(true);
+    setDetailsError(null);
+    api
+      .post(endpoints.staff.details, { staffId })
+      .then(res => {
+        if (cancelled) return;
+        const data: StaffDetails | undefined = res?.data?.data;
+        if (!data) {
+          setDetailsError('Staff member not found');
+          return;
+        }
+        const sp = data.staffProfile ?? {};
+        setProfile({
+          firstName: data.firstName ?? '',
+          lastName: data.lastName ?? '',
+          email: data.email ?? '',
+          phone: data.phone ?? '',
+          dob: (data.dateOfBirth ?? '').toString().slice(0, 10),
+          gender: data.gender ?? '',
+          employmentType: sp.employmentType ?? 'Full-time',
+          startDate: (sp.startDate ?? '').toString().slice(0, 10),
+          highestQualification: sp.highestQualification ?? '',
+          certifications: (sp.certifications ?? []).reduce<Record<string, boolean>>((acc, id) => {
+            acc[id] = true;
+            return acc;
+          }, {}),
+          notes: sp.additionalNotes ?? '',
+        });
+        const rolesSource = sp.roles && sp.roles.length > 0 ? sp.roles : data.userType ?? [];
+        setSelectedRoles(
+          rolesSource.reduce<Record<string, boolean>>((acc, id) => {
+            acc[id] = true;
+            return acc;
+          }, {})
+        );
+        setAccessLevel(sp.accessLevel ?? null);
+        setExistingDocs(sp.documents ?? []);
+        setExistingPhotoUrl(sp.photoSasUrl ?? '');
+        setEditFacilityCode(data.facilityCode ?? '');
+        setEditAssignedCentres(sp.assignedCentres ?? []);
+        setEditStatus(data.status ?? 'active');
+        setLoginEmail(data.loginEmail ?? data.email ?? '');
+        setTwoFAEnabled(sp.twoFactorAuth ?? true);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setDetailsError(handleApiError(err, 'Failed to load staff details'));
+      })
+      .finally(() => {
+        if (!cancelled) setIsDetailsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, staffId]);
 
   useEffect(() => {
     if (activeStep === 'account' && !loginEmail && profile.email) {
@@ -320,6 +395,11 @@ const AddStaffMember: React.FC = () => {
       return next;
     });
     setDocuments(prev => ({ ...prev, [key]: file }));
+    setExistingDocs(prev => prev.filter(d => d.type?.toLowerCase() !== key.toLowerCase()));
+  };
+
+  const handleExistingDocRemove = (type: string) => {
+    setExistingDocs(prev => prev.filter(d => d.type?.toLowerCase() !== type.toLowerCase()));
   };
 
   const handleDocRemove = (key: string) => {
@@ -389,6 +469,15 @@ const AddStaffMember: React.FC = () => {
   const buildSelectedCertificationIds = (): string[] =>
     certifications.filter(c => profile.certifications[c.id]).map(c => c.id);
 
+  const validatePassword = (pw: string): string | null => {
+    if (!pw) return 'Default password is required';
+    if (pw.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Z]/.test(pw)) return 'Password must include at least one uppercase letter';
+    if (!/[0-9]/.test(pw)) return 'Password must include at least one number';
+    if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must include at least one special character';
+    return null;
+  };
+
   const validateForSubmit = (draft: boolean): string | null => {
     if (!profile.firstName.trim()) return 'First name is required';
     if (!profile.lastName.trim()) return 'Last name is required';
@@ -397,7 +486,9 @@ const AddStaffMember: React.FC = () => {
     if (buildSelectedRoleIds().length === 0) return 'Select at least one role';
     if (!accessLevel) return 'Select an access level';
     if (!loginEmail.trim()) return 'Login email is required';
-    if (!defaultPassword) return 'Default password is required';
+    if (isEditMode) return null;
+    const pwError = validatePassword(defaultPassword);
+    if (pwError) return pwError;
     if (defaultPassword !== confirmPassword) return 'Passwords do not match';
     return null;
   };
@@ -411,13 +502,72 @@ const AddStaffMember: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const docEntries = await Promise.all(
+      const newDocEntries = await Promise.all(
         Object.entries(documents).map(async ([type, file]) => ({
           type,
           fileName: file.name,
           dataUrl: await fileToDataUrl(file),
         }))
       );
+
+      if (isEditMode) {
+        const existingEntries = existingDocs
+          .filter(d => d.type && d.fileName && d.blobName)
+          .map(d => ({ type: d.type, fileName: d.fileName, blobName: d.blobName }));
+
+        const blankToNull = (v: string | null | undefined) => {
+          const trimmed = (v ?? '').toString().trim();
+          return trimmed === '' ? null : trimmed;
+        };
+
+        const updatePayload: Record<string, unknown> = {
+          staffId,
+          firstName: profile.firstName.trim(),
+          lastName: profile.lastName.trim(),
+          email: profile.email.trim(),
+          loginEmail: (loginEmail || profile.email).trim(),
+          phone: profile.phone.trim(),
+          dateOfBirth: blankToNull(profile.dob),
+          gender: blankToNull(profile.gender),
+          userType: buildSelectedRoleIds(),
+          facilityCode: editFacilityCode || getLocalUser().facilityCode,
+          status: editStatus,
+          staffProfile: {
+            employmentType: profile.employmentType,
+            startDate: blankToNull(profile.startDate),
+            highestQualification: blankToNull(profile.highestQualification),
+            certifications: buildSelectedCertificationIds(),
+            additionalNotes: profile.notes,
+            roles: buildSelectedRoleIds(),
+            accessLevel,
+            assignedCentres: editAssignedCentres,
+            documents: [...existingEntries, ...newDocEntries],
+            twoFactorAuth: twoFAEnabled,
+            twoFactorMethod: twoFAEnabled ? 'email' : '',
+          },
+        };
+
+        if (profileImage) {
+          updatePayload.profileImageUrl = profileImage;
+        }
+
+        // Visible in DevTools Network tab; also logged for support
+        // eslint-disable-next-line no-console
+        console.debug('[staff/update] payload', updatePayload);
+        const updateRes = await api.post(endpoints.staff.update, updatePayload);
+        // eslint-disable-next-line no-console
+        console.debug('[staff/update] response', updateRes?.status, updateRes?.data);
+
+        if (updateRes?.data?.status && updateRes.data.status !== 'success') {
+          toast.error(updateRes.data?.message ?? 'Update failed');
+          return;
+        }
+
+        toast.success('Staff member updated');
+        if (staffId) navigate(buildRoute.viewStaffMember(staffId), { replace: true });
+        else navigate(ROUTES.STAFF_MANAGEMENT.path, { replace: true });
+        return;
+      }
 
       const { facilityCode } = getLocalUser();
 
@@ -438,7 +588,7 @@ const AddStaffMember: React.FC = () => {
           roles: buildSelectedRoleIds(),
           accessLevel,
           assignedCentres: [] as string[],
-          documents: docEntries,
+          documents: newDocEntries,
           twoFactorAuth: twoFAEnabled,
           twoFactorMethod: twoFAEnabled ? 'email' : '',
         },
@@ -454,7 +604,7 @@ const AddStaffMember: React.FC = () => {
       toast.success(draft ? 'Saved as draft' : 'Staff member created');
       navigate(ROUTES.STAFF_MANAGEMENT.path);
     } catch (err) {
-      toast.error(handleApiError(err, 'Failed to create staff member'));
+      toast.error(handleApiError(err, isEditMode ? 'Failed to update staff member' : 'Failed to create staff member'));
     } finally {
       setIsSubmitting(false);
     }
@@ -473,14 +623,29 @@ const AddStaffMember: React.FC = () => {
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
             </svg>
-            Back to Staff Management
+            {isEditMode ? 'Back to Profile' : 'Back to Staff Management'}
           </button>
-          <h1 className="text-[20px] font-bold tracking-tight text-[#21295A]">Add Staff Member</h1>
+          <h1 className="text-[20px] font-bold tracking-tight text-[#21295A]">
+            {isEditMode ? 'Edit Staff Member' : 'Add Staff Member'}
+          </h1>
           <p className="mt-1 text-[12px] font-medium text-gray-500">
-            Fill in details across all sections then save.
+            {isEditMode
+              ? 'Update details across the sections then save changes.'
+              : 'Fill in details across all sections then save.'}
           </p>
         </div>
       </div>
+
+      {isEditMode && isDetailsLoading && (
+        <div className="mb-4 rounded-xl border border-gray-100 bg-white px-6 py-4 text-[12px] font-semibold text-gray-500 shadow-sm">
+          Loading staff details…
+        </div>
+      )}
+      {isEditMode && detailsError && (
+        <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-6 py-4 text-[12px] font-semibold text-red-600 shadow-sm">
+          {detailsError}
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         {/* Step indicator */}
@@ -529,11 +694,11 @@ const AddStaffMember: React.FC = () => {
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-gray-400 shadow-sm">
-                    {profileImage ? (
+                    {profileImage || existingPhotoUrl ? (
                       <img
                         alt="Profile preview"
                         className="h-full w-full object-cover"
-                        src={profileImage}
+                        src={profileImage || existingPhotoUrl}
                       />
                     ) : (
                       <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -564,7 +729,7 @@ const AddStaffMember: React.FC = () => {
                         type="button"
                         onClick={() => profileImageInputRef.current?.click()}
                       >
-                        {profileImage ? 'Replace Photo' : 'Upload Photo'}
+                        {profileImage || existingPhotoUrl ? 'Replace Photo' : 'Upload Photo'}
                       </button>
                       {profileImage && (
                         <button
@@ -913,14 +1078,18 @@ const AddStaffMember: React.FC = () => {
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                     {requiredDocuments.map(doc => {
                       const file = documents[doc.id];
+                      const existing = existingDocs.find(
+                        d => d.type?.toLowerCase() === doc.id.toLowerCase()
+                      );
                       const error = docErrors[doc.id];
                       const accept = buildAcceptString(doc.acceptedFormats);
                       const formatsText = doc.acceptedFormats.join(', ');
+                      const hasContent = Boolean(file || existing);
                       return (
                         <div
                           key={doc.id}
                           className={`rounded-lg border bg-white p-3 transition ${
-                            file ? 'border-[#21295A]/40' : 'border-gray-100'
+                            hasContent ? 'border-[#21295A]/40' : 'border-gray-100'
                           }`}
                         >
                           <div className="flex items-start gap-3">
@@ -954,9 +1123,48 @@ const AddStaffMember: React.FC = () => {
                               type="button"
                               onClick={() => docInputRefs.current[doc.id]?.click()}
                             >
-                              {file ? 'Replace' : 'Upload'}
+                              {hasContent ? 'Replace' : 'Upload'}
                             </button>
                           </div>
+                          {existing && !file && (
+                            <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-blue-100 bg-blue-50 px-3 py-2">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <svg
+                                  className="h-4 w-4 shrink-0 text-blue-600"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.8}
+                                  />
+                                </svg>
+                                <p className="truncate text-[12px] font-medium text-blue-800">
+                                  {existing.fileName}
+                                </p>
+                                {existing.sasUrl && (
+                                  <a
+                                    className="shrink-0 text-[11px] font-semibold text-blue-700 underline-offset-2 hover:underline"
+                                    href={existing.sasUrl}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                  >
+                                    Preview
+                                  </a>
+                                )}
+                              </div>
+                              <button
+                                className="shrink-0 text-[11px] font-semibold text-red-500 transition hover:text-red-700"
+                                type="button"
+                                onClick={() => handleExistingDocRemove(doc.id)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
                           {file && (
                             <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2">
                               <div className="flex min-w-0 items-center gap-2">
@@ -999,6 +1207,53 @@ const AddStaffMember: React.FC = () => {
                 )}
               </div>
 
+              {(() => {
+                const requiredIds = new Set(requiredDocuments.map(d => d.id.toLowerCase()));
+                const orphanDocs = existingDocs.filter(
+                  d => !d.type || !requiredIds.has(d.type.toLowerCase())
+                );
+                if (orphanDocs.length === 0) return null;
+                return (
+                  <div>
+                    <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                      Other Uploaded Documents
+                    </p>
+                    <div className="space-y-2">
+                      {orphanDocs.map((d, idx) => (
+                        <div
+                          key={`${d.fileName ?? 'doc'}-${idx}`}
+                          className="flex items-center justify-between gap-3 rounded-md border border-gray-100 bg-white px-3 py-2"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <svg className="h-4 w-4 shrink-0 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} />
+                            </svg>
+                            <p className="truncate text-[12px] font-medium text-gray-800">{d.fileName}</p>
+                            {d.sasUrl && (
+                              <a
+                                className="shrink-0 text-[11px] font-semibold text-blue-700 underline-offset-2 hover:underline"
+                                href={d.sasUrl}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                Preview
+                              </a>
+                            )}
+                          </div>
+                          <button
+                            className="shrink-0 text-[11px] font-semibold text-red-500 transition hover:text-red-700"
+                            type="button"
+                            onClick={() => setExistingDocs(prev => prev.filter(x => x !== d))}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
                 <p className="text-[12px] leading-relaxed text-gray-600">
                   <span className="font-semibold text-gray-800">Additional Documents</span> — You can
@@ -1030,6 +1285,8 @@ const AddStaffMember: React.FC = () => {
                       onChange={e => setLoginEmail(e.target.value)}
                     />
                   </div>
+                  {!isEditMode && (
+                  <>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <label className={labelClass} htmlFor="default-password">
@@ -1076,26 +1333,63 @@ const AddStaffMember: React.FC = () => {
                       <label className={labelClass} htmlFor="confirm-password">
                         Confirm Password *
                       </label>
-                      <input
-                        className={inputClass}
-                        id="confirm-password"
-                        type={showPassword ? 'text' : 'password'}
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                      />
+                      <div className="relative">
+                        <input
+                          className={`${inputClass} pr-10`}
+                          id="confirm-password"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                        />
+                        <button
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition hover:text-gray-700"
+                          type="button"
+                          onClick={() => setShowConfirmPassword(s => !s)}
+                        >
+                          {showConfirmPassword ? (
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                d="M3 3l18 18M10.5 10.5a3 3 0 004.243 4.243M9.88 4.62A10.6 10.6 0 0112 4.5c5 0 9.27 3.11 11 7.5a11.6 11.6 0 01-4.06 5.06M6.1 6.1A11.6 11.6 0 001 12c1.73 4.39 6 7.5 11 7.5 1.45 0 2.84-.26 4.12-.74"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.8}
+                              />
+                            </svg>
+                          ) : (
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.8}
+                              />
+                              <circle cx={12} cy={12} r={3} strokeWidth={1.8} />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <p className="text-[11px] leading-relaxed text-gray-500">
                     Staff member will be prompted to change this password on first login. Password must be
                     min 8 characters with at least one uppercase, one number, and one special character.
                   </p>
+                  {defaultPassword && validatePassword(defaultPassword) && (
+                    <p className="text-[11px] font-medium text-red-500">
+                      {validatePassword(defaultPassword)}
+                    </p>
+                  )}
                   {confirmPassword && defaultPassword && confirmPassword !== defaultPassword && (
                     <p className="text-[11px] font-medium text-red-500">Passwords do not match.</p>
+                  )}
+                  </>
                   )}
                 </div>
               </div>
 
-              {/* 2FA */}
+              {/* 2FA — hidden for now, will be re-enabled when required */}
+              {false && (
               <div
                 className={`rounded-xl border p-4 transition ${
                   twoFAEnabled
@@ -1175,8 +1469,10 @@ const AddStaffMember: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
 
-              {/* Invite Email */}
+              {/* Invite Email — create flow only */}
+              {!isEditMode && (
               <div>
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
                   Invite Email
@@ -1200,6 +1496,29 @@ const AddStaffMember: React.FC = () => {
                   </label>
                 </div>
               </div>
+              )}
+
+              {/* Status — edit flow only */}
+              {isEditMode && (
+              <div>
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                  Account Status
+                </p>
+                <select
+                  className={inputClass}
+                  value={editStatus}
+                  onChange={e => setEditStatus(e.target.value)}
+                >
+                  <option value="active">Active</option>
+                  <option value="invited">Invited</option>
+                  <option value="draft">Draft</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Changing the status will be reflected in the staff list and access controls.
+                </p>
+              </div>
+              )}
 
               {/* Review */}
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
@@ -1235,19 +1554,20 @@ const AddStaffMember: React.FC = () => {
                     </span>
                   </p>
                   <p className="text-gray-600">
-                    2FA:{' '}
-                    <span className="font-semibold text-[#21295A]">{twoFAEnabled ? 'Enabled' : 'Disabled'}</span>
-                  </p>
-                  <p className="text-gray-600">
                     Status:{' '}
                     <span className="font-semibold text-amber-600">
-                      {sendWelcomeEmail ? 'Invited (pending login)' : 'Draft'}
+                      {isEditMode
+                        ? editStatus.charAt(0).toUpperCase() + editStatus.slice(1)
+                        : sendWelcomeEmail
+                          ? 'Invited (pending login)'
+                          : 'Draft'}
                     </span>
                   </p>
                 </div>
               </div>
 
               {/* Save options info */}
+              {!isEditMode && (
               <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
                 <div className="flex items-center gap-2">
                   <svg className="h-4 w-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1267,6 +1587,7 @@ const AddStaffMember: React.FC = () => {
                   status becomes <em>Invited</em>.
                 </p>
               </div>
+              )}
             </div>
           )}
         </div>
@@ -1302,6 +1623,7 @@ const AddStaffMember: React.FC = () => {
               >
                 Cancel
               </button>
+              {!isEditMode && (
               <button
                 className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-4 py-2 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-50 disabled:opacity-50"
                 disabled={isSubmitting}
@@ -1319,6 +1641,7 @@ const AddStaffMember: React.FC = () => {
                 </svg>
                 Save as Draft
               </button>
+              )}
               <button
                 className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
                 disabled={isSubmitting}
@@ -1333,7 +1656,7 @@ const AddStaffMember: React.FC = () => {
                     strokeWidth={1.8}
                   />
                 </svg>
-                {isSubmitting ? 'Saving…' : 'Save & Share'}
+                {isSubmitting ? 'Saving…' : isEditMode ? 'Save Changes' : 'Save & Share'}
               </button>
             </div>
           )}

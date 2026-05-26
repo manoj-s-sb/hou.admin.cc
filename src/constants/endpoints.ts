@@ -31,6 +31,8 @@ const endpoints = {
     config: '/admin/staff/config',
     list: '/admin/staff/list',
     create: '/admin/staff/create',
+    details: '/admin/staff/details',
+    update: '/admin/staff/update',
   },
   induction: {
     list: '/admin/bookings/list',

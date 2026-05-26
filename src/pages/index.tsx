@@ -9,6 +9,7 @@ import ViewMembers from './members/viewMembers';
 import SlotBookings from './slots';
 import StaffManagement from './staff';
 import AddStaffMember from './staff/AddStaffMember';
+import ViewStaffMember from './staff/ViewStaffMember';
 import Tailgate from './tailgate';
 import Tours from './tours';
 import UserList from './users';
@@ -28,4 +29,5 @@ export {
   Tailgate,
   StaffManagement,
   AddStaffMember,
+  ViewStaffMember,
 };
