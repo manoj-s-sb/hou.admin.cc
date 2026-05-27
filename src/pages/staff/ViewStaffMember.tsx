@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
-import endpoints from '../../constants/endpoints';
 import { buildRoute, ROUTES } from '../../constants/routes';
-import api from '../../services';
-import { handleApiError } from '../../utils/errorUtils';
+import { getStaffDetails, updateStaff } from '../../store/staff/api';
+import { clearStaffDetails } from '../../store/staff/reducers';
 
-import { formatCentres } from './centres';
-import { StaffDetails, StaffDocument } from './types';
+import { StaffDocument } from './types';
+import { formatCentres } from './utils';
+
+import type { AppDispatch, RootState } from '../../store/store';
 
 const ROLE_LABEL: Record<string, string> = {
   superadmin: 'Super Admin',
@@ -98,44 +100,22 @@ const ViewStaffMember: React.FC = () => {
   const navigate = useNavigate();
   const { staffId } = useParams<{ staffId: string }>();
 
-  const [staff, setStaff] = useState<StaffDetails | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const { staffDetails: staff, isDetailsLoading: isLoading, detailsError } = useSelector(
+    (state: RootState) => state.staff,
+  );
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
   const [isSuspending, setIsSuspending] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
 
+  const error = !staffId ? 'Missing staff id' : detailsError;
+
   useEffect(() => {
-    if (!staffId) {
-      setError('Missing staff id');
-      setIsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    const fetchDetails = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await api.post(endpoints.staff.details, { staffId });
-        if (cancelled) return;
-        const data: StaffDetails | undefined = response?.data?.data;
-        if (!data) {
-          setError('Staff member not found');
-        } else {
-          setStaff(data);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setError(handleApiError(err, 'Failed to load staff details'));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-    fetchDetails();
+    if (staffId) dispatch(getStaffDetails({ staffId }));
     return () => {
-      cancelled = true;
+      dispatch(clearStaffDetails());
     };
-  }, [staffId]);
+  }, [staffId, dispatch]);
 
   const goBack = () => navigate(ROUTES.STAFF_MANAGEMENT.path);
   const goEdit = () => {
@@ -150,46 +130,47 @@ const ViewStaffMember: React.FC = () => {
     if (!window.confirm(`Are you sure you want to ${verb} ${staff.firstName} ${staff.lastName}?`)) return;
 
     setIsSuspending(true);
-    try {
-      const sp = staff.staffProfile ?? {};
-      const documents = (sp.documents ?? [])
-        .filter(d => d.type && d.fileName && d.blobName)
-        .map(d => ({ type: d.type, fileName: d.fileName, blobName: d.blobName }));
-      await api.post(endpoints.staff.update, {
+    const sp = staff.staffProfile ?? {};
+    const documents = (sp.documents ?? [])
+      .filter(d => d.type && d.fileName && d.blobName)
+      .map(d => ({ type: d.type, fileName: d.fileName, blobName: d.blobName }));
+
+    const action = await dispatch(
+      updateStaff({
         staffId,
         firstName: staff.firstName,
         lastName: staff.lastName,
         email: staff.email,
         loginEmail: staff.loginEmail ?? staff.email,
-        phone: staff.phone,
-        dateOfBirth: staff.dateOfBirth,
-        gender: staff.gender,
+        phone: staff.phone ?? '',
+        dateOfBirth: staff.dateOfBirth ?? null,
+        gender: staff.gender ?? null,
         userType: staff.userType,
         facilityCode: staff.facilityCode,
         status: nextStatus,
         staffProfile: {
-          employmentType: sp.employmentType,
-          startDate: sp.startDate,
-          highestQualification: sp.highestQualification,
+          employmentType: sp.employmentType ?? '',
+          startDate: sp.startDate ?? null,
+          highestQualification: sp.highestQualification ?? null,
           certifications: sp.certifications ?? [],
-          additionalNotes: sp.additionalNotes,
+          additionalNotes: sp.additionalNotes ?? '',
           roles: sp.roles ?? staff.userType,
-          accessLevel: sp.accessLevel,
+          accessLevel: sp.accessLevel ?? null,
           assignedCentres: sp.assignedCentres ?? [],
           documents,
           twoFactorAuth: sp.twoFactorAuth ?? true,
           twoFactorMethod: sp.twoFactorMethod ?? 'email',
         },
-      });
-      const refreshed = await api.post(endpoints.staff.details, { staffId });
-      const data: StaffDetails | undefined = refreshed?.data?.data;
-      if (data) setStaff(data);
+      }),
+    );
+
+    if (updateStaff.fulfilled.match(action)) {
+      await dispatch(getStaffDetails({ staffId }));
       toast.success(isCurrentlySuspended ? 'Staff member reactivated' : 'Staff member suspended');
-    } catch (err) {
-      toast.error(handleApiError(err, `Failed to ${verb} staff member`));
-    } finally {
-      setIsSuspending(false);
+    } else {
+      toast.error((action.payload as string) ?? `Failed to ${verb} staff member`);
     }
+    setIsSuspending(false);
   };
 
   if (isLoading) {

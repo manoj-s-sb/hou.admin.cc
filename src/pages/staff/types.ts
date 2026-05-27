@@ -1,45 +1,44 @@
-export interface StaffDocument {
-  type: string;
-  fileName: string;
-  blobName?: string;
-  uploadedAt?: string;
-  sasUrl?: string;
-  dataUrl?: string;
-  mimeType?: string;
-}
+// Re-export domain & config types from the store so consumers
+// here can import everything they need from a single place.
+export type {
+  AccessLevelConfig,
+  ConfigOption,
+  RequiredDocumentConfig,
+  RoleConfig,
+  StaffConfig,
+  StaffDetails,
+  StaffDocument,
+  StaffListRow,
+  StaffProfile,
+} from '../../store/staff/types';
 
-export interface StaffProfile {
-  employmentType?: string;
-  startDate?: string;
-  highestQualification?: string;
-  certifications?: string[];
-  additionalNotes?: string;
-  photoBlobName?: string;
-  photoSasUrl?: string;
-  roles?: string[];
-  accessLevel?: string;
-  assignedCentres?: string[];
-  documents?: StaffDocument[];
-  twoFactorAuth?: boolean;
-  twoFactorMethod?: string;
-  statusHistory?: unknown[];
-}
+// ─── Form state — local to this page, not part of redux ──────
+export type StepKey = 'profile' | 'roleAccess' | 'documents' | 'account';
 
-export interface StaffDetails {
-  staffId: string;
-  userId: string;
-  email: string;
-  loginEmail?: string;
+export interface ProfileFormState {
   firstName: string;
   lastName: string;
-  phone?: string;
-  dateOfBirth?: string | null;
-  gender?: string;
-  userType: string[];
-  facilityCode: string;
-  status: string;
-  createdAt: string;
-  updatedAt?: string;
-  lastLoginAt: string | null;
-  staffProfile?: StaffProfile;
+  email: string;
+  phone: string;
+  dob: string;
+  gender: string;
+  employmentType: string;
+  startDate: string;
+  highestQualification: string;
+  certifications: Record<string, boolean>;
+  notes: string;
 }
+
+export const initialProfile: ProfileFormState = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  dob: '',
+  gender: '',
+  employmentType: 'Full-time',
+  startDate: '',
+  highestQualification: '',
+  certifications: {},
+  notes: '',
+};

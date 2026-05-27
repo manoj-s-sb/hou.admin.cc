@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
-import endpoints from '../../constants/endpoints';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
-import api from '../../services';
-import { handleApiError } from '../../utils/errorUtils';
+import { getStaffList } from '../../store/staff/api';
 
-import { formatCentres } from './centres';
+import { formatCentres } from './utils';
+
+import type { StaffListRow } from '../../store/staff/types';
+import type { AppDispatch, RootState } from '../../store/store';
 
 type TabKey = 'all' | 'designations' | 'access';
 
@@ -25,27 +27,7 @@ interface StaffRow {
   twoFa: 'on' | 'off';
   documents: { count: number; tone: 'green' | 'red' | 'amber' };
   status: 'active' | 'invited' | 'draft';
-  raw: StaffApiRow;
-}
-
-interface StaffApiRow {
-  staffId: string;
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  userType: string[];
-  facilityCode: string;
-  status: string;
-  accessLevel: string | null;
-  assignedCentres: string[];
-  twoFactorAuth: boolean;
-  documentCount: number;
-  createdAt: string;
-  lastLoginAt: string | null;
-  photoSasUrl?: string;
-  photoUrl?: string;
-  profileImageUrl?: string;
+  raw: StaffListRow;
 }
 
 const accessToneClass: Record<StaffRow['accessLevel']['tone'], string> = {
@@ -113,7 +95,7 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
   return 'active';
 };
 
-const mapStaff = (row: StaffApiRow): StaffRow => {
+const mapStaff = (row: StaffListRow): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
   const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
   const initialsSource = fullName || row.email || '?';
@@ -154,37 +136,17 @@ const mapStaff = (row: StaffApiRow): StaffRow => {
 
 const StaffManagement: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
   const [activeTab, setActiveTab] = useState<TabKey>('all');
-  const [staff, setStaff] = useState<StaffRow[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const { staffList, isListLoading, listError } = useSelector((state: RootState) => state.staff);
 
   useEffect(() => {
-    let cancelled = false;
-    const fetchStaff = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await api.post(endpoints.staff.list, {
-          facilityCode: getLocalUser().facilityCode,
-          limit: 50,
-          offset: 0,
-        });
-        if (cancelled) return;
-        const list: StaffApiRow[] = response?.data?.data?.staff ?? [];
-        setStaff(list.map(mapStaff));
-      } catch (err) {
-        if (cancelled) return;
-        setError(handleApiError(err, 'Failed to fetch staff list'));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-    fetchStaff();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    dispatch(getStaffList({ facilityCode: getLocalUser().facilityCode, limit: 50, offset: 0 }));
+  }, [dispatch]);
+
+  const staff: StaffRow[] = useMemo(() => staffList.map(mapStaff), [staffList]);
+  const isLoading = isListLoading;
+  const error = listError;
 
   return (
     <div className="w-full">
