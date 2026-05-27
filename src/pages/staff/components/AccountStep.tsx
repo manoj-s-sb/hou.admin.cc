@@ -51,7 +51,9 @@ const AccountStep: React.FC<AccountStepProps> = ({
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Login Credentials</p>
         <div className="space-y-4">
           <div>
-            <label className={LABEL_CLASS} htmlFor="login-email">Login Email *</label>
+            <label className={LABEL_CLASS} htmlFor="login-email">
+              Login Email *
+            </label>
             <input
               className={INPUT_CLASS}
               id="login-email"
@@ -78,8 +80,8 @@ const AccountStep: React.FC<AccountStepProps> = ({
                 />
               </div>
               <p className="text-[11px] leading-relaxed text-gray-500">
-                Staff member will be prompted to change this password on first login. Password must be min 8
-                characters with at least one uppercase, one number, and one special character.
+                Staff member will be prompted to change this password on first login. Password must be min 8 characters
+                with at least one uppercase, one number, and one special character.
               </p>
               {passwordError && <p className="text-[11px] font-medium text-red-500">{passwordError}</p>}
               {passwordMismatch && <p className="text-[11px] font-medium text-red-500">Passwords do not match.</p>}
@@ -104,8 +106,8 @@ const AccountStep: React.FC<AccountStepProps> = ({
                 Send welcome email with login instructions
               </span>
               <span className="mt-0.5 block text-[12px] leading-relaxed text-gray-500">
-                Staff member will receive an email with their login credentials, a link to download the Century
-                Cricket Staff App, and a prompt to set up 2FA.
+                Staff member will receive an email with their login credentials, a link to download the Century Cricket
+                Staff App, and a prompt to set up 2FA.
               </span>
             </label>
           </div>
@@ -115,11 +117,7 @@ const AccountStep: React.FC<AccountStepProps> = ({
       {isEditMode && (
         <div>
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Account Status</p>
-          <select
-            className={INPUT_CLASS}
-            value={editStatus}
-            onChange={e => onEditStatusChange(e.target.value)}
-          >
+          <select className={INPUT_CLASS} value={editStatus} onChange={e => onEditStatusChange(e.target.value)}>
             <option value="active">Active</option>
             <option value="invited">Invited</option>
             <option value="draft">Draft</option>
@@ -153,7 +151,10 @@ const AccountStep: React.FC<AccountStepProps> = ({
             Roles:{' '}
             <span className="font-semibold text-[#21295A]">
               {Object.values(selectedRoles).some(Boolean)
-                ? rolesConfig.filter(r => selectedRoles[r.id]).map(r => r.label).join(', ')
+                ? rolesConfig
+                    .filter(r => selectedRoles[r.id])
+                    .map(r => r.label)
+                    .join(', ')
                 : 'None selected'}
             </span>
           </p>
@@ -186,9 +187,9 @@ const AccountStep: React.FC<AccountStepProps> = ({
             <p className="text-[13px] font-bold text-amber-800">Two save options available</p>
           </div>
           <p className="mt-2 text-[12px] leading-relaxed text-amber-900">
-            <span className="font-bold">Save as Draft</span> — Saves all entered details now. No account is created
-            and no email is sent. You can return and complete the profile at any time. Profile will show as{' '}
-            <em>Draft</em> in the staff list.
+            <span className="font-bold">Save as Draft</span> — Saves all entered details now. No account is created and
+            no email is sent. You can return and complete the profile at any time. Profile will show as <em>Draft</em>{' '}
+            in the staff list.
           </p>
           <p className="mt-2 text-[12px] leading-relaxed text-amber-900">
             <span className="font-bold">Save &amp; Share</span> — Creates the staff account, generates login

@@ -3,9 +3,7 @@ import { FORMAT_TO_ACCEPT } from './constants';
 export const buildAcceptString = (formats: string[] = []): string =>
   formats.map(f => FORMAT_TO_ACCEPT[f.toUpperCase()] ?? `.${f.toLowerCase()}`).join(',');
 
-export const sortActiveUnique = <T extends { id: string; isActive: boolean; order: number }>(
-  items: T[] = [],
-): T[] => {
+export const sortActiveUnique = <T extends { id: string; isActive: boolean; order: number }>(items: T[] = []): T[] => {
   const seen = new Set<string>();
   return items
     .filter(i => {
@@ -46,8 +44,7 @@ export const blankToNull = (v: string | null | undefined): string | null => {
 };
 
 // Shared field styling tokens — used across step components
-export const LABEL_CLASS =
-  'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500';
+export const LABEL_CLASS = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500';
 export const INPUT_CLASS =
   'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-800 outline-none transition focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10';
 

@@ -245,19 +245,13 @@ const StaffManagement: React.FC = () => {
                               className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold ${row.photoUrl ? 'bg-gray-100' : row.initialsBg}`}
                             >
                               {row.photoUrl ? (
-                                <img
-                                  alt={row.name}
-                                  className="h-full w-full object-cover"
-                                  src={row.photoUrl}
-                                />
+                                <img alt={row.name} className="h-full w-full object-cover" src={row.photoUrl} />
                               ) : (
                                 row.initials
                               )}
                             </div>
                             <div>
-                              <p className="text-[13px] font-semibold text-[#21295A] hover:underline">
-                                {row.name}
-                              </p>
+                              <p className="text-[13px] font-semibold text-[#21295A] hover:underline">{row.name}</p>
                               <p className="text-[11px] text-gray-400">{row.subtitle}</p>
                             </div>
                           </button>
@@ -335,7 +329,6 @@ const StaffManagement: React.FC = () => {
           <p className="mt-1 text-[12px] text-gray-400">Define what each access tier can do.</p>
         </div>
       )}
-
     </div>
   );
 };

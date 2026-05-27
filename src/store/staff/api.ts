@@ -5,24 +5,16 @@ import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
 import type { RootState } from '../store';
-import type {
-  CreateStaffRequest,
-  StaffConfig,
-  StaffListRequest,
-  UpdateStaffRequest,
-} from './types';
+import type { CreateStaffRequest, StaffConfig, StaffListRequest, UpdateStaffRequest } from './types';
 
-export const getStaffList = createAsyncThunk(
-  'staff/getList',
-  async (params: StaffListRequest, { rejectWithValue }) => {
-    try {
-      const response = await api.post(endpoints.staff.list, params);
-      return response.data;
-    } catch (error: unknown) {
-      return rejectWithValue(handleApiError(error, 'Failed to fetch staff list'));
-    }
-  },
-);
+export const getStaffList = createAsyncThunk('staff/getList', async (params: StaffListRequest, { rejectWithValue }) => {
+  try {
+    const response = await api.post(endpoints.staff.list, params);
+    return response.data;
+  } catch (error: unknown) {
+    return rejectWithValue(handleApiError(error, 'Failed to fetch staff list'));
+  }
+});
 
 // Config rarely changes during a session — skip refetch when already loaded.
 export const getStaffConfig = createAsyncThunk(
@@ -40,7 +32,7 @@ export const getStaffConfig = createAsyncThunk(
       const state = (getState() as RootState).staff;
       return !state.staffConfig && !state.isConfigLoading;
     },
-  },
+  }
 );
 
 export const getStaffDetails = createAsyncThunk(
@@ -52,7 +44,7 @@ export const getStaffDetails = createAsyncThunk(
     } catch (error: unknown) {
       return rejectWithValue(handleApiError(error, 'Failed to load staff details'));
     }
-  },
+  }
 );
 
 export const createStaff = createAsyncThunk(
@@ -64,7 +56,7 @@ export const createStaff = createAsyncThunk(
     } catch (error: unknown) {
       return rejectWithValue(handleApiError(error, 'Failed to create staff member'));
     }
-  },
+  }
 );
 
 export const updateStaff = createAsyncThunk(
@@ -76,5 +68,5 @@ export const updateStaff = createAsyncThunk(
     } catch (error: unknown) {
       return rejectWithValue(handleApiError(error, 'Failed to update staff member'));
     }
-  },
+  }
 );

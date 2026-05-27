@@ -81,7 +81,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 };
 
 const formatDocumentLabel = (doc: StaffDocument): string =>
-  doc.type ? DOC_TYPE_LABELS[doc.type.toLowerCase()] ?? doc.type : doc.fileName ?? 'Document';
+  doc.type ? (DOC_TYPE_LABELS[doc.type.toLowerCase()] ?? doc.type) : (doc.fileName ?? 'Document');
 
 const getDocumentSource = (doc: StaffDocument): string => doc.sasUrl || doc.dataUrl || '';
 
@@ -101,9 +101,11 @@ const ViewStaffMember: React.FC = () => {
   const { staffId } = useParams<{ staffId: string }>();
 
   const dispatch = useDispatch<AppDispatch>();
-  const { staffDetails: staff, isDetailsLoading: isLoading, detailsError } = useSelector(
-    (state: RootState) => state.staff,
-  );
+  const {
+    staffDetails: staff,
+    isDetailsLoading: isLoading,
+    detailsError,
+  } = useSelector((state: RootState) => state.staff);
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
   const [isSuspending, setIsSuspending] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
@@ -161,7 +163,7 @@ const ViewStaffMember: React.FC = () => {
           twoFactorAuth: sp.twoFactorAuth ?? true,
           twoFactorMethod: sp.twoFactorMethod ?? 'email',
         },
-      }),
+      })
     );
 
     if (updateStaff.fulfilled.match(action)) {
@@ -199,7 +201,7 @@ const ViewStaffMember: React.FC = () => {
   const initials = buildInitials(staff.firstName, staff.lastName, staff.email);
   const statusKey = normalizeStatus(staff.status);
   const status = statusToneClass[statusKey];
-  const rolesSource = profile.roles && profile.roles.length > 0 ? profile.roles : staff.userType ?? [];
+  const rolesSource = profile.roles && profile.roles.length > 0 ? profile.roles : (staff.userType ?? []);
   const roles = rolesSource.map(formatRoleLabel);
   const centres = formatCentres(profile.assignedCentres, staff.facilityCode);
   const facilityName = formatCentres(null, staff.facilityCode);
@@ -254,9 +256,7 @@ const ViewStaffMember: React.FC = () => {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-[18px] font-bold text-[#21295A]">{fullName}</h2>
-                <span
-                  className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${status.className}`}
-                >
+                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${status.className}`}>
                   {status.label}
                 </span>
               </div>
@@ -288,11 +288,7 @@ const ViewStaffMember: React.FC = () => {
                 type="button"
                 onClick={handleSuspend}
               >
-                {isSuspending
-                  ? 'Updating…'
-                  : staff.status?.toLowerCase() === 'suspended'
-                    ? 'Reactivate'
-                    : 'Suspend'}
+                {isSuspending ? 'Updating…' : staff.status?.toLowerCase() === 'suspended' ? 'Reactivate' : 'Suspend'}
               </button>
             </div>
           </div>
@@ -318,7 +314,9 @@ const ViewStaffMember: React.FC = () => {
         {/* Employment */}
         <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
           <div className="border-b border-gray-100 px-6 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Employment &amp; Qualifications</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+              Employment &amp; Qualifications
+            </p>
           </div>
           <div className="px-6 py-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -328,9 +326,7 @@ const ViewStaffMember: React.FC = () => {
               <InfoCard
                 label="Certifications"
                 value={
-                  profile.certifications && profile.certifications.length > 0
-                    ? profile.certifications.join(', ')
-                    : '—'
+                  profile.certifications && profile.certifications.length > 0 ? profile.certifications.join(', ') : '—'
                 }
               />
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 md:col-span-2 lg:col-span-3">

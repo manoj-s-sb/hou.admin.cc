@@ -16,12 +16,7 @@ import RoleAccessStep from './components/RoleAccessStep';
 import StepFooter from './components/StepFooter';
 import StepIndicator from './components/StepIndicator';
 import { STEPS } from './constants';
-import {
-  ProfileFormState,
-  StaffDocument,
-  StepKey,
-  initialProfile,
-} from './types';
+import { ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
 import { blankToNull, fileToDataUrl, sortActiveUnique, validatePassword } from './utils';
 
 import type { AppDispatch, RootState } from '../../store/store';
@@ -37,15 +32,8 @@ const AddStaffMember: React.FC = () => {
   };
 
   const dispatch = useDispatch<AppDispatch>();
-  const {
-    staffConfig,
-    staffDetails,
-    isConfigLoading,
-    isDetailsLoading,
-    isSubmitting,
-    configError,
-    detailsError,
-  } = useSelector((state: RootState) => state.staff);
+  const { staffConfig, staffDetails, isConfigLoading, isDetailsLoading, isSubmitting, configError, detailsError } =
+    useSelector((state: RootState) => state.staff);
 
   // Wizard state
   const [activeStep, setActiveStep] = useState<StepKey>('profile');
@@ -111,12 +99,12 @@ const AddStaffMember: React.FC = () => {
       }, {}),
       notes: sp.additionalNotes ?? '',
     });
-    const rolesSource = sp.roles && sp.roles.length > 0 ? sp.roles : data.userType ?? [];
+    const rolesSource = sp.roles && sp.roles.length > 0 ? sp.roles : (data.userType ?? []);
     setSelectedRoles(
       rolesSource.reduce<Record<string, boolean>>((acc, id) => {
         acc[id] = true;
         return acc;
-      }, {}),
+      }, {})
     );
     setAccessLevel(sp.accessLevel ?? null);
     setExistingDocs(sp.documents ?? []);
@@ -233,7 +221,7 @@ const AddStaffMember: React.FC = () => {
         type,
         fileName: file.name,
         dataUrl: await fileToDataUrl(file),
-      })),
+      }))
     );
 
     if (isEditMode && staffId) {
@@ -268,7 +256,7 @@ const AddStaffMember: React.FC = () => {
             twoFactorMethod: twoFAEnabled ? 'email' : '',
           },
           ...(profileImage ? { profileImageUrl: profileImage } : {}),
-        }),
+        })
       );
 
       if (updateStaff.fulfilled.match(action)) {
@@ -310,7 +298,7 @@ const AddStaffMember: React.FC = () => {
         facilityCode,
         draftMode: draft,
         sendWelcomeEmail: draft ? false : sendWelcomeEmail,
-      }),
+      })
     );
 
     if (createStaff.fulfilled.match(action)) {

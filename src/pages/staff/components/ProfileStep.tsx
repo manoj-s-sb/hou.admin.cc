@@ -45,7 +45,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Personal Details</p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div>
-            <label className={LABEL_CLASS} htmlFor="first-name">First Name *</label>
+            <label className={LABEL_CLASS} htmlFor="first-name">
+              First Name *
+            </label>
             <input
               className={INPUT_CLASS}
               id="first-name"
@@ -56,7 +58,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
             />
           </div>
           <div>
-            <label className={LABEL_CLASS} htmlFor="last-name">Last Name *</label>
+            <label className={LABEL_CLASS} htmlFor="last-name">
+              Last Name *
+            </label>
             <input
               className={INPUT_CLASS}
               id="last-name"
@@ -67,7 +71,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
             />
           </div>
           <div>
-            <label className={LABEL_CLASS} htmlFor="email">Email Address *</label>
+            <label className={LABEL_CLASS} htmlFor="email">
+              Email Address *
+            </label>
             <input
               className={INPUT_CLASS}
               id="email"
@@ -78,7 +84,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
             />
           </div>
           <div>
-            <label className={LABEL_CLASS} htmlFor="phone">Phone Number</label>
+            <label className={LABEL_CLASS} htmlFor="phone">
+              Phone Number
+            </label>
             <input
               className={INPUT_CLASS}
               id="phone"
@@ -89,7 +97,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
             />
           </div>
           <div>
-            <label className={LABEL_CLASS} htmlFor="dob">Date of Birth *</label>
+            <label className={LABEL_CLASS} htmlFor="dob">
+              Date of Birth *
+            </label>
             <input
               className={INPUT_CLASS}
               id="dob"
@@ -99,7 +109,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
             />
           </div>
           <div>
-            <label className={LABEL_CLASS} htmlFor="gender">Gender</label>
+            <label className={LABEL_CLASS} htmlFor="gender">
+              Gender
+            </label>
             <select
               className={INPUT_CLASS}
               id="gender"
@@ -114,7 +126,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
             </select>
           </div>
           <div>
-            <label className={LABEL_CLASS} htmlFor="employment-type">Employment Type</label>
+            <label className={LABEL_CLASS} htmlFor="employment-type">
+              Employment Type
+            </label>
             <select
               className={INPUT_CLASS}
               id="employment-type"
@@ -128,7 +142,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
             </select>
           </div>
           <div>
-            <label className={LABEL_CLASS} htmlFor="start-date">Start Date</label>
+            <label className={LABEL_CLASS} htmlFor="start-date">
+              Start Date
+            </label>
             <input
               className={INPUT_CLASS}
               id="start-date"
@@ -141,10 +157,14 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
       </div>
 
       <div>
-        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Qualifications & Experience</p>
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          Qualifications & Experience
+        </p>
         <div className="space-y-4">
           <div>
-            <label className={LABEL_CLASS} htmlFor="highest-qualification">Highest Qualification</label>
+            <label className={LABEL_CLASS} htmlFor="highest-qualification">
+              Highest Qualification
+            </label>
             <select
               className={INPUT_CLASS}
               disabled={isConfigLoading}
@@ -189,7 +209,9 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
           </div>
 
           <div>
-            <label className={LABEL_CLASS} htmlFor="notes">Additional Notes / Specialisations</label>
+            <label className={LABEL_CLASS} htmlFor="notes">
+              Additional Notes / Specialisations
+            </label>
             <textarea
               className={`${INPUT_CLASS} min-h-[88px] resize-y`}
               id="notes"

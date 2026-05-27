@@ -29,7 +29,9 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
   const formatsText = doc.acceptedFormats.join(', ');
 
   return (
-    <div className={`rounded-lg border bg-white p-3 transition ${hasContent ? 'border-[#21295A]/40' : 'border-gray-100'}`}>
+    <div
+      className={`rounded-lg border bg-white p-3 transition ${hasContent ? 'border-[#21295A]/40' : 'border-gray-100'}`}
+    >
       <div className="flex items-start gap-3">
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"

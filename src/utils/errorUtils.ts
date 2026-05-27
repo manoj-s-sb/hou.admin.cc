@@ -10,7 +10,7 @@ export const handleApiError = (error: any, defaultMessage: string): string => {
   if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
     const [first] = fieldErrors;
     const field = Array.isArray(first.loc) ? first.loc[first.loc.length - 1] : undefined;
-    return field ? `${first.msg ?? 'Invalid value'} (${field})` : first.msg ?? data?.message ?? defaultMessage;
+    return field ? `${first.msg ?? 'Invalid value'} (${field})` : (first.msg ?? data?.message ?? defaultMessage);
   }
   return data?.message || error.message || defaultMessage;
 };
