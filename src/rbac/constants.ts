@@ -15,6 +15,7 @@ export const MODULES = {
   TOUR: 'tour',
   MAINTENANCE: 'maintenance',
   TAILGATE: 'tailgate',
+  STAFF: 'staffmanagement',
   SUPER_ADMIN: SUPER_ADMIN_ONLY,
 } as const;
 
@@ -29,5 +30,6 @@ export const ACCESS_SCOPES = {
   tour: [MODULES.TOUR],
   maintenance: [MODULES.MAINTENANCE],
   tailgate: [MODULES.TAILGATE],
+  staff: [MODULES.STAFF],
   superAdmin: [MODULES.SUPER_ADMIN],
 } as const;

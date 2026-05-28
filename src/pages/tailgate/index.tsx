@@ -75,19 +75,12 @@ const Tailgate = () => {
   }, [dispatch, filters.from, filters.to, filters.name, filters.door]);
 
   const apiStats = {
-    today_date: stats?.todayDate
-      ? new Date(stats.todayDate).toLocaleDateString('en-US', {
-          timeZone: FACILITY_TZ,
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        })
-      : new Date().toLocaleDateString('en-US', {
-          timeZone: FACILITY_TZ,
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        }),
+    today_date: new Date().toLocaleDateString('en-US', {
+      timeZone: FACILITY_TZ,
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }),
     today_total: stats?.todayTotal ?? 0,
     today_entries: stats?.todayEntries ?? 0,
     today_tailgates: stats?.todayTailgates ?? 0,

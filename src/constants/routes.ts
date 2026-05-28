@@ -13,10 +13,16 @@ export const ROUTES = {
   COACH_SCHEDULE: { path: '/coach-schedule', label: 'Coach Schedule' },
   MAINTENANCE: { path: '/maintenance', label: 'Maintenance' },
   TAILGATE: { path: '/tailgate', label: 'Tailgate' },
+  STAFF_MANAGEMENT: { path: '/staff-management', label: 'Staff Management' },
+  STAFF_MANAGEMENT_ADD: { path: '/staff-management/add', label: 'Add Staff Member' },
+  STAFF_MANAGEMENT_VIEW: { path: '/staff-management/:staffId', label: 'View Staff Member' },
+  STAFF_MANAGEMENT_EDIT: { path: '/staff-management/:staffId/edit', label: 'Edit Staff Member' },
 } as const;
 
 // Dynamic-path builders for routes with URL params
 export const buildRoute = {
   viewMembers: (userId: string) => `/members/${userId}`,
   viewInduction: (userId: string) => `/view-induction/${userId}`,
+  viewStaffMember: (staffId: string) => `/staff-management/${staffId}`,
+  editStaffMember: (staffId: string) => `/staff-management/${staffId}/edit`,
 };
