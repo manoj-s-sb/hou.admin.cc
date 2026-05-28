@@ -25,6 +25,7 @@ export interface ProfileFormState {
   employmentType: string;
   startDate: string;
   highestQualification: string;
+  highestQualificationOther: string;
   certifications: Record<string, boolean>;
   notes: string;
 }
@@ -39,6 +40,10 @@ export const initialProfile: ProfileFormState = {
   employmentType: 'Full-time',
   startDate: '',
   highestQualification: '',
+  highestQualificationOther: '',
   certifications: {},
   notes: '',
 };
+
+// Sentinel value for the "Other (specify below)" qualification option.
+export const OTHER_QUALIFICATION = 'other';

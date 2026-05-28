@@ -43,6 +43,17 @@ export const blankToNull = (v: string | null | undefined): string | null => {
   return trimmed === '' ? null : trimmed;
 };
 
+// Returns the id of a config qualification that already represents "Other"
+// (so we don't render a duplicate synthetic option). Null if none exists.
+export const getConfigOtherQualificationId = (
+  quals: { id: string; label: string }[] = []
+): string | null => {
+  const match = quals.find(
+    q => q.id.toLowerCase() === 'other' || q.label.trim().toLowerCase().startsWith('other')
+  );
+  return match ? match.id : null;
+};
+
 // Shared field styling tokens — used across step components
 export const LABEL_CLASS = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500';
 export const INPUT_CLASS =

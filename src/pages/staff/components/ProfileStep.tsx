@@ -1,7 +1,7 @@
 import React from 'react';
 
-import { ConfigOption, ProfileFormState } from '../types';
-import { INPUT_CLASS, LABEL_CLASS } from '../utils';
+import { ConfigOption, OTHER_QUALIFICATION, ProfileFormState } from '../types';
+import { getConfigOtherQualificationId, INPUT_CLASS, LABEL_CLASS } from '../utils';
 
 import ProfilePhotoUploader from './ProfilePhotoUploader';
 
@@ -32,6 +32,12 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
   configError,
   onToggleCertification,
 }) => {
+  // Use the backend's "Other" option if it exists; otherwise fall back to a
+  // synthetic one. Either way, only one "Other" entry is shown.
+  const configOtherId = getConfigOtherQualificationId(qualifications);
+  const otherId = configOtherId ?? OTHER_QUALIFICATION;
+  const isOtherSelected = profile.highestQualification === otherId;
+
   return (
     <div className="space-y-6">
       <ProfilePhotoUploader
@@ -178,7 +184,18 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
                   {q.label}
                 </option>
               ))}
+              {!configOtherId && <option value={OTHER_QUALIFICATION}>Other (specify below)</option>}
             </select>
+            {isOtherSelected && (
+              <input
+                className={`${INPUT_CLASS} mt-2`}
+                id="highest-qualification-other"
+                placeholder="Enter qualification name"
+                type="text"
+                value={profile.highestQualificationOther}
+                onChange={e => onChange('highestQualificationOther', e.target.value)}
+              />
+            )}
           </div>
 
           <div>

@@ -115,7 +115,12 @@ const mapStaff = (row: StaffListRow): StaffRow => {
     id: row.staffId,
     initials,
     initialsBg: pickInitialsBg(row.staffId || row.email || displayName),
-    photoUrl: row.photoSasUrl ?? row.photoUrl ?? row.profileImageUrl ?? '',
+    photoUrl:
+      row.photoSasUrl ??
+      row.photoUrl ??
+      row.profileImageUrl ??
+      (row as { staffProfile?: { photoSasUrl?: string } }).staffProfile?.photoSasUrl ??
+      '',
     name: displayName,
     subtitle: row.email,
     primaryRoles: roles,

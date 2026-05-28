@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
-import { createStaff, getStaffConfig, getStaffDetails, updateStaff } from '../../store/staff/api';
+import { createStaff, getStaffConfig, getStaffDetails, getStaffList, updateStaff } from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
 
 import AccountStep from './components/AccountStep';
@@ -16,8 +16,14 @@ import RoleAccessStep from './components/RoleAccessStep';
 import StepFooter from './components/StepFooter';
 import StepIndicator from './components/StepIndicator';
 import { STEPS } from './constants';
-import { ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
-import { blankToNull, fileToDataUrl, sortActiveUnique, validatePassword } from './utils';
+import { OTHER_QUALIFICATION, ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
+import {
+  blankToNull,
+  fileToDataUrl,
+  getConfigOtherQualificationId,
+  sortActiveUnique,
+  validatePassword,
+} from './utils';
 
 import type { AppDispatch, RootState } from '../../store/store';
 
@@ -49,6 +55,9 @@ const AddStaffMember: React.FC = () => {
   const [defaultPassword, setDefaultPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
+  // Tracks whether the login email has been initialised/edited so the
+  // auto-fill effect doesn't refill it after the user clears it.
+  const loginEmailInitedRef = useRef(false);
 
   // Edit-mode prefill state (derived from staffDetails in store)
   const [existingDocs, setExistingDocs] = useState<StaffDocument[]>([]);
@@ -64,6 +73,11 @@ const AddStaffMember: React.FC = () => {
   const roles = useMemo(() => sortActiveUnique(staffConfig?.roles), [staffConfig]);
   const accessLevels = useMemo(() => sortActiveUnique(staffConfig?.accessLevels), [staffConfig]);
   const requiredDocuments = useMemo(() => sortActiveUnique(staffConfig?.requiredDocuments), [staffConfig]);
+  // The id that represents "Other" — the backend's option if present, else the synthetic sentinel.
+  const otherQualificationId = useMemo(
+    () => getConfigOtherQualificationId(qualifications) ?? OTHER_QUALIFICATION,
+    [qualifications]
+  );
 
   // Load config once on mount (cached in store after first fetch)
   useEffect(() => {
@@ -93,6 +107,7 @@ const AddStaffMember: React.FC = () => {
       employmentType: sp.employmentType ?? 'Full-time',
       startDate: (sp.startDate ?? '').toString().slice(0, 10),
       highestQualification: sp.highestQualification ?? '',
+      highestQualificationOther: '',
       certifications: (sp.certifications ?? []).reduce<Record<string, boolean>>((acc, id) => {
         acc[id] = true;
         return acc;
@@ -113,15 +128,38 @@ const AddStaffMember: React.FC = () => {
     setEditAssignedCentres(sp.assignedCentres ?? []);
     setEditStatus(data.status ?? 'active');
     setLoginEmail(data.loginEmail ?? data.email ?? '');
+    loginEmailInitedRef.current = true;
     setTwoFAEnabled(sp.twoFactorAuth ?? true);
   }, [isEditMode, staffDetails]);
 
-  // Auto-fill login email when entering Account step
+  // Normalise a custom (non-config) qualification into the "Other" option
+  // once both the staff details and the config are available (edit mode).
   useEffect(() => {
-    if (activeStep === 'account' && !loginEmail && profile.email) {
+    if (!isEditMode || qualifications.length === 0) return;
+    setProfile(prev => {
+      const q = prev.highestQualification;
+      if (!q || q === otherQualificationId) return prev;
+      const isKnown = qualifications.some(opt => opt.id === q);
+      if (isKnown) return prev;
+      return { ...prev, highestQualification: otherQualificationId, highestQualificationOther: q };
+    });
+  }, [isEditMode, qualifications, otherQualificationId]);
+
+  // Auto-fill login email once when entering the Account step. Uses a ref so
+  // clearing the field (backspace) does not trigger an immediate refill.
+  useEffect(() => {
+    if (activeStep === 'account' && !loginEmailInitedRef.current && profile.email) {
       setLoginEmail(profile.email);
+      loginEmailInitedRef.current = true;
     }
-  }, [activeStep, profile.email, loginEmail]);
+  }, [activeStep, profile.email]);
+
+  const handleLoginEmailChange = (value: string) => {
+    loginEmailInitedRef.current = true;
+    setLoginEmail(value);
+    // Keep the contact email in sync so the profile view reflects the change.
+    setProfile(prev => ({ ...prev, email: value }));
+  };
 
   const activeIndex = STEPS.findIndex(s => s.key === activeStep);
 
@@ -224,6 +262,11 @@ const AddStaffMember: React.FC = () => {
       }))
     );
 
+    const resolvedQualification =
+      profile.highestQualification === otherQualificationId
+        ? profile.highestQualificationOther.trim()
+        : profile.highestQualification;
+
     if (isEditMode && staffId) {
       const existingEntries = existingDocs
         .filter(d => d.type && d.fileName && d.blobName)
@@ -245,7 +288,7 @@ const AddStaffMember: React.FC = () => {
           staffProfile: {
             employmentType: profile.employmentType,
             startDate: blankToNull(profile.startDate),
-            highestQualification: blankToNull(profile.highestQualification),
+            highestQualification: blankToNull(resolvedQualification),
             certifications: buildSelectedCertificationIds(),
             additionalNotes: profile.notes,
             roles: buildSelectedRoleIds(),
@@ -260,6 +303,8 @@ const AddStaffMember: React.FC = () => {
       );
 
       if (updateStaff.fulfilled.match(action)) {
+        // Refresh the cached list so the edit shows immediately on return.
+        dispatch(getStaffList({ facilityCode: getLocalUser().facilityCode, limit: 50, offset: 0 }));
         toast.success('Staff member updated');
         navigate(buildRoute.viewStaffMember(staffId), { replace: true });
       } else {
@@ -282,7 +327,7 @@ const AddStaffMember: React.FC = () => {
         staffProfile: {
           employmentType: profile.employmentType,
           startDate: profile.startDate,
-          highestQualification: profile.highestQualification,
+          highestQualification: resolvedQualification,
           certifications: buildSelectedCertificationIds(),
           additionalNotes: profile.notes,
           roles: buildSelectedRoleIds(),
@@ -302,6 +347,8 @@ const AddStaffMember: React.FC = () => {
     );
 
     if (createStaff.fulfilled.match(action)) {
+      // Refresh the cached list so the new member shows immediately.
+      await dispatch(getStaffList({ facilityCode, limit: 50, offset: 0 }));
       toast.success(draft ? 'Saved as draft' : 'Staff member created');
       navigate(ROUTES.STAFF_MANAGEMENT.path);
     } else {
@@ -421,7 +468,7 @@ const AddStaffMember: React.FC = () => {
               sendWelcomeEmail={sendWelcomeEmail}
               onConfirmPasswordChange={setConfirmPassword}
               onEditStatusChange={setEditStatus}
-              onLoginEmailChange={setLoginEmail}
+              onLoginEmailChange={handleLoginEmailChange}
               onPasswordChange={setDefaultPassword}
               onToggleWelcomeEmail={setSendWelcomeEmail}
             />
