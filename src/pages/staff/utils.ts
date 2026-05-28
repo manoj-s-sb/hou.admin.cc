@@ -45,12 +45,8 @@ export const blankToNull = (v: string | null | undefined): string | null => {
 
 // Returns the id of a config qualification that already represents "Other"
 // (so we don't render a duplicate synthetic option). Null if none exists.
-export const getConfigOtherQualificationId = (
-  quals: { id: string; label: string }[] = []
-): string | null => {
-  const match = quals.find(
-    q => q.id.toLowerCase() === 'other' || q.label.trim().toLowerCase().startsWith('other')
-  );
+export const getConfigOtherQualificationId = (quals: { id: string; label: string }[] = []): string | null => {
+  const match = quals.find(q => q.id.toLowerCase() === 'other' || q.label.trim().toLowerCase().startsWith('other'));
   return match ? match.id : null;
 };
 

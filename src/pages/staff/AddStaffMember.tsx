@@ -17,13 +17,7 @@ import StepFooter from './components/StepFooter';
 import StepIndicator from './components/StepIndicator';
 import { STEPS } from './constants';
 import { OTHER_QUALIFICATION, ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
-import {
-  blankToNull,
-  fileToDataUrl,
-  getConfigOtherQualificationId,
-  sortActiveUnique,
-  validatePassword,
-} from './utils';
+import { blankToNull, fileToDataUrl, getConfigOtherQualificationId, sortActiveUnique, validatePassword } from './utils';
 
 import type { AppDispatch, RootState } from '../../store/store';
 
