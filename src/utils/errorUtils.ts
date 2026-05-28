@@ -5,5 +5,12 @@
  * @returns A formatted error message string
  */
 export const handleApiError = (error: any, defaultMessage: string): string => {
-  return error.response?.data?.message || error.message || defaultMessage;
+  const data = error.response?.data;
+  const fieldErrors = data?.data?.errors as { loc?: unknown[]; msg?: string }[] | undefined;
+  if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
+    const [first] = fieldErrors;
+    const field = Array.isArray(first.loc) ? first.loc[first.loc.length - 1] : undefined;
+    return field ? `${first.msg ?? 'Invalid value'} (${field})` : (first.msg ?? data?.message ?? defaultMessage);
+  }
+  return data?.message || error.message || defaultMessage;
 };

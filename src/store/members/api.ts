@@ -4,6 +4,7 @@ import axios from 'axios';
 import endpoints from '../../constants/endpoints';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
+import store from '../store';
 
 import { ActivateSubscriptionRequest, MemberRequest } from './types';
 
@@ -48,14 +49,7 @@ export const activateUserSubscription = createAsyncThunk(
   'user/activateUserSubscription',
   async ({ userId, adminId, adminName }: ActivateSubscriptionRequest, { rejectWithValue }) => {
     try {
-      // Get the access token from localStorage
-      const tokensString = localStorage.getItem('tokens');
-      let accessToken = '';
-
-      if (tokensString) {
-        const tokens = JSON.parse(tokensString);
-        accessToken = tokens.access_token || '';
-      }
+      const accessToken = store.getState().auth.tokens?.access_token || '';
       //uat: 'https://century-subscription-func-uat-fkapb0bphngbgnfb.centralindia-01.azurewebsites.net/subscription/admin/activate',
       //prod: 'https://subscription-func-g4dvhpbhemd9hsbd.centralus-01.azurewebsites.net/subscription/admin/activate',
       const response = await axios.post(

@@ -1,11 +1,8 @@
-export const getLocalUser = (): { userId: string; name: string; facilityCode: string } => {
-  try {
-    const u = JSON.parse(localStorage.getItem('user') || '{}');
-    const name = [u.firstName, u.lastName].filter(Boolean).join(' ');
-    return { userId: u.userId || '', name, facilityCode: u.facilityCode || '' };
-  } catch {
-    return { userId: '', name: '', facilityCode: '' };
-  }
-};
+import store from '../store/store';
 
-export const FACILITY_CODE = getLocalUser().facilityCode;
+export const getLocalUser = (): { userId: string; name: string; facilityCode: string } => {
+  const u = store.getState().auth.user;
+  if (!u) return { userId: '', name: '', facilityCode: '' };
+  const name = [u.firstName, u.lastName].filter(Boolean).join(' ');
+  return { userId: u.userId || '', name, facilityCode: u.facilityCode || '' };
+};

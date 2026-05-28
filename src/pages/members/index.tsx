@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef } from '../../components/Table/types';
+import { buildRoute } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
 import { decodeToken } from '../../helpers';
 import { getMembers, getMembersCount } from '../../store/members/api';
@@ -216,7 +217,7 @@ const Members = () => {
             title="View member details"
             onClick={e => {
               e.stopPropagation();
-              navigate(`/members/${params.row.userId}`, { state: { listSearch: location.search } });
+              navigate(buildRoute.viewMembers(params.row.userId), { state: { listSearch: location.search } });
             }}
           >
             View
@@ -526,7 +527,7 @@ const Members = () => {
             }
           }}
           onRowClick={(row: any) => {
-            navigate(`/members/${row.userId}`, { state: { listSearch: location.search } });
+            navigate(buildRoute.viewMembers(row.userId), { state: { listSearch: location.search } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
             dispatch(getMembers(buildRequestPayload({ limit: rowsPerPage, skip: 0 })));

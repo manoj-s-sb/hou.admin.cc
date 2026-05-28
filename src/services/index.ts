@@ -1,14 +1,29 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { AxiosError, create, InternalAxiosRequestConfig } from 'axios';
 
 import { isTokenExpired } from '../utils/tokenUtils';
 
 // Create axios instance with default configuration
-const api = axios.create({
+const api = create({
   baseURL: process.env.REACT_APP_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Store ref is injected from app bootstrap to avoid a circular import with the
+// store (store → auth/reducers → auth/api → services would otherwise loop back).
+type StoreLike = {
+  getState: () => {
+    auth: {
+      tokens?: { access_token?: string } | null;
+      tokenExpirationTime?: number | null;
+    };
+  };
+};
+let storeRef: StoreLike | null = null;
+export const attachStore = (store: StoreLike) => {
+  storeRef = store;
+};
 
 // Callback to trigger session expired modal
 let onSessionExpiredCallback: (() => void) | null = null;
@@ -31,23 +46,17 @@ api.interceptors.request.use(
       return config;
     }
 
+    const authState = storeRef?.getState().auth;
+
     // Check if token is expired before making the request
-    if (isTokenExpired()) {
+    if (authState && isTokenExpired(authState)) {
       triggerSessionExpired();
       // Reject the request to prevent API call with expired token
       return Promise.reject(new Error('Token expired'));
     }
 
-    const tokensString = localStorage.getItem('tokens');
-    if (tokensString && config.headers) {
-      try {
-        const tokens = JSON.parse(tokensString);
-        if (tokens.access_token) {
-          config.headers.Authorization = `Bearer ${tokens.access_token}`;
-        }
-      } catch (error) {
-        console.error('Error parsing tokens from localStorage:', error);
-      }
+    if (authState?.tokens?.access_token && config.headers) {
+      config.headers.Authorization = `Bearer ${authState.tokens.access_token}`;
     }
     return config;
   },

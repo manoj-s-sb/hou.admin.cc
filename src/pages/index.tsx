@@ -7,6 +7,9 @@ import Maintenance from './maintenance';
 import Members from './members';
 import ViewMembers from './members/viewMembers';
 import SlotBookings from './slots';
+import StaffManagement from './staff';
+import AddStaffMember from './staff/AddStaffMember';
+import ViewStaffMember from './staff/ViewStaffMember';
 import Tailgate from './tailgate';
 import Tours from './tours';
 import UserList from './users';
@@ -24,4 +27,7 @@ export {
   CoachSchedule,
   Maintenance,
   Tailgate,
+  StaffManagement,
+  AddStaffMember,
+  ViewStaffMember,
 };

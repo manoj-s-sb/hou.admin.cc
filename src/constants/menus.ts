@@ -1,48 +1,62 @@
-const menus = [
-  // {
-  //   path: '/dashboard',
-  //   label: 'Dashboard',
-  //   icon: '/assets/dashboard.svg',
-  // },
-  // {
-  //   path: '/users',
-  //   label: 'Users',
-  //   icon: '',
-  // },
+import { ACCESS_SCOPES } from '../rbac/constants';
+
+import { ROUTES } from './routes';
+
+export interface MenuItem {
+  path: string;
+  label: string;
+  icon: string;
+  module: readonly string[];
+}
+
+const menus: MenuItem[] = [
   {
-    path: '/members',
-    label: 'Members',
+    path: ROUTES.MEMBERS.path,
+    label: ROUTES.MEMBERS.label,
     icon: '/assets/subscription.svg',
+    module: ACCESS_SCOPES.members,
   },
   {
-    path: '/induction',
-    label: 'Induction',
+    path: ROUTES.INDUCTION.path,
+    label: ROUTES.INDUCTION.label,
     icon: '/assets/induction.svg',
+    module: ACCESS_SCOPES.induction,
   },
   {
-    path: '/tour',
-    label: 'Tour Details',
+    path: ROUTES.TOUR.path,
+    label: ROUTES.TOUR.label,
     icon: '/assets/tour.svg',
+    module: ACCESS_SCOPES.tour,
   },
   {
-    path: '/slot-bookings',
-    label: 'Slot Bookings',
+    path: ROUTES.SLOT_BOOKINGS.path,
+    label: ROUTES.SLOT_BOOKINGS.label,
     icon: '/assets/slot-bookings.svg',
+    module: ACCESS_SCOPES.slots,
   },
   {
-    path: '/coach-schedule',
-    label: 'Coach Schedule',
+    path: ROUTES.COACH_SCHEDULE.path,
+    label: ROUTES.COACH_SCHEDULE.label,
     icon: '/assets/coach-schedule.svg',
+    module: ACCESS_SCOPES.coaches,
   },
   {
-    path: '/tailgate',
-    label: 'Tailgate',
+    path: ROUTES.TAILGATE.path,
+    label: ROUTES.TAILGATE.label,
     icon: '/assets/tailgate.svg',
+    module: ACCESS_SCOPES.tailgate,
   },
   {
-    path: '/maintenance',
-    label: 'Maintenance',
+    path: ROUTES.MAINTENANCE.path,
+    label: ROUTES.MAINTENANCE.label,
     icon: '/assets/maintenance.svg',
+    module: ACCESS_SCOPES.maintenance,
+  },
+  {
+    path: ROUTES.STAFF_MANAGEMENT.path,
+    label: ROUTES.STAFF_MANAGEMENT.label,
+    icon: '/assets/user.svg',
+    module: ACCESS_SCOPES.staff,
   },
 ];
 

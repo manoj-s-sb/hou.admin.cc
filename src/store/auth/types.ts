@@ -18,12 +18,21 @@ export interface AuthTokens {
   refresh_token: string;
 }
 
+export type PermissionAction = 'read' | 'write';
+
+export interface Permissions {
+  role: string;
+  facilityCode: string;
+  modules: Record<string, PermissionAction[]>;
+}
+
 export interface LoginResponse {
   status: string;
   message: string;
   data: {
     user: User;
     tokens: AuthTokens;
+    permissions?: Permissions;
   };
   statusCode: string;
 }
@@ -32,6 +41,10 @@ export interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   loginResponse: LoginResponse | null;
+  tokens: AuthTokens | null;
+  user: User | null;
+  permissions: Permissions | null;
+  tokenExpirationTime: number | null;
   error: string | null | any;
 }
 
@@ -39,5 +52,9 @@ export const initialState: AuthState = {
   isLoading: false,
   isAuthenticated: false,
   loginResponse: null,
+  tokens: null,
+  user: null,
+  permissions: null,
+  tokenExpirationTime: null,
   error: null,
 };
