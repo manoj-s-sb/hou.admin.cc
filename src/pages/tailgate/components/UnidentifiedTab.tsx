@@ -22,8 +22,8 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
     if (!grouped[dv]) grouped[dv] = { date: getLogDate(l), items: [] };
     grouped[dv].items.push(l);
   });
-  const sortedDates = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
-  sortedDates.forEach(d => grouped[d].items.sort((a, b) => a.timeStampms - b.timeStampms));
+  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  sortedDates.forEach(d => grouped[d].items.sort((a, b) => b.timeStampms - a.timeStampms));
 
   const flatItems = sortedDates.flatMap(d =>
     grouped[d].items.map(item => ({ dateVal: d, date: grouped[d].date, item }))
@@ -39,6 +39,12 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
   });
   const pagedDates = Array.from(new Set(pageSlice.map(r => r.dateVal)));
   const pageNumbers = getPageNumbers(page, totalPages);
+
+  const groupStartIndex: Record<string, number> = {};
+  pagedDates.forEach(d => {
+    const firstItem = pagedGroups[d]?.items[0];
+    if (firstItem) groupStartIndex[d] = grouped[d].items.indexOf(firstItem);
+  });
 
   const todayVal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 
@@ -62,10 +68,9 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
               </tr>
             </thead>
             <tbody>
-              {(() => {
-                let rowCounter = page * rowsPerPage;
-                return pagedDates.map(dv => {
+              {pagedDates.flatMap(dv => {
                   const { date, items } = pagedGroups[dv];
+                  const startOffset = groupStartIndex[dv] ?? 0;
                   const dayDiff = Math.round(
                     (new Date(todayVal).getTime() - new Date(dv).getTime()) / (1000 * 60 * 60 * 24)
                   );
@@ -88,9 +93,8 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
                         </div>
                       </td>
                     </tr>,
-                    ...items.map(row => {
-                      rowCounter += 1;
-                      const globalIdx = rowCounter;
+                    ...items.map((row, idx) => {
+                      const globalIdx = startOffset + idx + 1;
                       const evType = getEffectiveEventType(row);
                       const {
                         label: evLabel,
@@ -172,8 +176,7 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
                       );
                     }),
                   ];
-                });
-              })()}
+              })}
             </tbody>
           </table>
 

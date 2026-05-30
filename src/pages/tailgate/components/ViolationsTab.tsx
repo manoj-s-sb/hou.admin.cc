@@ -42,7 +42,7 @@ const ViolationsTab = ({ actors, onVideoClick }: ViolationsTabProps) => {
           if (!dateGroups[dv]) dateGroups[dv] = { date: getLogDate(inc), items: [] };
           dateGroups[dv].items.push(inc);
         });
-        const sortedDates = Object.keys(dateGroups).sort();
+        const sortedDates = Object.keys(dateGroups).sort().reverse();
 
         return (
           <div key={ri} className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">

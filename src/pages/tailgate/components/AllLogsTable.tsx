@@ -10,6 +10,7 @@ import {
 } from '../utils';
 
 interface AllLogsTableProps {
+  groupStartIndex: Record<string, number>;
   pagedDates: string[];
   pagedGroups: Record<string, { date: string; items: TailgateLog[] }>;
   totalRows: number;
@@ -59,6 +60,7 @@ const renderIdentity = (row: TailgateLog) => {
 };
 
 const AllLogsTable = ({
+  groupStartIndex,
   pagedDates,
   pagedGroups,
   totalRows,
@@ -132,8 +134,9 @@ const AllLogsTable = ({
           </tr>
         </thead>
         <tbody>
-          {pagedDates.map(dateVal => {
+          {pagedDates.flatMap(dateVal => {
             const group = pagedGroups[dateVal];
+            const startOffset = groupStartIndex[dateVal] ?? 0;
             return [
               <tr key={`date-${dateVal}`} className="border-l-4 border-l-[#21295A] bg-[#21295A]/[0.06]">
                 <td className="px-4 py-2.5" colSpan={TABLE_HEADERS.length}>
@@ -160,6 +163,7 @@ const AllLogsTable = ({
                 </td>
               </tr>,
               ...group.items.map((row, idx) => {
+                const sno = startOffset + idx + 1;
                 const evType = getEffectiveEventType(row);
                 const status = getLogStatus(row);
                 const isViol = row.review?.isViolation === true;
@@ -181,7 +185,7 @@ const AllLogsTable = ({
                           : 'hover:bg-gray-50'
                     }`}
                   >
-                    <td className="whitespace-nowrap px-4 py-3 text-[13px] font-medium text-gray-400">{idx + 1}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-[13px] font-medium text-gray-400">{sno}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{getLogTime(row)}</td>
                     <td className="px-4 py-3">{renderVideoCell(row)}</td>
                     <td className="whitespace-nowrap px-4 py-3">
