@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -40,6 +40,7 @@ const Tailgate = () => {
   const [timeSortDir, setTimeSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const silentRefresh = useRef(false);
 
   const handleFilterChange = (updater: (f: TailgateFilters) => TailgateFilters) => {
     setFilters(updater);
@@ -52,12 +53,13 @@ const Tailgate = () => {
         ? { message: 'Violation flagged and saved', type: 'danger' }
         : { message: 'Review saved successfully', type: 'success' }
     );
+    silentRefresh.current = true;
     const payload: Parameters<typeof fetchTailgateEvents>[0] = {};
     if (filters.from) payload.fromDate = toApiDate(filters.from);
     if (filters.to) payload.toDate = toApiDate(filters.to);
     if (filters.name) payload.memberName = filters.name;
     if (filters.door) payload.laneDoor = filters.door;
-    dispatch(fetchTailgateEvents(payload));
+    dispatch(fetchTailgateEvents(payload)).finally(() => { silentRefresh.current = false; });
     dispatch(fetchTailgateStats());
   };
 
@@ -133,10 +135,16 @@ const Tailgate = () => {
   );
   const pagedDates = Array.from(new Set(pageSlice.map(r => r.dateVal)));
 
+  const groupStartIndex: Record<string, number> = {};
+  pagedDates.forEach(d => {
+    const firstItem = pagedGroups[d]?.items[0];
+    if (firstItem) groupStartIndex[d] = groupedLogs[d].items.indexOf(firstItem);
+  });
+
   // Unidentified tab data
   const pendingLogs = logs
     .filter(l => !l.actor?.name && !l.review?.memberName)
-    .sort((a, b) => getLogDateVal(a).localeCompare(getLogDateVal(b)));
+    .sort((a, b) => getLogDateVal(b).localeCompare(getLogDateVal(a)));
 
   // Violations tab data
   const byActor: Record<
@@ -239,7 +247,7 @@ const Tailgate = () => {
                   setPage(0);
                 }}
               />
-              {isLoading ? (
+              {isLoading && !silentRefresh.current ? (
                 <div className="py-10 text-center text-[13px] text-gray-400">Loading…</div>
               ) : totalRows === 0 ? (
                 <div className="py-10 text-center text-[13px] text-gray-400">
@@ -247,6 +255,7 @@ const Tailgate = () => {
                 </div>
               ) : (
                 <AllLogsTable
+                  groupStartIndex={groupStartIndex}
                   page={page}
                   pagedDates={pagedDates}
                   pagedGroups={pagedGroups}
