@@ -42,6 +42,16 @@ const endpoints = {
     activateSubscription: 'subscription/admin/activate',
     userInductionDetails: '/admin/induction/details',
   },
+  centres: {
+    list: '/admin/centres',
+    wizardStart: '/admin/centres/wizard/start',
+    wizardStep: (id: string, step: number) => `/admin/centres/wizard/${id}/step${step}`,
+    wizardReview: (id: string) => `/admin/centres/wizard/${id}/review`,
+    saveDraft: (id: string) => `/admin/centres/wizard/${id}/save-draft`,
+    saveActivate: (id: string) => `/admin/centres/wizard/${id}/save-activate`,
+    members: (id: string) => `/admin/centres/${id}/members`,
+    bookings: (id: string) => `/admin/centres/${id}/bookings`,
+  },
 };
 
 export default endpoints;

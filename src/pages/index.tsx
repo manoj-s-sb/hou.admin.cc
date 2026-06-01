@@ -1,3 +1,4 @@
+import CentreManagement from './centres';
 import CoachSchedule from './coach/index';
 import Dashboard from './dashboard';
 import Induction from './induction';
@@ -30,4 +31,5 @@ export {
   StaffManagement,
   AddStaffMember,
   ViewStaffMember,
+  CentreManagement,
 };

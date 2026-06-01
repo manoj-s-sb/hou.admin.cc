@@ -58,6 +58,12 @@ const menus: MenuItem[] = [
     icon: '/assets/user.svg',
     module: ACCESS_SCOPES.staff,
   },
+  {
+    path: ROUTES.CENTRES.path,
+    label: ROUTES.CENTRES.label,
+    icon: '/assets/subscription.svg',
+    module: ACCESS_SCOPES.superAdmin,
+  },
 ];
 
 export default menus;
