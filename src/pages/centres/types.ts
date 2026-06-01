@@ -135,8 +135,11 @@ export interface WizardPlanRow {
   fortnightlyPrice: number;
   annualPrice: number;
   allocatedSlots: number;
+  joiningFee: number;
   memberCap: number | null;
   isFoundationEligible: boolean;
+  /** Country codes the plan is available in; ['all'] = everywhere. */
+  availableCountries: string[];
   firstGuestFee: number;
   additionalGuestDiscountPct: number;
   extraSessionCost: number;
@@ -186,10 +189,24 @@ export interface AdditionalFacility {
   type: AdditionalFacilityType;
   enabled: boolean;
   name: string;
+  // Pricing
   fortnightlyPrice: number;
   annualDiscountPct: number;
+  // Capacity & access
   totalCapacity: number;
   concurrentCapacity: number;
-  slotDurationMinutes: number;
-  guestAccess: boolean;
+  seatingCapacity?: number;
+  slotDuration: string; // "60 minutes" | "No fixed slots (open access)"
+  // Guest access
+  guestSessionPrice: number;
+  freeGuestVisits: number;
+  // Operating hours
+  openTime: string;
+  closeTime: string;
+  photoName?: string;
+  // Gaming-specific
+  psUnits?: number;
+  chargePerHour?: number;
+  minSession?: string;
+  maxSession?: string;
 }

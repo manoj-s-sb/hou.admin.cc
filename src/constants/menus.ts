@@ -6,7 +6,8 @@ export interface MenuItem {
   path: string;
   label: string;
   icon: string;
-  module: readonly string[];
+  // Omit to make the item visible to every authenticated portal user (no module gate).
+  module?: readonly string[];
 }
 
 const menus: MenuItem[] = [
@@ -62,6 +63,7 @@ const menus: MenuItem[] = [
     path: ROUTES.CENTRES.path,
     label: ROUTES.CENTRES.label,
     icon: '/assets/subscription.svg',
+    // Super-admin only for now (the Super Admin Portal owns centre management).
     module: ACCESS_SCOPES.superAdmin,
   },
 ];

@@ -2,23 +2,33 @@ import React, { useMemo, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import {
-  ADDITIONAL_FACILITY_META,
-  COUNTRIES,
-  DAYS,
-  DEMOGRAPHICS,
-  FACILITY_OPTIONS,
-  PLAN_CATALOGUE,
-  SLOT_DURATIONS,
-  TIMEZONES,
-} from '../constants';
+import { COUNTRIES, DAYS, DEMOGRAPHICS, FACILITY_OPTIONS, PLAN_CATALOGUE, SLOT_DURATIONS, TIMEZONES } from '../constants';
 import { commitWizard, saveWizardStep, startWizard } from '../useCentres';
 
+import AdditionalFacilitiesStep from './AdditionalFacilitiesStep';
 import AllocationBar from './AllocationBar';
 
-import type { AdditionalFacility, AdditionalFacilityType, CentreDiscount, WizardPlanRow, WizardState } from '../types';
+import type { CentreDiscount, WizardPlanRow, WizardState } from '../types';
 
 const STEPS = ['Details', 'Facilities', 'Add. Facilities', 'Plans & Pricing', 'Review'];
+
+const PLAN_COUNTRY_CHIPS = [
+  { code: 'all', label: '🌐 All countries' },
+  { code: 'US', label: '🇺🇸 USA' },
+  { code: 'AU', label: '🇦🇺 Australia' },
+  { code: 'IN', label: '🇮🇳 India' },
+  { code: 'UK', label: '🇬🇧 UK' },
+  { code: 'NZ', label: '🇳🇿 New Zealand' },
+  { code: 'ZA', label: '🇿🇦 South Africa' },
+];
+
+// Toggle a country chip: picking 'all' clears specifics; picking a specific clears 'all'.
+const toggleCountry = (current: string[], code: string): string[] => {
+  if (code === 'all') return ['all'];
+  const next = current.filter(c => c !== 'all');
+  const out = next.includes(code) ? next.filter(c => c !== code) : [...next, code];
+  return out.length ? out : ['all'];
+};
 
 const makePlanRows = (): WizardPlanRow[] =>
   PLAN_CATALOGUE.map(p => ({
@@ -27,8 +37,10 @@ const makePlanRows = (): WizardPlanRow[] =>
     fortnightlyPrice: p.fortnightly,
     annualPrice: p.annual,
     allocatedSlots: p.defaultSlots,
+    joiningFee: 0,
     memberCap: p.defaultSlots,
     isFoundationEligible: p.defaultFoundation,
+    availableCountries: ['all'],
     firstGuestFee: 30,
     additionalGuestDiscountPct: 20,
     extraSessionCost: 30,
@@ -178,22 +190,6 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
 
   const setPlan = (planId: string, patch: Partial<WizardPlanRow>) =>
     set({ plans: s.plans.map(p => (p.planId === planId ? { ...p, ...patch } : p)) });
-
-  const addAdditionalFacility = (type: AdditionalFacilityType) => {
-    const facility: AdditionalFacility = {
-      id: `${type}-${s.additionalFacilities.length + 1}-${Date.now()}`,
-      type,
-      enabled: true,
-      name: ADDITIONAL_FACILITY_META[type].label,
-      fortnightlyPrice: 0,
-      annualDiscountPct: 0,
-      totalCapacity: 1,
-      concurrentCapacity: 1,
-      slotDurationMinutes: 45,
-      guestAccess: false,
-    };
-    set({ additionalFacilities: [...s.additionalFacilities, facility] });
-  };
 
   const addDiscount = () => {
     const d: CentreDiscount = {
@@ -791,222 +787,23 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
           {/* ══ STEP 3 ══ */}
           {step === 3 && (
             <div>
-              <div className="cmx-note" style={{ marginBottom: 16 }}>
-                Enable additional spaces members can book via the app. These are optional — you can also configure them
-                after the centre is created.
-              </div>
-
-              {(Object.keys(ADDITIONAL_FACILITY_META) as AdditionalFacilityType[]).map(type => {
-                const metaInfo = ADDITIONAL_FACILITY_META[type];
-                const instances = s.additionalFacilities.filter(f => f.type === type);
-                const single = !metaInfo.multiInstance ? instances[0] : null;
-                return (
-                  <div
-                    key={type}
-                    style={{
-                      border: '1px solid var(--border)',
-                      borderRadius: 10,
-                      marginBottom: 10,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        background: '#f9fafb',
-                      }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>{metaInfo.label}</div>
-                      {metaInfo.multiInstance ? (
-                        <button
-                          className="cmx-btn cmx-btn-outline"
-                          type="button"
-                          onClick={() => addAdditionalFacility(type)}
-                        >
-                          + Add another room
-                        </button>
-                      ) : (
-                        <label className="cmx-toggle">
-                          <input
-                            aria-label={`Enable ${metaInfo.label}`}
-                            checked={Boolean(single)}
-                            type="checkbox"
-                            onChange={e => {
-                              if (e.target.checked) addAdditionalFacility(type);
-                              else set({ additionalFacilities: s.additionalFacilities.filter(f => f.type !== type) });
-                            }}
-                          />
-                          <span className="track">
-                            <span className="knob" />
-                          </span>
-                        </label>
-                      )}
-                    </div>
-                    {instances.length > 0 && (
-                      <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                        {instances.map(f => (
-                          <div
-                            key={f.id}
-                            style={{
-                              border: '1px dashed var(--border)',
-                              borderRadius: 8,
-                              padding: 12,
-                              position: 'relative',
-                            }}
-                          >
-                            {metaInfo.multiInstance && (
-                              <button
-                                style={{
-                                  position: 'absolute',
-                                  top: 8,
-                                  right: 10,
-                                  background: 'none',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  color: 'var(--muted)',
-                                  fontSize: 16,
-                                }}
-                                type="button"
-                                onClick={() =>
-                                  set({ additionalFacilities: s.additionalFacilities.filter(x => x.id !== f.id) })
-                                }
-                              >
-                                ×
-                              </button>
-                            )}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 10 }}>
-                              <div className="cmx-ff">
-                                <span className="cmx-fld-lbl">Name</span>
-                                <input
-                                  type="text"
-                                  value={f.name}
-                                  onChange={e =>
-                                    set({
-                                      additionalFacilities: s.additionalFacilities.map(x =>
-                                        x.id === f.id ? { ...x, name: e.target.value } : x
-                                      ),
-                                    })
-                                  }
-                                />
-                              </div>
-                              <div className="cmx-ff">
-                                <span className="cmx-fld-lbl">Slot Duration (min)</span>
-                                <select
-                                  value={f.slotDurationMinutes}
-                                  onChange={e =>
-                                    set({
-                                      additionalFacilities: s.additionalFacilities.map(x =>
-                                        x.id === f.id ? { ...x, slotDurationMinutes: Number(e.target.value) } : x
-                                      ),
-                                    })
-                                  }
-                                >
-                                  {SLOT_DURATIONS.map(d => (
-                                    <option key={d} value={d}>
-                                      {d} minutes
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 10 }}>
-                              <div className="cmx-ff">
-                                <span className="cmx-fld-lbl">Fortnightly Price (USD)</span>
-                                <input
-                                  min={0}
-                                  step={0.01}
-                                  type="number"
-                                  value={f.fortnightlyPrice}
-                                  onChange={e =>
-                                    set({
-                                      additionalFacilities: s.additionalFacilities.map(x =>
-                                        x.id === f.id ? { ...x, fortnightlyPrice: Number(e.target.value) } : x
-                                      ),
-                                    })
-                                  }
-                                />
-                              </div>
-                              <div className="cmx-ff">
-                                <span className="cmx-fld-lbl">Annual Discount (%)</span>
-                                <input
-                                  max={100}
-                                  min={0}
-                                  type="number"
-                                  value={f.annualDiscountPct}
-                                  onChange={e =>
-                                    set({
-                                      additionalFacilities: s.additionalFacilities.map(x =>
-                                        x.id === f.id ? { ...x, annualDiscountPct: Number(e.target.value) } : x
-                                      ),
-                                    })
-                                  }
-                                />
-                              </div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                              <div className="cmx-ff">
-                                <span className="cmx-fld-lbl">Total Capacity</span>
-                                <input
-                                  min={1}
-                                  type="number"
-                                  value={f.totalCapacity}
-                                  onChange={e =>
-                                    set({
-                                      additionalFacilities: s.additionalFacilities.map(x =>
-                                        x.id === f.id ? { ...x, totalCapacity: Number(e.target.value) } : x
-                                      ),
-                                    })
-                                  }
-                                />
-                              </div>
-                              <div className="cmx-ff">
-                                <span className="cmx-fld-lbl">Concurrent Capacity</span>
-                                <input
-                                  min={1}
-                                  type="number"
-                                  value={f.concurrentCapacity}
-                                  onChange={e =>
-                                    set({
-                                      additionalFacilities: s.additionalFacilities.map(x =>
-                                        x.id === f.id ? { ...x, concurrentCapacity: Number(e.target.value) } : x
-                                      ),
-                                    })
-                                  }
-                                />
-                              </div>
-                            </div>
-                            <label className="cmx-check-chip" style={{ marginTop: 10, display: 'inline-flex' }}>
-                              <input
-                                checked={f.guestAccess}
-                                type="checkbox"
-                                onChange={e =>
-                                  set({
-                                    additionalFacilities: s.additionalFacilities.map(x =>
-                                      x.id === f.id ? { ...x, guestAccess: e.target.checked } : x
-                                    ),
-                                  })
-                                }
-                              />{' '}
-                              Guest access allowed
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              <AdditionalFacilitiesStep
+                facilities={s.additionalFacilities}
+                onChange={next => set({ additionalFacilities: next })}
+              />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
                 <button className="cmx-btn cmx-btn-outline" onClick={() => goStep(2)}>
                   ← Back
                 </button>
-                <button className="cmx-btn cmx-btn-navy" onClick={() => goStep(4)}>
-                  Next: Plans & Pricing →
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="cmx-btn cmx-btn-outline" style={{ color: 'var(--sub)' }} onClick={() => goStep(5)}>
+                    Skip to Review →
+                  </button>
+                  <button className="cmx-btn cmx-btn-navy" onClick={() => goStep(4)}>
+                    Next: Plans & Pricing →
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1190,7 +987,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                               />
                             </div>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 10 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">Extra Session Cost (USD)</span>
                               <input
@@ -1200,6 +997,38 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                                 value={row.extraSessionCost}
                                 onChange={e => setPlan(meta.id, { extraSessionCost: Number(e.target.value) })}
                               />
+                            </div>
+                            <div className="cmx-ff">
+                              <span className="cmx-fld-lbl">Joining Fee (USD)</span>
+                              <input
+                                min={0}
+                                placeholder="0 = no joining fee"
+                                step={0.01}
+                                type="number"
+                                value={row.joiningFee}
+                                onChange={e => setPlan(meta.id, { joiningFee: Number(e.target.value) })}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 10 }}>
+                            <span className="cmx-fld-lbl">Available in</span>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                              {PLAN_COUNTRY_CHIPS.map(c => {
+                                const active = row.availableCountries.includes(c.code);
+                                return (
+                                  <button
+                                    key={c.code}
+                                    className={`cmx-country-chip ${active ? 'active' : ''}`}
+                                    type="button"
+                                    onClick={() => setPlan(meta.id, { availableCountries: toggleCountry(row.availableCountries, c.code) })}
+                                  >
+                                    {c.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="cmx-hint">
+                              Select specific countries or keep &quot;All countries&quot; to offer this plan everywhere.
                             </div>
                           </div>
                         </div>
@@ -1446,8 +1275,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {s.additionalFacilities.map(f => (
                       <div key={f.id} style={{ fontSize: 12.5 }}>
-                        <strong>{f.name}</strong> — ${f.fortnightlyPrice}/fn · cap {f.totalCapacity} (
-                        {f.concurrentCapacity} concurrent) · {f.slotDurationMinutes} min
+                        <strong>{f.name}</strong>
+                        {f.type === 'gaming'
+                          ? ` — ${f.psUnits ?? 0} units · $${f.chargePerHour ?? 0}/hr · ${f.openTime}–${f.closeTime}`
+                          : ` — $${f.fortnightlyPrice}/fn · ${f.slotDuration} · ${f.openTime}–${f.closeTime}`}
                       </div>
                     ))}
                   </div>

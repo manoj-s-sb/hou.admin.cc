@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 
 import BookingsTab from './BookingsTab';
+import FacilitiesTab from './FacilitiesTab';
 import MembersTab from './MembersTab';
+import PlansTab from './PlansTab';
 
 import type { CentreWithKPI } from '../types';
 
@@ -38,16 +40,6 @@ const PLACEHOLDERS: Record<string, { title: string; desc: string; endpoint: stri
     title: 'Maintenance Logs',
     desc: 'Lane and equipment maintenance tracking for this centre.',
     endpoint: 'GET /api/admin/centres/:id/maintenance',
-  },
-  plans: {
-    title: 'Plans & Pricing',
-    desc: 'Plans offered at this centre with local pricing and slot allocations.',
-    endpoint: 'GET /api/admin/centres/:id/plans',
-  },
-  facilities: {
-    title: 'Facilities',
-    desc: 'Lanes, amenities and additional bookable spaces at this centre.',
-    endpoint: 'GET /api/admin/centres/:id/facilities',
   },
 };
 
@@ -148,7 +140,11 @@ const OpsView: React.FC<Props> = ({ centre, onBack }) => {
       {/* Tab content */}
       {tab === 'members' && <MembersTab centre={centre} />}
       {tab === 'bookings' && <BookingsTab centre={centre} />}
-      {tab !== 'members' && tab !== 'bookings' && <Placeholder tab={tab} />}
+      {tab === 'plans' && <PlansTab centre={centre} />}
+      {tab === 'facilities' && <FacilitiesTab centre={centre} />}
+      {(tab === 'induction' || tab === 'tours' || tab === 'tailgate' || tab === 'maintenance') && (
+        <Placeholder tab={tab} />
+      )}
     </div>
   );
 };
