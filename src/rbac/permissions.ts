@@ -1,7 +1,7 @@
 import { PermissionAction } from '../store/auth/types';
 import store from '../store/store';
 
-import { SUPER_ADMIN_ONLY, SUPER_ADMIN_ROLE } from './constants';
+import { SUPER_ADMIN_ONLY, SUPER_ADMIN_ROLES } from './constants';
 
 export type ModuleKey = string | readonly string[];
 
@@ -23,7 +23,8 @@ export const getRole = (): string => {
   return permissions?.role || user?.userType?.[0] || '';
 };
 
-export const isSuperAdmin = (): boolean => getRole() === SUPER_ADMIN_ROLE;
+export const isSuperAdmin = (): boolean =>
+  SUPER_ADMIN_ROLES.includes(getRole().toLowerCase() as (typeof SUPER_ADMIN_ROLES)[number]);
 
 const toList = (key: ModuleKey): readonly string[] => (Array.isArray(key) ? key : [key as string]);
 

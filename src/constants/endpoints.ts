@@ -52,6 +52,11 @@ const endpoints = {
     members: (id: string) => `/admin/centres/${id}/members`,
     bookings: (id: string) => `/admin/centres/${id}/bookings`,
   },
+  membershipPlans: {
+    list: '/admin/membership-plans',
+    update: (id: string) => `/admin/membership-plans/${id}`,
+    archive: (id: string) => `/admin/membership-plans/${id}/archive`,
+  },
 };
 
 export default endpoints;

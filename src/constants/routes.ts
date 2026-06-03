@@ -18,6 +18,7 @@ export const ROUTES = {
   STAFF_MANAGEMENT_VIEW: { path: '/staff-management/:staffId', label: 'View Staff Member' },
   STAFF_MANAGEMENT_EDIT: { path: '/staff-management/:staffId/edit', label: 'Edit Staff Member' },
   CENTRES: { path: '/centres', label: 'Centre Management' },
+  MEMBERSHIP_PLANS: { path: '/membership-plans', label: 'Membership Plans' },
 } as const;
 
 // Dynamic-path builders for routes with URL params

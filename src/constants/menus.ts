@@ -66,6 +66,13 @@ const menus: MenuItem[] = [
     // Super-admin only for now (the Super Admin Portal owns centre management).
     module: ACCESS_SCOPES.superAdmin,
   },
+  {
+    path: ROUTES.MEMBERSHIP_PLANS.path,
+    label: ROUTES.MEMBERSHIP_PLANS.label,
+    icon: '/assets/subscription.svg',
+    // Super-admin only — global plan templates are network-wide configuration.
+    module: ACCESS_SCOPES.superAdmin,
+  },
 ];
 
 export default menus;

@@ -740,7 +740,8 @@
 }
 
 /* ── Demographic & country chips ── */
-.cmx-drawer .cmx-demo-btn {
+.cmx-drawer .cmx-demo-btn,
+.cmx .cmx-demo-btn {
   padding: 4px 11px;
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -752,12 +753,14 @@
   transition: all 0.15s;
   white-space: nowrap;
 }
-.cmx-drawer .cmx-demo-btn.active {
+.cmx-drawer .cmx-demo-btn.active,
+.cmx .cmx-demo-btn.active {
   background: var(--navy);
   color: #fff;
   border-color: var(--navy);
 }
-.cmx-drawer .cmx-country-chip {
+.cmx-drawer .cmx-country-chip,
+.cmx .cmx-country-chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -773,7 +776,8 @@
   user-select: none;
   white-space: nowrap;
 }
-.cmx-drawer .cmx-country-chip.active {
+.cmx-drawer .cmx-country-chip.active,
+.cmx .cmx-country-chip.active {
   background: #ecedf4;
   color: #21295a;
   border-color: #9096be;
