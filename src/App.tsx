@@ -24,6 +24,8 @@ import {
   StaffManagement,
   AddStaffMember,
   ViewStaffMember,
+  CentreManagement,
+  MembershipPlans,
 } from './pages';
 import { ACCESS_SCOPES, canRead, PermissionRoute } from './rbac';
 import { setSessionExpiredCallback } from './services';
@@ -166,6 +168,22 @@ const AppRoutes: React.FC = () => {
             </PermissionRoute>
           }
           path={ROUTES.STAFF_MANAGEMENT_VIEW.path}
+        />
+        <Route
+          element={
+            <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
+              <CentreManagement />
+            </PermissionRoute>
+          }
+          path={ROUTES.CENTRES.path}
+        />
+        <Route
+          element={
+            <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
+              <MembershipPlans />
+            </PermissionRoute>
+          }
+          path={ROUTES.MEMBERSHIP_PLANS.path}
         />
         <Route element={<DefaultLanding />} path={ROUTES.ROOT.path} />
       </Routes>

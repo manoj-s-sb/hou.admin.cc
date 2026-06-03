@@ -6,7 +6,8 @@ export interface MenuItem {
   path: string;
   label: string;
   icon: string;
-  module: readonly string[];
+  // Omit to make the item visible to every authenticated portal user (no module gate).
+  module?: readonly string[];
 }
 
 const menus: MenuItem[] = [
@@ -57,6 +58,20 @@ const menus: MenuItem[] = [
     label: ROUTES.STAFF_MANAGEMENT.label,
     icon: '/assets/user.svg',
     module: ACCESS_SCOPES.staff,
+  },
+  {
+    path: ROUTES.CENTRES.path,
+    label: ROUTES.CENTRES.label,
+    icon: '/assets/subscription.svg',
+    // Super-admin only for now (the Super Admin Portal owns centre management).
+    module: ACCESS_SCOPES.superAdmin,
+  },
+  {
+    path: ROUTES.MEMBERSHIP_PLANS.path,
+    label: ROUTES.MEMBERSHIP_PLANS.label,
+    icon: '/assets/subscription.svg',
+    // Super-admin only — global plan templates are network-wide configuration.
+    module: ACCESS_SCOPES.superAdmin,
   },
 ];
 

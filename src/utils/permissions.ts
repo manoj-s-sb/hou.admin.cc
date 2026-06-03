@@ -1,6 +1,9 @@
 import { PermissionAction } from '../store/auth/types';
 
-export const SUPER_ADMIN_ROLE = 'stancebeamadmin';
+// Role strings the backend may use to denote a super admin. Compared
+// case-insensitively. Add any new backend variants here.
+export const SUPER_ADMIN_ROLES = ['stancebeamadmin', 'superadmin'] as const;
+export const SUPER_ADMIN_ROLE = SUPER_ADMIN_ROLES[0];
 
 export const SUPER_ADMIN_ONLY = '__superadmin__';
 
@@ -49,7 +52,8 @@ const getRoleFromUser = (): string => {
 
 export const getRole = (): string => readStoredPermissions()?.role || getRoleFromUser();
 
-export const isSuperAdmin = (): boolean => getRole() === SUPER_ADMIN_ROLE;
+export const isSuperAdmin = (): boolean =>
+  SUPER_ADMIN_ROLES.includes(getRole().toLowerCase() as (typeof SUPER_ADMIN_ROLES)[number]);
 
 const toList = (key: ModuleKey): readonly string[] => (Array.isArray(key) ? key : [key as string]);
 

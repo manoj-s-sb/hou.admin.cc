@@ -1,3 +1,4 @@
+import CentreManagement from './centres';
 import CoachSchedule from './coach/index';
 import Dashboard from './dashboard';
 import Induction from './induction';
@@ -6,6 +7,7 @@ import Login from './login';
 import Maintenance from './maintenance';
 import Members from './members';
 import ViewMembers from './members/viewMembers';
+import MembershipPlans from './membership';
 import SlotBookings from './slots';
 import StaffManagement from './staff';
 import AddStaffMember from './staff/AddStaffMember';
@@ -30,4 +32,6 @@ export {
   StaffManagement,
   AddStaffMember,
   ViewStaffMember,
+  CentreManagement,
+  MembershipPlans,
 };
