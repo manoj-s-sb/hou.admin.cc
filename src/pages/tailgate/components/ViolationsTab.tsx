@@ -16,6 +16,13 @@ interface Actor {
 
 interface ViolationsTabProps {
   actors: Actor[];
+  isLoading: boolean;
+  totalRows: number;
+  totalPages: number;
+  page: number;
+  rowsPerPage: number;
+  onPageChange: (p: number) => void;
+  onRowsPerPageChange: (n: number) => void;
   onVideoClick: (row: TailgateLog) => void;
 }
 
@@ -23,26 +30,42 @@ interface ViolationsTabProps {
 const COL_WIDTHS = ['140px', '110px', '120px', '110px', '90px', '220px'];
 const HEADERS = ['Date', 'Time', 'Event', 'Lane Door', 'Video', 'Admin Note'];
 
-const ViolationsTab = ({ actors, onVideoClick }: ViolationsTabProps) => {
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+const ViolationsTab = ({
+  actors,
+  isLoading,
+  totalRows,
+  totalPages,
+  page,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
+  onVideoClick,
+}: ViolationsTabProps) => {
+  const [timeSortDir, setTimeSortDir] = useState<'asc' | 'desc'>('asc');
+  const pageNumbers = getPageNumbers(page, totalPages);
 
-  const totalPages = Math.ceil(actors.length / rowsPerPage);
-  const pagedActors = actors.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+  if (isLoading) {
+    return <p className="py-10 text-center text-[13px] text-gray-400">Loading…</p>;
+  }
 
   return (
     <>
       {actors.length === 0 && <p className="py-10 text-center text-[13px] text-gray-400">No violations recorded.</p>}
 
-      {pagedActors.map((actor, ri) => {
-        // Group incidents by date
+      {actors.map((actor, ri) => {
         const dateGroups: Record<string, { date: string; items: TailgateLog[] }> = {};
         actor.incidents.forEach(inc => {
           const dv = getLogDateVal(inc);
           if (!dateGroups[dv]) dateGroups[dv] = { date: getLogDate(inc), items: [] };
           dateGroups[dv].items.push(inc);
         });
-        const sortedDates = Object.keys(dateGroups).sort().reverse();
+        Object.keys(dateGroups).forEach(dv => {
+          dateGroups[dv].items.sort((a, b) => {
+            const cmp = a.timeStampms - b.timeStampms;
+            return timeSortDir === 'asc' ? cmp : -cmp;
+          });
+        });
+        const sortedDates = Object.keys(dateGroups);
 
         return (
           <div key={ri} className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
@@ -77,21 +100,26 @@ const ViolationsTab = ({ actors, onVideoClick }: ViolationsTabProps) => {
               </span>
             </div>
 
-            {/* Fixed-layout table */}
             <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
               <colgroup>
-                {COL_WIDTHS.map((w, i) => (
-                  <col key={i} style={{ width: w }} />
-                ))}
+                {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
               </colgroup>
               <thead>
                 <tr className="bg-gray-50">
                   {HEADERS.map(h => (
-                    <th
-                      key={h}
-                      className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400"
-                    >
-                      {h}
+                    <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                      {h === 'Time' ? (
+                        <button
+                          className="group flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 hover:text-[#21295A]"
+                          type="button"
+                          onClick={() => setTimeSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
+                        >
+                          Time
+                          <span className="opacity-40 transition-opacity group-hover:opacity-100">
+                            {timeSortDir === 'asc' ? '↑' : '↓'}
+                          </span>
+                        </button>
+                      ) : h}
                     </th>
                   ))}
                 </tr>
@@ -126,19 +154,11 @@ const ViolationsTab = ({ actors, onVideoClick }: ViolationsTabProps) => {
                         <button className="flex items-center" type="button" onClick={() => onVideoClick(inc)}>
                           <div className="relative flex h-11 w-16 items-center justify-center overflow-hidden rounded-lg bg-[#1a2340]">
                             {inc.snapshotUrl && (
-                              <img
-                                alt="snapshot"
-                                className="absolute inset-0 h-full w-full object-cover"
-                                src={inc.snapshotUrl}
-                              />
+                              <img alt="snapshot" className="absolute inset-0 h-full w-full object-cover" src={inc.snapshotUrl} />
                             )}
                             <div className="absolute inset-0 flex items-center justify-center bg-black/25">
                               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90">
-                                <svg
-                                  className="ml-0.5 h-2.5 w-2.5 text-[#21295A]"
-                                  fill="currentColor"
-                                  viewBox="0 0 10 12"
-                                >
+                                <svg className="ml-0.5 h-2.5 w-2.5 text-[#21295A]" fill="currentColor" viewBox="0 0 10 12">
                                   <polygon points="1,0 9,6 1,12" />
                                 </svg>
                               </div>
@@ -156,26 +176,21 @@ const ViolationsTab = ({ actors, onVideoClick }: ViolationsTabProps) => {
         );
       })}
 
-      {actors.length > 0 && (
+      {totalRows > 0 && (
         <div className="flex items-center justify-between border-t border-gray-100 bg-white px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">Rows per page:</span>
             <select
               className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-indigo-400 focus:outline-none"
               value={rowsPerPage}
-              onChange={e => {
-                setRowsPerPage(parseInt(e.target.value, 10));
-                setPage(0);
-              }}
+              onChange={e => onRowsPerPageChange(parseInt(e.target.value, 10))}
             >
               {[10, 20, 30, 50, 100].map(opt => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
+                <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
             <span className="text-xs text-gray-400">
-              {page * rowsPerPage + 1}–{Math.min((page + 1) * rowsPerPage, actors.length)} of {actors.length}
+              {page * rowsPerPage + 1}–{Math.min((page + 1) * rowsPerPage, totalRows)} of {totalRows}
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -183,22 +198,20 @@ const ViolationsTab = ({ actors, onVideoClick }: ViolationsTabProps) => {
               className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={page === 0}
               type="button"
-              onClick={() => setPage(p => Math.max(0, p - 1))}
+              onClick={() => onPageChange(page - 1)}
             >
               ← Previous
             </button>
             <div className="flex items-center gap-1 px-1">
-              {getPageNumbers(page, totalPages).map((p, i) =>
+              {pageNumbers.map((p, i) =>
                 p === '...' ? (
-                  <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">
-                    ...
-                  </span>
+                  <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">...</span>
                 ) : (
                   <button
                     key={p}
                     className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${p === page ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                     type="button"
-                    onClick={() => setPage(p as number)}
+                    onClick={() => onPageChange(p as number)}
                   >
                     {(p as number) + 1}
                   </button>
@@ -209,7 +222,7 @@ const ViolationsTab = ({ actors, onVideoClick }: ViolationsTabProps) => {
               className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={page >= totalPages - 1}
               type="button"
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              onClick={() => onPageChange(page + 1)}
             >
               Next →
             </button>

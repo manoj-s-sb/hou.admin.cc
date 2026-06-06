@@ -55,7 +55,7 @@ const ViewModal = ({ log, onClose }: ViewModalProps) => {
         <div className="space-y-4 p-5">
           {/* Video / Snapshot */}
           {log.videoUrl ? (
-            <video controls className="w-full rounded-xl" preload="metadata" src={log.videoUrl}>
+            <video controls controlsList="nodownload" className="w-full rounded-xl" preload="metadata" src={log.videoUrl}>
               <track kind="captions" label="Captions" srcLang="en" />
             </video>
           ) : log.snapshotUrl ? (

@@ -5,6 +5,7 @@ interface StatsCardsProps {
   today_tailgates: number;
   total_unidentified: number;
   total_violations: number;
+  filterSubtitle: string | null;
 }
 
 const StatsCards = ({
@@ -14,6 +15,7 @@ const StatsCards = ({
   today_tailgates,
   total_unidentified,
   total_violations,
+  filterSubtitle,
 }: StatsCardsProps) => {
   const cards = [
     {
@@ -70,7 +72,7 @@ const StatsCards = ({
     {
       label: 'Unidentified',
       value: total_unidentified,
-      sub: 'Across all dates',
+      sub: filterSubtitle ?? 'Across all dates',
       color: 'text-yellow-600',
       border: 'border-l-4 border-l-yellow-400',
       icon: (
@@ -87,7 +89,7 @@ const StatsCards = ({
     {
       label: 'Violations',
       value: total_violations,
-      sub: 'All time',
+      sub: filterSubtitle ?? 'All time',
       color: 'text-red-600',
       border: 'border-l-4 border-l-red-600',
       icon: (

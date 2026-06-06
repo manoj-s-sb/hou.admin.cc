@@ -45,17 +45,30 @@ export const submitTailgateReview = createAsyncThunk(
   }
 );
 
-export const fetchTailgateStats = createAsyncThunk('tailgate/fetchStats', async (_, { rejectWithValue }) => {
-  try {
-    const now = new Date();
-    const [y, m, d] = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).split('-');
-    const date = `${d}-${m}-${y}`;
-    const response = await api.post(endpoints.tailgate.stats, { date });
-    return response?.data?.data as TailgateStats;
-  } catch (error: any) {
-    return rejectWithValue(handleApiError(error, 'Failed to fetch tailgate stats'));
+export const fetchTailgateStats = createAsyncThunk(
+  'tailgate/fetchStats',
+  async (
+    filters: { fromDate?: string; toDate?: string; memberName?: string; laneDoor?: string; eventType?: string; reviewStatus?: string } = {},
+    { rejectWithValue }
+  ) => {
+    try {
+      const now = new Date();
+      const [y, m, d] = now.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).split('-');
+      const date = `${d}-${m}-${y}`;
+      const payload: Record<string, string> = { date };
+      if (filters.fromDate) payload.fromDate = filters.fromDate;
+      if (filters.toDate) payload.toDate = filters.toDate;
+      if (filters.memberName) payload.memberName = filters.memberName;
+      if (filters.laneDoor) payload.laneDoor = filters.laneDoor;
+      if (filters.eventType) payload.eventType = filters.eventType;
+      if (filters.reviewStatus) payload.reviewStatus = filters.reviewStatus;
+      const response = await api.post(endpoints.tailgate.stats, payload);
+      return response?.data?.data as TailgateStats;
+    } catch (error: any) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch tailgate stats'));
+    }
   }
-});
+);
 
 export const fetchTailgateEvents = createAsyncThunk(
   'tailgate/fetchEvents',
