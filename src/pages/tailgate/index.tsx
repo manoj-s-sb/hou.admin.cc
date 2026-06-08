@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -27,6 +27,12 @@ const toApiDate = (isoDate: string) => {
   return `${d}-${m}-${y}`;
 };
 
+const TAB_TYPE: Record<TailgateTab, 'all' | 'unidentified' | 'violation'> = {
+  logs: 'all',
+  unid: 'unidentified',
+  viol: 'violation',
+};
+
 const Tailgate = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { logs, isLoading, stats, totalEvents, totalPages, firstDateOffset } = useSelector(
@@ -44,28 +50,25 @@ const Tailgate = () => {
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const silentRefresh = useRef(false);
 
-  const TAB_TYPE: Record<TailgateTab, 'all' | 'unidentified' | 'violation'> = {
-    logs: 'all',
-    unid: 'unidentified',
-    viol: 'violation',
-  };
-
-  const buildEventsPayload = (overrides: { page?: number; pageSize?: number; tab?: TailgateTab } = {}) => {
-    const uiPage = overrides.page ?? page;
-    const limit = overrides.pageSize ?? rowsPerPage;
-    const payload: Parameters<typeof fetchTailgateEvents>[0] = {
-      skip: uiPage * limit,
-      limit,
-      type: TAB_TYPE[overrides.tab ?? activeTab],
-    };
-    if (filters.from) payload.fromDate = toApiDate(filters.from);
-    if (filters.to) payload.toDate = toApiDate(filters.to);
-    if (filters.name) payload.memberName = filters.name;
-    if (filters.door) payload.laneDoor = filters.door;
-    if (filters.type) payload.eventType = filters.type;
-    if (filters.status) payload.reviewStatus = filters.status as 'pending' | 'reviewed' | 'violation';
-    return payload;
-  };
+  const buildEventsPayload = useCallback(
+    (overrides: { page?: number; pageSize?: number; tab?: TailgateTab } = {}) => {
+      const uiPage = overrides.page ?? page;
+      const limit = overrides.pageSize ?? rowsPerPage;
+      const payload: Parameters<typeof fetchTailgateEvents>[0] = {
+        skip: uiPage * limit,
+        limit,
+        type: TAB_TYPE[overrides.tab ?? activeTab],
+      };
+      if (filters.from) payload.fromDate = toApiDate(filters.from);
+      if (filters.to) payload.toDate = toApiDate(filters.to);
+      if (filters.name) payload.memberName = filters.name;
+      if (filters.door) payload.laneDoor = filters.door;
+      if (filters.type) payload.eventType = filters.type;
+      if (filters.status) payload.reviewStatus = filters.status as 'pending' | 'reviewed' | 'violation';
+      return payload;
+    },
+    [page, rowsPerPage, activeTab, filters]
+  );
 
   const handleTabChange = (tab: TailgateTab) => {
     setActiveTab(tab);
@@ -77,7 +80,7 @@ const Tailgate = () => {
     setPage(0);
   };
 
-  const buildStatsPayload = () => {
+  const buildStatsPayload = useCallback(() => {
     const payload: Parameters<typeof fetchTailgateStats>[0] = {};
     if (filters.from) payload.fromDate = toApiDate(filters.from);
     if (filters.to) payload.toDate = toApiDate(filters.to);
@@ -86,7 +89,7 @@ const Tailgate = () => {
     if (filters.type) payload.eventType = filters.type;
     if (filters.status) payload.reviewStatus = filters.status;
     return payload;
-  };
+  }, [filters]);
 
   const handleSaveReview = (isViolation: boolean) => {
     setToast(
@@ -103,22 +106,11 @@ const Tailgate = () => {
 
   useEffect(() => {
     dispatch(fetchTailgateStats(buildStatsPayload()));
-  }, [dispatch, filters.from, filters.to, filters.name, filters.door, filters.type, filters.status]);
+  }, [dispatch, buildStatsPayload]);
 
   useEffect(() => {
     dispatch(fetchTailgateEvents(buildEventsPayload()));
-  }, [
-    dispatch,
-    activeTab,
-    page,
-    rowsPerPage,
-    filters.from,
-    filters.to,
-    filters.name,
-    filters.door,
-    filters.type,
-    filters.status,
-  ]);
+  }, [dispatch, buildEventsPayload]);
 
   const apiStats = {
     today_date: new Date().toLocaleDateString('en-US', {
