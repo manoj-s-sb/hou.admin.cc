@@ -175,12 +175,13 @@ const AllLogsTable = ({
                 return (
                   <tr
                     key={row.id}
-                    className={`border-t border-gray-100 transition-colors ${isViol
-                      ? 'bg-red-50/40 hover:bg-red-50'
-                      : !row.actor
-                        ? 'bg-yellow-50/40 hover:bg-yellow-50'
-                        : 'hover:bg-gray-50'
-                      }`}
+                    className={`border-t border-gray-100 transition-colors ${
+                      isViol
+                        ? 'bg-red-50/40 hover:bg-red-50'
+                        : !row.actor
+                          ? 'bg-yellow-50/40 hover:bg-yellow-50'
+                          : 'hover:bg-gray-50'
+                    }`}
                   >
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] font-medium text-gray-400">{sno}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{getLogTime(row)}</td>

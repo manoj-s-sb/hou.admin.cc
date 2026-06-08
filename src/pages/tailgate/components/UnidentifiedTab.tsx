@@ -42,10 +42,12 @@ const UnidentifiedTab = ({
   });
   const [timeSortDir, setTimeSortDir] = useState<'asc' | 'desc'>('asc');
   const sortedDates = Object.keys(grouped);
-  sortedDates.forEach(d => grouped[d].items.sort((a, b) => {
-    const cmp = a.timeStampms - b.timeStampms;
-    return timeSortDir === 'asc' ? cmp : -cmp;
-  }));
+  sortedDates.forEach(d =>
+    grouped[d].items.sort((a, b) => {
+      const cmp = a.timeStampms - b.timeStampms;
+      return timeSortDir === 'asc' ? cmp : -cmp;
+    })
+  );
 
   const pageNumbers = getPageNumbers(page, totalPages);
   const todayVal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
@@ -79,7 +81,9 @@ const UnidentifiedTab = ({
                           {timeSortDir === 'asc' ? '↑' : '↓'}
                         </span>
                       </button>
-                    ) : h}
+                    ) : (
+                      h
+                    )}
                   </th>
                 ))}
               </tr>
@@ -112,7 +116,11 @@ const UnidentifiedTab = ({
                   ...items.map((row: TailgateLog, idx: number) => {
                     const sno = dateIdx === 0 ? firstDateOffset + idx + 1 : idx + 1;
                     const evType = getEffectiveEventType(row);
-                    const { label: evLabel, className: evCls, gradient } = eventMap[evType] || {
+                    const {
+                      label: evLabel,
+                      className: evCls,
+                      gradient,
+                    } = eventMap[evType] || {
                       label: evType,
                       className: 'bg-gray-100 text-gray-600',
                       gradient: 'linear-gradient(135deg,#1f2937,#4b5563)',
@@ -123,27 +131,43 @@ const UnidentifiedTab = ({
                         <td className="px-4 py-3 text-[13px] font-medium text-gray-400">{sno}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{getLogTime(row)}</td>
                         <td className="px-4 py-3">
-                          <button className="flex flex-col items-center gap-1" type="button" onClick={() => onVideoClick(row)}>
+                          <button
+                            className="flex flex-col items-center gap-1"
+                            type="button"
+                            onClick={() => onVideoClick(row)}
+                          >
                             <div
                               className="relative flex h-11 w-16 items-center justify-center overflow-hidden rounded-lg"
                               style={{ background: row.snapshotUrl ? undefined : gradient }}
                             >
                               {row.snapshotUrl && (
-                                <img alt="snapshot" className="absolute inset-0 h-full w-full object-cover" src={row.snapshotUrl} />
+                                <img
+                                  alt="snapshot"
+                                  className="absolute inset-0 h-full w-full object-cover"
+                                  src={row.snapshotUrl}
+                                />
                               )}
                               <div className="absolute inset-0 flex items-center justify-center bg-black/25">
                                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90">
-                                  <svg className="ml-0.5 h-2.5 w-2.5 text-[#21295A]" fill="currentColor" viewBox="0 0 10 12">
+                                  <svg
+                                    className="ml-0.5 h-2.5 w-2.5 text-[#21295A]"
+                                    fill="currentColor"
+                                    viewBox="0 0 10 12"
+                                  >
                                     <polygon points="1,0 9,6 1,12" />
                                   </svg>
                                 </div>
                               </div>
                             </div>
-                            <span className="text-[10px] text-gray-400">{count} person{count !== 1 ? 's' : ''}</span>
+                            <span className="text-[10px] text-gray-400">
+                              {count} person{count !== 1 ? 's' : ''}
+                            </span>
                           </button>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
-                          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${evCls}`}>{evLabel}</span>
+                          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${evCls}`}>
+                            {evLabel}
+                          </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
@@ -186,7 +210,9 @@ const UnidentifiedTab = ({
                 onChange={e => onRowsPerPageChange(parseInt(e.target.value, 10))}
               >
                 {[10, 20, 30, 50, 100].map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
                 ))}
               </select>
               <span className="text-xs text-gray-400">
@@ -205,7 +231,9 @@ const UnidentifiedTab = ({
               <div className="flex items-center gap-1 px-1">
                 {pageNumbers.map((p, i) =>
                   p === '...' ? (
-                    <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">...</span>
+                    <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">
+                      ...
+                    </span>
                   ) : (
                     <button
                       key={p}

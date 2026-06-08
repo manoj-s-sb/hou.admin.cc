@@ -48,7 +48,14 @@ export const submitTailgateReview = createAsyncThunk(
 export const fetchTailgateStats = createAsyncThunk(
   'tailgate/fetchStats',
   async (
-    filters: { fromDate?: string; toDate?: string; memberName?: string; laneDoor?: string; eventType?: string; reviewStatus?: string } = {},
+    filters: {
+      fromDate?: string;
+      toDate?: string;
+      memberName?: string;
+      laneDoor?: string;
+      eventType?: string;
+      reviewStatus?: string;
+    } = {},
     { rejectWithValue }
   ) => {
     try {

@@ -102,12 +102,17 @@ const ViolationsTab = ({
 
             <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
               <colgroup>
-                {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
+                {COL_WIDTHS.map((w, i) => (
+                  <col key={i} style={{ width: w }} />
+                ))}
               </colgroup>
               <thead>
                 <tr className="bg-gray-50">
                   {HEADERS.map(h => (
-                    <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                    <th
+                      key={h}
+                      className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400"
+                    >
                       {h === 'Time' ? (
                         <button
                           className="group flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 hover:text-[#21295A]"
@@ -119,7 +124,9 @@ const ViolationsTab = ({
                             {timeSortDir === 'asc' ? '↑' : '↓'}
                           </span>
                         </button>
-                      ) : h}
+                      ) : (
+                        h
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -154,11 +161,19 @@ const ViolationsTab = ({
                         <button className="flex items-center" type="button" onClick={() => onVideoClick(inc)}>
                           <div className="relative flex h-11 w-16 items-center justify-center overflow-hidden rounded-lg bg-[#1a2340]">
                             {inc.snapshotUrl && (
-                              <img alt="snapshot" className="absolute inset-0 h-full w-full object-cover" src={inc.snapshotUrl} />
+                              <img
+                                alt="snapshot"
+                                className="absolute inset-0 h-full w-full object-cover"
+                                src={inc.snapshotUrl}
+                              />
                             )}
                             <div className="absolute inset-0 flex items-center justify-center bg-black/25">
                               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90">
-                                <svg className="ml-0.5 h-2.5 w-2.5 text-[#21295A]" fill="currentColor" viewBox="0 0 10 12">
+                                <svg
+                                  className="ml-0.5 h-2.5 w-2.5 text-[#21295A]"
+                                  fill="currentColor"
+                                  viewBox="0 0 10 12"
+                                >
                                   <polygon points="1,0 9,6 1,12" />
                                 </svg>
                               </div>
@@ -186,7 +201,9 @@ const ViolationsTab = ({
               onChange={e => onRowsPerPageChange(parseInt(e.target.value, 10))}
             >
               {[10, 20, 30, 50, 100].map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
             <span className="text-xs text-gray-400">
@@ -205,7 +222,9 @@ const ViolationsTab = ({
             <div className="flex items-center gap-1 px-1">
               {pageNumbers.map((p, i) =>
                 p === '...' ? (
-                  <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">...</span>
+                  <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">
+                    ...
+                  </span>
                 ) : (
                   <button
                     key={p}

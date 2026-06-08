@@ -29,7 +29,9 @@ const toApiDate = (isoDate: string) => {
 
 const Tailgate = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { logs, isLoading, stats, totalEvents, totalPages, firstDateOffset } = useSelector((state: RootState) => state.tailgate);
+  const { logs, isLoading, stats, totalEvents, totalPages, firstDateOffset } = useSelector(
+    (state: RootState) => state.tailgate
+  );
 
   const [activeTab, setActiveTab] = useState<TailgateTab>('logs');
   const [filters, setFilters] = useState<TailgateFilters>(DEFAULT_FILTERS);
@@ -93,7 +95,9 @@ const Tailgate = () => {
         : { message: 'Review saved successfully', type: 'success' }
     );
     silentRefresh.current = true;
-    dispatch(fetchTailgateEvents(buildEventsPayload())).finally(() => { silentRefresh.current = false; });
+    dispatch(fetchTailgateEvents(buildEventsPayload())).finally(() => {
+      silentRefresh.current = false;
+    });
     dispatch(fetchTailgateStats(buildStatsPayload()));
   };
 
@@ -103,7 +107,18 @@ const Tailgate = () => {
 
   useEffect(() => {
     dispatch(fetchTailgateEvents(buildEventsPayload()));
-  }, [dispatch, activeTab, page, rowsPerPage, filters.from, filters.to, filters.name, filters.door, filters.type, filters.status]);
+  }, [
+    dispatch,
+    activeTab,
+    page,
+    rowsPerPage,
+    filters.from,
+    filters.to,
+    filters.name,
+    filters.door,
+    filters.type,
+    filters.status,
+  ]);
 
   const apiStats = {
     today_date: new Date().toLocaleDateString('en-US', {
@@ -126,11 +141,15 @@ const Tailgate = () => {
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
   const filterSubtitle: string | null =
-    filters.from && filters.to ? `${fmtDate(filters.from)} – ${fmtDate(filters.to)}`
-    : filters.from ? `From ${fmtDate(filters.from)}`
-    : filters.to ? `Until ${fmtDate(filters.to)}`
-    : filters.name || filters.type || filters.status || filters.door ? 'Filtered results'
-    : null;
+    filters.from && filters.to
+      ? `${fmtDate(filters.from)} – ${fmtDate(filters.to)}`
+      : filters.from
+        ? `From ${fmtDate(filters.from)}`
+        : filters.to
+          ? `Until ${fmtDate(filters.to)}`
+          : filters.name || filters.type || filters.status || filters.door
+            ? 'Filtered results'
+            : null;
 
   // Server returns only the current page — group and sort directly
   const groupedLogs = logs.reduce<Record<string, { date: string; items: TailgateLog[] }>>((acc, l) => {
@@ -152,7 +171,18 @@ const Tailgate = () => {
   const totalRows = totalEvents;
 
   // Violations tab — server already filters, group by actor from current page
-  const byActor: Record<string, { name: string | null; memberId: string | null; ini: string; ab: string; ac: string; actorType: string | null; incidents: TailgateLog[] }> = {};
+  const byActor: Record<
+    string,
+    {
+      name: string | null;
+      memberId: string | null;
+      ini: string;
+      ab: string;
+      ac: string;
+      actorType: string | null;
+      incidents: TailgateLog[];
+    }
+  > = {};
   logs.forEach(l => {
     const isReviewed = l.review?.reviewed === true;
     const displayName = isReviewed ? (l.review?.memberName ?? null) : (l.actor?.name ?? null);
@@ -160,7 +190,15 @@ const Tailgate = () => {
     const k = isReviewed ? l.review?.memberId || `__rev__${l.review?.memberName ?? ''}` : l.actor?.id || '__unknown__';
     if (!byActor[k]) {
       const { ini, ab, ac } = getAvatarData(displayName);
-      byActor[k] = { name: displayName, memberId: displayId, ini, ab, ac, actorType: l.actor?.type ?? null, incidents: [] };
+      byActor[k] = {
+        name: displayName,
+        memberId: displayId,
+        ini,
+        ab,
+        ac,
+        actorType: l.actor?.type ?? null,
+        incidents: [],
+      };
     }
     byActor[k].incidents.push(l);
   });
@@ -191,10 +229,11 @@ const Tailgate = () => {
             {tabs.map(tab => (
               <button
                 key={tab.key}
-                className={`relative flex items-center gap-1.5 px-5 pb-3.5 pt-4 text-sm transition-colors ${activeTab === tab.key
-                  ? 'font-semibold text-[#21295A]'
-                  : 'font-medium text-gray-400 hover:text-gray-600'
-                  }`}
+                className={`relative flex items-center gap-1.5 px-5 pb-3.5 pt-4 text-sm transition-colors ${
+                  activeTab === tab.key
+                    ? 'font-semibold text-[#21295A]'
+                    : 'font-medium text-gray-400 hover:text-gray-600'
+                }`}
                 type="button"
                 onClick={() => handleTabChange(tab.key)}
               >
@@ -246,7 +285,10 @@ const Tailgate = () => {
                   totalRows={totalRows}
                   onPageChange={setPage}
                   onReviewClick={setReviewLog}
-                  onRowsPerPageChange={n => { setRowsPerPage(n); setPage(0); }}
+                  onRowsPerPageChange={n => {
+                    setRowsPerPage(n);
+                    setPage(0);
+                  }}
                   onTimeSortToggle={() => setTimeSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
                   onVideoClick={setVideoLog}
                   onViewClick={setViewLog}
@@ -267,7 +309,10 @@ const Tailgate = () => {
               totalRows={totalEvents}
               onPageChange={setPage}
               onReviewClick={setReviewLog}
-              onRowsPerPageChange={(n: number) => { setRowsPerPage(n); setPage(0); }}
+              onRowsPerPageChange={(n: number) => {
+                setRowsPerPage(n);
+                setPage(0);
+              }}
               onVideoClick={setVideoLog}
               onViewClick={setViewLog}
             />
@@ -283,7 +328,10 @@ const Tailgate = () => {
               totalPages={totalPages}
               totalRows={totalEvents}
               onPageChange={setPage}
-              onRowsPerPageChange={(n: number) => { setRowsPerPage(n); setPage(0); }}
+              onRowsPerPageChange={(n: number) => {
+                setRowsPerPage(n);
+                setPage(0);
+              }}
               onVideoClick={setVideoLog}
             />
           )}
