@@ -23,3 +23,10 @@ export const PLAN_REGION_FILTERS = [
 ];
 
 export const SLOT_DURATION_MINUTES = 45;
+
+/**
+ * Facility whose memberships the page loads from
+ * `GET /admin/memberships?facilityCode=…`. Until a facility picker is wired up,
+ * the page defaults to this code.
+ */
+export const DEFAULT_FACILITY_CODE = 'BLR01';

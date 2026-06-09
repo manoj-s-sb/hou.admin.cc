@@ -1,16 +1,19 @@
 /**
  * Data hook for the Membership Plans module.
  *
- * Like the Centre Management hooks, this talks to the shared axios instance and
- * falls back to seed data when the API is unavailable (404 / network error).
- * Swap the seed fallback out once the plan-template endpoints are live — the
- * request shape already matches the spec.
+ * Loads the facility's memberships from the live
+ * `GET /admin/memberships?facilityCode=…` endpoint and maps the rich nested
+ * response onto the flat `MembershipPlan` model (see `mapApiPlan`). Falls back
+ * to seed data when the API is unavailable (404 / network error) so the module
+ * stays usable offline.
  */
 import { useCallback, useEffect, useState } from 'react';
 
 import endpoints from '../../constants/endpoints';
 import api from '../../services';
 
+import { DEFAULT_FACILITY_CODE } from './constants';
+import { mapApiMembership, toUpdatePayload, type ApiMembershipsPayload } from './mapApiPlan';
 import { SEED_PLANS } from './seed';
 
 import type { MembershipPlan } from './types';
@@ -24,7 +27,7 @@ interface UsePlansResult {
   upsertPlan: (plan: MembershipPlan) => void;
 }
 
-export function usePlans(): UsePlansResult {
+export function usePlans(facilityCode: string = DEFAULT_FACILITY_CODE): UsePlansResult {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [usingMockData, setUsingMockData] = useState(false);
@@ -35,12 +38,15 @@ export function usePlans(): UsePlansResult {
     setIsLoading(true);
 
     api
-      .get<{ data: MembershipPlan[] }>(endpoints.membershipPlans.list)
+      .get<{ data: ApiMembershipsPayload }>(endpoints.memberships.list, {
+        params: { facilityCode },
+      })
       .then(res => {
         if (cancelled) return;
-        const data = res.data?.data ?? (res.data as unknown as MembershipPlan[]);
-        if (Array.isArray(data) && data.length) {
-          setPlans(data);
+        const payload = res.data?.data ?? (res.data as unknown as ApiMembershipsPayload);
+        const memberships = payload?.memberships;
+        if (Array.isArray(memberships) && memberships.length) {
+          setPlans(memberships.map(mapApiMembership));
           setUsingMockData(false);
         } else {
           setPlans(SEED_PLANS);
@@ -59,7 +65,7 @@ export function usePlans(): UsePlansResult {
     return () => {
       cancelled = true;
     };
-  }, [nonce]);
+  }, [nonce, facilityCode]);
 
   const refetch = useCallback(() => setNonce(n => n + 1), []);
 
@@ -76,14 +82,14 @@ export function usePlans(): UsePlansResult {
   return { plans, isLoading, usingMockData, refetch, upsertPlan };
 }
 
-/** Best-effort persistence while the API is being built. */
+/**
+ * Persists a plan via `POST /admin/memberships/update`. The flat drawer model
+ * is mapped back to the backend's nested membership shape (changed fields
+ * merged onto the original, see `toUpdatePayload`) before sending.
+ */
 export async function savePlan(plan: MembershipPlan): Promise<boolean> {
   try {
-    if (plan.id && SEED_PLANS.some(p => p.id === plan.id)) {
-      await api.put(endpoints.membershipPlans.update(String(plan.id)), plan);
-    } else {
-      await api.post(endpoints.membershipPlans.list, plan);
-    }
+    await api.post(endpoints.memberships.update, toUpdatePayload(plan));
     return true;
   } catch {
     return false;

@@ -52,6 +52,13 @@ const endpoints = {
     members: (id: string) => `/admin/centres/${id}/members`,
     bookings: (id: string) => `/admin/centres/${id}/bookings`,
   },
+  memberships: {
+    // Live backend — returns the facility's memberships (rich nested shape).
+    // Pass the facility code via the `facilityCode` query param.
+    list: '/admin/memberships',
+    // Create/update a membership (full nested body).
+    update: '/admin/memberships/update',
+  },
   membershipPlans: {
     list: '/admin/membership-plans',
     update: (id: string) => `/admin/membership-plans/${id}`,

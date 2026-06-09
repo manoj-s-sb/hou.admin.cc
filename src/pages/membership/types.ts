@@ -64,6 +64,14 @@ export interface MembershipPlan {
   regions: string[];
 
   status: PlanStatus;
+
+  /**
+   * The raw API membership this plan was mapped from. Kept so that saving an
+   * edit can merge the changed fields back onto the full backend shape instead
+   * of dropping the fields the flat model doesn't carry (promo pricing,
+   * benefits, isPopular, door/lane access, …). Undefined for brand-new plans.
+   */
+  _raw?: ApiMembership;
 }
 
 /** Network-default guest charge config (overridable per centre). */
@@ -71,4 +79,75 @@ export interface GuestChargeDefaults {
   firstGuestFee: number;
   additionalGuestDiscountPct: number;
   maxGuestsPerSlot: number;
+}
+
+/* ── Live backend shapes ──────────────────────────────────────────────────── */
+
+/**
+ * A single membership as returned by `GET /admin/memberships?facilityCode=…`
+ * and accepted by `POST /admin/memberships/update`. Only the fields the UI
+ * reads or writes are typed; the rest pass through untouched on save.
+ */
+export interface ApiMembership {
+  id: string;
+  name: string;
+  code: string;
+  status?: string;
+  facilityCode?: string;
+  countryCode?: string;
+  isPopular?: boolean;
+  benefits?: string[];
+  pricing?: {
+    billingCycles?: string[];
+    regular?: {
+      fortnightly?: number;
+      annual?: number;
+      currency?: string;
+      additionalmemberfortnightlyPrice?: number;
+      [key: string]: unknown;
+    };
+    promo?: Record<string, unknown>;
+    maxMembersAllowed?: number;
+    [key: string]: unknown;
+  };
+  access?: {
+    type?: string;
+    mainDoorAccess?: string;
+    laneAccess?: string;
+    [key: string]: unknown;
+  };
+  bookingRules?: {
+    generalBookingRules?: {
+      maxBookingsPerDay?: number;
+      maxActiveBookings?: number;
+      // Backend key is intentionally misspelled ("Frothnightly") — mirror it.
+      maxFrothnightlyBookings?: number;
+      advanceBookingDays?: number;
+      bookingCarryOver?: {
+        allowed?: boolean;
+        maxCarryOverPerCycle?: number;
+        maxAccumulated?: number;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
+    slotPurchaseRules?: {
+      enabled?: boolean;
+      price?: number;
+      maxPurchaseSlotsPerCycle?: number;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+  memberTypes?: { adult?: unknown; junior?: unknown };
+  description?: { fortnightly?: string; annual?: string };
+  [key: string]: unknown;
+}
+
+/** Payload carried in the `data` envelope key of the memberships list response. */
+export interface ApiMembershipsPayload {
+  facilityCode: string;
+  facility?: unknown;
+  memberships: ApiMembership[];
+  count: number;
 }
