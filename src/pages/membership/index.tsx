@@ -40,7 +40,9 @@ const SlotsCell: React.FC<{ plan: MembershipPlan; suffix?: string }> = ({ plan, 
   plan.slotsPerCycle === 0 ? (
     <td>
       <Pill tone="green">Unlimited</Pill>{' '}
-      <span style={{ fontSize: 11, color: 'var(--sub)' }}>{plan.accessType === 'nightowl' ? 'nights' : 'off-peak'}</span>
+      <span style={{ fontSize: 11, color: 'var(--sub)' }}>
+        {plan.accessType === 'nightowl' ? 'nights' : 'off-peak'}
+      </span>
     </td>
   ) : (
     <td>
@@ -73,7 +75,7 @@ const MembershipPlans: React.FC = () => {
 
   const visiblePlans = useMemo(
     () => plans.filter(p => region === 'all' || p.regions.includes('all') || p.regions.includes(region)),
-    [plans, region],
+    [plans, region]
   );
 
   const openCreate = () => {
@@ -89,9 +91,7 @@ const MembershipPlans: React.FC = () => {
   return (
     <div className="cmx">
       <div className="cmx-page-title">Membership Plans</div>
-      <div className="cmx-page-desc">
-        Global plan templates — define once, assign to any centre with local pricing.
-      </div>
+      <div className="cmx-page-desc">Global plan templates — define once, assign to any centre with local pricing.</div>
 
       {/* Filter + currency bar */}
       <div className="cmx-filter-bar" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -177,9 +177,7 @@ const MembershipPlans: React.FC = () => {
         </div>
       ) : (
         <>
-          {tab === 'fortnightly' && (
-            <FortnightlyTab currency={currency} plans={visiblePlans} onEdit={openEdit} />
-          )}
+          {tab === 'fortnightly' && <FortnightlyTab currency={currency} plans={visiblePlans} onEdit={openEdit} />}
           {tab === 'annual' && <AnnualTab currency={currency} plans={visiblePlans} onEdit={openEdit} />}
           {tab === 'booking' && <BookingAccessTab />}
           {tab === 'guests' && <GuestChargesTab currency={currency} />}
@@ -264,7 +262,9 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Max accumulated (carry cap)</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id}>{p.carryCap > 0 ? <strong>{p.carryCap} slots max</strong> : <Pill tone="gray">N/A</Pill>}</td>
+              <td key={p.id}>
+                {p.carryCap > 0 ? <strong>{p.carryCap} slots max</strong> : <Pill tone="gray">N/A</Pill>}
+              </td>
             ))}
           </tr>
           <tr>
@@ -272,9 +272,7 @@ const FortnightlyTab: React.FC<{
             {plans.map(p => (
               <td key={p.id}>
                 {p.extraSessionEnabled ? (
-                  <Pill tone="blue">
-                    {money(p.extraSessionPrice, currency)} · 1/day max
-                  </Pill>
+                  <Pill tone="blue">{money(p.extraSessionPrice, currency)} · 1/day max</Pill>
                 ) : (
                   <Pill tone="gray">Not available</Pill>
                 )}
@@ -291,7 +289,11 @@ const FortnightlyTab: React.FC<{
             <FeatureLabel>Additional Member Fee</FeatureLabel>
             {plans.map(p => (
               <td key={p.id}>
-                {p.additionalMemberFee !== null ? `${money(p.additionalMemberFee, currency)} per member` : <Pill tone="gray">N/A</Pill>}
+                {p.additionalMemberFee !== null ? (
+                  `${money(p.additionalMemberFee, currency)} per member`
+                ) : (
+                  <Pill tone="gray">N/A</Pill>
+                )}
               </td>
             ))}
           </tr>
@@ -398,9 +400,7 @@ const AnnualTab: React.FC<{
             {plans.map(p => {
               const yearly = p.fortnightlyPrice * 26;
               const pct = yearly > 0 ? Math.round((1 - p.annualPrice / yearly) * 100) : 0;
-              return (
-                <td key={p.id}>{pct > 0 ? <Pill tone="green">~{pct}% off</Pill> : <Pill tone="gray">—</Pill>}</td>
-              );
+              return <td key={p.id}>{pct > 0 ? <Pill tone="green">~{pct}% off</Pill> : <Pill tone="gray">—</Pill>}</td>;
             })}
           </tr>
           <tr>
@@ -513,12 +513,37 @@ const AnnualTab: React.FC<{
 /* ── TAB: Booking & Access (network-wide rules) ──────────────────────────── */
 
 const BOOKING_ROWS: { feature: string; adult: string; junior: string; family: string }[] = [
-  { feature: 'Main Door Entry', adult: '60 min before booking', junior: '60 min before booking', family: '60 min before booking' },
-  { feature: 'Main Door Entry Type', adult: 'Single entry only', junior: 'Multiple entry allowed', family: 'Multiple entry allowed' },
-  { feature: 'QR Code Requirements', adult: 'One scan at each gate', junior: 'Two scans — guardian then self', family: 'Individual scan per member' },
+  {
+    feature: 'Main Door Entry',
+    adult: '60 min before booking',
+    junior: '60 min before booking',
+    family: '60 min before booking',
+  },
+  {
+    feature: 'Main Door Entry Type',
+    adult: 'Single entry only',
+    junior: 'Multiple entry allowed',
+    family: 'Multiple entry allowed',
+  },
+  {
+    feature: 'QR Code Requirements',
+    adult: 'One scan at each gate',
+    junior: 'Two scans — guardian then self',
+    family: 'Individual scan per member',
+  },
   { feature: 'Slot Duration', adult: '45 minutes', junior: '45 minutes', family: '45 minutes' },
-  { feature: 'Early Lane Access', adult: '30 min prior if available', junior: '30 min prior if available', family: '30 min prior if available' },
-  { feature: 'Lane Entry Type', adult: 'Single entry only', junior: 'Multiple entry allowed', family: 'Multiple entry allowed' },
+  {
+    feature: 'Early Lane Access',
+    adult: '30 min prior if available',
+    junior: '30 min prior if available',
+    family: '30 min prior if available',
+  },
+  {
+    feature: 'Lane Entry Type',
+    adult: 'Single entry only',
+    junior: 'Multiple entry allowed',
+    family: 'Multiple entry allowed',
+  },
   { feature: 'Max Group Size', adult: '4 people', junior: 'Guardian only', family: 'All family members' },
   { feature: 'Max Active Future Bookings', adult: '2', junior: '2', family: '2' },
   { feature: 'Advance Booking Window', adult: '7 days', junior: '7 days', family: '7 days' },
@@ -560,12 +585,42 @@ const BookingAccessTab: React.FC = () => (
 const GuestChargesTab: React.FC<{ currency: CurrencyOption }> = ({ currency }) => {
   const g = SEED_GUEST_DEFAULTS;
   const rows: { feature: string; value: React.ReactNode; configurable: boolean; notes: string }[] = [
-    { feature: 'First Guest Fee', value: <strong>{money(g.firstGuestFee, currency)}</strong>, configurable: true, notes: "Charged to the member's account when they bring a guest" },
-    { feature: 'Additional Guest Discount', value: <strong>{g.additionalGuestDiscountPct}% off</strong>, configurable: true, notes: 'Applied to 2nd and 3rd guest fees' },
-    { feature: 'Max Guests per Slot', value: <strong>{g.maxGuestsPerSlot}</strong>, configurable: false, notes: 'Network-wide limit, not overridable' },
-    { feature: 'Guest Addition Timing', value: <strong>Until slot start</strong>, configurable: false, notes: 'Guests can be added right up to the start of the booking' },
-    { feature: 'Adult Guest Documentation', value: <strong>Name + email or phone</strong>, configurable: false, notes: 'System generates a temporary guest ID' },
-    { feature: 'Junior Guest Documentation', value: <strong>Guardian details + ID proof</strong>, configurable: false, notes: 'Guardian must be 18+; registered guardian relationship required' },
+    {
+      feature: 'First Guest Fee',
+      value: <strong>{money(g.firstGuestFee, currency)}</strong>,
+      configurable: true,
+      notes: "Charged to the member's account when they bring a guest",
+    },
+    {
+      feature: 'Additional Guest Discount',
+      value: <strong>{g.additionalGuestDiscountPct}% off</strong>,
+      configurable: true,
+      notes: 'Applied to 2nd and 3rd guest fees',
+    },
+    {
+      feature: 'Max Guests per Slot',
+      value: <strong>{g.maxGuestsPerSlot}</strong>,
+      configurable: false,
+      notes: 'Network-wide limit, not overridable',
+    },
+    {
+      feature: 'Guest Addition Timing',
+      value: <strong>Until slot start</strong>,
+      configurable: false,
+      notes: 'Guests can be added right up to the start of the booking',
+    },
+    {
+      feature: 'Adult Guest Documentation',
+      value: <strong>Name + email or phone</strong>,
+      configurable: false,
+      notes: 'System generates a temporary guest ID',
+    },
+    {
+      feature: 'Junior Guest Documentation',
+      value: <strong>Guardian details + ID proof</strong>,
+      configurable: false,
+      notes: 'Guardian must be 18+; registered guardian relationship required',
+    },
   ];
   return (
     <div>
@@ -581,7 +636,8 @@ const GuestChargesTab: React.FC<{ currency: CurrencyOption }> = ({ currency }) =
         }}
       >
         <strong>Guest charges are configurable per centre.</strong> The values below are the network defaults. When
-        assigning a plan to a centre, the admin can override the guest fee and additional guest discount for that centre.
+        assigning a plan to a centre, the admin can override the guest fee and additional guest discount for that
+        centre.
       </div>
       <div className="cmx-tbl-wrap" style={{ marginBottom: 20 }}>
         <table className="cmx-tbl">

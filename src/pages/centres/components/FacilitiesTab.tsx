@@ -27,31 +27,58 @@ const FacilitiesTab: React.FC<Props> = ({ centre }) => {
 
   const additional = [
     {
-      icon: '🏋️', label: 'Gym / Fitness Area', color: '#d97706', bg: '#fef9c3',
+      icon: '🏋️',
+      label: 'Gym / Fitness Area',
+      color: '#d97706',
+      bg: '#fef9c3',
       fields: [
-        ['Fortnightly price', '$29.95'], ['Annual discount', '15%'],
-        ['Total capacity', '200 members'], ['Max concurrent', '30 users at a time'],
-        ['Slot duration', '60 minutes'], ['Guest price', '$20.00'],
-        ['Free guest visits', '2 / month'], ['Operating hours', '5:00 AM – 10:00 PM'],
+        ['Fortnightly price', '$29.95'],
+        ['Annual discount', '15%'],
+        ['Total capacity', '200 members'],
+        ['Max concurrent', '30 users at a time'],
+        ['Slot duration', '60 minutes'],
+        ['Guest price', '$20.00'],
+        ['Free guest visits', '2 / month'],
+        ['Operating hours', '5:00 AM – 10:00 PM'],
       ] as [string, string][],
     },
     {
-      icon: '🗂', label: 'Meeting Rooms', color: '#008482', bg: '#d0f0f0',
+      icon: '🗂',
+      label: 'Meeting Rooms',
+      color: '#008482',
+      bg: '#d0f0f0',
       fields: [
-        ['Rooms configured', '2 rooms'], ['Seating capacity', 'Up to 12 per room'],
-        ['Price per slot', '$40.00'], ['Slot duration', '60 minutes'],
-        ['Operating hours', '8:00 AM – 8:00 PM'], ['Booking', 'Real-time via app'],
+        ['Rooms configured', '2 rooms'],
+        ['Seating capacity', 'Up to 12 per room'],
+        ['Price per slot', '$40.00'],
+        ['Slot duration', '60 minutes'],
+        ['Operating hours', '8:00 AM – 8:00 PM'],
+        ['Booking', 'Real-time via app'],
       ] as [string, string][],
     },
   ];
 
   const sectionLabel: React.CSSProperties = {
-    fontSize: 12, fontWeight: 700, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12,
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--sub)',
+    textTransform: 'uppercase',
+    letterSpacing: '.06em',
+    marginBottom: 12,
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 20,
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Facilities</div>
           <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
@@ -70,8 +97,31 @@ const FacilitiesTab: React.FC<Props> = ({ centre }) => {
       <div style={sectionLabel}>Lanes</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
         {lanes.map(l => (
-          <div key={l.label} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${l.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+          <div
+            key={l.label}
+            style={{
+              background: '#fff',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              padding: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: `${l.color}15`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 20,
+                flexShrink: 0,
+              }}
+            >
               {l.icon}
             </div>
             <div>
@@ -85,7 +135,21 @@ const FacilitiesTab: React.FC<Props> = ({ centre }) => {
       <div style={sectionLabel}>General Amenities</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         {amenities.map(a => (
-          <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#e6f4f4', border: '1px solid #99d9d8', borderRadius: 20, fontSize: 12, fontWeight: 500, color: '#006e6c' }}>
+          <span
+            key={a}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              background: '#e6f4f4',
+              border: '1px solid #99d9d8',
+              borderRadius: 20,
+              fontSize: 12,
+              fontWeight: 500,
+              color: '#006e6c',
+            }}
+          >
             ✅ {a}
           </span>
         ))}
@@ -94,15 +158,49 @@ const FacilitiesTab: React.FC<Props> = ({ centre }) => {
       <div style={sectionLabel}>Additional Bookable Facilities</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {additional.map(f => (
-          <div key={f.label} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div
+            key={f.label}
+            style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 16px',
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: f.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: f.bg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 18,
+                    flexShrink: 0,
+                  }}
+                >
                   {f.icon}
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>{f.label}</div>
-                  <span style={{ display: 'inline-block', marginTop: 2, fontSize: 10, fontWeight: 600, background: `${f.color}18`, color: f.color, borderRadius: 10, padding: '1px 8px' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      marginTop: 2,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      background: `${f.color}18`,
+                      color: f.color,
+                      borderRadius: 10,
+                      padding: '1px 8px',
+                    }}
+                  >
                     Active
                   </span>
                 </div>

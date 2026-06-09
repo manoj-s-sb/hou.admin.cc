@@ -6,7 +6,7 @@
 // case-insensitively. Add any new backend variants here.
 export const SUPER_ADMIN_ROLES = ['stancebeamadmin', 'superadmin'] as const;
 // Kept for backwards compatibility; primary role string.
-export const SUPER_ADMIN_ROLE = SUPER_ADMIN_ROLES[0];
+export const [SUPER_ADMIN_ROLE] = SUPER_ADMIN_ROLES;
 export const SUPER_ADMIN_ONLY = '__superadmin__';
 
 export const MODULES = {

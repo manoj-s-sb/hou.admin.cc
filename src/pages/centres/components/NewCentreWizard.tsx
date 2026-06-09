@@ -2,7 +2,15 @@ import React, { useMemo, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import { COUNTRIES, DAYS, DEMOGRAPHICS, FACILITY_OPTIONS, PLAN_CATALOGUE, SLOT_DURATIONS, TIMEZONES } from '../constants';
+import {
+  COUNTRIES,
+  DAYS,
+  DEMOGRAPHICS,
+  FACILITY_OPTIONS,
+  PLAN_CATALOGUE,
+  SLOT_DURATIONS,
+  TIMEZONES,
+} from '../constants';
 import { commitWizard, saveWizardStep, startWizard } from '../useCentres';
 
 import AdditionalFacilitiesStep from './AdditionalFacilitiesStep';
@@ -1020,7 +1028,11 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                                     key={c.code}
                                     className={`cmx-country-chip ${active ? 'active' : ''}`}
                                     type="button"
-                                    onClick={() => setPlan(meta.id, { availableCountries: toggleCountry(row.availableCountries, c.code) })}
+                                    onClick={() =>
+                                      setPlan(meta.id, {
+                                        availableCountries: toggleCountry(row.availableCountries, c.code),
+                                      })
+                                    }
                                   >
                                     {c.label}
                                   </button>
