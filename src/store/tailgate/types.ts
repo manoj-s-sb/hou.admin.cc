@@ -56,6 +56,10 @@ export interface CreateTailgateEventRequest {
   eventType?: string;
   memberName?: string;
   laneDoor?: string;
+  reviewStatus?: 'pending' | 'reviewed' | 'violation' | null;
+  skip?: number;
+  limit?: number;
+  type?: 'all' | 'unidentified' | 'violation';
 }
 
 export interface TailgateStats {
@@ -72,6 +76,9 @@ export interface TailgateState {
   isLoading: boolean;
   error: string | null;
   logs: TailgateLog[];
+  totalEvents: number;
+  totalPages: number;
+  firstDateOffset: number;
   stats: TailgateStats | null;
   statsLoading: boolean;
   statsError: string | null;
@@ -81,6 +88,9 @@ export const initialState: TailgateState = {
   isLoading: false,
   error: null,
   logs: [],
+  totalEvents: 0,
+  totalPages: 0,
+  firstDateOffset: 0,
   stats: null,
   statsLoading: false,
   statsError: null,

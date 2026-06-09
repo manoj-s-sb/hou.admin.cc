@@ -10,13 +10,13 @@ import {
 } from '../utils';
 
 interface AllLogsTableProps {
-  groupStartIndex: Record<string, number>;
   pagedDates: string[];
   pagedGroups: Record<string, { date: string; items: TailgateLog[] }>;
   totalRows: number;
   totalPages: number;
   page: number;
   rowsPerPage: number;
+  firstDateOffset: number;
   timeSortDir: 'asc' | 'desc';
   onTimeSortToggle: () => void;
   onPageChange: (p: number) => void;
@@ -60,13 +60,13 @@ const renderIdentity = (row: TailgateLog) => {
 };
 
 const AllLogsTable = ({
-  groupStartIndex,
   pagedDates,
   pagedGroups,
   totalRows,
   totalPages,
   page,
   rowsPerPage,
+  firstDateOffset,
   timeSortDir,
   onTimeSortToggle,
   onPageChange,
@@ -76,7 +76,6 @@ const AllLogsTable = ({
   onViewClick,
 }: AllLogsTableProps) => {
   const pageNumbers = getPageNumbers(page, totalPages);
-
   const renderVideoCell = (row: TailgateLog) => {
     const evType = getEffectiveEventType(row);
     const grad = (eventMap[evType] || eventMap.Entry).gradient;
@@ -104,7 +103,6 @@ const AllLogsTable = ({
       </button>
     );
   };
-
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200">
       <table className="w-full border-collapse">
@@ -134,9 +132,9 @@ const AllLogsTable = ({
           </tr>
         </thead>
         <tbody>
-          {pagedDates.flatMap(dateVal => {
+          {pagedDates.flatMap((dateVal, dateIdx) => {
             const group = pagedGroups[dateVal];
-            const startOffset = groupStartIndex[dateVal] ?? 0;
+            const startSno = dateIdx === 0 ? firstDateOffset + 1 : 1;
             return [
               <tr key={`date-${dateVal}`} className="border-l-4 border-l-[#21295A] bg-[#21295A]/[0.06]">
                 <td className="px-4 py-2.5" colSpan={TABLE_HEADERS.length}>
@@ -163,7 +161,7 @@ const AllLogsTable = ({
                 </td>
               </tr>,
               ...group.items.map((row, idx) => {
-                const sno = startOffset + idx + 1;
+                const sno = startSno + idx;
                 const evType = getEffectiveEventType(row);
                 const status = getLogStatus(row);
                 const isViol = row.review?.isViolation === true;

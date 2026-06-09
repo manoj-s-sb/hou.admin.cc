@@ -55,11 +55,20 @@ export function getLogStatus(log: TailgateLog): 'pending' | 'reviewed' | 'violat
 }
 
 export function getLogDateVal(log: TailgateLog): string {
-  return new Date(log.timeStamp).toLocaleDateString('en-CA', { timeZone: FACILITY_TZ });
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: FACILITY_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(log.timeStampms));
+  const y = parts.find(p => p.type === 'year')?.value ?? '';
+  const m = parts.find(p => p.type === 'month')?.value ?? '';
+  const d = parts.find(p => p.type === 'day')?.value ?? '';
+  return `${y}-${m}-${d}`;
 }
 
 export function getLogDate(log: TailgateLog): string {
-  return new Date(log.timeStamp).toLocaleDateString('en-US', {
+  return new Date(log.timeStampms).toLocaleDateString('en-US', {
     timeZone: FACILITY_TZ,
     month: 'short',
     day: 'numeric',
@@ -68,7 +77,7 @@ export function getLogDate(log: TailgateLog): string {
 }
 
 export function getLogTime(log: TailgateLog): string {
-  return new Date(log.timeStamp).toLocaleTimeString('en-US', {
+  return new Date(log.timeStampms).toLocaleTimeString('en-US', {
     timeZone: FACILITY_TZ,
     hour: 'numeric',
     minute: '2-digit',

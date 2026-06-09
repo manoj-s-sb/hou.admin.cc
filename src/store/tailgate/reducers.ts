@@ -16,6 +16,10 @@ const tailgateSlice = createSlice({
       state.isLoading = false;
       const raw = action.payload;
       state.logs = Array.isArray(raw) ? raw : (raw?.events ?? []);
+      state.totalEvents = raw?.total ?? state.logs.length;
+      const limit = raw?.limit ?? 50;
+      state.totalPages = limit > 0 ? Math.ceil(state.totalEvents / limit) : 1;
+      state.firstDateOffset = raw?.firstDateOffset ?? 0;
     });
     builder.addCase(fetchTailgateEvents.rejected, (state, action) => {
       state.isLoading = false;
