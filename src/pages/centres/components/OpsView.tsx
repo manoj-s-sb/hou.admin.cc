@@ -20,26 +20,22 @@ const TABS: { key: OpsTab; label: string }[] = [
   { key: 'facilities', label: 'Facilities' },
 ];
 
-const PLACEHOLDERS: Record<string, { title: string; desc: string; endpoint: string }> = {
+const PLACEHOLDERS: Record<string, { title: string; desc: string }> = {
   induction: {
     title: 'Induction Management',
     desc: 'Schedule and track security training for this centre.',
-    endpoint: 'GET /api/admin/centres/:id/induction',
   },
   tours: {
     title: 'Tour Details',
     desc: 'Manage tour bookings and scheduling for this centre.',
-    endpoint: 'GET /api/admin/centres/:id/tours',
   },
   tailgate: {
     title: 'Tailgate Logs',
     desc: 'Video logs, unidentified entries and violation tracking.',
-    endpoint: 'GET /api/admin/centres/:id/tailgate',
   },
   maintenance: {
     title: 'Maintenance Logs',
     desc: 'Lane and equipment maintenance tracking for this centre.',
-    endpoint: 'GET /api/admin/centres/:id/maintenance',
   },
 };
 
@@ -50,7 +46,11 @@ const Placeholder: React.FC<{ tab: string }> = ({ tab }) => {
     <div className="cmx-placeholder">
       <div className="ph-title">{p.title}</div>
       <div style={{ marginTop: 6 }}>{p.desc}</div>
-      <div className="ph-ep">{p.endpoint}</div>
+      <div
+        style={{ marginTop: 14, fontSize: 11, color: 'var(--sub)', textTransform: 'uppercase', letterSpacing: '.05em' }}
+      >
+        Coming soon
+      </div>
     </div>
   );
 };

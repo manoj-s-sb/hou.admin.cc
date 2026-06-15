@@ -89,8 +89,9 @@ const UnidentifiedTab = ({
               </tr>
             </thead>
             <tbody>
-              {sortedDates.flatMap((dv, dateIdx) => {
-                const { date, items } = grouped[dv];
+              {pagedDates.flatMap(dv => {
+                const { date, items } = pagedGroups[dv];
+                const startOffset = groupStartIndex[dv] ?? 0;
                 const dayDiff = Math.round(
                   (new Date(todayVal).getTime() - new Date(dv).getTime()) / (1000 * 60 * 60 * 24)
                 );
@@ -113,8 +114,8 @@ const UnidentifiedTab = ({
                       </div>
                     </td>
                   </tr>,
-                  ...items.map((row: TailgateLog, idx: number) => {
-                    const sno = dateIdx === 0 ? firstDateOffset + idx + 1 : idx + 1;
+                  ...items.map((row, idx) => {
+                    const globalIdx = startOffset + idx + 1;
                     const evType = getEffectiveEventType(row);
                     const {
                       label: evLabel,
@@ -128,7 +129,7 @@ const UnidentifiedTab = ({
                     const count = getPersonCount(row);
                     return (
                       <tr key={row.id} className="border-t border-gray-100 bg-yellow-50/30 hover:bg-yellow-50">
-                        <td className="px-4 py-3 text-[13px] font-medium text-gray-400">{sno}</td>
+                        <td className="px-4 py-3 text-[13px] font-medium text-gray-400">{globalIdx}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{getLogTime(row)}</td>
                         <td className="px-4 py-3">
                           <button

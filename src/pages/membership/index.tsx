@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 
 import '../centres/centres.css';
 
+import { getLocalUser } from '../../constants/user';
+
 import PlanDrawer from './components/PlanDrawer';
 import { CURRENCIES, PLAN_REGION_FILTERS, SLOT_DURATION_MINUTES, type CurrencyOption } from './constants';
 import { SEED_GUEST_DEFAULTS } from './seed';
@@ -66,7 +68,9 @@ const PlanHead: React.FC<{ plans: MembershipPlan[] }> = ({ plans }) => (
 );
 
 const MembershipPlans: React.FC = () => {
-  const { plans, isLoading, usingMockData, upsertPlan } = usePlans();
+  // Use the logged-in user's facility (every other module does the same).
+  const facilityCode = getLocalUser().facilityCode || undefined;
+  const { plans, isLoading, usingMockData, upsertPlan } = usePlans(facilityCode);
   const [tab, setTab] = useState<PlanTab>('fortnightly');
   const [region, setRegion] = useState('all');
   const [currency, setCurrency] = useState<CurrencyOption>(CURRENCIES[0]);
@@ -503,9 +507,24 @@ const AnnualTab: React.FC<{
         lineHeight: 1.7,
       }}
     >
-      <strong style={{ color: 'var(--navy)' }}>How the effective limit works:</strong> Effective slots per cycle = base
-      slots + carried-over slots. When the fortnightly limit is hit on an annual plan, no extra session purchase option
-      is shown — members get a standard “booking limit reached” message until the next 2-week cycle resets.
+      <div>
+        <strong style={{ color: 'var(--navy)' }}>How the effective limit works:</strong> Effective slots per cycle =
+        base slots + carried-over slots.
+      </div>
+      <div style={{ marginTop: 4 }}>
+        Example — Premium annual member with 2 carried slots: effective limit = 7 + 2 ={' '}
+        <strong style={{ color: 'var(--navy)' }}>9 slots</strong> that fortnight (capped at 7 + 4 max = 11 absolute
+        max).
+      </div>
+      <div style={{ marginTop: 4 }}>
+        Example — Standard annual with 2 carried: effective limit = 3 + 2 ={' '}
+        <strong style={{ color: 'var(--navy)' }}>5 slots</strong> that fortnight.
+      </div>
+      <div style={{ marginTop: 4 }}>
+        <strong style={{ color: '#dc2626' }}>Note:</strong> When the fortnightly limit is hit on an annual plan, no
+        extra session purchase option is shown — members get a standard “booking limit reached” message until the next
+        2-week cycle resets.
+      </div>
     </div>
   </div>
 );

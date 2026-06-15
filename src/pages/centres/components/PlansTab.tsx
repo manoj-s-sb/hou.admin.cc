@@ -1,10 +1,13 @@
 import React from 'react';
 
+import { toast } from 'react-hot-toast';
+
 import { PLAN_CATALOGUE } from '../constants';
 
 import type { CentreWithKPI } from '../types';
 
 const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const comingSoon = () => toast('Coming soon');
 
 interface Props {
   centre: CentreWithKPI;
@@ -34,7 +37,7 @@ const PlansTab: React.FC<Props> = ({ centre }) => {
             Plans currently offered at this centre with local pricing and slot allocations
           </div>
         </div>
-        <button className="cmx-btn cmx-btn-navy" type="button">
+        <button className="cmx-btn cmx-btn-navy" type="button" onClick={comingSoon}>
           <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
             <line x1="12" x2="12" y1="5" y2="19" />
             <line x1="5" x2="19" y1="12" y2="12" />
@@ -67,7 +70,12 @@ const PlansTab: React.FC<Props> = ({ centre }) => {
                     {b.members} slots
                   </span>
                 </div>
-                <button className="cmx-btn cmx-btn-outline" style={{ fontSize: 11, padding: '3px 9px' }} type="button">
+                <button
+                  className="cmx-btn cmx-btn-outline"
+                  style={{ fontSize: 11, padding: '3px 9px' }}
+                  type="button"
+                  onClick={comingSoon}
+                >
                   Edit
                 </button>
               </div>
@@ -160,7 +168,7 @@ const PlansTab: React.FC<Props> = ({ centre }) => {
           No discounts configured
         </div>
         <div style={{ fontSize: 12 }}>Centre-specific discounts can be added here</div>
-        <button className="cmx-btn cmx-btn-outline" style={{ marginTop: 12 }} type="button">
+        <button className="cmx-btn cmx-btn-outline" style={{ marginTop: 12 }} type="button" onClick={comingSoon}>
           + Add Discount
         </button>
       </div>

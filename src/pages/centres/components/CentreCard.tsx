@@ -45,18 +45,12 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen }) => {
   const totalPlanMembers = kpi.planBreakdown.reduce((sum, p) => sum + p.members, 0) || 1;
 
   return (
+    // The card surface is clickable for convenience; keyboard users use the inner "Open Centre" button.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="cmx-centre-card cmx-fade-up"
-      role="button"
-      style={{ ['--cc-color' as string]: centre.colour }}
-      tabIndex={0}
+      style={{ ['--cc-color' as string]: centre.colour, cursor: 'pointer' }}
       onClick={() => onOpen(centre)}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpen(centre);
-        }
-      }}
     >
       <div className="cmx-cc-header">
         <div>

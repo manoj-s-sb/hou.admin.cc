@@ -52,14 +52,18 @@ const AllocationBar: React.FC<Props> = ({ capacity, plans }) => {
         }}
       >
         {enabled.map(p => {
-          const pct = capacity > 0 ? Math.min((Number(p.allocatedSlots) || 0) / capacity, 1) * 100 : 0;
+          // When over capacity, scale by total used so the bar stays full but ratios remain truthful.
+          const denominator = over ? used : capacity;
+          const pct = denominator > 0 ? ((Number(p.allocatedSlots) || 0) / denominator) * 100 : 0;
           return (
             <div
               key={p.planId}
               style={{
                 height: '100%',
                 width: `${pct}%`,
-                background: over ? '#dc2626' : meta(p.planId).colour,
+                background: meta(p.planId).colour,
+                opacity: over ? 0.85 : 1,
+                boxShadow: over ? 'inset 0 0 0 99px rgba(220,38,38,.35)' : undefined,
                 transition: 'width .3s',
               }}
               title={meta(p.planId).name}

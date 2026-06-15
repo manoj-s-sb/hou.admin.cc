@@ -1,9 +1,13 @@
 import React, { useMemo, useState } from 'react';
 
+import { toast } from 'react-hot-toast';
+
 import { PLAN_COLORS } from '../constants';
 import { useCentreMembers } from '../useCentres';
 
 import type { CentreMember, CentreWithKPI, PlanId } from '../types';
+
+const comingSoon = () => toast('Coming soon');
 
 const AVATAR_COLORS = ['#21295A', '#008482', '#d97706', '#7c3aed', '#0891b2', '#d42b2b'];
 
@@ -12,7 +16,7 @@ const initials = (name: string) =>
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map(p => p[0].toUpperCase())
+    .map(p => Array.from(p)[0]?.toUpperCase() ?? '')
     .join('');
 
 const avatarColor = (seed: string) => {
@@ -66,12 +70,10 @@ const MembersTab: React.FC<Props> = ({ centre }) => {
         <div className="cmx-stat-card" style={{ ['--accent' as string]: '#21295A' }}>
           <div className="cmx-s-label">Total Members</div>
           <div className="cmx-s-val">{centre.kpi.totalMembers.toLocaleString()}</div>
-          <div className="cmx-s-sub up">↑ 8% this month</div>
         </div>
         <div className="cmx-stat-card" style={{ ['--accent' as string]: '#008482' }}>
           <div className="cmx-s-label">Active Members</div>
           <div className="cmx-s-val">{centre.kpi.activeMembers.toLocaleString()}</div>
-          <div className="cmx-s-sub up">Active this month</div>
         </div>
         <div className="cmx-stat-card" style={{ ['--accent' as string]: '#d97706' }}>
           <div className="cmx-s-label">Utilisation</div>
@@ -83,7 +85,9 @@ const MembersTab: React.FC<Props> = ({ centre }) => {
         <div className="cmx-stat-card" style={{ ['--accent' as string]: '#d42b2b' }}>
           <div className="cmx-s-label">No-show Rate</div>
           <div className="cmx-s-val">{centre.kpi.noShowPct}%</div>
-          <div className="cmx-s-sub down">last 30 days</div>
+          <div className="cmx-s-sub" style={{ color: 'var(--sub)' }}>
+            last 30 days
+          </div>
         </div>
       </div>
 
@@ -133,7 +137,7 @@ const MembersTab: React.FC<Props> = ({ centre }) => {
           <button className="cmx-btn cmx-btn-blue" type="button" onClick={() => setSearch(searchInput)}>
             Search
           </button>
-          <button className="cmx-btn cmx-btn-navy" type="button">
+          <button className="cmx-btn cmx-btn-navy" type="button" onClick={comingSoon}>
             + Add Member
           </button>
         </div>
@@ -199,6 +203,7 @@ const MembersTab: React.FC<Props> = ({ centre }) => {
                       className="cmx-btn cmx-btn-outline"
                       style={{ fontSize: 11.5, padding: '4px 9px' }}
                       type="button"
+                      onClick={comingSoon}
                     >
                       View
                     </button>

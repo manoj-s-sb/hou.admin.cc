@@ -98,10 +98,15 @@ const Tailgate = () => {
         : { message: 'Review saved successfully', type: 'success' }
     );
     silentRefresh.current = true;
-    dispatch(fetchTailgateEvents(buildEventsPayload())).finally(() => {
+    const payload: Parameters<typeof fetchTailgateEvents>[0] = {};
+    if (filters.from) payload.fromDate = toApiDate(filters.from);
+    if (filters.to) payload.toDate = toApiDate(filters.to);
+    if (filters.name) payload.memberName = filters.name;
+    if (filters.door) payload.laneDoor = filters.door;
+    dispatch(fetchTailgateEvents(payload)).finally(() => {
       silentRefresh.current = false;
     });
-    dispatch(fetchTailgateStats(buildStatsPayload()));
+    dispatch(fetchTailgateStats());
   };
 
   useEffect(() => {

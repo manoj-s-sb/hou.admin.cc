@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
@@ -99,7 +99,22 @@ const genShortCode = (city: string): string => {
 };
 
 const SHORT_CODE_RE = /^[A-Z0-9]{3,6}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const toNum = (v: number | '') => (v === '' ? 0 : Number(v));
+
+// "HH:mm" → minutes since 00:00. Returns NaN on bad input.
+const minutesOf = (hhmm: string): number => {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  if (!m) return NaN;
+  return Number(m[1]) * 60 + Number(m[2]);
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Draft',
+  staging: 'Staging',
+  active: 'Active',
+  suspended: 'Suspended',
+};
 
 interface Props {
   onClose: () => void;
@@ -113,8 +128,32 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
   const [s, setS] = useState<WizardState>(initialState);
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const firstFieldRef = useRef<HTMLInputElement | null>(null);
+  const dirtyRef = useRef(false);
 
-  const set = (patch: Partial<WizardState>) => setS(prev => ({ ...prev, ...patch }));
+  const set = (patch: Partial<WizardState>) => {
+    dirtyRef.current = true;
+    setS(prev => ({ ...prev, ...patch }));
+  };
+
+  const requestClose = useCallback(() => {
+    if (dirtyRef.current && !window.confirm('Discard unsaved changes and close the wizard?')) return;
+    onClose();
+  }, [onClose]);
+
+  // Autofocus the first field on open.
+  useEffect(() => {
+    firstFieldRef.current?.focus();
+  }, []);
+
+  // Esc to close (with the same confirm flow as the overlay).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') requestClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [requestClose]);
 
   // ── Derived ──
   const capacity = toNum(s.overallCapacity);
@@ -125,6 +164,19 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
   const foundationOverflow = foundation > capacity && capacity > 0;
 
   const shortCodeValid = !s.shortCode || SHORT_CODE_RE.test(s.shortCode);
+
+  const emailValid = !s.email || EMAIL_RE.test(s.email);
+  const hoursValid =
+    s.is24x7 ||
+    s.operatingHours.every(h => {
+      if (!h.isOpen) return true;
+      const o = minutesOf(h.openTime);
+      const c = minutesOf(h.closeTime);
+      if (Number.isNaN(o) || Number.isNaN(c) || o === c) return false;
+      // overnight allowed (close < open). Reject windows shorter than 30 min either way.
+      const span = c > o ? c - o : 24 * 60 - o + c;
+      return span >= 30;
+    });
 
   // ── Per-step validation ──
   const stepValid = (n: number): boolean => {
@@ -141,15 +193,15 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
           s.timezone &&
           s.phone.trim() &&
           s.email.trim() &&
-          // closeTime must differ from openTime per open day (overnight allowed)
-          (s.is24x7 || s.operatingHours.every(h => !h.isOpen || h.openTime !== h.closeTime))
+          emailValid &&
+          hoursValid
         );
       case 2:
         return capacity > 0 && !foundationOverflow && toNum(s.battingLanes) >= 0 && toNum(s.bowlingLanes) >= 0;
       case 3:
         return true; // optional
       case 4:
-        return s.plans.some(p => p.enabled) && !overAllocated;
+        return capacity > 0 && s.plans.some(p => p.enabled) && !overAllocated;
       default:
         return true;
     }
@@ -177,18 +229,14 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
   };
 
   // ── Field helpers ──
-  const onNameChange = (name: string) => {
-    // Auto-generate the short code from the centre name (city heuristic) until
-    // the user edits it manually.
-    const cityGuess = name.replace(/^.*[—-]\s*/, '').trim() || name;
-    set({
-      name,
-      shortCode:
-        s.shortCode && s.shortCode !== genShortCode(prevCityRef.current) ? s.shortCode : genShortCode(cityGuess),
-    });
-    prevCityRef.current = cityGuess;
-  };
+  // Short code auto-generates from the City field. Once the user manually edits
+  // the short code, we stop overwriting it (tracked by prevCityRef).
   const prevCityRef = useRef('');
+  const onCityChange = (city: string) => {
+    const userEdited = s.shortCode && s.shortCode !== genShortCode(prevCityRef.current);
+    set({ city, shortCode: userEdited ? s.shortCode : genShortCode(city) });
+    prevCityRef.current = city;
+  };
 
   const toggleFacility = (f: string) =>
     set({ facilities: s.facilities.includes(f) ? s.facilities.filter(x => x !== f) : [...s.facilities, f] });
@@ -238,16 +286,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
 
   return (
     <>
-      <div
-        aria-label="Close wizard"
-        className="cmx-overlay"
-        role="button"
-        tabIndex={-1}
-        onClick={onClose}
-        onKeyDown={e => {
-          if (e.key === 'Escape') onClose();
-        }}
-      />
+      <div aria-hidden="true" className="cmx-overlay" onClick={requestClose} />
       <div aria-label="New Centre wizard" className="cmx-drawer" role="dialog">
         {/* Header */}
         <div
@@ -281,7 +320,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               color: 'var(--sub)',
               fontSize: 18,
             }}
-            onClick={onClose}
+            type="button"
+            onClick={requestClose}
           >
             ×
           </button>
@@ -301,12 +341,17 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
           {STEPS.map((label, i) => {
             const n = i + 1;
             const cls = n === step ? 'active' : n < step ? 'done' : '';
+            // Allow jumping back freely; forward jumps require every prior step to still be valid.
+            const canJump =
+              n <= step || (n <= maxStepReached && Array.from({ length: n - 1 }, (_, k) => k + 1).every(stepValid));
             return (
               <React.Fragment key={label}>
                 <button
                   className={`cmx-step-pill ${cls}`}
+                  disabled={!canJump}
+                  style={canJump ? undefined : { opacity: 0.5, cursor: 'not-allowed' }}
                   type="button"
-                  onClick={() => (n <= maxStepReached ? setStep(n) : goStep(n))}
+                  onClick={() => (canJump ? setStep(n) : goStep(n))}
                 >
                   {n} · {label}
                 </button>
@@ -328,11 +373,12 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               <div className="cmx-ff" style={{ marginBottom: 14 }}>
                 <span className="cmx-fld-lbl">Centre Name *</span>
                 <input
+                  ref={firstFieldRef}
                   placeholder="e.g. Century Cricket Centre — Dallas"
                   style={err(!s.name.trim())}
                   type="text"
                   value={s.name}
-                  onChange={e => onNameChange(e.target.value)}
+                  onChange={e => set({ name: e.target.value })}
                 />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
@@ -392,7 +438,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                     style={err(!s.city.trim())}
                     type="text"
                     value={s.city}
-                    onChange={e => set({ city: e.target.value })}
+                    onChange={e => onCityChange(e.target.value)}
                   />
                 </div>
                 <div className="cmx-ff">
@@ -432,8 +478,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                   <select style={err(!s.timezone)} value={s.timezone} onChange={e => set({ timezone: e.target.value })}>
                     <option value="">Select timezone…</option>
                     {TIMEZONES.map(tz => (
-                      <option key={tz} value={tz}>
-                        {tz}
+                      <option key={tz.value} value={tz.value}>
+                        {tz.label}
                       </option>
                     ))}
                   </select>
@@ -458,11 +504,14 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                   <span className="cmx-fld-lbl">Email *</span>
                   <input
                     placeholder="dallas@centurycricket.com"
-                    style={err(!s.email.trim())}
+                    style={err(!s.email.trim() || !emailValid)}
                     type="email"
                     value={s.email}
                     onChange={e => set({ email: e.target.value })}
                   />
+                  {showErrors && s.email && !emailValid && (
+                    <div style={{ fontSize: 11, color: '#dc2626' }}>Enter a valid email address.</div>
+                  )}
                 </div>
               </div>
 
@@ -536,6 +585,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)' }}>{DAYS[i]}</div>
                       <div style={{ paddingRight: 10 }}>
                         <input
+                          aria-disabled={!h.isOpen}
                           disabled={!h.isOpen}
                           style={{
                             width: '100%',
@@ -552,6 +602,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                       </div>
                       <div style={{ paddingRight: 10 }}>
                         <input
+                          aria-disabled={!h.isOpen}
                           disabled={!h.isOpen}
                           style={{
                             width: '100%',
@@ -585,7 +636,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button className="cmx-btn cmx-btn-navy" onClick={() => goStep(2)}>
+                <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => goStep(2)}>
                   Next: Facilities →
                 </button>
               </div>
@@ -782,10 +833,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <button className="cmx-btn cmx-btn-outline" onClick={() => goStep(1)}>
+                <button className="cmx-btn cmx-btn-outline" type="button" onClick={() => goStep(1)}>
                   ← Back
                 </button>
-                <button className="cmx-btn cmx-btn-navy" onClick={() => goStep(3)}>
+                <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => goStep(3)}>
                   Next: Add. Facilities →
                 </button>
               </div>
@@ -801,17 +852,12 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-                <button className="cmx-btn cmx-btn-outline" onClick={() => goStep(2)}>
+                <button className="cmx-btn cmx-btn-outline" type="button" onClick={() => goStep(2)}>
                   ← Back
                 </button>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="cmx-btn cmx-btn-outline" style={{ color: 'var(--sub)' }} onClick={() => goStep(5)}>
-                    Skip to Review →
-                  </button>
-                  <button className="cmx-btn cmx-btn-navy" onClick={() => goStep(4)}>
-                    Next: Plans & Pricing →
-                  </button>
-                </div>
+                <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => goStep(4)}>
+                  Next: Plans & Pricing →
+                </button>
               </div>
             </div>
           )}
@@ -928,7 +974,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                                 step={0.01}
                                 type="number"
                                 value={row.fortnightlyPrice}
-                                onChange={e => setPlan(meta.id, { fortnightlyPrice: Number(e.target.value) })}
+                                onChange={e =>
+                                  setPlan(meta.id, { fortnightlyPrice: Math.max(0, Number(e.target.value) || 0) })
+                                }
                               />
                             </div>
                             <div className="cmx-ff">
@@ -938,7 +986,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                                 step={0.01}
                                 type="number"
                                 value={row.annualPrice}
-                                onChange={e => setPlan(meta.id, { annualPrice: Number(e.target.value) })}
+                                onChange={e =>
+                                  setPlan(meta.id, { annualPrice: Math.max(0, Number(e.target.value) || 0) })
+                                }
                               />
                             </div>
                             <div className="cmx-ff">
@@ -947,7 +997,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                                 min={1}
                                 type="number"
                                 value={row.allocatedSlots}
-                                onChange={e => setPlan(meta.id, { allocatedSlots: Number(e.target.value) })}
+                                onChange={e =>
+                                  setPlan(meta.id, { allocatedSlots: Math.max(1, Number(e.target.value) || 1) })
+                                }
                               />
                             </div>
                             <div className="cmx-ff">
@@ -970,9 +1022,18 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                                 type="number"
                                 value={row.memberCap ?? ''}
                                 onChange={e =>
-                                  setPlan(meta.id, { memberCap: e.target.value === '' ? null : Number(e.target.value) })
+                                  setPlan(meta.id, {
+                                    memberCap: e.target.value === '' ? null : Math.max(1, Number(e.target.value)),
+                                  })
                                 }
                               />
+                              {row.memberCap !== null &&
+                                row.memberCap !== undefined &&
+                                row.memberCap > row.allocatedSlots && (
+                                  <div style={{ fontSize: 11, color: '#d97706' }}>
+                                    Cap exceeds allocated slots ({row.allocatedSlots}).
+                                  </div>
+                                )}
                             </div>
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">First Guest Fee (USD)</span>
@@ -1152,7 +1213,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                           onChange={e =>
                             set({
                               discounts: s.discounts.map(x =>
-                                x.id === d.id ? { ...x, type: e.target.value as CentreDiscount['type'] } : x
+                                x.id === d.id ? { ...x, type: e.target.value as CentreDiscount['type'], value: 0 } : x
                               ),
                             })
                           }
@@ -1165,18 +1226,21 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                       <div className="cmx-ff">
-                        <span className="cmx-fld-lbl">Value</span>
+                        <span className="cmx-fld-lbl">
+                          Value{d.type === 'percentage' ? ' (%)' : d.type === 'fixed' ? ' ($)' : ' (sessions)'}
+                        </span>
                         <input
+                          max={d.type === 'percentage' ? 100 : d.type === 'free_sessions' ? 30 : 99999}
                           min={0}
                           type="number"
                           value={d.value}
-                          onChange={e =>
+                          onChange={e => {
+                            const maxV = d.type === 'percentage' ? 100 : d.type === 'free_sessions' ? 30 : 99999;
+                            const v = Math.max(0, Math.min(maxV, Number(e.target.value) || 0));
                             set({
-                              discounts: s.discounts.map(x =>
-                                x.id === d.id ? { ...x, value: Number(e.target.value) } : x
-                              ),
-                            })
-                          }
+                              discounts: s.discounts.map(x => (x.id === d.id ? { ...x, value: v } : x)),
+                            });
+                          }}
                         />
                       </div>
                       <div className="cmx-ff">
@@ -1231,10 +1295,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               </button>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
-                <button className="cmx-btn cmx-btn-outline" onClick={() => goStep(3)}>
+                <button className="cmx-btn cmx-btn-outline" type="button" onClick={() => goStep(3)}>
                   ← Back
                 </button>
-                <button className="cmx-btn cmx-btn-navy" onClick={() => goStep(5)}>
+                <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => goStep(5)}>
                   Next: Review →
                 </button>
               </div>
@@ -1253,10 +1317,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                   rows={[
                     ['Name', s.name || '—'],
                     ['Short Code', s.shortCode || '—'],
-                    ['Status', s.status],
+                    ['Status', STATUS_LABEL[s.status] ?? s.status],
                     ['Address', [s.addressLine1, s.city, s.state, s.postcode].filter(Boolean).join(', ') || '—'],
                     ['Country', COUNTRIES.find(c => c.code === s.country)?.label || '—'],
-                    ['Timezone', s.timezone || '—'],
+                    ['Timezone', TIMEZONES.find(t => t.value === s.timezone)?.label || s.timezone || '—'],
                     ['Phone', s.phone || '—'],
                     ['Email', s.email || '—'],
                     ['Hours', s.is24x7 ? 'Open 24/7' : `${s.operatingHours.filter(h => h.isOpen).length} days/week`],
@@ -1415,17 +1479,23 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <button className="cmx-btn cmx-btn-outline" onClick={() => goStep(4)}>
+                <button className="cmx-btn cmx-btn-outline" type="button" onClick={() => goStep(4)}>
                   ← Back
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="cmx-btn cmx-btn-outline" disabled={saving} onClick={() => save(false)}>
+                  <button
+                    className="cmx-btn cmx-btn-outline"
+                    disabled={saving}
+                    type="button"
+                    onClick={() => save(false)}
+                  >
                     Save as Draft
                   </button>
                   <button
                     className="cmx-btn cmx-btn-navy"
                     disabled={saving}
                     style={{ padding: '8px 20px' }}
+                    type="button"
                     onClick={() => save(true)}
                   >
                     {saving ? 'Saving…' : 'Save & Activate'}

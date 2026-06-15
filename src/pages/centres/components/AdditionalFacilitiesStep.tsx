@@ -105,14 +105,20 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   </div>
 );
 
-const PhotoUpload: React.FC = () => (
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+const PhotoUpload: React.FC<{ photoName?: string; onPick: (name: string | undefined) => void }> = ({
+  photoName,
+  onPick,
+}) => (
   <label className="cmx-ff">
     <span className="cmx-fld-lbl">Photo</span>
     <div
       style={{
         border: '1.5px dashed var(--border)',
         borderRadius: 8,
-        height: 64,
+        minHeight: 64,
+        padding: '8px 12px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -127,8 +133,34 @@ const PhotoUpload: React.FC = () => (
         <polyline points="17 8 12 3 7 8" />
         <line x1="12" x2="12" y1="3" y2="15" />
       </svg>
-      <span style={{ fontSize: 11, color: 'var(--sub)' }}>Upload image (JPG, PNG · max 5MB)</span>
-      <input accept="image/png,image/jpeg" style={{ display: 'none' }} type="file" />
+      <span style={{ fontSize: 11, color: 'var(--sub)' }}>{photoName ?? 'Upload image (JPG, PNG · max 5MB)'}</span>
+      <input
+        accept="image/png,image/jpeg"
+        style={{ display: 'none' }}
+        type="file"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > MAX_PHOTO_BYTES) {
+            window.alert('Image too large — must be 5 MB or less.');
+            e.target.value = '';
+            return;
+          }
+          onPick(file.name);
+        }}
+      />
+      {photoName && (
+        <button
+          style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 11, cursor: 'pointer' }}
+          type="button"
+          onClick={e => {
+            e.preventDefault();
+            onPick(undefined);
+          }}
+        >
+          Remove
+        </button>
+      )}
     </div>
   </label>
 );
@@ -156,6 +188,9 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
   // ── per-facility config form ──
   const renderConfig = (f: AdditionalFacility, roomLabel?: string) => {
     if (f.type === 'gaming') {
+      const minMins = Number(/^\d+/.exec(f.minSession ?? '')?.[0] ?? 0);
+      const maxMins = f.maxSession === 'No limit' ? Infinity : Number(/^\d+/.exec(f.maxSession ?? '')?.[0] ?? 0);
+      const sessionInvalid = minMins > 0 && maxMins > 0 && minMins > maxMins;
       return (
         <>
           <SectionLabel>PlayStation setup</SectionLabel>
@@ -166,7 +201,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
                 min={1}
                 type="number"
                 value={f.psUnits ?? 0}
-                onChange={e => patch(f.id, { psUnits: Number(e.target.value) })}
+                onChange={e => patch(f.id, { psUnits: Math.max(1, Number(e.target.value) || 1) })}
               />
             </label>
             <label className="cmx-ff">
@@ -176,7 +211,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
                 step={0.01}
                 type="number"
                 value={f.chargePerHour ?? 0}
-                onChange={e => patch(f.id, { chargePerHour: Number(e.target.value) })}
+                onChange={e => patch(f.id, { chargePerHour: Math.max(0, Number(e.target.value) || 0) })}
               />
             </label>
           </div>
@@ -198,8 +233,13 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               </select>
             </label>
           </div>
+          {sessionInvalid && (
+            <div style={{ fontSize: 11, color: '#dc2626', marginTop: -6, marginBottom: 12 }}>
+              Min session must be ≤ Max session.
+            </div>
+          )}
           <OperatingHours f={f} patch={patch} />
-          <PhotoUpload />
+          <PhotoUpload photoName={f.photoName} onPick={name => patch(f.id, { photoName: name })} />
         </>
       );
     }
@@ -223,7 +263,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               step={0.01}
               type="number"
               value={f.fortnightlyPrice}
-              onChange={e => patch(f.id, { fortnightlyPrice: Number(e.target.value) })}
+              onChange={e => patch(f.id, { fortnightlyPrice: Math.max(0, Number(e.target.value) || 0) })}
             />
           </label>
           <label className="cmx-ff">
@@ -234,7 +274,9 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               placeholder="e.g. 15"
               type="number"
               value={f.annualDiscountPct}
-              onChange={e => patch(f.id, { annualDiscountPct: Number(e.target.value) })}
+              onChange={e =>
+                patch(f.id, { annualDiscountPct: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })
+              }
             />
           </label>
         </div>
@@ -247,14 +289,10 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               min={1}
               type="number"
               value={f.type === 'gym' ? f.totalCapacity : (f.seatingCapacity ?? 0)}
-              onChange={e =>
-                patch(
-                  f.id,
-                  f.type === 'gym'
-                    ? { totalCapacity: Number(e.target.value) }
-                    : { seatingCapacity: Number(e.target.value) }
-                )
-              }
+              onChange={e => {
+                const v = Math.max(1, Number(e.target.value) || 1);
+                patch(f.id, f.type === 'gym' ? { totalCapacity: v } : { seatingCapacity: v });
+              }}
             />
           </label>
           <label className="cmx-ff">
@@ -263,7 +301,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               min={1}
               type="number"
               value={f.concurrentCapacity}
-              onChange={e => patch(f.id, { concurrentCapacity: Number(e.target.value) })}
+              onChange={e => patch(f.id, { concurrentCapacity: Math.max(1, Number(e.target.value) || 1) })}
             />
           </label>
           <label className="cmx-ff">
@@ -285,7 +323,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               step={0.01}
               type="number"
               value={f.guestSessionPrice}
-              onChange={e => patch(f.id, { guestSessionPrice: Number(e.target.value) })}
+              onChange={e => patch(f.id, { guestSessionPrice: Math.max(0, Number(e.target.value) || 0) })}
             />
           </label>
           <label className="cmx-ff">
@@ -294,14 +332,14 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               min={0}
               type="number"
               value={f.freeGuestVisits}
-              onChange={e => patch(f.id, { freeGuestVisits: Number(e.target.value) })}
+              onChange={e => patch(f.id, { freeGuestVisits: Math.max(0, Number(e.target.value) || 0) })}
             />
           </label>
         </div>
 
         <SectionLabel>Operating Hours</SectionLabel>
         <OperatingHours f={f} patch={patch} />
-        <PhotoUpload />
+        <PhotoUpload photoName={f.photoName} onPick={name => patch(f.id, { photoName: name })} />
       </>
     );
   };
