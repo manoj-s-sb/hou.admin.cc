@@ -26,7 +26,6 @@ const UnidentifiedTab = ({
   totalPages,
   page,
   rowsPerPage,
-  firstDateOffset,
   onPageChange,
   onRowsPerPageChange,
   onVideoClick,
@@ -51,6 +50,24 @@ const UnidentifiedTab = ({
 
   const pageNumbers = getPageNumbers(page, totalPages);
   const todayVal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+
+  // Paginate across grouped dates: flatten the date-ordered row sequence,
+  // slice to the current page, then re-group so each visible group only
+  // contains the items that fall inside this page.
+  const sliceStart = page * rowsPerPage;
+  const sliceEnd = sliceStart + rowsPerPage;
+  const flatRows = sortedDates.flatMap(dv => grouped[dv].items.map(item => ({ dv, item })));
+  const sliceRows = flatRows.slice(sliceStart, sliceEnd);
+  const pagedGroups: Record<string, { date: string; items: TailgateLog[] }> = {};
+  const groupStartIndex: Record<string, number> = {};
+  sliceRows.forEach((r, i) => {
+    if (!pagedGroups[r.dv]) {
+      pagedGroups[r.dv] = { date: grouped[r.dv].date, items: [] };
+      groupStartIndex[r.dv] = sliceStart + i;
+    }
+    pagedGroups[r.dv].items.push(r.item);
+  });
+  const pagedDates = Object.keys(pagedGroups);
 
   if (isLoading) {
     return <p className="py-10 text-center text-[13px] text-gray-400">Loading…</p>;
