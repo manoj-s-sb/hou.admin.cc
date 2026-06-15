@@ -239,8 +239,7 @@ const StaffManagement: React.FC = () => {
     [staffConfig, staffCountByRole]
   );
 
-  const openProfile = (row: StaffRow) =>
-    navigate(buildRoute.viewStaffMember(row.id), { state: { staff: row.raw } });
+  const openProfile = (row: StaffRow) => navigate(buildRoute.viewStaffMember(row.id), { state: { staff: row.raw } });
 
   const staffColumns: ColumnDef[] = [
     {
@@ -383,9 +382,7 @@ const StaffManagement: React.FC = () => {
             return (
               <button
                 className={`text-[12px] font-semibold transition disabled:opacity-50 ${
-                  isInactive
-                    ? 'text-emerald-600 hover:text-emerald-700'
-                    : 'text-red-500 hover:text-red-700'
+                  isInactive ? 'text-emerald-600 hover:text-emerald-700' : 'text-red-500 hover:text-red-700'
                 }`}
                 disabled={togglingId === r.id}
                 type="button"

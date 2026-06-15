@@ -41,13 +41,13 @@ export function mapApiMembership(m: ApiMembership): MembershipPlan {
     annualPrice: regular.annual ?? 0,
 
     accessType,
-    accessHours: accessType === '24/7' ? '24/7' : m.access?.type ?? '—',
+    accessHours: accessType === '24/7' ? '24/7' : (m.access?.type ?? '—'),
     peakAccess: accessType === '24/7',
 
     slotsPerCycle: general.maxFrothnightlyBookings ?? 0,
     dailyBookingLimit: general.maxBookingsPerDay ?? 0,
     maxFutureBookings: general.maxActiveBookings ?? 0,
-    carryover: carry.allowed ? carry.maxCarryOverPerCycle ?? 0 : 0,
+    carryover: carry.allowed ? (carry.maxCarryOverPerCycle ?? 0) : 0,
     carryCap: carry.maxAccumulated ?? 0,
     advanceWindowDays: general.advanceBookingDays ?? 0,
 
@@ -113,9 +113,7 @@ export function toUpdatePayload(plan: MembershipPlan): ApiMembership {
         fortnightly: plan.fortnightlyPrice,
         annual: plan.annualPrice,
         currency,
-        ...(plan.additionalMemberFee !== null
-          ? { additionalmemberfortnightlyPrice: plan.additionalMemberFee }
-          : {}),
+        ...(plan.additionalMemberFee !== null ? { additionalmemberfortnightlyPrice: plan.additionalMemberFee } : {}),
       },
     },
     access: {

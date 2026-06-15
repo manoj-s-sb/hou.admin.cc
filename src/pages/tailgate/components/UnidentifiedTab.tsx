@@ -69,113 +69,113 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
             </thead>
             <tbody>
               {pagedDates.flatMap(dv => {
-                  const { date, items } = pagedGroups[dv];
-                  const startOffset = groupStartIndex[dv] ?? 0;
-                  const dayDiff = Math.round(
-                    (new Date(todayVal).getTime() - new Date(dv).getTime()) / (1000 * 60 * 60 * 24)
-                  );
-                  const ageCls =
-                    dayDiff === 0
-                      ? 'bg-green-100 text-green-700'
-                      : dayDiff === 1
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700';
-                  const ageLabel = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Yesterday' : `${dayDiff}d old`;
-                  return [
-                    <tr key={`hdr-${dv}`} className="bg-gray-50/80">
-                      <td className="px-4 py-2" colSpan={6}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12px] font-bold text-[#21295A]">{date}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ageCls}`}>{ageLabel}</span>
-                          <span className="text-[11px] text-gray-400">
-                            {items.length} event{items.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>,
-                    ...items.map((row, idx) => {
-                      const globalIdx = startOffset + idx + 1;
-                      const evType = getEffectiveEventType(row);
-                      const {
-                        label: evLabel,
-                        className: evCls,
-                        gradient,
-                      } = eventMap[evType] || {
-                        label: evType,
-                        className: 'bg-gray-100 text-gray-600',
-                        gradient: 'linear-gradient(135deg,#1f2937,#4b5563)',
-                      };
-                      const count = getPersonCount(row);
-                      return (
-                        <tr key={row.id} className="border-t border-gray-100 bg-yellow-50/30 hover:bg-yellow-50">
-                          <td className="px-4 py-3 text-[13px] font-medium text-gray-400">{globalIdx}</td>
-                          <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{getLogTime(row)}</td>
-                          <td className="px-4 py-3">
-                            <button
-                              className="flex flex-col items-center gap-1"
-                              type="button"
-                              onClick={() => onVideoClick(row)}
+                const { date, items } = pagedGroups[dv];
+                const startOffset = groupStartIndex[dv] ?? 0;
+                const dayDiff = Math.round(
+                  (new Date(todayVal).getTime() - new Date(dv).getTime()) / (1000 * 60 * 60 * 24)
+                );
+                const ageCls =
+                  dayDiff === 0
+                    ? 'bg-green-100 text-green-700'
+                    : dayDiff === 1
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700';
+                const ageLabel = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Yesterday' : `${dayDiff}d old`;
+                return [
+                  <tr key={`hdr-${dv}`} className="bg-gray-50/80">
+                    <td className="px-4 py-2" colSpan={6}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-bold text-[#21295A]">{date}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ageCls}`}>{ageLabel}</span>
+                        <span className="text-[11px] text-gray-400">
+                          {items.length} event{items.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>,
+                  ...items.map((row, idx) => {
+                    const globalIdx = startOffset + idx + 1;
+                    const evType = getEffectiveEventType(row);
+                    const {
+                      label: evLabel,
+                      className: evCls,
+                      gradient,
+                    } = eventMap[evType] || {
+                      label: evType,
+                      className: 'bg-gray-100 text-gray-600',
+                      gradient: 'linear-gradient(135deg,#1f2937,#4b5563)',
+                    };
+                    const count = getPersonCount(row);
+                    return (
+                      <tr key={row.id} className="border-t border-gray-100 bg-yellow-50/30 hover:bg-yellow-50">
+                        <td className="px-4 py-3 text-[13px] font-medium text-gray-400">{globalIdx}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-[13px] text-gray-700">{getLogTime(row)}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            className="flex flex-col items-center gap-1"
+                            type="button"
+                            onClick={() => onVideoClick(row)}
+                          >
+                            <div
+                              className="relative flex h-11 w-16 items-center justify-center overflow-hidden rounded-lg"
+                              style={{ background: row.snapshotUrl ? undefined : gradient }}
                             >
-                              <div
-                                className="relative flex h-11 w-16 items-center justify-center overflow-hidden rounded-lg"
-                                style={{ background: row.snapshotUrl ? undefined : gradient }}
-                              >
-                                {row.snapshotUrl && (
-                                  <img
-                                    alt="snapshot"
-                                    className="absolute inset-0 h-full w-full object-cover"
-                                    src={row.snapshotUrl}
-                                  />
-                                )}
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/25">
-                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90">
-                                    <svg
-                                      className="ml-0.5 h-2.5 w-2.5 text-[#21295A]"
-                                      fill="currentColor"
-                                      viewBox="0 0 10 12"
-                                    >
-                                      <polygon points="1,0 9,6 1,12" />
-                                    </svg>
-                                  </div>
+                              {row.snapshotUrl && (
+                                <img
+                                  alt="snapshot"
+                                  className="absolute inset-0 h-full w-full object-cover"
+                                  src={row.snapshotUrl}
+                                />
+                              )}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90">
+                                  <svg
+                                    className="ml-0.5 h-2.5 w-2.5 text-[#21295A]"
+                                    fill="currentColor"
+                                    viewBox="0 0 10 12"
+                                  >
+                                    <polygon points="1,0 9,6 1,12" />
+                                  </svg>
                                 </div>
                               </div>
-                              <span className="text-[10px] text-gray-400">
-                                {count} person{count !== 1 ? 's' : ''}
-                              </span>
-                            </button>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${evCls}`}>
-                              {evLabel}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                              {row.door?.name ?? '—'}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <button
-                                className="rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
-                                type="button"
-                                onClick={() => onViewClick(row)}
-                              >
-                                View
-                              </button>
-                              <button
-                                className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white transition ${getLogStatus(row) === 'pending' ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-[#21295A] hover:bg-[#1a2147]'}`}
-                                type="button"
-                                onClick={() => onReviewClick(row)}
-                              >
-                                {getLogStatus(row) === 'pending' ? 'Review Now' : 'Edit'}
-                              </button>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    }),
-                  ];
+                            <span className="text-[10px] text-gray-400">
+                              {count} person{count !== 1 ? 's' : ''}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${evCls}`}>
+                            {evLabel}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span className="rounded bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                            {row.door?.name ?? '—'}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
+                              type="button"
+                              onClick={() => onViewClick(row)}
+                            >
+                              View
+                            </button>
+                            <button
+                              className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white transition ${getLogStatus(row) === 'pending' ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-[#21295A] hover:bg-[#1a2147]'}`}
+                              type="button"
+                              onClick={() => onReviewClick(row)}
+                            >
+                              {getLogStatus(row) === 'pending' ? 'Review Now' : 'Edit'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }),
+                ];
               })}
             </tbody>
           </table>

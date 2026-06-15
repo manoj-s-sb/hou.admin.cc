@@ -59,7 +59,9 @@ const Tailgate = () => {
     if (filters.to) payload.toDate = toApiDate(filters.to);
     if (filters.name) payload.memberName = filters.name;
     if (filters.door) payload.laneDoor = filters.door;
-    dispatch(fetchTailgateEvents(payload)).finally(() => { silentRefresh.current = false; });
+    dispatch(fetchTailgateEvents(payload)).finally(() => {
+      silentRefresh.current = false;
+    });
     dispatch(fetchTailgateStats());
   };
 

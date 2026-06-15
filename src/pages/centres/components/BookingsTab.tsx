@@ -22,22 +22,20 @@ const BookingsTab: React.FC<Props> = ({ centre }) => {
   return (
     <div>
       <div className="cmx-stat-grid">
-        <div className="cmx-stat-card" style={{ ['--accent' as string]: '#21295A' }}>
-          <div className="cmx-s-label">Bookings Today</div>
-          <div className="cmx-s-val">42</div>
-        </div>
-        <div className="cmx-stat-card" style={{ ['--accent' as string]: '#008482' }}>
-          <div className="cmx-s-label">This Week</div>
-          <div className="cmx-s-val">284</div>
-        </div>
-        <div className="cmx-stat-card" style={{ ['--accent' as string]: '#d97706' }}>
-          <div className="cmx-s-label">No-Shows Today</div>
-          <div className="cmx-s-val">3</div>
-        </div>
-        <div className="cmx-stat-card" style={{ ['--accent' as string]: '#0891b2' }}>
-          <div className="cmx-s-label">Waitlisted</div>
-          <div className="cmx-s-val">7</div>
-        </div>
+        {[
+          { label: 'Bookings Today', accent: '#21295A' },
+          { label: 'This Week', accent: '#008482' },
+          { label: 'No-Shows Today', accent: '#d97706' },
+          { label: 'Waitlisted', accent: '#0891b2' },
+        ].map(c => (
+          <div key={c.label} className="cmx-stat-card" style={{ ['--accent' as string]: c.accent }}>
+            <div className="cmx-s-label">{c.label}</div>
+            <div className="cmx-s-val">—</div>
+            <div className="cmx-s-sub" style={{ color: 'var(--sub)' }}>
+              Pending data
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="cmx-tbl-wrap">

@@ -101,16 +101,16 @@ export const COUNTRIES = [
   { code: 'ZA', label: 'South Africa' },
 ];
 
-export const TIMEZONES = [
-  'America/Chicago (CT)',
-  'America/New_York (ET)',
-  'America/Los_Angeles (PT)',
-  'America/Denver (MT)',
-  'Australia/Sydney (AEST)',
-  'Australia/Melbourne (AEST)',
-  'Europe/London (GMT/BST)',
-  'Asia/Dubai (GST)',
-  'Asia/Kolkata (IST)',
+export const TIMEZONES: { value: string; label: string }[] = [
+  { value: 'America/Chicago', label: 'America/Chicago (CT)' },
+  { value: 'America/New_York', label: 'America/New_York (ET)' },
+  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PT)' },
+  { value: 'America/Denver', label: 'America/Denver (MT)' },
+  { value: 'Australia/Sydney', label: 'Australia/Sydney (AEST)' },
+  { value: 'Australia/Melbourne', label: 'Australia/Melbourne (AEST)' },
+  { value: 'Europe/London', label: 'Europe/London (GMT/BST)' },
+  { value: 'Asia/Dubai', label: 'Asia/Dubai (GST)' },
+  { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST)' },
 ];
 
 export const FACILITY_OPTIONS = [

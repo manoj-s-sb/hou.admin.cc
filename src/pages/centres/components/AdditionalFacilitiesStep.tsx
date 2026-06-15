@@ -10,13 +10,48 @@ const PANELS: {
   desc: string;
   multi: boolean;
 }[] = [
-  { type: 'gym', icon: '🏋️', iconBg: '#fef9c3', title: 'Gym / Fitness area', desc: 'Bookable fitness space — capacity, pricing & guest access', multi: false },
-  { type: 'podcast', icon: '🎙', iconBg: '#ecedf4', title: 'Podcast rooms', desc: 'Recording spaces — add one or more rooms with individual configs', multi: true },
-  { type: 'meeting', icon: '🗂', iconBg: '#d0f0f0', title: 'Meeting rooms', desc: 'Conference spaces — add one or more rooms with individual configs', multi: true },
-  { type: 'gaming', icon: '🎮', iconBg: '#eeedfe', title: 'Gaming area', desc: 'PlayStation consoles — instant availability via app', multi: false },
+  {
+    type: 'gym',
+    icon: '🏋️',
+    iconBg: '#fef9c3',
+    title: 'Gym / Fitness area',
+    desc: 'Bookable fitness space — capacity, pricing & guest access',
+    multi: false,
+  },
+  {
+    type: 'podcast',
+    icon: '🎙',
+    iconBg: '#ecedf4',
+    title: 'Podcast rooms',
+    desc: 'Recording spaces — add one or more rooms with individual configs',
+    multi: true,
+  },
+  {
+    type: 'meeting',
+    icon: '🗂',
+    iconBg: '#d0f0f0',
+    title: 'Meeting rooms',
+    desc: 'Conference spaces — add one or more rooms with individual configs',
+    multi: true,
+  },
+  {
+    type: 'gaming',
+    icon: '🎮',
+    iconBg: '#eeedfe',
+    title: 'Gaming area',
+    desc: 'PlayStation consoles — instant availability via app',
+    multi: false,
+  },
 ];
 
-const SLOT_OPTIONS = ['30 minutes', '45 minutes', '60 minutes', '90 minutes', '120 minutes', 'No fixed slots (open access)'];
+const SLOT_OPTIONS = [
+  '30 minutes',
+  '45 minutes',
+  '60 minutes',
+  '90 minutes',
+  '120 minutes',
+  'No fixed slots (open access)',
+];
 
 let seq = 0;
 const uid = (type: string) => {
@@ -70,14 +105,20 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   </div>
 );
 
-const PhotoUpload: React.FC = () => (
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+const PhotoUpload: React.FC<{ photoName?: string; onPick: (name: string | undefined) => void }> = ({
+  photoName,
+  onPick,
+}) => (
   <label className="cmx-ff">
     <span className="cmx-fld-lbl">Photo</span>
     <div
       style={{
         border: '1.5px dashed var(--border)',
         borderRadius: 8,
-        height: 64,
+        minHeight: 64,
+        padding: '8px 12px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -92,8 +133,34 @@ const PhotoUpload: React.FC = () => (
         <polyline points="17 8 12 3 7 8" />
         <line x1="12" x2="12" y1="3" y2="15" />
       </svg>
-      <span style={{ fontSize: 11, color: 'var(--sub)' }}>Upload image (JPG, PNG · max 5MB)</span>
-      <input accept="image/png,image/jpeg" style={{ display: 'none' }} type="file" />
+      <span style={{ fontSize: 11, color: 'var(--sub)' }}>{photoName ?? 'Upload image (JPG, PNG · max 5MB)'}</span>
+      <input
+        accept="image/png,image/jpeg"
+        style={{ display: 'none' }}
+        type="file"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > MAX_PHOTO_BYTES) {
+            window.alert('Image too large — must be 5 MB or less.');
+            e.target.value = '';
+            return;
+          }
+          onPick(file.name);
+        }}
+      />
+      {photoName && (
+        <button
+          style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 11, cursor: 'pointer' }}
+          type="button"
+          onClick={e => {
+            e.preventDefault();
+            onPick(undefined);
+          }}
+        >
+          Remove
+        </button>
+      )}
     </div>
   </label>
 );
@@ -121,35 +188,58 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
   // ── per-facility config form ──
   const renderConfig = (f: AdditionalFacility, roomLabel?: string) => {
     if (f.type === 'gaming') {
+      const minMins = Number(/^\d+/.exec(f.minSession ?? '')?.[0] ?? 0);
+      const maxMins = f.maxSession === 'No limit' ? Infinity : Number(/^\d+/.exec(f.maxSession ?? '')?.[0] ?? 0);
+      const sessionInvalid = minMins > 0 && maxMins > 0 && minMins > maxMins;
       return (
         <>
           <SectionLabel>PlayStation setup</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label className="cmx-ff">
               <span className="cmx-fld-lbl">Number of PS units</span>
-              <input min={1} type="number" value={f.psUnits ?? 0} onChange={e => patch(f.id, { psUnits: Number(e.target.value) })} />
+              <input
+                min={1}
+                type="number"
+                value={f.psUnits ?? 0}
+                onChange={e => patch(f.id, { psUnits: Math.max(1, Number(e.target.value) || 1) })}
+              />
             </label>
             <label className="cmx-ff">
               <span className="cmx-fld-lbl">Charge per hour ($)</span>
-              <input min={0} step={0.01} type="number" value={f.chargePerHour ?? 0} onChange={e => patch(f.id, { chargePerHour: Number(e.target.value) })} />
+              <input
+                min={0}
+                step={0.01}
+                type="number"
+                value={f.chargePerHour ?? 0}
+                onChange={e => patch(f.id, { chargePerHour: Math.max(0, Number(e.target.value) || 0) })}
+              />
             </label>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label className="cmx-ff">
               <span className="cmx-fld-lbl">Min session</span>
               <select value={f.minSession} onChange={e => patch(f.id, { minSession: e.target.value })}>
-                {['30 minutes', '60 minutes', '90 minutes'].map(o => <option key={o}>{o}</option>)}
+                {['30 minutes', '60 minutes', '90 minutes'].map(o => (
+                  <option key={o}>{o}</option>
+                ))}
               </select>
             </label>
             <label className="cmx-ff">
               <span className="cmx-fld-lbl">Max session</span>
               <select value={f.maxSession} onChange={e => patch(f.id, { maxSession: e.target.value })}>
-                {['60 minutes', '120 minutes', '180 minutes', 'No limit'].map(o => <option key={o}>{o}</option>)}
+                {['60 minutes', '120 minutes', '180 minutes', 'No limit'].map(o => (
+                  <option key={o}>{o}</option>
+                ))}
               </select>
             </label>
           </div>
+          {sessionInvalid && (
+            <div style={{ fontSize: 11, color: '#dc2626', marginTop: -6, marginBottom: 12 }}>
+              Min session must be ≤ Max session.
+            </div>
+          )}
           <OperatingHours f={f} patch={patch} />
-          <PhotoUpload />
+          <PhotoUpload photoName={f.photoName} onPick={name => patch(f.id, { photoName: name })} />
         </>
       );
     }
@@ -167,11 +257,27 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Fortnightly price ($)</span>
-            <input min={0} placeholder="e.g. 29.95" step={0.01} type="number" value={f.fortnightlyPrice} onChange={e => patch(f.id, { fortnightlyPrice: Number(e.target.value) })} />
+            <input
+              min={0}
+              placeholder="e.g. 29.95"
+              step={0.01}
+              type="number"
+              value={f.fortnightlyPrice}
+              onChange={e => patch(f.id, { fortnightlyPrice: Math.max(0, Number(e.target.value) || 0) })}
+            />
           </label>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Annual discount (%)</span>
-            <input max={100} min={0} placeholder="e.g. 15" type="number" value={f.annualDiscountPct} onChange={e => patch(f.id, { annualDiscountPct: Number(e.target.value) })} />
+            <input
+              max={100}
+              min={0}
+              placeholder="e.g. 15"
+              type="number"
+              value={f.annualDiscountPct}
+              onChange={e =>
+                patch(f.id, { annualDiscountPct: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })
+              }
+            />
           </label>
         </div>
 
@@ -183,19 +289,27 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               min={1}
               type="number"
               value={f.type === 'gym' ? f.totalCapacity : (f.seatingCapacity ?? 0)}
-              onChange={e =>
-                patch(f.id, f.type === 'gym' ? { totalCapacity: Number(e.target.value) } : { seatingCapacity: Number(e.target.value) })
-              }
+              onChange={e => {
+                const v = Math.max(1, Number(e.target.value) || 1);
+                patch(f.id, f.type === 'gym' ? { totalCapacity: v } : { seatingCapacity: v });
+              }}
             />
           </label>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Max concurrent users</span>
-            <input min={1} type="number" value={f.concurrentCapacity} onChange={e => patch(f.id, { concurrentCapacity: Number(e.target.value) })} />
+            <input
+              min={1}
+              type="number"
+              value={f.concurrentCapacity}
+              onChange={e => patch(f.id, { concurrentCapacity: Math.max(1, Number(e.target.value) || 1) })}
+            />
           </label>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Slot duration</span>
             <select value={f.slotDuration} onChange={e => patch(f.id, { slotDuration: e.target.value })}>
-              {SLOT_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              {SLOT_OPTIONS.map(o => (
+                <option key={o}>{o}</option>
+              ))}
             </select>
           </label>
         </div>
@@ -204,17 +318,28 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Guest session price ($)</span>
-            <input min={0} step={0.01} type="number" value={f.guestSessionPrice} onChange={e => patch(f.id, { guestSessionPrice: Number(e.target.value) })} />
+            <input
+              min={0}
+              step={0.01}
+              type="number"
+              value={f.guestSessionPrice}
+              onChange={e => patch(f.id, { guestSessionPrice: Math.max(0, Number(e.target.value) || 0) })}
+            />
           </label>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Free guest visits / month</span>
-            <input min={0} type="number" value={f.freeGuestVisits} onChange={e => patch(f.id, { freeGuestVisits: Number(e.target.value) })} />
+            <input
+              min={0}
+              type="number"
+              value={f.freeGuestVisits}
+              onChange={e => patch(f.id, { freeGuestVisits: Math.max(0, Number(e.target.value) || 0) })}
+            />
           </label>
         </div>
 
         <SectionLabel>Operating Hours</SectionLabel>
         <OperatingHours f={f} patch={patch} />
-        <PhotoUpload />
+        <PhotoUpload photoName={f.photoName} onPick={name => patch(f.id, { photoName: name })} />
       </>
     );
   };
@@ -230,17 +355,49 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         const instances = facilities.filter(f => f.type === panel.type);
         const enabled = instances.length > 0;
         return (
-          <div key={panel.type} style={{ border: '1px solid var(--border)', borderRadius: 10, marginBottom: 10, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', background: '#fff' }}>
+          <div
+            key={panel.type}
+            style={{ border: '1px solid var(--border)', borderRadius: 10, marginBottom: 10, overflow: 'hidden' }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '13px 16px',
+                background: '#fff',
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: panel.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 8,
+                    background: panel.iconBg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 16,
+                    flexShrink: 0,
+                  }}
+                >
                   {panel.icon}
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>{panel.title}</span>
                     {panel.multi && enabled && (
-                      <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--blue-light)', color: 'var(--blue)', borderRadius: 10, padding: '1px 7px' }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: 'var(--blue-light)',
+                          color: 'var(--blue)',
+                          borderRadius: 10,
+                          padding: '1px 7px',
+                        }}
+                      >
                         {instances.length} room{instances.length === 1 ? '' : 's'}
                       </span>
                     )}
@@ -255,7 +412,9 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
                   type="checkbox"
                   onChange={e => toggleType(panel.type, panel.multi, e.target.checked)}
                 />
-                <span className="track"><span className="knob" /></span>
+                <span className="track">
+                  <span className="knob" />
+                </span>
               </label>
             </div>
 
@@ -264,11 +423,37 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
                 {panel.multi ? (
                   <>
                     {instances.map((f, i) => (
-                      <div key={f.id} style={{ padding: 16, borderTop: i === 0 ? 'none' : '1px solid var(--border)', position: 'relative' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy)' }}>{panel.title.replace(/s$/, '')} {i + 1}</div>
+                      <div
+                        key={f.id}
+                        style={{
+                          padding: 16,
+                          borderTop: i === 0 ? 'none' : '1px solid var(--border)',
+                          position: 'relative',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 8,
+                          }}
+                        >
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy)' }}>
+                            {panel.title.replace(/s$/, '')} {i + 1}
+                          </div>
                           {instances.length > 1 && (
-                            <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 16 }} type="button" onClick={() => removeRoom(f.id)}>
+                            <button
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'var(--muted)',
+                                fontSize: 16,
+                              }}
+                              type="button"
+                              onClick={() => removeRoom(f.id)}
+                            >
                               ×
                             </button>
                           )}
@@ -278,7 +463,21 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
                     ))}
                     <div style={{ padding: '10px 16px' }}>
                       <button
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', border: '1.5px dashed var(--border)', borderRadius: 8, background: '#fff', color: 'var(--blue)', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%', justifyContent: 'center' }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '7px 14px',
+                          border: '1.5px dashed var(--border)',
+                          borderRadius: 8,
+                          background: '#fff',
+                          color: 'var(--blue)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          width: '100%',
+                          justifyContent: 'center',
+                        }}
                         type="button"
                         onClick={() => addRoom(panel.type)}
                       >
@@ -298,13 +497,26 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
   );
 };
 
-const OperatingHours: React.FC<{ f: AdditionalFacility; patch: (id: string, p: Partial<AdditionalFacility>) => void }> = ({ f, patch }) => (
+const OperatingHours: React.FC<{
+  f: AdditionalFacility;
+  patch: (id: string, p: Partial<AdditionalFacility>) => void;
+}> = ({ f, patch }) => (
   <label className="cmx-ff" style={{ marginBottom: 12 }}>
     <span className="cmx-fld-lbl">Operating hours</span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <input style={{ width: 130 }} type="time" value={f.openTime} onChange={e => patch(f.id, { openTime: e.target.value })} />
+      <input
+        style={{ width: 130 }}
+        type="time"
+        value={f.openTime}
+        onChange={e => patch(f.id, { openTime: e.target.value })}
+      />
       <span style={{ fontSize: 12, color: 'var(--sub)' }}>to</span>
-      <input style={{ width: 130 }} type="time" value={f.closeTime} onChange={e => patch(f.id, { closeTime: e.target.value })} />
+      <input
+        style={{ width: 130 }}
+        type="time"
+        value={f.closeTime}
+        onChange={e => patch(f.id, { closeTime: e.target.value })}
+      />
     </div>
   </label>
 );

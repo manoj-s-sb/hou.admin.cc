@@ -61,8 +61,7 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
-    const accessHours =
-      form.accessType === 'custom' ? `${customStart}–${customEnd}` : ACCESS_LABELS[form.accessType];
+    const accessHours = form.accessType === 'custom' ? `${customStart}–${customEnd}` : ACCESS_LABELS[form.accessType];
     const finalPlan: MembershipPlan = {
       ...form,
       id: form.id || form.code.trim().toLowerCase().replace(/\s+/g, '-'),

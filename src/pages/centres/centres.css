@@ -561,7 +561,11 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   z-index: 500;
-  backdrop-filter: blur(2px);
+}
+@supports (backdrop-filter: blur(2px)) {
+  .cmx-overlay {
+    backdrop-filter: blur(2px);
+  }
 }
 .cmx-drawer {
   font-family: 'Inter', sans-serif;
@@ -837,5 +841,31 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Responsive: stat grid collapses on narrow viewports. */
+@media (max-width: 900px) {
+  .cmx .cmx-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .cmx .cmx-stat-grid {
+    grid-template-columns: 1fr;
+  }
+  .cmx-drawer {
+    width: 100vw;
+  }
+}
+
+/* Respect reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  .cmx .cmx-fade-up,
+  .cmx-drawer {
+    animation: none;
+  }
+  .cmx-drawer {
+    transform: none;
   }
 }
