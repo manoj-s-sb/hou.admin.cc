@@ -106,7 +106,7 @@ const Tailgate = () => {
     dispatch(fetchTailgateEvents(payload)).finally(() => {
       silentRefresh.current = false;
     });
-    dispatch(fetchTailgateStats());
+    dispatch(fetchTailgateStats(buildStatsPayload()));
   };
 
   useEffect(() => {
