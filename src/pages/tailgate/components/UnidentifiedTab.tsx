@@ -5,48 +5,56 @@ import { eventMap, getPageNumbers } from '../constants';
 import { getEffectiveEventType, getLogDate, getLogDateVal, getLogStatus, getLogTime, getPersonCount } from '../utils';
 
 interface UnidentifiedTabProps {
-  pendingLogs: TailgateLog[];
+  logs: TailgateLog[];
+  isLoading: boolean;
+  totalRows: number;
+  totalPages: number;
+  page: number;
+  rowsPerPage: number;
+  firstDateOffset: number;
+  onPageChange: (p: number) => void;
+  onRowsPerPageChange: (n: number) => void;
   onVideoClick: (row: TailgateLog) => void;
   onReviewClick: (row: TailgateLog) => void;
   onViewClick: (row: TailgateLog) => void;
 }
 
-const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick }: UnidentifiedTabProps) => {
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  // Group by date (oldest first)
+const UnidentifiedTab = ({
+  logs,
+  isLoading,
+  totalRows,
+  totalPages,
+  page,
+  rowsPerPage,
+  firstDateOffset,
+  onPageChange,
+  onRowsPerPageChange,
+  onVideoClick,
+  onReviewClick,
+  onViewClick,
+}: UnidentifiedTabProps) => {
+  // Server already returns only unidentified events — group by date
   const grouped: Record<string, { date: string; items: TailgateLog[] }> = {};
-  pendingLogs.forEach(l => {
+  logs.forEach(l => {
     const dv = getLogDateVal(l);
     if (!grouped[dv]) grouped[dv] = { date: getLogDate(l), items: [] };
     grouped[dv].items.push(l);
   });
-  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-  sortedDates.forEach(d => grouped[d].items.sort((a, b) => b.timeStampms - a.timeStampms));
-
-  const flatItems = sortedDates.flatMap(d =>
-    grouped[d].items.map(item => ({ dateVal: d, date: grouped[d].date, item }))
+  const [timeSortDir, setTimeSortDir] = useState<'asc' | 'desc'>('asc');
+  const sortedDates = Object.keys(grouped);
+  sortedDates.forEach(d =>
+    grouped[d].items.sort((a, b) => {
+      const cmp = a.timeStampms - b.timeStampms;
+      return timeSortDir === 'asc' ? cmp : -cmp;
+    })
   );
-  const totalRows = flatItems.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const pageSlice = flatItems.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
-  const pagedGroups: Record<string, { date: string; items: TailgateLog[] }> = {};
-  pageSlice.forEach(({ dateVal, date, item }) => {
-    if (!pagedGroups[dateVal]) pagedGroups[dateVal] = { date, items: [] };
-    pagedGroups[dateVal].items.push(item);
-  });
-  const pagedDates = Array.from(new Set(pageSlice.map(r => r.dateVal)));
   const pageNumbers = getPageNumbers(page, totalPages);
-
-  const groupStartIndex: Record<string, number> = {};
-  pagedDates.forEach(d => {
-    const firstItem = pagedGroups[d]?.items[0];
-    if (firstItem) groupStartIndex[d] = grouped[d].items.indexOf(firstItem);
-  });
-
   const todayVal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+
+  if (isLoading) {
+    return <p className="py-10 text-center text-[13px] text-gray-400">Loading…</p>;
+  }
 
   return (
     <>
@@ -62,7 +70,20 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
                     key={h}
                     className="whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400"
                   >
-                    {h}
+                    {h === 'Time' ? (
+                      <button
+                        className="group flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 hover:text-[#21295A]"
+                        type="button"
+                        onClick={() => setTimeSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
+                      >
+                        Time
+                        <span className="opacity-40 transition-opacity group-hover:opacity-100">
+                          {timeSortDir === 'asc' ? '↑' : '↓'}
+                        </span>
+                      </button>
+                    ) : (
+                      h
+                    )}
                   </th>
                 ))}
               </tr>
@@ -180,17 +201,14 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
             </tbody>
           </table>
 
-          {/* Pagination — matches AllLogsTable */}
+          {/* Pagination */}
           <div className="flex items-center justify-between border-t border-gray-100 bg-white px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">Rows per page:</span>
               <select
                 className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-indigo-400 focus:outline-none"
                 value={rowsPerPage}
-                onChange={e => {
-                  setRowsPerPage(parseInt(e.target.value, 10));
-                  setPage(0);
-                }}
+                onChange={e => onRowsPerPageChange(parseInt(e.target.value, 10))}
               >
                 {[10, 20, 30, 50, 100].map(opt => (
                   <option key={opt} value={opt}>
@@ -207,7 +225,7 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
                 className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={page === 0}
                 type="button"
-                onClick={() => setPage(p => Math.max(0, p - 1))}
+                onClick={() => onPageChange(page - 1)}
               >
                 ← Previous
               </button>
@@ -222,7 +240,7 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
                       key={p}
                       className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${p === page ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                       type="button"
-                      onClick={() => setPage(p as number)}
+                      onClick={() => onPageChange(p as number)}
                     >
                       {(p as number) + 1}
                     </button>
@@ -233,7 +251,7 @@ const UnidentifiedTab = ({ pendingLogs, onVideoClick, onReviewClick, onViewClick
                 className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={page >= totalPages - 1}
                 type="button"
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                onClick={() => onPageChange(page + 1)}
               >
                 Next →
               </button>

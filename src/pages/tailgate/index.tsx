@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -16,7 +16,7 @@ import VideoModal from './components/VideoModal';
 import ViewModal from './components/ViewModal';
 import ViolationsTab from './components/ViolationsTab';
 import { DEFAULT_FILTERS, TailgateFilters } from './constants';
-import { getAvatarData, getEffectiveEventType, getLogDate, getLogDateVal, getLogStatus } from './utils';
+import { getAvatarData, getLogDate, getLogDateVal } from './utils';
 
 type TailgateTab = 'logs' | 'unid' | 'viol';
 
@@ -27,9 +27,17 @@ const toApiDate = (isoDate: string) => {
   return `${d}-${m}-${y}`;
 };
 
+const TAB_TYPE: Record<TailgateTab, 'all' | 'unidentified' | 'violation'> = {
+  logs: 'all',
+  unid: 'unidentified',
+  viol: 'violation',
+};
+
 const Tailgate = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { logs, isLoading, stats } = useSelector((state: RootState) => state.tailgate);
+  const { logs, isLoading, stats, totalEvents, totalPages, firstDateOffset } = useSelector(
+    (state: RootState) => state.tailgate
+  );
 
   const [activeTab, setActiveTab] = useState<TailgateTab>('logs');
   const [filters, setFilters] = useState<TailgateFilters>(DEFAULT_FILTERS);
@@ -39,13 +47,49 @@ const Tailgate = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'danger' } | null>(null);
   const [timeSortDir, setTimeSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   const silentRefresh = useRef(false);
+
+  const buildEventsPayload = useCallback(
+    (overrides: { page?: number; pageSize?: number; tab?: TailgateTab } = {}) => {
+      const uiPage = overrides.page ?? page;
+      const limit = overrides.pageSize ?? rowsPerPage;
+      const payload: Parameters<typeof fetchTailgateEvents>[0] = {
+        skip: uiPage * limit,
+        limit,
+        type: TAB_TYPE[overrides.tab ?? activeTab],
+      };
+      if (filters.from) payload.fromDate = toApiDate(filters.from);
+      if (filters.to) payload.toDate = toApiDate(filters.to);
+      if (filters.name) payload.memberName = filters.name;
+      if (filters.door) payload.laneDoor = filters.door;
+      if (filters.type) payload.eventType = filters.type;
+      if (filters.status) payload.reviewStatus = filters.status as 'pending' | 'reviewed' | 'violation';
+      return payload;
+    },
+    [page, rowsPerPage, activeTab, filters]
+  );
+
+  const handleTabChange = (tab: TailgateTab) => {
+    setActiveTab(tab);
+    setPage(0);
+  };
 
   const handleFilterChange = (updater: (f: TailgateFilters) => TailgateFilters) => {
     setFilters(updater);
     setPage(0);
   };
+
+  const buildStatsPayload = useCallback(() => {
+    const payload: Parameters<typeof fetchTailgateStats>[0] = {};
+    if (filters.from) payload.fromDate = toApiDate(filters.from);
+    if (filters.to) payload.toDate = toApiDate(filters.to);
+    if (filters.name) payload.memberName = filters.name;
+    if (filters.door) payload.laneDoor = filters.door;
+    if (filters.type) payload.eventType = filters.type;
+    if (filters.status) payload.reviewStatus = filters.status;
+    return payload;
+  }, [filters]);
 
   const handleSaveReview = (isViolation: boolean) => {
     setToast(
@@ -66,17 +110,12 @@ const Tailgate = () => {
   };
 
   useEffect(() => {
-    dispatch(fetchTailgateStats());
-  }, [dispatch]);
+    dispatch(fetchTailgateStats(buildStatsPayload()));
+  }, [dispatch, buildStatsPayload]);
 
   useEffect(() => {
-    const payload: Parameters<typeof fetchTailgateEvents>[0] = {};
-    if (filters.from) payload.fromDate = toApiDate(filters.from);
-    if (filters.to) payload.toDate = toApiDate(filters.to);
-    if (filters.name) payload.memberName = filters.name;
-    if (filters.door) payload.laneDoor = filters.door;
-    dispatch(fetchTailgateEvents(payload));
-  }, [dispatch, filters.from, filters.to, filters.name, filters.door]);
+    dispatch(fetchTailgateEvents(buildEventsPayload()));
+  }, [dispatch, buildEventsPayload]);
 
   const apiStats = {
     today_date: new Date().toLocaleDateString('en-US', {
@@ -92,63 +131,43 @@ const Tailgate = () => {
     total_violations: stats?.totalViolations ?? 0,
   };
 
-  const pendingCount = logs.filter(l => !l.actor?.name && !l.review?.memberName).length;
-  const violationCount = logs.filter(l => l.review?.isViolation === true).length;
+  const pendingCount = stats?.totalUnidentified ?? 0;
+  const violationCount = stats?.totalViolations ?? 0;
   const activeFilterCount = Object.entries(filters).filter(([, v]) => v !== '').length;
 
-  const filteredLogs = logs.filter(l => {
-    const displayName = l.review?.reviewed ? (l.review.memberName ?? '') : (l.actor?.name ?? '');
-    if (filters.name && !displayName.toLowerCase().includes(filters.name.toLowerCase())) return false;
-    if (filters.type && getEffectiveEventType(l) !== filters.type) return false;
-    if (filters.status && getLogStatus(l) !== filters.status) return false;
-    if (filters.door && l.door?.name !== filters.door) return false;
-    return true;
-  });
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const filterSubtitle: string | null =
+    filters.from && filters.to
+      ? `${fmtDate(filters.from)} – ${fmtDate(filters.to)}`
+      : filters.from
+        ? `From ${fmtDate(filters.from)}`
+        : filters.to
+          ? `Until ${fmtDate(filters.to)}`
+          : filters.name || filters.type || filters.status || filters.door
+            ? 'Filtered results'
+            : null;
 
-  // Group + sort by date and time
-  const groupedLogs = filteredLogs.reduce<Record<string, { date: string; items: TailgateLog[] }>>((acc, l) => {
+  // Server returns only the current page — group and sort directly
+  const groupedLogs = logs.reduce<Record<string, { date: string; items: TailgateLog[] }>>((acc, l) => {
     const dv = getLogDateVal(l);
     if (!acc[dv]) acc[dv] = { date: getLogDate(l), items: [] };
     acc[dv].items.push(l);
     return acc;
   }, {});
-  const sortedDates = Object.keys(groupedLogs).sort((a, b) => b.localeCompare(a));
+
+  const sortedDates = Object.keys(groupedLogs);
   sortedDates.forEach(d => {
     groupedLogs[d].items.sort((a, b) => {
       const cmp = a.timeStampms - b.timeStampms;
       return timeSortDir === 'asc' ? cmp : -cmp;
     });
   });
+  const pagedGroups = groupedLogs;
+  const pagedDates = sortedDates;
+  const totalRows = totalEvents;
 
-  // Paginate
-  const flatItems = sortedDates.flatMap(d =>
-    groupedLogs[d].items.map(item => ({ dateVal: d, date: groupedLogs[d].date, item }))
-  );
-  const totalRows = flatItems.length;
-  const totalPages = Math.ceil(totalRows / rowsPerPage);
-  const pageSlice = flatItems.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-  const pagedGroups = pageSlice.reduce<Record<string, { date: string; items: TailgateLog[] }>>(
-    (acc, { dateVal, date, item }) => {
-      if (!acc[dateVal]) acc[dateVal] = { date, items: [] };
-      acc[dateVal].items.push(item);
-      return acc;
-    },
-    {}
-  );
-  const pagedDates = Array.from(new Set(pageSlice.map(r => r.dateVal)));
-
-  const groupStartIndex: Record<string, number> = {};
-  pagedDates.forEach(d => {
-    const firstItem = pagedGroups[d]?.items[0];
-    if (firstItem) groupStartIndex[d] = groupedLogs[d].items.indexOf(firstItem);
-  });
-
-  // Unidentified tab data
-  const pendingLogs = logs
-    .filter(l => !l.actor?.name && !l.review?.memberName)
-    .sort((a, b) => getLogDateVal(b).localeCompare(getLogDateVal(a)));
-
-  // Violations tab data
+  // Violations tab — server already filters, group by actor from current page
   const byActor: Record<
     string,
     {
@@ -161,29 +180,25 @@ const Tailgate = () => {
       incidents: TailgateLog[];
     }
   > = {};
-  logs
-    .filter(l => l.review?.isViolation === true)
-    .forEach(l => {
-      const isReviewed = l.review?.reviewed === true;
-      const displayName = isReviewed ? (l.review?.memberName ?? null) : (l.actor?.name ?? null);
-      const displayId = isReviewed ? (l.review?.memberId ?? null) : (l.actor?.id ?? null);
-      const k = isReviewed
-        ? l.review?.memberId || `__rev__${l.review?.memberName ?? ''}`
-        : l.actor?.id || '__unknown__';
-      if (!byActor[k]) {
-        const { ini, ab, ac } = getAvatarData(displayName);
-        byActor[k] = {
-          name: displayName,
-          memberId: displayId,
-          ini,
-          ab,
-          ac,
-          actorType: l.actor?.type ?? null,
-          incidents: [],
-        };
-      }
-      byActor[k].incidents.push(l);
-    });
+  logs.forEach(l => {
+    const isReviewed = l.review?.reviewed === true;
+    const displayName = isReviewed ? (l.review?.memberName ?? null) : (l.actor?.name ?? null);
+    const displayId = isReviewed ? (l.review?.memberId ?? null) : (l.actor?.id ?? null);
+    const k = isReviewed ? l.review?.memberId || `__rev__${l.review?.memberName ?? ''}` : l.actor?.id || '__unknown__';
+    if (!byActor[k]) {
+      const { ini, ab, ac } = getAvatarData(displayName);
+      byActor[k] = {
+        name: displayName,
+        memberId: displayId,
+        ini,
+        ab,
+        ac,
+        actorType: l.actor?.type ?? null,
+        incidents: [],
+      };
+    }
+    byActor[k].incidents.push(l);
+  });
   const actors = Object.values(byActor).sort((a, b) => b.incidents.length - a.incidents.length);
 
   const tabs: { key: TailgateTab; label: string; badge?: number; badgeCls?: string }[] = [
@@ -217,7 +232,7 @@ const Tailgate = () => {
                     : 'font-medium text-gray-400 hover:text-gray-600'
                 }`}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
               >
                 {tab.label}
                 {tab.badge !== undefined && tab.badge > 0 && (
@@ -239,7 +254,7 @@ const Tailgate = () => {
           {/* All Logs tab */}
           {activeTab === 'logs' && (
             <>
-              <StatsCards {...apiStats} />
+              <StatsCards {...apiStats} filterSubtitle={filterSubtitle} />
               <LogFilters
                 activeFilterCount={activeFilterCount}
                 filters={filters}
@@ -257,7 +272,7 @@ const Tailgate = () => {
                 </div>
               ) : (
                 <AllLogsTable
-                  groupStartIndex={groupStartIndex}
+                  firstDateOffset={firstDateOffset}
                   page={page}
                   pagedDates={pagedDates}
                   pagedGroups={pagedGroups}
@@ -282,15 +297,41 @@ const Tailgate = () => {
           {/* Unidentified tab */}
           {activeTab === 'unid' && (
             <UnidentifiedTab
-              pendingLogs={pendingLogs}
+              firstDateOffset={firstDateOffset}
+              isLoading={isLoading && !silentRefresh.current}
+              logs={logs}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              totalPages={totalPages}
+              totalRows={totalEvents}
+              onPageChange={setPage}
               onReviewClick={setReviewLog}
+              onRowsPerPageChange={(n: number) => {
+                setRowsPerPage(n);
+                setPage(0);
+              }}
               onVideoClick={setVideoLog}
               onViewClick={setViewLog}
             />
           )}
 
           {/* Violations tab */}
-          {activeTab === 'viol' && <ViolationsTab actors={actors} onVideoClick={setVideoLog} />}
+          {activeTab === 'viol' && (
+            <ViolationsTab
+              actors={actors}
+              isLoading={isLoading && !silentRefresh.current}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              totalPages={totalPages}
+              totalRows={totalEvents}
+              onPageChange={setPage}
+              onRowsPerPageChange={(n: number) => {
+                setRowsPerPage(n);
+                setPage(0);
+              }}
+              onVideoClick={setVideoLog}
+            />
+          )}
         </div>
       </div>
 
