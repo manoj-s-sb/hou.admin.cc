@@ -1,10 +1,10 @@
+// Note: Dashboard and Maintenance are intentionally NOT re-exported here.
+// They are code-split via React.lazy() in App.tsx — adding them back would defeat the chunking.
 import CentreManagement from './centres';
 import CoachSchedule from './coach/index';
-import Dashboard from './dashboard';
 import Induction from './induction';
 import ViewInduction from './induction/viewInduction';
 import Login from './login';
-import Maintenance from './maintenance';
 import Members from './members';
 import ViewMembers from './members/viewMembers';
 import MembershipPlans from './membership';
@@ -18,7 +18,6 @@ import UserList from './users';
 
 export {
   Induction,
-  Dashboard,
   Login,
   UserList,
   ViewInduction,
@@ -27,7 +26,6 @@ export {
   ViewMembers,
   SlotBookings,
   CoachSchedule,
-  Maintenance,
   Tailgate,
   StaffManagement,
   AddStaffMember,

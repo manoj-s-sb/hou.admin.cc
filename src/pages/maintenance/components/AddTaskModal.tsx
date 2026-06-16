@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
 import { createWork, deleteWorkMedia, getWorkUploadUrl, uploadFileToBlob } from '../../../store/maintenance/api';
 import { CreateWorkRequest } from '../../../store/maintenance/types';
+import { AppDispatch } from '../../../store/store';
 import { ALL_LANES, getLocalUser, inputCls } from '../constants';
 
 type AddTaskForm = Omit<CreateWorkRequest, 'facilityCode' | 'type' | 'steps'> & {
@@ -20,10 +22,10 @@ const emptyStep = (order: number) => ({
 interface AddTaskModalProps {
   onClose: () => void;
   onSuccess: () => void;
-  dispatch: any;
 }
 
-const AddTaskModal = ({ onClose, onSuccess, dispatch }: AddTaskModalProps) => {
+const AddTaskModal = ({ onClose, onSuccess }: AddTaskModalProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [form, setForm] = useState<AddTaskForm>({
     title: '',
     category: '',

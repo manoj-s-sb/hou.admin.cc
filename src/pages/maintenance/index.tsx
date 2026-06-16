@@ -741,7 +741,6 @@ const Maintenance = () => {
                   {scheduleDisplayItems.map(item => (
                     <ScheduleCard
                       key={item.itemId}
-                      dispatch={dispatch}
                       item={item}
                       updatedBy={currentUserId}
                       onFlagIssue={setFlagIssueItem}
@@ -834,7 +833,6 @@ const Maintenance = () => {
 
       {flagIssueItem && (
         <FlagIssueModal
-          dispatch={dispatch}
           facilityCode={getLocalUser().facilityCode}
           item={flagIssueItem}
           updatedBy={currentUserId}
@@ -848,7 +846,6 @@ const Maintenance = () => {
 
       {markDoneItem && (
         <MarkDoneModal
-          dispatch={dispatch}
           facilityCode={getLocalUser().facilityCode}
           item={markDoneItem}
           updatedBy={currentUserId}
@@ -858,16 +855,11 @@ const Maintenance = () => {
       )}
 
       {showAddTask && (
-        <AddTaskModal
-          dispatch={dispatch}
-          onClose={() => setShowAddTask(false)}
-          onSuccess={() => fetchList(activeTab, taskFrequency, 1)}
-        />
+        <AddTaskModal onClose={() => setShowAddTask(false)} onSuccess={() => fetchList(activeTab, taskFrequency, 1)} />
       )}
 
       {showCreateIssue && (
         <CreateIssueModal
-          dispatch={dispatch}
           facilityCode={getLocalUser().facilityCode}
           updatedBy={currentUserId}
           onClose={() => setShowCreateIssue(false)}
@@ -880,7 +872,6 @@ const Maintenance = () => {
 
       {schedulingItem && (
         <ScheduleModal
-          dispatch={dispatch}
           item={schedulingItem}
           updatedBy={currentUserId}
           onClose={() => setSchedulingItem(null)}
@@ -893,7 +884,6 @@ const Maintenance = () => {
 
       {viewIssue && (
         <IssueDetailModal
-          dispatch={dispatch}
           index={viewIssue.index}
           item={viewIssue.item}
           updatedBy={currentUserId}

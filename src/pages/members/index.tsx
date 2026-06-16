@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -53,6 +53,16 @@ const planConfig: Record<string, { label: string; color: string; dot: string }> 
   offpeak: { label: 'Offpeak', color: 'text-orange-700', dot: 'bg-orange-500' },
 };
 
+const subscriptionStatusMap: Record<string, { label: string; className: string }> = {
+  active: { label: 'Active', className: 'bg-green-100 text-green-700' },
+  pendingactivation: { label: 'Pending Activation', className: 'bg-yellow-100 text-yellow-700' },
+  paused: { label: 'On Hold', className: 'bg-orange-100 text-orange-600' },
+  canceled: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
+  resumed: { label: 'Resumed', className: 'bg-indigo-100 text-indigo-700' },
+  inactive: { label: 'Cancelled', className: 'bg-red-100 text-red-600' },
+  past_due: { label: 'Payment Failed', className: 'bg-orange-100 text-orange-700' },
+};
+
 const Members = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -62,170 +72,167 @@ const Members = () => {
 
   const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
 
-  const membersColumns: ColumnDef[] = [
-    {
-      field: 'sno',
-      headerName: 'S.No',
-      flex: 0.5,
-      minWidth: 60,
-      sortable: false,
-      renderCell: (params: any) => {
-        const currentSkip = membersListData.skip || 0;
-        return <span className="text-[13px] font-medium text-gray-400">{currentSkip + params.index + 1}</span>;
+  const membersColumns: ColumnDef[] = useMemo(
+    () => [
+      {
+        field: 'sno',
+        headerName: 'S.No',
+        flex: 0.5,
+        minWidth: 60,
+        sortable: false,
+        renderCell: (params: any) => {
+          const currentSkip = membersListData.skip || 0;
+          return <span className="text-[13px] font-medium text-gray-400">{currentSkip + params.index + 1}</span>;
+        },
+        valueGetter: (params: any) => {
+          const currentSkip = membersListData.skip || 0;
+          return currentSkip + params.index + 1;
+        },
       },
-      valueGetter: (params: any) => {
-        const currentSkip = membersListData.skip || 0;
-        return currentSkip + params.index + 1;
-      },
-    },
-    {
-      field: 'name',
-      headerName: 'Member',
-      flex: 1.5,
-      minWidth: 220,
-      sortable: false,
-      renderCell: (params: any) => {
-        const imageUrl = params.row?.profileImageUrl || user_svg;
-        const isDefaultImage = !params.row?.profileImageUrl;
-        const fullName = `${params.row?.firstName} ${params.row?.lastName}`.trim();
-        return (
-          <div className="flex items-center gap-3">
-            <img
-              alt="Profile"
-              className={`h-9 w-9 rounded-full border border-gray-200 object-cover ${isDefaultImage ? 'p-1.5' : ''}`}
-              src={imageUrl}
-              onError={e => {
-                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
-              }}
-            />
-            <div>
-              <p className="text-[13px] font-semibold text-[#21295A]">{fullName}</p>
-              <p className="text-[11px] text-gray-400">{params.row?.email || ''}</p>
-            </div>
-          </div>
-        );
-      },
-      valueGetter: params => {
-        return `${params.row?.firstName} ${params.row?.lastName}`.trim();
-      },
-    },
-    {
-      field: 'Billing Cycle',
-      headerName: 'Billing',
-      flex: 0.9,
-      minWidth: 120,
-      sortable: false,
-      renderCell: (params: any) => {
-        const cycle = params.row?.billingCycle || '';
-        const label = cycle === 'fortnightly' ? 'Fortnightly' : cycle === 'annual' ? 'Annual' : cycle;
-        return (
-          <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-600">{label}</span>
-        );
-      },
-      valueGetter: params => {
-        const billingCycle = params.row?.billingCycle || '';
-        if (billingCycle === 'fortnightly') return 'Fortnightly';
-        if (billingCycle === 'annual') return 'Annual';
-        return billingCycle;
-      },
-    },
-    {
-      field: 'Subscription Type',
-      headerName: 'Plan',
-      flex: 0.9,
-      minWidth: 120,
-      sortable: false,
-      renderCell: (params: any) => {
-        const type = params.row?.subscriptionCode || '';
-        const cfg = planConfig[type];
-        if (!cfg) return <span className="text-[13px] text-gray-500">{type}</span>;
-        return (
-          <div className="flex items-center gap-1.5">
-            <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-            <span className={`text-[13px] font-medium ${cfg.color}`}>{cfg.label}</span>
-          </div>
-        );
-      },
-      valueGetter: params => {
-        const type = params.row?.subscriptionCode || '';
-        return planConfig[type]?.label || type;
-      },
-    },
-    {
-      field: 'Subscription Status',
-      headerName: 'Status',
-      flex: 1,
-      minWidth: 150,
-      sortable: false,
-      renderCell: (params: any) => {
-        const type = params.row?.subscriptionStatus || '';
-        const map: Record<string, { label: string; className: string }> = {
-          active: { label: 'Active', className: 'bg-green-100 text-green-700' },
-          pendingactivation: { label: 'Pending Activation', className: 'bg-yellow-100 text-yellow-700' },
-          paused: { label: 'On Hold', className: 'bg-orange-100 text-orange-600' },
-          canceled: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
-          resumed: { label: 'Resumed', className: 'bg-indigo-100 text-indigo-700' },
-          inactive: { label: 'Cancelled', className: 'bg-red-100 text-red-600' },
-          past_due: { label: 'Payment Failed', className: 'bg-orange-100 text-orange-700' },
-        };
-        const { label, className } = map[type] || { label: type, className: 'bg-gray-100 text-gray-600' };
-        return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
-      },
-    },
-    {
-      field: 'Cycle Limits',
-      headerName: 'Slots Used / Total',
-      flex: 1,
-      minWidth: 140,
-      sortable: false,
-      renderCell: (params: any) => {
-        const used = params.row?.cycleLimits?.used ?? '-';
-        const total = params.row?.cycleLimits?.total ?? '-';
-        const pct = total && total !== '-' && used !== '-' ? Math.round((used / total) * 100) : null;
-        return (
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[13px] font-semibold text-[#21295A]">
-              {used} <span className="font-normal text-gray-400">/ {total}</span>
-            </span>
-            {pct !== null && (
-              <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="h-full rounded-full bg-[#21295A] transition-all"
-                  style={{ width: `${Math.min(pct, 100)}%` }}
-                />
+      {
+        field: 'name',
+        headerName: 'Member',
+        flex: 1.5,
+        minWidth: 220,
+        sortable: false,
+        renderCell: (params: any) => {
+          const imageUrl = params.row?.profileImageUrl || user_svg;
+          const isDefaultImage = !params.row?.profileImageUrl;
+          const fullName = `${params.row?.firstName} ${params.row?.lastName}`.trim();
+          return (
+            <div className="flex items-center gap-3">
+              <img
+                alt="Profile"
+                className={`h-9 w-9 rounded-full border border-gray-200 object-cover ${isDefaultImage ? 'p-1.5' : ''}`}
+                src={imageUrl}
+                onError={e => {
+                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
+                }}
+              />
+              <div>
+                <p className="text-[13px] font-semibold text-[#21295A]">{fullName}</p>
+                <p className="text-[11px] text-gray-400">{params.row?.email || ''}</p>
               </div>
-            )}
-          </div>
-        );
+            </div>
+          );
+        },
+        valueGetter: params => {
+          return `${params.row?.firstName} ${params.row?.lastName}`.trim();
+        },
       },
-      valueGetter: params => {
-        const used = params.row?.cycleLimits?.used ?? '';
-        const total = params.row?.cycleLimits?.total ?? '';
-        return `${used} / ${total}`;
+      {
+        field: 'Billing Cycle',
+        headerName: 'Billing',
+        flex: 0.9,
+        minWidth: 120,
+        sortable: false,
+        renderCell: (params: any) => {
+          const cycle = params.row?.billingCycle || '';
+          const label = cycle === 'fortnightly' ? 'Fortnightly' : cycle === 'annual' ? 'Annual' : cycle;
+          return (
+            <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-600">{label}</span>
+          );
+        },
+        valueGetter: params => {
+          const billingCycle = params.row?.billingCycle || '';
+          if (billingCycle === 'fortnightly') return 'Fortnightly';
+          if (billingCycle === 'annual') return 'Annual';
+          return billingCycle;
+        },
       },
-    },
-    {
-      field: 'actions',
-      headerName: '',
-      flex: 0.6,
-      minWidth: 80,
-      sortable: false,
-      renderCell: (params: any) => {
-        return (
-          <button
-            className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
-            title="View member details"
-            onClick={e => {
-              e.stopPropagation();
-              navigate(buildRoute.viewMembers(params.row.userId), { state: { listSearch: location.search } });
-            }}
-          >
-            View
-          </button>
-        );
+      {
+        field: 'Subscription Type',
+        headerName: 'Plan',
+        flex: 0.9,
+        minWidth: 120,
+        sortable: false,
+        renderCell: (params: any) => {
+          const type = params.row?.subscriptionCode || '';
+          const cfg = planConfig[type];
+          if (!cfg) return <span className="text-[13px] text-gray-500">{type}</span>;
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+              <span className={`text-[13px] font-medium ${cfg.color}`}>{cfg.label}</span>
+            </div>
+          );
+        },
+        valueGetter: params => {
+          const type = params.row?.subscriptionCode || '';
+          return planConfig[type]?.label || type;
+        },
       },
-    },
-  ];
+      {
+        field: 'Subscription Status',
+        headerName: 'Status',
+        flex: 1,
+        minWidth: 150,
+        sortable: false,
+        renderCell: (params: any) => {
+          const type = params.row?.subscriptionStatus || '';
+          const { label, className } = subscriptionStatusMap[type] || {
+            label: type,
+            className: 'bg-gray-100 text-gray-600',
+          };
+          return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
+        },
+      },
+      {
+        field: 'Cycle Limits',
+        headerName: 'Slots Used / Total',
+        flex: 1,
+        minWidth: 140,
+        sortable: false,
+        renderCell: (params: any) => {
+          const used = params.row?.cycleLimits?.used ?? '-';
+          const total = params.row?.cycleLimits?.total ?? '-';
+          const pct = total && total !== '-' && used !== '-' ? Math.round((used / total) * 100) : null;
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[13px] font-semibold text-[#21295A]">
+                {used} <span className="font-normal text-gray-400">/ {total}</span>
+              </span>
+              {pct !== null && (
+                <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-[#21295A] transition-all"
+                    style={{ width: `${Math.min(pct, 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        },
+        valueGetter: params => {
+          const used = params.row?.cycleLimits?.used ?? '';
+          const total = params.row?.cycleLimits?.total ?? '';
+          return `${used} / ${total}`;
+        },
+      },
+      {
+        field: 'actions',
+        headerName: '',
+        flex: 0.6,
+        minWidth: 80,
+        sortable: false,
+        renderCell: (params: any) => {
+          return (
+            <button
+              className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
+              title="View member details"
+              onClick={e => {
+                e.stopPropagation();
+                navigate(buildRoute.viewMembers(params.row.userId), { state: { listSearch: location.search } });
+              }}
+            >
+              View
+            </button>
+          );
+        },
+      },
+    ],
+    [membersListData.skip, navigate, location.search]
+  );
 
   const currentLimit = membersListData.limit || 20;
 

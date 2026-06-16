@@ -50,12 +50,13 @@ module.exports = {
         varsIgnorePattern: '^_',
       },
     ],
-    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-var-requires': 'error',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-member-accessibility': 'off',
     '@typescript-eslint/no-non-null-assertion': 'warn',
     '@typescript-eslint/prefer-optional-chain': 'error',
+    // Tracked for triage — every `any` is a hole in the type system. See engineering audit.
     // Import rules
     'import/order': [
       'error',

@@ -1,6 +1,5 @@
 import { Fragment, useState } from 'react';
 
-import moment from 'moment';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -23,8 +22,10 @@ const formatTimeSlot = (timeSlot: string): string => {
     const [hours, minutes] = timeSlot.split('.');
     return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
   }
-  const parsed = moment(timeSlot);
-  if (parsed.isValid()) return parsed.format('HH:mm');
+  const parsed = new Date(timeSlot);
+  if (!Number.isNaN(parsed.getTime())) {
+    return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+  }
   return timeSlot;
 };
 

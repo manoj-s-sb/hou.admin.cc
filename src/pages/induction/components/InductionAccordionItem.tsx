@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
 import { LoaderSpinner } from '../../../components/Loader';
 import { getInductionStepsDetails } from '../../../store/induction/api';
 import { SubStep } from '../../../store/induction/types';
+import { AppDispatch } from '../../../store/store';
 import { formatDateTimeChicago } from '../../../utils/dateUtils';
 
 import ButtonLoader from './ButtonLoader';
@@ -28,7 +30,6 @@ interface AccordionItemProps {
   isPrimary: boolean;
   isOpen: boolean;
   onToggle: () => void;
-  dispatch: any;
   onSaveInduction: (userId: string, steps: SubStep[]) => void;
   onActivateSubscription: (userId: string) => void;
   isSaving: boolean;
@@ -47,7 +48,6 @@ const InductionAccordionItem = ({
   isPrimary,
   isOpen,
   onToggle,
-  dispatch,
   onSaveInduction,
   onActivateSubscription,
   isSaving,
@@ -56,6 +56,7 @@ const InductionAccordionItem = ({
   data,
   buttonLoader,
 }: AccordionItemProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [steps, setSteps] = useState<SubStep[]>([]);
   const [originalSteps, setOriginalSteps] = useState<SubStep[]>([]); // Track original API data
   const [isLoadingSteps, setIsLoadingSteps] = useState(false);

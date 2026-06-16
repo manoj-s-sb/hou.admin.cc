@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
 import {
   createWork,
@@ -10,6 +11,7 @@ import {
   uploadFileToBlob,
 } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
+import { AppDispatch } from '../../../store/store';
 import { AssignedTo, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
 
 interface FlagIssueModalProps {
@@ -18,10 +20,10 @@ interface FlagIssueModalProps {
   updatedBy: string;
   onClose: () => void;
   onSuccess: () => void;
-  dispatch: any;
 }
 
-const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess, dispatch }: FlagIssueModalProps) => {
+const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess }: FlagIssueModalProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [issueTitle, setIssueTitle] = useState('');
   const [description, setDescription] = useState('');
   const [raisedBy, setRaisedBy] = useState<RaisedBy>('centre_staff');

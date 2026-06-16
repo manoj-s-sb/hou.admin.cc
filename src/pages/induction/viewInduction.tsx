@@ -261,7 +261,6 @@ const ViewInduction = () => {
           <InductionAccordionItem
             buttonLoader={induction?.isLoading}
             data={data}
-            dispatch={dispatch}
             email={data?.email || ''}
             firstName={data?.firstName || ''}
             isActivatingSubscription={activatingUserId === data?.userId}
@@ -289,7 +288,6 @@ const ViewInduction = () => {
                 key={member.userId}
                 buttonLoader={induction?.isLoading}
                 data={data}
-                dispatch={dispatch}
                 email={member.email}
                 firstName={member.firstName}
                 isActivatingSubscription={activatingUserId === member.userId}

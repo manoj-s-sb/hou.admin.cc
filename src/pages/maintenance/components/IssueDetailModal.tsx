@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import { deleteWorkMedia, getWorkUploadUrl, updateWork, uploadFileToBlob } from '../../../store/maintenance/api';
 import { Work, WorkActivity } from '../../../store/maintenance/types';
-import { RootState } from '../../../store/store';
+import { AppDispatch, RootState } from '../../../store/store';
 import { getLocalUser } from '../constants';
 
 interface IssueDetailModalProps {
@@ -13,7 +13,6 @@ interface IssueDetailModalProps {
   index: number;
   onClose: () => void;
   onSuccess: (prevStatus?: string, newStatus?: string) => void;
-  dispatch: any;
   updatedBy: string;
 }
 
@@ -105,7 +104,8 @@ const CommentBubble = ({
   );
 };
 
-const IssueDetailModal = ({ item, index, onClose, onSuccess, dispatch, updatedBy }: IssueDetailModalProps) => {
+const IssueDetailModal = ({ item, index, onClose, onSuccess, updatedBy }: IssueDetailModalProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [currentItem, setCurrentItem] = useState<Work>(item);
   const [comment, setComment] = useState('');
   const [commentAttachment, setCommentAttachment] = useState<{ blobName: string; file: File } | null>(null);

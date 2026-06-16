@@ -68,3 +68,35 @@ jobs:
             echo "TypeScript type check failed ❌"
             exit 1
           fi
+
+      - name: 'Run tests'
+        id: tests
+        env:
+          CI: true
+        run: |
+          echo "Running tests..."
+          # --watchAll=false: don't enter watch mode
+          # --passWithNoTests: allow CI to pass until first test lands
+          if yarn test --watchAll=false --passWithNoTests; then
+            echo "tests_result=passed" >> $GITHUB_OUTPUT
+            echo "Tests passed ✅"
+          else
+            echo "tests_result=failed" >> $GITHUB_OUTPUT
+            echo "Tests failed ❌"
+            exit 1
+          fi
+
+      - name: 'Build production bundle'
+        id: build
+        env:
+          CI: true
+        run: |
+          echo "Building production bundle..."
+          if yarn build; then
+            echo "build_result=passed" >> $GITHUB_OUTPUT
+            echo "Build succeeded ✅"
+          else
+            echo "build_result=failed" >> $GITHUB_OUTPUT
+            echo "Build failed ❌"
+            exit 1
+          fi
