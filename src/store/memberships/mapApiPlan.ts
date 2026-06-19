@@ -3,12 +3,13 @@
  * `MembershipPlan` model the Membership Plans page renders.
  *
  *  - `mapApiMembership`  GET `/admin/memberships?facilityCode=…` → flat plan
+ *  - `toCreatePayload`   flat plan → POST `/admin/memberships/create` body
  *  - `toUpdatePayload`   flat plan → POST `/admin/memberships/update` body
  *
  * Keep this as the single translation point — if the backend shape shifts,
  * only this file changes, not the page or the drawer.
  */
-import { PLAN_COLORS } from '../centres/constants';
+import { PLAN_COLORS } from '../../pages/centres/constants';
 
 import type { AccessType, ApiMembership, ApiMembershipsPayload, MembershipPlan, PlanStatus } from './types';
 

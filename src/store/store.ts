@@ -5,6 +5,7 @@ import authReducer from './auth/reducers';
 import inductionReducer from './induction/reducers';
 import maintenanceReducer from './maintenance/reducers';
 import membersReducer from './members/reducers';
+import membershipsReducer from './memberships/reducers';
 import { authPersistConfig } from './persistConfig';
 import slotsReducer from './slots/reducers';
 import staffReducer from './staff/reducers';
@@ -15,6 +16,7 @@ const rootReducer = combineReducers({
   induction: inductionReducer,
   maintenance: maintenanceReducer,
   members: membersReducer,
+  memberships: membershipsReducer,
   slots: slotsReducer,
   staff: staffReducer,
   tailgate: tailgateReducer,

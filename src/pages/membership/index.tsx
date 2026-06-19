@@ -1,13 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+
+import { useDispatch, useSelector } from 'react-redux';
 
 import '../centres/centres.css';
 
+import { getMemberships } from '../../store/memberships/api';
+import { upsertPlan as upsertPlanAction } from '../../store/memberships/reducers';
+import { AppDispatch, RootState } from '../../store/store';
+
 import PlanDrawer from './components/PlanDrawer';
 import { CURRENCIES, PLAN_REGION_FILTERS, SLOT_DURATION_MINUTES, type CurrencyOption } from './constants';
-import { SEED_GUEST_DEFAULTS } from './seed';
-import { usePlans } from './usePlans';
 
-import type { MembershipPlan } from './types';
+import type { MembershipPlan } from '../../store/memberships/types';
 
 type PlanTab = 'fortnightly' | 'annual' | 'booking' | 'guests';
 
@@ -67,7 +71,12 @@ const PlanHead: React.FC<{ plans: MembershipPlan[] }> = ({ plans }) => (
 
 const MembershipPlans: React.FC = () => {
   // This page lists the GLOBAL plan templates (no facilityCode → /admin/memberships).
-  const { plans, isLoading, usingMockData, upsertPlan, refetch } = usePlans();
+  const dispatch = useDispatch<AppDispatch>();
+  const { plans, isLoading } = useSelector((state: RootState) => state.memberships);
+
+  useEffect(() => {
+    dispatch(getMemberships(undefined));
+  }, [dispatch]);
   const [tab, setTab] = useState<PlanTab>('fortnightly');
   const [region, setRegion] = useState('all');
   const [currency, setCurrency] = useState<CurrencyOption>(CURRENCIES[0]);
@@ -97,8 +106,8 @@ const MembershipPlans: React.FC = () => {
         plan={drawerPlan}
         onClose={closeDrawer}
         onSaved={p => {
-          upsertPlan(p);
-          refetch();
+          dispatch(upsertPlanAction(p));
+          dispatch(getMemberships(undefined));
           closeDrawer();
         }}
       />
@@ -172,22 +181,6 @@ const MembershipPlans: React.FC = () => {
         </button>
       </div>
 
-      {usingMockData && (
-        <div
-          style={{
-            fontSize: 12,
-            color: '#92400e',
-            background: '#fffbeb',
-            border: '1px solid #fde68a',
-            borderRadius: 8,
-            padding: '8px 12px',
-            marginBottom: 14,
-          }}
-        >
-          Showing seed data — the Membership Plans API is not yet reachable.
-        </div>
-      )}
-
       {isLoading ? (
         <div className="cmx-placeholder">
           <div className="ph-title">Loading plans…</div>
@@ -197,7 +190,7 @@ const MembershipPlans: React.FC = () => {
           {tab === 'fortnightly' && <FortnightlyTab currency={currency} plans={visiblePlans} onEdit={openEdit} />}
           {tab === 'annual' && <AnnualTab currency={currency} plans={visiblePlans} onEdit={openEdit} />}
           {tab === 'booking' && <BookingAccessTab />}
-          {tab === 'guests' && <GuestChargesTab currency={currency} />}
+          {tab === 'guests' && <GuestChargesTab />}
         </>
       )}
     </div>
@@ -602,100 +595,10 @@ const BookingAccessTab: React.FC = () => (
 
 /* ── TAB: Guest Charges (network defaults) ───────────────────────────────── */
 
-const GuestChargesTab: React.FC<{ currency: CurrencyOption }> = ({ currency }) => {
-  const g = SEED_GUEST_DEFAULTS;
-  const rows: { feature: string; value: React.ReactNode; configurable: boolean; notes: string }[] = [
-    {
-      feature: 'First Guest Fee',
-      value: <strong>{money(g.firstGuestFee, currency)}</strong>,
-      configurable: true,
-      notes: "Charged to the member's account when they bring a guest",
-    },
-    {
-      feature: 'Additional Guest Discount',
-      value: <strong>{g.additionalGuestDiscountPct}% off</strong>,
-      configurable: true,
-      notes: 'Applied to 2nd and 3rd guest fees',
-    },
-    {
-      feature: 'Max Guests per Slot',
-      value: <strong>{g.maxGuestsPerSlot}</strong>,
-      configurable: false,
-      notes: 'Network-wide limit, not overridable',
-    },
-    {
-      feature: 'Guest Addition Timing',
-      value: <strong>Until slot start</strong>,
-      configurable: false,
-      notes: 'Guests can be added right up to the start of the booking',
-    },
-    {
-      feature: 'Adult Guest Documentation',
-      value: <strong>Name + email or phone</strong>,
-      configurable: false,
-      notes: 'System generates a temporary guest ID',
-    },
-    {
-      feature: 'Junior Guest Documentation',
-      value: <strong>Guardian details + ID proof</strong>,
-      configurable: false,
-      notes: 'Guardian must be 18+; registered guardian relationship required',
-    },
-  ];
-  return (
-    <div>
-      <div
-        style={{
-          background: '#fef9f0',
-          border: '1px solid #fed7aa',
-          borderRadius: 8,
-          padding: '10px 14px',
-          marginBottom: 16,
-          fontSize: 12.5,
-          color: '#92400e',
-        }}
-      >
-        <strong>Guest charges are configurable per centre.</strong> The values below are the network defaults. When
-        assigning a plan to a centre, the admin can override the guest fee and additional guest discount for that
-        centre.
-      </div>
-      <div className="cmx-tbl-wrap" style={{ marginBottom: 20 }}>
-        <table className="cmx-tbl">
-          <thead>
-            <tr>
-              <th>Feature</th>
-              <th>Network Default</th>
-              <th>Configurable per Centre?</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.feature}>
-                <FeatureLabel>{r.feature}</FeatureLabel>
-                <td>{r.value}</td>
-                <td>{r.configurable ? <Pill tone="green">Yes</Pill> : <Pill tone="gray">No</Pill>}</td>
-                <td style={{ color: 'var(--sub)' }}>{r.notes}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div
-        style={{
-          background: '#f9fafb',
-          border: '1px solid var(--border)',
-          borderRadius: 8,
-          padding: '12px 14px',
-          fontSize: 12,
-          color: 'var(--sub)',
-        }}
-      >
-        To override guest charges for a specific centre, go to <strong>Centre Management → [Centre] → Plans</strong>, or
-        set them during the New Centre wizard (Step 4 — Plans &amp; Pricing).
-      </div>
-    </div>
-  );
-};
+const GuestChargesTab: React.FC = () => (
+  <div className="cmx-placeholder">
+    <div className="ph-title">No guest charge configuration available.</div>
+  </div>
+);
 
 export default MembershipPlans;

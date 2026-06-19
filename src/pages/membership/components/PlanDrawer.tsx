@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
-import { createPlan, savePlan } from '../usePlans';
+import { createMembership, updateMembership } from '../../../store/memberships/api';
+import { AppDispatch } from '../../../store/store';
 
-import type { AccessType, MembershipPlan } from '../types';
+import type { AccessType, MembershipPlan } from '../../../store/memberships/types';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -48,6 +50,7 @@ const blankPlan: MembershipPlan = {
 };
 
 const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [form, setForm] = useState<MembershipPlan>(plan ?? blankPlan);
   const [customStart, setCustomStart] = useState('09:00');
   const [customEnd, setCustomEnd] = useState('21:00');
@@ -74,7 +77,9 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
     };
 
     if (mode === 'create') {
-      const res = await createPlan(finalPlan, { start: customStart, end: customEnd });
+      const res = await dispatch(
+        createMembership({ plan: finalPlan, customHours: { start: customStart, end: customEnd } })
+      ).unwrap();
       setSaving(false);
       switch (res.status) {
         case 'ok':
@@ -98,7 +103,7 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
     }
 
     // Edit mode → update endpoint.
-    const ok = await savePlan(finalPlan);
+    const ok = await dispatch(updateMembership(finalPlan)).unwrap();
     setSaving(false);
     if (ok) {
       toast.success('Plan updated');
