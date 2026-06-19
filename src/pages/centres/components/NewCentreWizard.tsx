@@ -2,6 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { toast } from 'react-hot-toast';
 
+import NumberInput from '../../../components/NumberInput';
+import { handleApiError } from '../../../utils/errorUtils';
+import { buildCreatePayload } from '../buildCreatePayload';
+import { bundleToWizardState } from '../bundleToWizardState';
+import { downloadCentrePdf } from '../centrePdf';
 import {
   COUNTRIES,
   DAYS,
@@ -11,11 +16,12 @@ import {
   SLOT_DURATIONS,
   TIMEZONES,
 } from '../constants';
-import { commitWizard, saveWizardStep, startWizard } from '../useCentres';
+import { createCentre, saveWizardStep, startWizard, updateCentre } from '../useCentres';
 
 import AdditionalFacilitiesStep from './AdditionalFacilitiesStep';
 import AllocationBar from './AllocationBar';
 
+import type { CentreBundle } from '../apiTypes';
 import type { CentreDiscount, WizardPlanRow, WizardState } from '../types';
 
 const STEPS = ['Details', 'Facilities', 'Add. Facilities', 'Plans & Pricing', 'Review'];
@@ -119,15 +125,25 @@ const STATUS_LABEL: Record<string, string> = {
 interface Props {
   onClose: () => void;
   onSaved: (activated: boolean) => void;
+  /** When provided, the wizard opens in edit mode, pre-filled from this bundle. */
+  initialBundle?: CentreBundle;
 }
 
-const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
-  const [step, setStep] = useState(1);
-  const [maxStepReached, setMaxStepReached] = useState(1);
+const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) => {
+  const isEdit = Boolean(initialBundle);
+  // Edit mode jumps straight to Review (step 5) with all steps already unlocked.
+  const [step, setStep] = useState(isEdit ? 5 : 1);
+  const [maxStepReached, setMaxStepReached] = useState(isEdit ? 5 : 1);
   const [demo, setDemo] = useState('all');
-  const [s, setS] = useState<WizardState>(initialState);
+  const [s, setS] = useState<WizardState>(() => (initialBundle ? bundleToWizardState(initialBundle) : initialState()));
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  // Status the "Create Centre" / "Save Changes" button will persist (Review step radio).
+  const [saveStatus, setSaveStatus] = useState<'draft' | 'active'>(() =>
+    initialBundle?.facility?.status === 'active' ? 'active' : 'draft'
+  );
+  // After a successful save we show a success modal before returning to the grid.
+  const [savedAs, setSavedAs] = useState<null | 'draft' | 'active'>(null);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
   const dirtyRef = useRef(false);
 
@@ -264,29 +280,66 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
     return PLAN_CATALOGUE.filter(p => p.demographics.includes(demo));
   }, [demo]);
 
-  const save = async (activate: boolean) => {
+  const save = async () => {
     if (!stepValid(4)) {
       toast.error('Resolve plan & capacity validation before saving.');
       setStep(4);
       return;
     }
     setSaving(true);
-    const finalState: WizardState = { ...s, status: activate ? 'active' : 'draft' };
-    const ok = await commitWizard(finalState, activate);
-    setSaving(false);
-    if (ok) {
-      toast.success(activate ? 'Centre submitted for activation (staging).' : 'Centre saved as draft.');
-      onSaved(activate);
-    } else {
-      toast.error('Could not save the centre. Please try again.');
+    const finalState: WizardState = { ...s, status: saveStatus };
+    const payload = buildCreatePayload(finalState, initialBundle);
+    // Centres are addressed by their (uppercase) short code everywhere in this API
+    // — /details is fetched by code, and the lookup is case-sensitive — so the
+    // update endpoint's centreId is the facility code, not the facility doc id
+    // (which is "<code>-facility").
+    const centreId =
+      (initialBundle?.facility?.code ?? '').toUpperCase() ||
+      (initialBundle?.facility?.id ?? '').replace(/-facility$/i, '');
+    try {
+      if (isEdit) await updateCentre(payload, centreId);
+      else await createCentre(payload);
+      setSavedAs(saveStatus); // success modal → grid on dismiss
+    } catch (e) {
+      // 401 is handled globally (session-expired modal); show a clear message otherwise.
+      toast.error(handleApiError(e, 'Could not save the centre. Please try again.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onDownloadPdf = () => {
+    if (!downloadCentrePdf(s)) {
+      toast.error('Could not open the PDF — please allow pop-ups for this site.');
     }
   };
 
   const err = (cond: boolean) => (showErrors && cond ? { borderColor: '#dc2626' } : undefined);
 
   return (
-    <>
-      <div aria-hidden="true" className="cmx-overlay" onClick={requestClose} />
+    <div className="cmx">
+      <button
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'var(--sub)',
+          fontSize: 12.5,
+          fontWeight: 600,
+          padding: 0,
+          marginBottom: 12,
+        }}
+        type="button"
+        onClick={requestClose}
+      >
+        <svg fill="none" height={14} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={14}>
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Centres
+      </button>
       <div aria-label="New Centre wizard" className="cmx-drawer" role="dialog">
         {/* Header */}
         <div
@@ -303,9 +356,13 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
           }}
         >
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>New Centre</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>
+              {isEdit ? `Edit Centre${s.name ? ` — ${s.name}` : ''}` : 'New Centre'}
+            </div>
             <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
-              Complete all steps to create and activate the centre
+              {isEdit
+                ? 'Review the pre-filled configuration, then save or activate the centre'
+                : 'Complete all steps to create and activate the centre'}
             </div>
           </div>
           <button
@@ -656,24 +713,22 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
                 <div className="cmx-ff">
                   <span className="cmx-fld-lbl">Overall Capacity (total slots) *</span>
-                  <input
+                  <NumberInput
                     min={1}
                     placeholder="e.g. 450"
                     style={err(capacity <= 0)}
-                    type="number"
-                    value={s.overallCapacity}
-                    onChange={e => set({ overallCapacity: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.overallCapacity === 'number' ? s.overallCapacity : 0}
+                    onValueChange={v => set({ overallCapacity: v })}
                   />
                 </div>
                 <div className="cmx-ff">
                   <span className="cmx-fld-lbl">Foundation Membership Pool</span>
-                  <input
+                  <NumberInput
                     min={0}
                     placeholder="e.g. 100"
                     style={err(foundationOverflow)}
-                    type="number"
-                    value={s.foundationPool}
-                    onChange={e => set({ foundationPool: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.foundationPool === 'number' ? s.foundationPool : 0}
+                    onValueChange={v => set({ foundationPool: v })}
                   />
                   <div className="cmx-hint">
                     Subset of overall capacity reserved for foundation members. Leave blank if N/A.
@@ -760,29 +815,26 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="cmx-ff">
                   <span className="cmx-fld-lbl">Batting Lanes *</span>
-                  <input
+                  <NumberInput
                     min={0}
-                    type="number"
-                    value={s.battingLanes}
-                    onChange={e => set({ battingLanes: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.battingLanes === 'number' ? s.battingLanes : 0}
+                    onValueChange={v => set({ battingLanes: v })}
                   />
                 </div>
                 <div className="cmx-ff">
                   <span className="cmx-fld-lbl">Bowling Lanes *</span>
-                  <input
+                  <NumberInput
                     min={0}
-                    type="number"
-                    value={s.bowlingLanes}
-                    onChange={e => set({ bowlingLanes: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.bowlingLanes === 'number' ? s.bowlingLanes : 0}
+                    onValueChange={v => set({ bowlingLanes: v })}
                   />
                 </div>
                 <div className="cmx-ff">
                   <span className="cmx-fld-lbl">Multi-purpose Lanes</span>
-                  <input
+                  <NumberInput
                     min={0}
-                    type="number"
-                    value={s.multipurposeLanes}
-                    onChange={e => set({ multipurposeLanes: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.multipurposeLanes === 'number' ? s.multipurposeLanes : 0}
+                    onValueChange={v => set({ multipurposeLanes: v })}
                   />
                 </div>
               </div>
@@ -821,12 +873,11 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 </div>
                 <div className="cmx-ff">
                   <span className="cmx-fld-lbl">Advance Booking Window (days)</span>
-                  <input
+                  <NumberInput
                     max={30}
                     min={1}
-                    type="number"
                     value={s.advanceBookingWindowDays}
-                    onChange={e => set({ advanceBookingWindowDays: Number(e.target.value) })}
+                    onValueChange={v => set({ advanceBookingWindowDays: v })}
                   />
                   <div className="cmx-hint">Network default: 7 days</div>
                 </div>
@@ -969,37 +1020,28 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                           >
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">Fortnightly Price *</span>
-                              <input
+                              <NumberInput
                                 min={0}
                                 step={0.01}
-                                type="number"
                                 value={row.fortnightlyPrice}
-                                onChange={e =>
-                                  setPlan(meta.id, { fortnightlyPrice: Math.max(0, Number(e.target.value) || 0) })
-                                }
+                                onValueChange={v => setPlan(meta.id, { fortnightlyPrice: v })}
                               />
                             </div>
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">Annual Price</span>
-                              <input
+                              <NumberInput
                                 min={0}
                                 step={0.01}
-                                type="number"
                                 value={row.annualPrice}
-                                onChange={e =>
-                                  setPlan(meta.id, { annualPrice: Math.max(0, Number(e.target.value) || 0) })
-                                }
+                                onValueChange={v => setPlan(meta.id, { annualPrice: v })}
                               />
                             </div>
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">Allocated Slots *</span>
-                              <input
+                              <NumberInput
                                 min={1}
-                                type="number"
                                 value={row.allocatedSlots}
-                                onChange={e =>
-                                  setPlan(meta.id, { allocatedSlots: Math.max(1, Number(e.target.value) || 1) })
-                                }
+                                onValueChange={v => setPlan(meta.id, { allocatedSlots: v })}
                               />
                             </div>
                             <div className="cmx-ff">
@@ -1037,45 +1079,41 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                             </div>
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">First Guest Fee (USD)</span>
-                              <input
+                              <NumberInput
                                 min={0}
                                 step={0.01}
-                                type="number"
                                 value={row.firstGuestFee}
-                                onChange={e => setPlan(meta.id, { firstGuestFee: Number(e.target.value) })}
+                                onValueChange={v => setPlan(meta.id, { firstGuestFee: v })}
                               />
                             </div>
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">Add. Guest Discount (%)</span>
-                              <input
+                              <NumberInput
                                 max={100}
                                 min={0}
-                                type="number"
                                 value={row.additionalGuestDiscountPct}
-                                onChange={e => setPlan(meta.id, { additionalGuestDiscountPct: Number(e.target.value) })}
+                                onValueChange={v => setPlan(meta.id, { additionalGuestDiscountPct: v })}
                               />
                             </div>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">Extra Session Cost (USD)</span>
-                              <input
+                              <NumberInput
                                 min={0}
                                 step={0.01}
-                                type="number"
                                 value={row.extraSessionCost}
-                                onChange={e => setPlan(meta.id, { extraSessionCost: Number(e.target.value) })}
+                                onValueChange={v => setPlan(meta.id, { extraSessionCost: v })}
                               />
                             </div>
                             <div className="cmx-ff">
                               <span className="cmx-fld-lbl">Joining Fee (USD)</span>
-                              <input
+                              <NumberInput
                                 min={0}
                                 placeholder="0 = no joining fee"
                                 step={0.01}
-                                type="number"
                                 value={row.joiningFee}
-                                onChange={e => setPlan(meta.id, { joiningFee: Number(e.target.value) })}
+                                onValueChange={v => setPlan(meta.id, { joiningFee: v })}
                               />
                             </div>
                           </div>
@@ -1451,31 +1489,31 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 </table>
               </ReviewCard>
 
-              {/* Activation warning */}
+              {/* Set Centre Status on Save */}
               <div
                 style={{
-                  border: '1px solid #fde68a',
-                  background: '#fffbeb',
-                  borderRadius: 10,
-                  padding: 16,
-                  marginBottom: 20,
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: 22,
+                  marginBottom: 22,
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
-                  Two-stage activation
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)', marginBottom: 16 }}>
+                  Set Centre Status on Save
                 </div>
-                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: '#92400e', lineHeight: 1.7 }}>
-                  <li>
-                    <strong>Save as Draft</strong> → status becomes <em>draft</em>. No notifications sent.
-                  </li>
-                  <li>
-                    <strong>Save &amp; Activate</strong> → status becomes <em>staging</em>, DevOps is notified. The
-                    centre is <strong>not live</strong> until deployment.
-                  </li>
-                  <li>
-                    After DevOps deploys → status becomes <em>active</em> and the centre is visible to members.
-                  </li>
-                </ul>
+                <StatusOption
+                  checked={saveStatus === 'draft'}
+                  desc="Centre is saved but invisible to all users including centre staff. Complete setup before going live."
+                  title="Save as Draft"
+                  onSelect={() => setSaveStatus('draft')}
+                />
+                <div style={{ height: 12 }} />
+                <StatusOption
+                  checked={saveStatus === 'active'}
+                  desc="Centre goes live immediately. Visible to assigned staff and available for member sign-ups. Sends activation notification to assigned Admins."
+                  title="Save & Activate"
+                  onSelect={() => setSaveStatus('active')}
+                />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -1483,22 +1521,50 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                   ← Back
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    className="cmx-btn cmx-btn-outline"
-                    disabled={saving}
-                    type="button"
-                    onClick={() => save(false)}
-                  >
-                    Save as Draft
+                  <button className="cmx-btn cmx-btn-outline" type="button" onClick={onDownloadPdf}>
+                    <svg
+                      fill="none"
+                      height={14}
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      style={{ marginRight: 6 }}
+                      viewBox="0 0 24 24"
+                      width={14}
+                    >
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round" strokeLinejoin="round" />
+                      <polyline points="7 10 12 15 17 10" strokeLinecap="round" strokeLinejoin="round" />
+                      <line strokeLinecap="round" x1="12" x2="12" y1="15" y2="3" />
+                    </svg>
+                    Download PDF
+                  </button>
+                  <button className="cmx-btn cmx-btn-outline" disabled={saving} type="button" onClick={requestClose}>
+                    Cancel
                   </button>
                   <button
                     className="cmx-btn cmx-btn-navy"
                     disabled={saving}
                     style={{ padding: '8px 20px' }}
                     type="button"
-                    onClick={() => save(true)}
+                    onClick={save}
                   >
-                    {saving ? 'Saving…' : 'Save & Activate'}
+                    <svg
+                      fill="none"
+                      height={14}
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      style={{ marginRight: 6 }}
+                      viewBox="0 0 24 24"
+                      width={14}
+                    >
+                      <path
+                        d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <polyline points="17 21 17 13 7 13 7 21" strokeLinecap="round" strokeLinejoin="round" />
+                      <polyline points="7 3 7 8 15 8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Centre'}
                   </button>
                 </div>
               </div>
@@ -1506,11 +1572,130 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
           )}
         </div>
       </div>
-    </>
+
+      {/* Success modal — shown on 201, then returns to the grid + refreshes the list */}
+      {savedAs && (
+        <div
+          aria-modal="true"
+          role="dialog"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 600, // must sit above the drawer (z-index 501), else it's hidden behind the form
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(15,23,42,0.5)',
+          }}
+        >
+          <div
+            style={{
+              width: 'min(440px, 92vw)',
+              background: '#fff',
+              borderRadius: 16,
+              padding: '28px 26px',
+              textAlign: 'center',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+            }}
+          >
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                margin: '0 auto 14px',
+                borderRadius: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: savedAs === 'active' ? '#d0f0f0' : '#fef3c7',
+                color: savedAs === 'active' ? '#008482' : '#d97706',
+              }}
+            >
+              <svg fill="none" height={28} stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" width={28}>
+                {savedAs === 'active' ? (
+                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                ) : (
+                  <path
+                    d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </svg>
+            </div>
+            <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--navy)' }}>
+              {savedAs === 'active'
+                ? isEdit
+                  ? 'Centre Activated!'
+                  : 'Centre Created!'
+                : isEdit
+                  ? 'Changes Saved'
+                  : 'Centre Saved as Draft'}
+            </p>
+            <p style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>
+              {savedAs === 'active'
+                ? 'The centre is live and visible to assigned staff.'
+                : 'The centre is saved as a draft. Complete setup and activate it when ready.'}
+            </p>
+            <button
+              className="cmx-btn cmx-btn-navy"
+              style={{ marginTop: 18, width: '100%', justifyContent: 'center' }}
+              type="button"
+              onClick={() => onSaved(savedAs === 'active')}
+            >
+              {isEdit ? 'Back to Centre' : 'Back to Centres'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
 /* ── Review helpers ── */
+const StatusOption: React.FC<{ checked: boolean; title: string; desc: string; onSelect: () => void }> = ({
+  checked,
+  title,
+  desc,
+  onSelect,
+}) => (
+  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+  <div
+    style={{
+      display: 'flex',
+      gap: 12,
+      alignItems: 'flex-start',
+      border: `1px solid ${checked ? 'var(--blue)' : 'var(--border)'}`,
+      borderRadius: 10,
+      padding: '16px 18px',
+      cursor: 'pointer',
+      background: checked ? 'rgba(37,99,235,0.04)' : '#fff',
+      transition: 'border-color .15s, background .15s',
+    }}
+    onClick={onSelect}
+  >
+    <span
+      style={{
+        flexShrink: 0,
+        marginTop: 2,
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        border: `2px solid ${checked ? 'var(--blue)' : 'var(--muted)'}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {checked && <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--blue)' }} />}
+    </span>
+    <div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)' }}>{title}</div>
+      <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 3, lineHeight: 1.5 }}>{desc}</div>
+    </div>
+  </div>
+);
+
 const ReviewCard: React.FC<{ title: string; onEdit: () => void; children: React.ReactNode }> = ({
   title,
   onEdit,

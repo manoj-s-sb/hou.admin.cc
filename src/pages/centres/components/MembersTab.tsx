@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { PLAN_COLORS } from '../constants';
 import { useCentreMembers } from '../useCentres';
 
-import type { CentreMember, CentreWithKPI, PlanId } from '../types';
+import type { CentreKPISnapshot, CentreMember, PlanId } from '../types';
 
 const comingSoon = () => toast('Coming soon');
 
@@ -37,10 +37,12 @@ const STATUS_TONE: Record<CentreMember['status'], string> = {
 };
 
 interface Props {
-  centre: CentreWithKPI;
+  /** Only `id` is required; `kpi` is shown in the stat strip when available. */
+  centre: { id: string; kpi?: CentreKPISnapshot };
 }
 
 const MembersTab: React.FC<Props> = ({ centre }) => {
+  const { kpi } = centre;
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [plan, setPlan] = useState('All Plans');
@@ -69,22 +71,22 @@ const MembersTab: React.FC<Props> = ({ centre }) => {
       <div className="cmx-stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <div className="cmx-stat-card" style={{ ['--accent' as string]: '#21295A' }}>
           <div className="cmx-s-label">Total Members</div>
-          <div className="cmx-s-val">{centre.kpi.totalMembers.toLocaleString()}</div>
+          <div className="cmx-s-val">{kpi ? kpi.totalMembers.toLocaleString() : '—'}</div>
         </div>
         <div className="cmx-stat-card" style={{ ['--accent' as string]: '#008482' }}>
           <div className="cmx-s-label">Active Members</div>
-          <div className="cmx-s-val">{centre.kpi.activeMembers.toLocaleString()}</div>
+          <div className="cmx-s-val">{kpi ? kpi.activeMembers.toLocaleString() : '—'}</div>
         </div>
         <div className="cmx-stat-card" style={{ ['--accent' as string]: '#d97706' }}>
           <div className="cmx-s-label">Utilisation</div>
-          <div className="cmx-s-val">{centre.kpi.utilisationPct}%</div>
+          <div className="cmx-s-val">{kpi ? `${kpi.utilisationPct}%` : '—'}</div>
           <div className="cmx-s-sub" style={{ color: 'var(--sub)' }}>
             capacity used
           </div>
         </div>
         <div className="cmx-stat-card" style={{ ['--accent' as string]: '#d42b2b' }}>
           <div className="cmx-s-label">No-show Rate</div>
-          <div className="cmx-s-val">{centre.kpi.noShowPct}%</div>
+          <div className="cmx-s-val">{kpi ? `${kpi.noShowPct}%` : '—'}</div>
           <div className="cmx-s-sub" style={{ color: 'var(--sub)' }}>
             last 30 days
           </div>

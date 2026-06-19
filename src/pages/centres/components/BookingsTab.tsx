@@ -2,7 +2,7 @@ import React from 'react';
 
 import { useCentreBookings } from '../useCentres';
 
-import type { CentreBooking, CentreWithKPI } from '../types';
+import type { CentreBooking } from '../types';
 
 const STATUS_TONE: Record<CentreBooking['status'], string> = {
   Confirmed: 'blue',
@@ -13,7 +13,7 @@ const STATUS_TONE: Record<CentreBooking['status'], string> = {
 };
 
 interface Props {
-  centre: CentreWithKPI;
+  centre: { id: string };
 }
 
 const BookingsTab: React.FC<Props> = ({ centre }) => {

@@ -4,7 +4,18 @@ import { Link, useLocation } from 'react-router-dom';
 
 import menus from '../constants/menus';
 import { ROUTES } from '../constants/routes';
+import { useCentreNav } from '../contexts/CentreNavContext';
+import { CENTRE_MODULE_GROUPS } from '../pages/centres/centreModules';
+import { countryFlag } from '../pages/centres/constants';
 import { canRead } from '../rbac/permissions';
+
+import type { CentreApiStatus } from '../pages/centres/apiTypes';
+
+const STATUS_DOT: Record<CentreApiStatus, string> = {
+  active: 'green',
+  draft: 'amber',
+  suspended: 'red',
+};
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -19,6 +30,7 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) 
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const location = useLocation();
+  const { activeCentre, module, setModule, closeCentre } = useCentreNav();
 
   const menuItems = menus.filter(item => canRead(item.module));
 
@@ -60,45 +72,86 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4">
-          {menuItems.map(item => {
-            const isActive =
-              location.pathname === item.path ||
-              location.pathname.startsWith(`${item.path}/`) ||
-              (item.path === ROUTES.INDUCTION.path && location.pathname.startsWith('/view-induction')) ||
-              (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members'));
+        {/* Navigation — swaps to the centre's module nav while a centre is open */}
+        {activeCentre ? (
+          <div className="cmx-sidebar-ops">
+            <button className="cmx-cd-back" type="button" onClick={() => closeCentre()}>
+              <svg fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Back to Centres
+            </button>
 
-            return (
-              <Link
-                key={item.path}
-                className={`mx-2 my-1 flex items-center rounded-lg px-5 py-3 no-underline transition-all duration-200 ${
-                  isActive
-                    ? 'border-l-4 border-[#21295A] bg-gradient-to-r from-[#21295A]/10 to-[#21295A]/5 font-semibold text-[#21295A] shadow-sm'
-                    : 'text-gray-700 hover:translate-x-1 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-                to={item.path}
-                onClick={() => {
-                  // Close sidebar on mobile when a link is clicked
-                  if (window.innerWidth < 1024 && onClose) {
-                    onClose();
-                  }
-                }}
-              >
-                <span className="flex w-full items-center gap-3">
-                  {item.icon && (
-                    <img
-                      alt={item.label}
-                      className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`}
-                      src={item.icon}
-                    />
-                  )}
-                  <span className="text-sm">{item.label}</span>
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
+            <div className="cmx-cd-badge">
+              <span className={`cmx-cd-dot ${STATUS_DOT[activeCentre.status] ?? 'gray'}`} />
+              <div style={{ minWidth: 0 }}>
+                <div className="cmx-cd-badge-name">{activeCentre.name}</div>
+                <div className="cmx-cd-badge-sub">
+                  {countryFlag(activeCentre.countryCode)} {activeCentre.code}
+                </div>
+              </div>
+            </div>
+
+            {CENTRE_MODULE_GROUPS.map(g => (
+              <React.Fragment key={g.group}>
+                <div className="cmx-cd-sep">{g.group}</div>
+                {g.items.map(m => (
+                  <button
+                    key={m.key}
+                    className={`cmx-cd-navitem ${module === m.key ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => {
+                      setModule(m.key);
+                      if (window.innerWidth < 1024 && onClose) onClose();
+                    }}
+                  >
+                    {m.icon}
+                    {m.label}
+                  </button>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        ) : (
+          <nav className="flex-1 overflow-y-auto py-4">
+            {menuItems.map(item => {
+              const isActive =
+                location.pathname === item.path ||
+                location.pathname.startsWith(`${item.path}/`) ||
+                (item.path === ROUTES.INDUCTION.path && location.pathname.startsWith('/view-induction')) ||
+                (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members'));
+
+              return (
+                <Link
+                  key={item.path}
+                  className={`mx-2 my-1 flex items-center rounded-lg px-5 py-3 no-underline transition-all duration-200 ${
+                    isActive
+                      ? 'border-l-4 border-[#21295A] bg-gradient-to-r from-[#21295A]/10 to-[#21295A]/5 font-semibold text-[#21295A] shadow-sm'
+                      : 'text-gray-700 hover:translate-x-1 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                  to={item.path}
+                  onClick={() => {
+                    // Close sidebar on mobile when a link is clicked
+                    if (window.innerWidth < 1024 && onClose) {
+                      onClose();
+                    }
+                  }}
+                >
+                  <span className="flex w-full items-center gap-3">
+                    {item.icon && (
+                      <img
+                        alt={item.label}
+                        className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`}
+                        src={item.icon}
+                      />
+                    )}
+                    <span className="text-sm">{item.label}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </div>
     </>
   );

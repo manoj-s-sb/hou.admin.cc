@@ -43,6 +43,12 @@ const endpoints = {
     userInductionDetails: '/admin/induction/details',
   },
   centres: {
+    // New doc-bundle model (live backend) — all POST.
+    centresList: '/admin/centres/list', // POST { status?, search?, skip, limit, sort, order }
+    centreDetails: '/admin/centres/details', // POST { code }
+    centreCreate: '/admin/centres/create', // POST { facility, lanes[], memberships[], membershipSalesFlow }
+    centreUpdate: '/admin/centres/update', // POST { centreId, facility } — edit facility / activate draft
+    // Legacy model (ops dashboard + update/suspend/delete — not re-wired yet).
     list: '/admin/centres',
     wizardStart: '/admin/centres/wizard/start',
     wizardStep: (id: string, step: number) => `/admin/centres/wizard/${id}/step${step}`,
@@ -56,6 +62,8 @@ const endpoints = {
     // Live backend — returns the facility's memberships (rich nested shape).
     // Pass the facility code via the `facilityCode` query param.
     list: '/admin/memberships',
+    // Create a new GLOBAL plan template (flat body). POST.
+    create: '/admin/memberships/create',
     // Create/update a membership (full nested body).
     update: '/admin/memberships/update',
   },

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
-import type { CentreStatus, CentreWithKPI } from '../types';
+import { centreColour, countryFlag } from '../constants';
 
-const STATUS_PILL: Record<CentreStatus, { label: string; tone: string }> = {
+import type { CentreApiStatus, FacilitySummary } from '../apiTypes';
+
+const STATUS_PILL: Record<CentreApiStatus, { label: string; tone: string }> = {
   active: { label: 'Active', tone: 'green' },
   draft: { label: 'Draft', tone: 'amber' },
-  staging: { label: 'Staging', tone: 'amber' },
   suspended: { label: 'Suspended', tone: 'red' },
 };
 
@@ -26,9 +27,13 @@ const getLocalTime = (tz: string): string => {
   }
 };
 
+/** "—" until the backend supplies the rollup. */
+const fmtNum = (n?: number): string => (n === undefined || n === null ? '—' : n.toLocaleString());
+const fmtPct = (n?: number): string => (n === undefined || n === null ? '—' : `${n}%`);
+
 interface Props {
-  centre: CentreWithKPI;
-  onOpen: (centre: CentreWithKPI) => void;
+  centre: FacilitySummary;
+  onOpen: (centre: FacilitySummary) => void;
 }
 
 const CentreCard: React.FC<Props> = ({ centre, onOpen }) => {
@@ -40,67 +45,74 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen }) => {
     return () => clearInterval(t);
   }, [centre.timezone]);
 
-  const status = STATUS_PILL[centre.status];
+  const status = STATUS_PILL[centre.status] ?? { label: centre.status, tone: 'amber' };
   const { kpi } = centre;
-  const totalPlanMembers = kpi.planBreakdown.reduce((sum, p) => sum + p.members, 0) || 1;
+  const location = [centre.stateCode, centre.countryCode].filter(Boolean).join(', ') || centre.cityCode || '—';
+  const plans = kpi?.plans ?? {};
 
   return (
-    // The card surface is clickable for convenience; keyboard users use the inner "Open Centre" button.
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="cmx-centre-card cmx-fade-up"
-      style={{ ['--cc-color' as string]: centre.colour, cursor: 'pointer' }}
+      style={{ ['--cc-color' as string]: centreColour(centre.code), cursor: 'pointer' }}
       onClick={() => onOpen(centre)}
     >
       <div className="cmx-cc-header">
         <div>
           <div className="cmx-cc-name">
-            {centre.flag} {centre.name}
+            {countryFlag(centre.countryCode)} {centre.name}
           </div>
-          <div className="cmx-cc-location">
-            {centre.city}
-            {centre.state ? `, ${centre.state}` : ''}
-          </div>
+          <div className="cmx-cc-location">{location}</div>
           <div className="cmx-cc-time-row">
             <span className="cmx-cc-time">{localTime}</span>
-            <span className="cmx-cc-tz-badge">{centre.timezoneLabel || getTzAbbr(centre.timezone)}</span>
+            <span className="cmx-cc-tz-badge">{getTzAbbr(centre.timezone)}</span>
           </div>
         </div>
         <span className={`cmx-pill ${status.tone}`}>{status.label}</span>
       </div>
 
+      {/* KPI rollup — reference layout. Values fill in once the backend adds
+          `kpi` to each list row; until then they read "—". */}
       <div className="cmx-cc-stats">
         <div className="cmx-cc-stat">
-          <div className="cmx-cc-stat-val">{kpi.totalMembers.toLocaleString()}</div>
-          <div className="cmx-cc-stat-lbl">Total Members</div>
+          <span className="cmx-cc-stat-val">{fmtNum(kpi?.totalMembers)}</span>
+          <span className="cmx-cc-stat-lbl">Total Members</span>
         </div>
         <div className="cmx-cc-stat">
-          <div className="cmx-cc-stat-val">{kpi.bookings30d.toLocaleString()}</div>
-          <div className="cmx-cc-stat-lbl">Bookings (30d)</div>
+          <span className="cmx-cc-stat-val">{fmtNum(kpi?.bookings30d)}</span>
+          <span className="cmx-cc-stat-lbl">Bookings (30d)</span>
         </div>
         <div className="cmx-cc-stat">
-          <div className="cmx-cc-stat-val">{kpi.utilisationPct}%</div>
-          <div className="cmx-cc-stat-lbl">Utilisation</div>
+          <span className="cmx-cc-stat-val">{fmtPct(kpi?.utilisationPct)}</span>
+          <span className="cmx-cc-stat-lbl">Utilisation</span>
         </div>
         <div className="cmx-cc-stat">
-          <div className="cmx-cc-stat-val">{kpi.noShowPct}%</div>
-          <div className="cmx-cc-stat-lbl">No-show Rate</div>
+          <span className="cmx-cc-stat-val">{fmtPct(kpi?.noShowPct)}</span>
+          <span className="cmx-cc-stat-lbl">No-show Rate</span>
         </div>
       </div>
 
-      {/* Plan breakdown mini-bar */}
-      <div className="cmx-cc-planbar" title={kpi.planBreakdown.map(p => `${p.label}: ${p.members}`).join(' · ')}>
-        {kpi.planBreakdown.map(p => (
-          <span key={p.planId} style={{ width: `${(p.members / totalPlanMembers) * 100}%`, background: p.colour }} />
-        ))}
+      <div className="cmx-cc-chips">
+        <span className="cmx-cc-chip tail">
+          <svg fill="none" height={14} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={14}>
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+          </svg>
+          <span className="n">{kpi?.tailgates ?? 0}</span> Tailgates
+        </span>
+        <span className="cmx-cc-chip task">
+          <svg fill="none" height={14} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={14}>
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 01-2 2V5a2 2 0 012-2h11" />
+          </svg>
+          <span className="n">{kpi?.openTasks ?? 0}</span> Open Tasks
+        </span>
       </div>
 
       <div className="cmx-cc-footer">
-        <div style={{ fontSize: 12, color: 'var(--sub)' }}>
-          {kpi.planBreakdown
-            .slice(0, 3)
-            .map(p => `${p.label}: ${p.members}`)
-            .join(' · ')}
+        <div className="cmx-cc-plans">
+          Premium: <b>{fmtNum(plans.premium)}</b> · Standard: <b>{fmtNum(plans.standard)}</b> · Family:{' '}
+          <b>{fmtNum(plans.family)}</b>
         </div>
         <button
           className="cmx-cc-open-btn"
@@ -110,7 +122,7 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen }) => {
             onOpen(centre);
           }}
         >
-          Open Centre
+          Open
           <svg fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <polyline points="9 18 15 12 9 6" />
           </svg>

@@ -8,6 +8,7 @@ import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
 import { createStaff, getStaffConfig, getStaffDetails, getStaffList, updateStaff } from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
+import { listCentres } from '../centres/centresApi';
 
 import AccountStep from './components/AccountStep';
 import DocumentsStep from './components/DocumentsStep';
@@ -17,9 +18,17 @@ import StepFooter from './components/StepFooter';
 import StepIndicator from './components/StepIndicator';
 import { STEPS } from './constants';
 import { OTHER_QUALIFICATION, ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
-import { blankToNull, fileToDataUrl, getConfigOtherQualificationId, sortActiveUnique, validatePassword } from './utils';
+import {
+  blankToNull,
+  fileToDataUrl,
+  getConfigOtherQualificationId,
+  isCentreScopedLevel,
+  sortActiveUnique,
+  validatePassword,
+} from './utils';
 
 import type { AppDispatch, RootState } from '../../store/store';
+import type { FacilitySummary } from '../centres/apiTypes';
 
 const AddStaffMember: React.FC = () => {
   const navigate = useNavigate();
@@ -57,9 +66,16 @@ const AddStaffMember: React.FC = () => {
   const [existingDocs, setExistingDocs] = useState<StaffDocument[]>([]);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string>('');
   const [editFacilityCode, setEditFacilityCode] = useState<string>('');
-  const [editAssignedCentres, setEditAssignedCentres] = useState<string[]>([]);
+  // Centres a centre-scoped staff member is assigned to (codes). Used for both create & edit.
+  const [assignedCentres, setAssignedCentres] = useState<string[]>([]);
   const [editStatus, setEditStatus] = useState<string>('active');
   const [twoFAEnabled, setTwoFAEnabled] = useState(true);
+
+  // Real centre catalogue for the Assigned Centres picker (centre-scoped levels).
+  // Sourced live from the same list as Centre Management — NO seed fallback, so the
+  // codes saved here always match real centres in the DB.
+  const [centres, setCentres] = useState<FacilitySummary[]>([]);
+  const [centresLoading, setCentresLoading] = useState(false);
 
   // Sorted/filtered config slices for the wizard steps
   const qualifications = useMemo(() => sortActiveUnique(staffConfig?.qualifications), [staffConfig]);
@@ -77,6 +93,26 @@ const AddStaffMember: React.FC = () => {
   useEffect(() => {
     dispatch(getStaffConfig());
   }, [dispatch]);
+
+  // Load the real centre catalogue. On error/empty the picker shows an empty state
+  // (plus the "Other" manual option) — we never substitute seed centres here.
+  useEffect(() => {
+    let cancelled = false;
+    setCentresLoading(true);
+    listCentres({ skip: 0, limit: 200 })
+      .then(res => {
+        if (!cancelled) setCentres(res.facilities ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setCentres([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCentresLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Load existing staff details in edit mode
   useEffect(() => {
@@ -119,7 +155,7 @@ const AddStaffMember: React.FC = () => {
     setExistingDocs(sp.documents ?? []);
     setExistingPhotoUrl(sp.photoSasUrl ?? '');
     setEditFacilityCode(data.facilityCode ?? '');
-    setEditAssignedCentres(sp.assignedCentres ?? []);
+    setAssignedCentres(sp.assignedCentres ?? []);
     setEditStatus(data.status ?? 'active');
     setLoginEmail(data.loginEmail ?? data.email ?? '');
     loginEmailInitedRef.current = true;
@@ -171,6 +207,13 @@ const AddStaffMember: React.FC = () => {
   const toggleRole = (key: string) => {
     setSelectedRoles(prev => ({ ...prev, [key]: !prev[key] }));
   };
+
+  // The currently-selected access level, and whether it scopes to specific centres.
+  const selectedAccessLevel = useMemo(
+    () => accessLevels.find(l => l.id === accessLevel) ?? null,
+    [accessLevels, accessLevel]
+  );
+  const requiresAssignedCentres = isCentreScopedLevel(selectedAccessLevel);
 
   const handleDocSelect = (key: string, file: File | null, maxSizeMB: number) => {
     if (!file) return;
@@ -233,6 +276,8 @@ const AddStaffMember: React.FC = () => {
     if (draft) return null;
     if (buildSelectedRoleIds().length === 0) return 'Select at least one role';
     if (!accessLevel) return 'Select an access level';
+    if (requiresAssignedCentres && assignedCentres.length === 0)
+      return 'Assign at least one centre for centre-scoped access';
     if (!loginEmail.trim()) return 'Login email is required';
     if (isEditMode) return null;
     const pwError = validatePassword(defaultPassword);
@@ -287,7 +332,7 @@ const AddStaffMember: React.FC = () => {
             additionalNotes: profile.notes,
             roles: buildSelectedRoleIds(),
             accessLevel,
-            assignedCentres: editAssignedCentres,
+            assignedCentres: requiresAssignedCentres ? assignedCentres : [],
             documents: [...existingEntries, ...newDocEntries],
             twoFactorAuth: twoFAEnabled,
             twoFactorMethod: twoFAEnabled ? 'email' : '',
@@ -326,7 +371,7 @@ const AddStaffMember: React.FC = () => {
           additionalNotes: profile.notes,
           roles: buildSelectedRoleIds(),
           accessLevel,
-          assignedCentres: [],
+          assignedCentres: requiresAssignedCentres ? assignedCentres : [],
           documents: newDocEntries,
           twoFactorAuth: twoFAEnabled,
           twoFactorMethod: twoFAEnabled ? 'email' : '',
@@ -423,10 +468,15 @@ const AddStaffMember: React.FC = () => {
             <RoleAccessStep
               accessLevel={accessLevel}
               accessLevels={accessLevels}
+              assignedCentres={assignedCentres}
+              centres={centres}
+              centresLoading={centresLoading}
               configError={configError}
               isConfigLoading={isConfigLoading}
               roles={roles}
               selectedRoles={selectedRoles}
+              showAssignedCentres={requiresAssignedCentres}
+              onChangeCentres={setAssignedCentres}
               onSelectAccessLevel={setAccessLevel}
               onToggleRole={toggleRole}
             />

@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 
-import { savePlan } from '../usePlans';
+import { toast } from 'react-hot-toast';
+
+import { createPlan, savePlan } from '../usePlans';
 
 import type { AccessType, MembershipPlan } from '../types';
 
@@ -50,6 +52,7 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
   const [customStart, setCustomStart] = useState('09:00');
   const [customEnd, setCustomEnd] = useState('21:00');
   const [saving, setSaving] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   const set = <K extends keyof MembershipPlan>(key: K, value: MembershipPlan[K]) =>
     setForm(prev => ({ ...prev, [key]: value }));
@@ -61,30 +64,75 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
+    setCodeError(null);
     const accessHours = form.accessType === 'custom' ? `${customStart}–${customEnd}` : ACCESS_LABELS[form.accessType];
     const finalPlan: MembershipPlan = {
       ...form,
+      code: form.code.trim().toLowerCase(),
       id: form.id || form.code.trim().toLowerCase().replace(/\s+/g, '-'),
       accessHours,
     };
-    await savePlan(finalPlan);
+
+    if (mode === 'create') {
+      const res = await createPlan(finalPlan, { start: customStart, end: customEnd });
+      setSaving(false);
+      switch (res.status) {
+        case 'ok':
+          toast.success('Plan created');
+          onSaved(finalPlan);
+          break;
+        case 'duplicate':
+          setCodeError('A plan with that code already exists');
+          break;
+        case 'validation':
+          if (res.fields.some(f => f.toLowerCase().includes('code'))) setCodeError('Please check the plan code');
+          toast.error(res.fields.length ? `Please fix: ${res.fields.join(', ')}` : 'Please check the form fields');
+          break;
+        case 'auth':
+          toast.error('Permission denied — a superadmin session is required (or it has expired).');
+          break;
+        default:
+          toast.error('Could not create the plan. Please try again.');
+      }
+      return;
+    }
+
+    // Edit mode → update endpoint.
+    const ok = await savePlan(finalPlan);
     setSaving(false);
-    onSaved(finalPlan);
+    if (ok) {
+      toast.success('Plan updated');
+      onSaved(finalPlan);
+    } else {
+      toast.error('Could not save changes. Please try again.');
+    }
   };
 
   return (
-    <>
-      <div
-        aria-label="Close plan editor"
-        className="cmx-overlay"
-        role="button"
-        tabIndex={-1}
-        onClick={onClose}
-        onKeyDown={e => {
-          if (e.key === 'Escape') onClose();
+    <div className="cmx">
+      <button
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'var(--sub)',
+          fontSize: 12.5,
+          fontWeight: 600,
+          padding: 0,
+          marginBottom: 12,
         }}
-      />
-      <div className="cmx-drawer" style={{ width: 620 }}>
+        type="button"
+        onClick={onClose}
+      >
+        <svg fill="none" height={14} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={14}>
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Membership Plans
+      </button>
+      <div className="cmx-drawer">
         {/* Header */}
         <div
           style={{
@@ -142,12 +190,21 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="cmx-fld-lbl">Plan Code *</span>
               <input
                 placeholder="e.g. premium"
-                style={{ textTransform: 'lowercase' }}
+                style={{ textTransform: 'lowercase', ...(codeError ? { borderColor: '#d42b2b' } : {}) }}
                 type="text"
                 value={form.code}
-                onChange={e => set('code', e.target.value)}
+                onChange={e => {
+                  set('code', e.target.value);
+                  if (codeError) setCodeError(null);
+                }}
               />
-              <div className="cmx-hint">Used in system references. Lowercase, no spaces.</div>
+              {codeError ? (
+                <div className="cmx-hint" style={{ color: '#d42b2b' }}>
+                  {codeError}
+                </div>
+              ) : (
+                <div className="cmx-hint">Used in system references. Lowercase, no spaces.</div>
+              )}
             </div>
           </div>
           <div className="cmx-ff" style={{ marginBottom: 20 }}>
@@ -384,7 +441,7 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

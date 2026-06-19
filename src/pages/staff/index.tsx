@@ -11,7 +11,7 @@ import { getLocalUser } from '../../constants/user';
 import { getStaffConfig, getStaffList, setStaffStatus } from '../../store/staff/api';
 
 import { GENERIC_ROLE_ICON, ROLE_ICON_MAP } from './constants';
-import { formatCentres } from './utils';
+import { useCentreLookup } from './useCentreLookup';
 
 import type { StaffListRow } from '../../store/staff/types';
 import type { AppDispatch, RootState } from '../../store/store';
@@ -126,7 +126,10 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
   return 'active';
 };
 
-const mapStaff = (row: StaffListRow): StaffRow => {
+const mapStaff = (
+  row: StaffListRow,
+  resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string
+): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
   const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
   const initialsSource = fullName || row.email || '?';
@@ -140,7 +143,7 @@ const mapStaff = (row: StaffListRow): StaffRow => {
 
   const roles = (row.userType ?? []).map(role => ({ label: formatRoleLabel(role) }));
 
-  const centres = formatCentres(row.assignedCentres, row.facilityCode);
+  const centres = resolveCentres(row.assignedCentres, row.facilityCode);
 
   return {
     id: row.staffId,
@@ -178,6 +181,7 @@ const StaffManagement: React.FC = () => {
   const { staffList, isListLoading, listError, staffConfig, isConfigLoading, configError } = useSelector(
     (state: RootState) => state.staff
   );
+  const centreLookup = useCentreLookup();
 
   const loadStaff = useCallback(() => {
     dispatch(getStaffList({ facilityCode: getLocalUser().facilityCode, limit: 50, offset: 0 }));
@@ -189,7 +193,10 @@ const StaffManagement: React.FC = () => {
     dispatch(getStaffConfig());
   }, [dispatch, loadStaff]);
 
-  const staff: StaffRow[] = useMemo(() => staffList.map(mapStaff), [staffList]);
+  const staff: StaffRow[] = useMemo(
+    () => staffList.map(row => mapStaff(row, centreLookup.text)),
+    [staffList, centreLookup.text]
+  );
   const isLoading = isListLoading;
   const error = listError;
 
