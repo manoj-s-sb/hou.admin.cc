@@ -2,8 +2,6 @@ import React, { useMemo, useState } from 'react';
 
 import '../centres/centres.css';
 
-import { getLocalUser } from '../../constants/user';
-
 import PlanDrawer from './components/PlanDrawer';
 import { CURRENCIES, PLAN_REGION_FILTERS, SLOT_DURATION_MINUTES, type CurrencyOption } from './constants';
 import { SEED_GUEST_DEFAULTS } from './seed';
@@ -68,9 +66,8 @@ const PlanHead: React.FC<{ plans: MembershipPlan[] }> = ({ plans }) => (
 );
 
 const MembershipPlans: React.FC = () => {
-  // Use the logged-in user's facility (every other module does the same).
-  const facilityCode = getLocalUser().facilityCode || undefined;
-  const { plans, isLoading, usingMockData, upsertPlan } = usePlans(facilityCode);
+  // This page lists the GLOBAL plan templates (no facilityCode → /admin/memberships).
+  const { plans, isLoading, usingMockData, upsertPlan, refetch } = usePlans();
   const [tab, setTab] = useState<PlanTab>('fortnightly');
   const [region, setRegion] = useState('all');
   const [currency, setCurrency] = useState<CurrencyOption>(CURRENCIES[0]);
@@ -91,6 +88,22 @@ const MembershipPlans: React.FC = () => {
     setDrawerMode('edit');
   };
   const closeDrawer = () => setDrawerMode(null);
+
+  // New/Edit Plan opens as a full in-content page (keeps sidebar + topbar), like Staff.
+  if (drawerMode) {
+    return (
+      <PlanDrawer
+        mode={drawerMode}
+        plan={drawerPlan}
+        onClose={closeDrawer}
+        onSaved={p => {
+          upsertPlan(p);
+          refetch();
+          closeDrawer();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="cmx">
@@ -186,18 +199,6 @@ const MembershipPlans: React.FC = () => {
           {tab === 'booking' && <BookingAccessTab />}
           {tab === 'guests' && <GuestChargesTab currency={currency} />}
         </>
-      )}
-
-      {drawerMode && (
-        <PlanDrawer
-          mode={drawerMode}
-          plan={drawerPlan}
-          onClose={closeDrawer}
-          onSaved={p => {
-            upsertPlan(p);
-            closeDrawer();
-          }}
-        />
       )}
     </div>
   );

@@ -1,5 +1,7 @@
 import React from 'react';
 
+import NumberInput from '../../../components/NumberInput';
+
 import type { AdditionalFacility, AdditionalFacilityType } from '../types';
 
 const PANELS: {
@@ -197,21 +199,19 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label className="cmx-ff">
               <span className="cmx-fld-lbl">Number of PS units</span>
-              <input
+              <NumberInput
                 min={1}
-                type="number"
                 value={f.psUnits ?? 0}
-                onChange={e => patch(f.id, { psUnits: Math.max(1, Number(e.target.value) || 1) })}
+                onValueChange={v => patch(f.id, { psUnits: v })}
               />
             </label>
             <label className="cmx-ff">
               <span className="cmx-fld-lbl">Charge per hour ($)</span>
-              <input
+              <NumberInput
                 min={0}
                 step={0.01}
-                type="number"
                 value={f.chargePerHour ?? 0}
-                onChange={e => patch(f.id, { chargePerHour: Math.max(0, Number(e.target.value) || 0) })}
+                onValueChange={v => patch(f.id, { chargePerHour: v })}
               />
             </label>
           </div>
@@ -257,26 +257,22 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Fortnightly price ($)</span>
-            <input
+            <NumberInput
               min={0}
               placeholder="e.g. 29.95"
               step={0.01}
-              type="number"
               value={f.fortnightlyPrice}
-              onChange={e => patch(f.id, { fortnightlyPrice: Math.max(0, Number(e.target.value) || 0) })}
+              onValueChange={v => patch(f.id, { fortnightlyPrice: v })}
             />
           </label>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Annual discount (%)</span>
-            <input
+            <NumberInput
               max={100}
               min={0}
               placeholder="e.g. 15"
-              type="number"
               value={f.annualDiscountPct}
-              onChange={e =>
-                patch(f.id, { annualDiscountPct: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })
-              }
+              onValueChange={v => patch(f.id, { annualDiscountPct: v })}
             />
           </label>
         </div>
@@ -285,23 +281,18 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">{f.type === 'gym' ? 'Total capacity (members)' : 'Seating capacity'}</span>
-            <input
+            <NumberInput
               min={1}
-              type="number"
               value={f.type === 'gym' ? f.totalCapacity : (f.seatingCapacity ?? 0)}
-              onChange={e => {
-                const v = Math.max(1, Number(e.target.value) || 1);
-                patch(f.id, f.type === 'gym' ? { totalCapacity: v } : { seatingCapacity: v });
-              }}
+              onValueChange={v => patch(f.id, f.type === 'gym' ? { totalCapacity: v } : { seatingCapacity: v })}
             />
           </label>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Max concurrent users</span>
-            <input
+            <NumberInput
               min={1}
-              type="number"
               value={f.concurrentCapacity}
-              onChange={e => patch(f.id, { concurrentCapacity: Math.max(1, Number(e.target.value) || 1) })}
+              onValueChange={v => patch(f.id, { concurrentCapacity: v })}
             />
           </label>
           <label className="cmx-ff">
@@ -318,21 +309,19 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Guest session price ($)</span>
-            <input
+            <NumberInput
               min={0}
               step={0.01}
-              type="number"
               value={f.guestSessionPrice}
-              onChange={e => patch(f.id, { guestSessionPrice: Math.max(0, Number(e.target.value) || 0) })}
+              onValueChange={v => patch(f.id, { guestSessionPrice: v })}
             />
           </label>
           <label className="cmx-ff">
             <span className="cmx-fld-lbl">Free guest visits / month</span>
-            <input
+            <NumberInput
               min={0}
-              type="number"
               value={f.freeGuestVisits}
-              onChange={e => patch(f.id, { freeGuestVisits: Math.max(0, Number(e.target.value) || 0) })}
+              onValueChange={v => patch(f.id, { freeGuestVisits: v })}
             />
           </label>
         </div>

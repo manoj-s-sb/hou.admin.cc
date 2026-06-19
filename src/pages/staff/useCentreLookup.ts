@@ -1,0 +1,68 @@
+/**
+ * Loads the live centre catalogue from Centre Management and resolves centre
+ * codes → human-readable labels (flag + name). No hard-coded centre names — the
+ * staff list / view screens display exactly the centres that exist in the DB.
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import { listCentres } from '../centres/centresApi';
+import { countryFlag } from '../centres/constants';
+
+import type { FacilitySummary } from '../centres/apiTypes';
+
+export interface CentreLookup {
+  /** Label for a single centre code: "🇮🇳 Bangalore, KA" — falls back to the raw code. */
+  label: (code: string | null | undefined) => string;
+  /** Comma-joined labels for codes, or the labelled fallback (e.g. home facility). */
+  text: (codes: string[] | null | undefined, fallback?: string | null) => string;
+  loading: boolean;
+}
+
+export function useCentreLookup(): CentreLookup {
+  const [byCode, setByCode] = useState<Record<string, FacilitySummary>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    listCentres({ skip: 0, limit: 200 })
+      .then(res => {
+        if (cancelled) return;
+        const map: Record<string, FacilitySummary> = {};
+        (res.facilities ?? []).forEach(c => {
+          if (c.code) map[c.code.toUpperCase()] = c;
+        });
+        setByCode(map);
+      })
+      .catch(() => {
+        if (!cancelled) setByCode({});
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const label = useCallback(
+    (code: string | null | undefined): string => {
+      if (!code) return '—';
+      const c = byCode[code.toUpperCase()];
+      if (!c) return code; // not yet loaded / unknown → show the raw code, never a guess
+      const place = [c.name, c.stateCode || c.cityCode].filter(Boolean).join(', ');
+      return `${countryFlag(c.countryCode)} ${place || c.code}`;
+    },
+    [byCode]
+  );
+
+  const text = useCallback(
+    (codes: string[] | null | undefined, fallback?: string | null): string => {
+      if (codes && codes.length > 0) return codes.map(label).join(', ');
+      return fallback ? label(fallback) : '—';
+    },
+    [label]
+  );
+
+  return useMemo(() => ({ label, text, loading }), [label, text, loading]);
+}

@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../constants/routes';
+import { CentreNavProvider } from '../contexts/CentreNavContext';
 import { logout as logoutAction } from '../store/auth/reducers';
 import { persistor, RootState } from '../store/store';
 
@@ -74,8 +75,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar isOpen={isSidebarOpen || isDesktop} onClose={() => setIsSidebarOpen(false)} />
+    <CentreNavProvider>
+      <div className="flex min-h-screen">
+        <Sidebar isOpen={isSidebarOpen || isDesktop} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex h-screen w-full flex-col overflow-hidden lg:ml-64">
         <header className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
           {/* Mobile Menu Button */}
@@ -153,8 +155,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 to-gray-100 p-2 max-[560px]:p-2 sm:p-5 lg:p-6">
           {children}
         </main>
+        </div>
       </div>
-    </div>
+    </CentreNavProvider>
   );
 };
 

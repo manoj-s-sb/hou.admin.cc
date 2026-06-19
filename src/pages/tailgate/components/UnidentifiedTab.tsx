@@ -52,6 +52,17 @@ const UnidentifiedTab = ({
   const pageNumbers = getPageNumbers(page, totalPages);
   const todayVal = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 
+  // Server returns only the current page's logs; render the grouped dates as-is
+  // and compute each group's starting global S.No from the page's first offset.
+  const pagedDates = sortedDates;
+  const pagedGroups = grouped;
+  const groupStartIndex: Record<string, number> = {};
+  let runningOffset = firstDateOffset;
+  pagedDates.forEach(dv => {
+    groupStartIndex[dv] = runningOffset;
+    runningOffset += grouped[dv].items.length;
+  });
+
   if (isLoading) {
     return <p className="py-10 text-center text-[13px] text-gray-400">Loading…</p>;
   }

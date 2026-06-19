@@ -95,6 +95,8 @@ module.exports = {
     'jsx-a11y/aria-unsupported-elements': 'error',
     'jsx-a11y/click-events-have-key-events': 'warn',
     'jsx-a11y/no-static-element-interactions': 'warn',
+    // Treat our shared NumberInput as a form control so <label> wrappers are valid.
+    'jsx-a11y/label-has-associated-control': ['error', { controlComponents: ['NumberInput'] }],
     // General rules
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'prefer-const': 'error',

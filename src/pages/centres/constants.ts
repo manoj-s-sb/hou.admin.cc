@@ -135,3 +135,29 @@ export const ADDITIONAL_FACILITY_META: Record<string, { label: string; multiInst
   meeting: { label: 'Meeting Rooms', multiInstance: true },
   gaming: { label: 'Gaming Area', multiInstance: false },
 };
+
+/** Emoji flag for a country code (used on the centre cards). */
+const COUNTRY_FLAGS: Record<string, string> = {
+  US: '🇺🇸',
+  USA: '🇺🇸',
+  AU: '🇦🇺',
+  UK: '🇬🇧',
+  GB: '🇬🇧',
+  UAE: '🇦🇪',
+  AE: '🇦🇪',
+  IN: '🇮🇳',
+  NZ: '🇳🇿',
+  ZA: '🇿🇦',
+};
+
+export const countryFlag = (countryCode: string): string =>
+  COUNTRY_FLAGS[(countryCode || '').toUpperCase()] ?? '🏟️';
+
+/** Deterministic accent colour for a centre's card stripe, derived from its code. */
+const CENTRE_PALETTE = ['#21295A', '#008482', '#d97706', '#0891b2', '#7c3aed', '#d42b2b'];
+
+export const centreColour = (code: string): string => {
+  let hash = 0;
+  for (let i = 0; i < (code || '').length; i += 1) hash = (hash + code.charCodeAt(i)) % CENTRE_PALETTE.length;
+  return CENTRE_PALETTE[hash];
+};
