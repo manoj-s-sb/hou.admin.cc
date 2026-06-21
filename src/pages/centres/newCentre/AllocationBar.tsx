@@ -2,7 +2,7 @@ import React from 'react';
 
 import { PLAN_CATALOGUE } from '../constants';
 
-import type { WizardPlanRow } from '../types';
+import type { WizardPlanRow } from '../../../store/centres/types';
 
 interface Props {
   capacity: number;

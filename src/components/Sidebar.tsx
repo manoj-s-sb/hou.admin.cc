@@ -9,12 +9,12 @@ import { CENTRE_MODULE_GROUPS } from '../pages/centres/centreModules';
 import { countryFlag } from '../pages/centres/constants';
 import { canRead } from '../rbac/permissions';
 
-import type { CentreApiStatus } from '../pages/centres/apiTypes';
+import type { CentreApiStatus } from '../store/centres/types';
 
 const STATUS_DOT: Record<CentreApiStatus, string> = {
-  active: 'green',
-  draft: 'amber',
-  suspended: 'red',
+  active: 'bg-emerald-400',
+  draft: 'bg-amber-400',
+  suspended: 'bg-red-400',
 };
 
 interface SidebarProps {
@@ -74,19 +74,25 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
         {/* Navigation — swaps to the centre's module nav while a centre is open */}
         {activeCentre ? (
-          <div className="cmx-sidebar-ops">
-            <button className="cmx-cd-back" type="button" onClick={() => closeCentre()}>
+          <div className="flex flex-[1_1_auto] flex-col gap-px overflow-y-auto bg-[#21295a] px-3 py-3.5">
+            <button
+              className="flex cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-2 py-1.5 text-[12.5px] font-semibold text-white/70 transition-all hover:bg-white/10 hover:text-white"
+              type="button"
+              onClick={() => closeCentre()}
+            >
               <svg fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
               Back to Centres
             </button>
 
-            <div className="cmx-cd-badge">
-              <span className={`cmx-cd-dot ${STATUS_DOT[activeCentre.status] ?? 'gray'}`} />
+            <div className="my-2 flex items-center gap-2.5 border-y border-white/10 px-2 py-3">
+              <span
+                className={`h-[9px] w-[9px] flex-shrink-0 rounded-full bg-muted ${STATUS_DOT[activeCentre.status] ?? ''}`}
+              />
               <div style={{ minWidth: 0 }}>
-                <div className="cmx-cd-badge-name">{activeCentre.name}</div>
-                <div className="cmx-cd-badge-sub">
+                <div className="truncate text-[13px] font-bold text-white">{activeCentre.name}</div>
+                <div className="truncate text-[11.5px] text-white/60">
                   {countryFlag(activeCentre.countryCode)} {activeCentre.code}
                 </div>
               </div>
@@ -94,11 +100,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
             {CENTRE_MODULE_GROUPS.map(g => (
               <React.Fragment key={g.group}>
-                <div className="cmx-cd-sep">{g.group}</div>
+                <div className="px-2 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.06em] text-white/40">
+                  {g.group}
+                </div>
                 {g.items.map(m => (
                   <button
                     key={m.key}
-                    className={`cmx-cd-navitem ${module === m.key ? 'active' : ''}`}
+                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-2.5 py-[9px] text-left text-[13px] font-medium text-white/65 transition-all hover:bg-white/10 hover:text-white ${module === m.key ? 'bg-white/[0.18] font-semibold text-white' : ''}`}
                     type="button"
                     onClick={() => {
                       setModule(m.key);

@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { GRID_3 } from '../constants';
+
 /**
  * Generic, recursive renderer for arbitrary backend objects.
  *
@@ -44,8 +46,6 @@ const labelStyle: React.CSSProperties = {
   color: 'var(--sub)',
 };
 
-const GRID: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 };
-
 const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
     <span style={labelStyle}>{label}</span>
@@ -76,7 +76,7 @@ const AutoFields: React.FC<Props> = ({ data, omit = [] }) => {
   }
 
   return (
-    <div style={GRID}>
+    <div style={GRID_3}>
       {entries.map(([key, value]) => {
         const label = humanize(key);
 

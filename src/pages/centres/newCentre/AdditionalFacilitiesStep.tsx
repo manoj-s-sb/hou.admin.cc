@@ -2,7 +2,7 @@ import React from 'react';
 
 import NumberInput from '../../../components/NumberInput';
 
-import type { AdditionalFacility, AdditionalFacilityType } from '../types';
+import type { AdditionalFacility, AdditionalFacilityType } from '../../../store/centres/types';
 
 const PANELS: {
   type: AdditionalFacilityType;
@@ -54,6 +54,9 @@ const SLOT_OPTIONS = [
   '120 minutes',
   'No fixed slots (open access)',
 ];
+
+const FF_INPUT =
+  'w-full rounded-[7px] border border-cmx-border bg-white px-2.5 py-2 text-[13px] text-cmx-text outline-none focus:border-cmx-blue focus:shadow-[0_0_0_2px_rgba(37,99,235,0.1)] disabled:bg-gray-50 disabled:text-muted';
 
 let seq = 0;
 const uid = (type: string) => {
@@ -113,8 +116,8 @@ const PhotoUpload: React.FC<{ photoName?: string; onPick: (name: string | undefi
   photoName,
   onPick,
 }) => (
-  <label className="cmx-ff">
-    <span className="cmx-fld-lbl">Photo</span>
+  <label className="flex flex-col gap-1">
+    <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Photo</span>
     <div
       style={{
         border: '1.5px dashed var(--border)',
@@ -197,13 +200,21 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         <>
           <SectionLabel>PlayStation setup</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <label className="cmx-ff">
-              <span className="cmx-fld-lbl">Number of PS units</span>
-              <NumberInput min={1} value={f.psUnits ?? 0} onValueChange={v => patch(f.id, { psUnits: v })} />
-            </label>
-            <label className="cmx-ff">
-              <span className="cmx-fld-lbl">Charge per hour ($)</span>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Number of PS units</span>
               <NumberInput
+                className={FF_INPUT}
+                min={1}
+                value={f.psUnits ?? 0}
+                onValueChange={v => patch(f.id, { psUnits: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+                Charge per hour ($)
+              </span>
+              <NumberInput
+                className={FF_INPUT}
                 min={0}
                 step={0.01}
                 value={f.chargePerHour ?? 0}
@@ -212,17 +223,25 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
             </label>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <label className="cmx-ff">
-              <span className="cmx-fld-lbl">Min session</span>
-              <select value={f.minSession} onChange={e => patch(f.id, { minSession: e.target.value })}>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Min session</span>
+              <select
+                className={FF_INPUT}
+                value={f.minSession}
+                onChange={e => patch(f.id, { minSession: e.target.value })}
+              >
                 {['30 minutes', '60 minutes', '90 minutes'].map(o => (
                   <option key={o}>{o}</option>
                 ))}
               </select>
             </label>
-            <label className="cmx-ff">
-              <span className="cmx-fld-lbl">Max session</span>
-              <select value={f.maxSession} onChange={e => patch(f.id, { maxSession: e.target.value })}>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Max session</span>
+              <select
+                className={FF_INPUT}
+                value={f.maxSession}
+                onChange={e => patch(f.id, { maxSession: e.target.value })}
+              >
                 {['60 minutes', '120 minutes', '180 minutes', 'No limit'].map(o => (
                   <option key={o}>{o}</option>
                 ))}
@@ -244,16 +263,24 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
     return (
       <>
         {roomLabel && (
-          <label className="cmx-ff" style={{ marginBottom: 12 }}>
-            <span className="cmx-fld-lbl">Room name</span>
-            <input type="text" value={f.name} onChange={e => patch(f.id, { name: e.target.value })} />
+          <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Room name</span>
+            <input
+              className={FF_INPUT}
+              type="text"
+              value={f.name}
+              onChange={e => patch(f.id, { name: e.target.value })}
+            />
           </label>
         )}
         <SectionLabel>Pricing</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <label className="cmx-ff">
-            <span className="cmx-fld-lbl">Fortnightly price ($)</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+              Fortnightly price ($)
+            </span>
             <NumberInput
+              className={FF_INPUT}
               min={0}
               placeholder="e.g. 29.95"
               step={0.01}
@@ -261,9 +288,10 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               onValueChange={v => patch(f.id, { fortnightlyPrice: v })}
             />
           </label>
-          <label className="cmx-ff">
-            <span className="cmx-fld-lbl">Annual discount (%)</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Annual discount (%)</span>
             <NumberInput
+              className={FF_INPUT}
               max={100}
               min={0}
               placeholder="e.g. 15"
@@ -275,25 +303,33 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
 
         <SectionLabel>Capacity &amp; Access</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <label className="cmx-ff">
-            <span className="cmx-fld-lbl">{f.type === 'gym' ? 'Total capacity (members)' : 'Seating capacity'}</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+              {f.type === 'gym' ? 'Total capacity (members)' : 'Seating capacity'}
+            </span>
             <NumberInput
+              className={FF_INPUT}
               min={1}
               value={f.type === 'gym' ? f.totalCapacity : (f.seatingCapacity ?? 0)}
               onValueChange={v => patch(f.id, f.type === 'gym' ? { totalCapacity: v } : { seatingCapacity: v })}
             />
           </label>
-          <label className="cmx-ff">
-            <span className="cmx-fld-lbl">Max concurrent users</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Max concurrent users</span>
             <NumberInput
+              className={FF_INPUT}
               min={1}
               value={f.concurrentCapacity}
               onValueChange={v => patch(f.id, { concurrentCapacity: v })}
             />
           </label>
-          <label className="cmx-ff">
-            <span className="cmx-fld-lbl">Slot duration</span>
-            <select value={f.slotDuration} onChange={e => patch(f.id, { slotDuration: e.target.value })}>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Slot duration</span>
+            <select
+              className={FF_INPUT}
+              value={f.slotDuration}
+              onChange={e => patch(f.id, { slotDuration: e.target.value })}
+            >
               {SLOT_OPTIONS.map(o => (
                 <option key={o}>{o}</option>
               ))}
@@ -303,18 +339,28 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
 
         <SectionLabel>Guest Access</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <label className="cmx-ff">
-            <span className="cmx-fld-lbl">Guest session price ($)</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+              Guest session price ($)
+            </span>
             <NumberInput
+              className={FF_INPUT}
               min={0}
               step={0.01}
               value={f.guestSessionPrice}
               onValueChange={v => patch(f.id, { guestSessionPrice: v })}
             />
           </label>
-          <label className="cmx-ff">
-            <span className="cmx-fld-lbl">Free guest visits / month</span>
-            <NumberInput min={0} value={f.freeGuestVisits} onValueChange={v => patch(f.id, { freeGuestVisits: v })} />
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+              Free guest visits / month
+            </span>
+            <NumberInput
+              className={FF_INPUT}
+              min={0}
+              value={f.freeGuestVisits}
+              onValueChange={v => patch(f.id, { freeGuestVisits: v })}
+            />
           </label>
         </div>
 
@@ -327,7 +373,10 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
 
   return (
     <div>
-      <div className="cmx-note" style={{ marginBottom: 16 }}>
+      <div
+        className="rounded-lg border border-[#b3b7d4] bg-[#ecedf4] px-3.5 py-3 text-xs text-[#21295a]"
+        style={{ marginBottom: 16 }}
+      >
         Enable additional spaces members can book via the app. Each facility shows real-time availability. These are
         optional — you can also configure them after the centre is created.
       </div>
@@ -386,16 +435,16 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
                   <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 1 }}>{panel.desc}</div>
                 </div>
               </div>
-              <label className="cmx-toggle">
+              <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
                 <input
                   aria-label={`Enable ${panel.title}`}
                   checked={enabled}
+                  className="peer sr-only"
                   type="checkbox"
                   onChange={e => toggleType(panel.type, panel.multi, e.target.checked)}
                 />
-                <span className="track">
-                  <span className="knob" />
-                </span>
+                <span className="absolute inset-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-navy" />
+                <span className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform peer-checked:translate-x-[18px]" />
               </label>
             </div>
 
@@ -482,10 +531,11 @@ const OperatingHours: React.FC<{
   f: AdditionalFacility;
   patch: (id: string, p: Partial<AdditionalFacility>) => void;
 }> = ({ f, patch }) => (
-  <label className="cmx-ff" style={{ marginBottom: 12 }}>
-    <span className="cmx-fld-lbl">Operating hours</span>
+  <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
+    <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Operating hours</span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <input
+        className={FF_INPUT}
         style={{ width: 130 }}
         type="time"
         value={f.openTime}
@@ -493,6 +543,7 @@ const OperatingHours: React.FC<{
       />
       <span style={{ fontSize: 12, color: 'var(--sub)' }}>to</span>
       <input
+        className={FF_INPUT}
         style={{ width: 130 }}
         type="time"
         value={f.closeTime}

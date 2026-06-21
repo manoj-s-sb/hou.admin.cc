@@ -1,20 +1,25 @@
 import React, { useEffect, useState } from 'react';
 
+import { useDispatch, useSelector } from 'react-redux';
+
 import { useCentreNav } from '../../../contexts/CentreNavContext';
+import { getCentreDetails } from '../../../store/centres/api';
+import { AppDispatch, RootState } from '../../../store/store';
 import { centreColour, countryFlag } from '../constants';
-import { getCentreDetails } from '../useCentres';
+import NewCentreWizard from '../newCentre/NewCentreWizard';
 
 import AutoFields from './AutoFields';
 import BookingsTab from './BookingsTab';
 import MembersTab from './MembersTab';
-import NewCentreWizard from './NewCentreWizard';
 
-import type { ApiLane, CentreApiStatus, CentreBundle } from '../apiTypes';
+import type { ApiLane, CentreApiStatus } from '../../../store/centres/types';
+
+const PILL_BASE = 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold';
 
 const STATUS_PILL: Record<CentreApiStatus, { label: string; tone: string }> = {
-  active: { label: 'Active', tone: 'green' },
-  draft: { label: 'Draft', tone: 'amber' },
-  suspended: { label: 'Suspended', tone: 'red' },
+  active: { label: 'Active', tone: 'bg-cmx-green-bg text-cmx-green' },
+  draft: { label: 'Draft', tone: 'bg-cmx-amber-bg text-cmx-amber' },
+  suspended: { label: 'Suspended', tone: 'bg-red-100 text-red-600' },
 };
 
 const GRID: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 };
@@ -43,9 +48,12 @@ const Field: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, va
 );
 
 const Card: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="cmx-tbl-wrap" style={{ marginBottom: 16, padding: 16 }}>
-    <div className="cmx-section-title" style={{ marginBottom: 12 }}>
-      <span className="dot" />
+  <div
+    className="overflow-x-auto rounded-[10px] border border-cmx-border bg-white"
+    style={{ marginBottom: 16, padding: 16 }}
+  >
+    <div className="flex items-center gap-2 text-sm font-bold text-navy" style={{ marginBottom: 12 }}>
+      <span className="h-[7px] w-[7px] rounded-full bg-cmx-blue" />
       {title}
     </div>
     {children}
@@ -71,8 +79,8 @@ const OpsModulePlaceholder: React.FC<{ module: string; centreName?: string }> = 
   const copy = OPS_MODULE_COPY[module];
   if (!copy) return null;
   return (
-    <div className="cmx-placeholder">
-      <div className="ph-title">{copy.title}</div>
+    <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
+      <div className="text-sm font-bold text-navy">{copy.title}</div>
       <div style={{ marginTop: 6, color: 'var(--sub)' }}>{copy.desc}</div>
       {centreName && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--sub)' }}>Centre: {centreName}</div>}
       <div
@@ -86,30 +94,17 @@ const OpsModulePlaceholder: React.FC<{ module: string; centreName?: string }> = 
 
 const CentreDetailView: React.FC<Props> = ({ code }) => {
   const { module } = useCentreNav();
-  const [bundle, setBundle] = useState<CentreBundle | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const {
+    details: bundle,
+    detailsLoading: isLoading,
+    detailsError: error,
+  } = useSelector((state: RootState) => state.centres);
   const [editing, setEditing] = useState(false);
-  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
-    getCentreDetails(code)
-      .then(data => {
-        if (!cancelled) setBundle(data);
-      })
-      .catch(() => {
-        if (!cancelled) setError('Could not load this centre. The details API may not be reachable yet.');
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [code, reloadNonce]);
+    dispatch(getCentreDetails(code));
+  }, [dispatch, code]);
 
   // ── Edit / activate: open the wizard pre-filled from the loaded bundle ──
   if (editing && bundle) {
@@ -119,7 +114,7 @@ const CentreDetailView: React.FC<Props> = ({ code }) => {
         onClose={() => setEditing(false)}
         onSaved={() => {
           setEditing(false);
-          setReloadNonce(n => n + 1); // pull fresh status/config back into the detail view
+          dispatch(getCentreDetails(code)); // pull fresh status/config back into the detail view
         }}
       />
     );
@@ -131,31 +126,41 @@ const CentreDetailView: React.FC<Props> = ({ code }) => {
   const centreId = facility?.id ?? code;
 
   return (
-    <div className="cmx">
+    <div className="font-sans text-sm text-cmx-text">
       {/* Header */}
-      <div className="cmx-section-head" style={{ marginBottom: 16, alignItems: 'center' }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 16, alignItems: 'center' }}>
         <div
-          className="cmx-page-title"
+          className="mb-1 text-xl font-bold text-navy"
           style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}
         >
           {facility && <span style={{ width: 6, height: 26, borderRadius: 3, background: centreColour(code) }} />}
           {facility ? `${countryFlag(facility.countryCode)} ${facility.name}` : code}
           {facility && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>· {facility.code}</span>}
-          {status && <span className={`cmx-pill ${status.tone}`}>{status.label}</span>}
+          {status && <span className={`${PILL_BASE} ${status.tone}`}>{status.label}</span>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="cmx-btn cmx-btn-navy" disabled={!bundle} type="button" onClick={() => setEditing(true)}>
+          <button
+            className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:opacity-90"
+            disabled={!bundle}
+            type="button"
+            onClick={() => setEditing(true)}
+          >
             {facility?.status === 'draft' ? 'Edit & Activate' : 'Edit'}
           </button>
-          <button disabled className="cmx-btn" title="Coming soon (legacy model)" type="button">
+          <button
+            disabled
+            className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold transition-all"
+            title="Coming soon (legacy model)"
+            type="button"
+          >
             Suspend
           </button>
         </div>
       </div>
 
       {isLoading && (
-        <div className="cmx-placeholder">
-          <div className="ph-title">Loading centre…</div>
+        <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
+          <div className="text-sm font-bold text-navy">Loading centre…</div>
         </div>
       )}
 
@@ -287,34 +292,60 @@ const CentreDetailView: React.FC<Props> = ({ code }) => {
 
           {/* ── Centre Config: Lanes ── */}
           {module === 'lanes' && (
-            <div className="cmx-tbl-wrap">
-              <table className="cmx-tbl">
+            <div className="overflow-x-auto rounded-[10px] border border-cmx-border bg-white">
+              <table className="w-full border-collapse text-[13px]">
                 <thead>
                   <tr>
-                    <th>Lane</th>
-                    <th>Type</th>
-                    <th>Code</th>
-                    <th>Status</th>
-                    <th>Pitch Lengths</th>
+                    <th className="border-b border-cmx-border bg-gray-50 px-3.5 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.04em] text-sub">
+                      Lane
+                    </th>
+                    <th className="border-b border-cmx-border bg-gray-50 px-3.5 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.04em] text-sub">
+                      Type
+                    </th>
+                    <th className="border-b border-cmx-border bg-gray-50 px-3.5 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.04em] text-sub">
+                      Code
+                    </th>
+                    <th className="border-b border-cmx-border bg-gray-50 px-3.5 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.04em] text-sub">
+                      Status
+                    </th>
+                    <th className="border-b border-cmx-border bg-gray-50 px-3.5 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.04em] text-sub">
+                      Pitch Lengths
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {bundle.lanes.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--sub)', padding: 24 }}>
+                      <td
+                        className="border-b border-gray-100 px-3.5 py-[11px] align-middle"
+                        colSpan={5}
+                        style={{ textAlign: 'center', color: 'var(--sub)', padding: 24 }}
+                      >
                         No lanes configured.
                       </td>
                     </tr>
                   )}
                   {bundle.lanes.map((lane: ApiLane, i) => (
                     <tr key={lane.id ?? `${lane.code}-${i}`}>
-                      <td>#{lane.laneNo}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{lane.laneType}</td>
-                      <td>{lane.code}</td>
-                      <td>
-                        <span className="cmx-pill gray">{lane.status}</span>
+                      <td className="border-b border-gray-100 px-3.5 py-[11px] align-middle">#{lane.laneNo}</td>
+                      <td
+                        className="border-b border-gray-100 px-3.5 py-[11px] align-middle"
+                        style={{ textTransform: 'capitalize' }}
+                      >
+                        {lane.laneType}
                       </td>
-                      <td style={{ color: 'var(--sub)' }}>{Object.keys(lane.lanePitchMapping ?? {}).length || '—'}</td>
+                      <td className="border-b border-gray-100 px-3.5 py-[11px] align-middle">{lane.code}</td>
+                      <td className="border-b border-gray-100 px-3.5 py-[11px] align-middle">
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-sub">
+                          {lane.status}
+                        </span>
+                      </td>
+                      <td
+                        className="border-b border-gray-100 px-3.5 py-[11px] align-middle"
+                        style={{ color: 'var(--sub)' }}
+                      >
+                        {Object.keys(lane.lanePitchMapping ?? {}).length || '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -324,7 +355,7 @@ const CentreDetailView: React.FC<Props> = ({ code }) => {
 
           {/* ── Centre Config: Plans & Pricing ── */}
           {module === 'plans' && (
-            <div className="cmx-centre-cards">
+            <div className="grid grid-cols-1 gap-4 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3">
               {bundle.memberships.length === 0 && (
                 <div style={{ color: 'var(--sub)', fontSize: 13 }}>No membership plans configured.</div>
               )}
@@ -332,10 +363,18 @@ const CentreDetailView: React.FC<Props> = ({ code }) => {
                 const reg = (m.pricing?.regular ?? {}) as Record<string, unknown>;
                 const cycles = m.pricing?.billingCycles ?? [];
                 return (
-                  <div key={m.id ?? `${m.code}-${i}`} className="cmx-tbl-wrap" style={{ padding: 16 }}>
+                  <div
+                    key={m.id ?? `${m.code}-${i}`}
+                    className="overflow-x-auto rounded-[10px] border border-cmx-border bg-white"
+                    style={{ padding: 16 }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)' }}>{m.name}</span>
-                      {m.isPopular && <span className="cmx-pill green">Popular</span>}
+                      {m.isPopular && (
+                        <span className="inline-flex items-center rounded-full bg-cmx-green-bg px-2 py-0.5 text-[11px] font-semibold text-cmx-green">
+                          Popular
+                        </span>
+                      )}
                     </div>
                     {m.description && (
                       <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 10 }}>{m.description}</div>
@@ -364,7 +403,10 @@ const CentreDetailView: React.FC<Props> = ({ code }) => {
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {m.benefits.map((b, bi) => (
-                            <span key={bi} className="cmx-pill gray">
+                            <span
+                              key={bi}
+                              className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-sub"
+                            >
                               {b}
                             </span>
                           ))}

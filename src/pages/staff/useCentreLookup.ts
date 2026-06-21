@@ -5,10 +5,13 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { listCentres } from '../centres/centresApi';
+import { useDispatch } from 'react-redux';
+
+import { getCentres } from '../../store/centres/api';
 import { countryFlag } from '../centres/constants';
 
-import type { FacilitySummary } from '../centres/apiTypes';
+import type { FacilitySummary } from '../../store/centres/types';
+import type { AppDispatch } from '../../store/store';
 
 export interface CentreLookup {
   /** Label for a single centre code: "🇮🇳 Bangalore, KA" — falls back to the raw code. */
@@ -19,13 +22,15 @@ export interface CentreLookup {
 }
 
 export function useCentreLookup(): CentreLookup {
+  const dispatch = useDispatch<AppDispatch>();
   const [byCode, setByCode] = useState<Record<string, FacilitySummary>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listCentres({ skip: 0, limit: 200 })
+    dispatch(getCentres({ skip: 0, limit: 200 }))
+      .unwrap()
       .then(res => {
         if (cancelled) return;
         const map: Record<string, FacilitySummary> = {};
@@ -43,7 +48,7 @@ export function useCentreLookup(): CentreLookup {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [dispatch]);
 
   const label = useCallback(
     (code: string | null | undefined): string => {

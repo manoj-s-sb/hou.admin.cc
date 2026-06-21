@@ -15,9 +15,10 @@ import type {
   ApiMembershipSalesFlow,
   CentreBundle,
   CentreCreateRequest,
+  OperatingHoursDay,
   OperatingHoursMap,
-} from './apiTypes';
-import type { OperatingHoursDay, WizardState } from './types';
+  WizardState,
+} from '../../../store/centres/types';
 
 const num = (v: number | string | ''): number => {
   const n = typeof v === 'number' ? v : parseFloat(String(v));

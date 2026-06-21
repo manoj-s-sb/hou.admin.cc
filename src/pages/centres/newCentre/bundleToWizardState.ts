@@ -7,10 +7,17 @@
  * chip list, additional bookable facilities, centre discounts) fall back to
  * sensible defaults — the bundle is the source of truth for everything else.
  */
-import { DAYS, PLAN_CATALOGUE } from './constants';
+import { DAYS, PLAN_CATALOGUE } from '../constants';
 
-import type { ApiMembership, CentreBundle, OperatingHoursMap } from './apiTypes';
-import type { OperatingHoursDay, PlanId, WizardPlanRow, WizardState } from './types';
+import type {
+  ApiMembership,
+  CentreBundle,
+  OperatingHoursDay,
+  OperatingHoursMap,
+  PlanId,
+  WizardPlanRow,
+  WizardState,
+} from '../../../store/centres/types';
 
 const DAY_KEYS: (keyof OperatingHoursMap)[] = [
   'monday',

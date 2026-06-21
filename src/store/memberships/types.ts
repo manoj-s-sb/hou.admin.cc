@@ -5,7 +5,7 @@
  * with local pricing). Mirrors the shape the backend exposes so the page,
  * comparison tables and drawer all speak the same model.
  */
-import type { PlanId } from '../../pages/centres/types';
+import type { PlanId } from '../centres/types';
 
 export type PlanStatus = 'active' | 'archived';
 

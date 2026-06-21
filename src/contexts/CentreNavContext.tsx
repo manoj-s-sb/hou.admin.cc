@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
-import type { CentreApiStatus } from '../pages/centres/apiTypes';
+import type { CentreApiStatus } from '../store/centres/types';
 
 /** Modules shown in the centre's left nav (mirrors the HTML ops-nav). */
 export type CentreModuleKey =

@@ -6,9 +6,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
+import { getCentres } from '../../store/centres/api';
 import { createStaff, getStaffConfig, getStaffDetails, getStaffList, updateStaff } from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
-import { listCentres } from '../centres/centresApi';
 
 import AccountStep from './components/AccountStep';
 import DocumentsStep from './components/DocumentsStep';
@@ -27,8 +27,8 @@ import {
   validatePassword,
 } from './utils';
 
+import type { FacilitySummary } from '../../store/centres/types';
 import type { AppDispatch, RootState } from '../../store/store';
-import type { FacilitySummary } from '../centres/apiTypes';
 
 const AddStaffMember: React.FC = () => {
   const navigate = useNavigate();
@@ -99,7 +99,8 @@ const AddStaffMember: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     setCentresLoading(true);
-    listCentres({ skip: 0, limit: 200 })
+    dispatch(getCentres({ skip: 0, limit: 200 }))
+      .unwrap()
       .then(res => {
         if (!cancelled) setCentres(res.facilities ?? []);
       })
@@ -112,7 +113,7 @@ const AddStaffMember: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [dispatch]);
 
   // Load existing staff details in edit mode
   useEffect(() => {

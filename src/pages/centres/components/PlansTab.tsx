@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 
 import { PLAN_CATALOGUE } from '../constants';
 
-import type { CentreWithKPI } from '../types';
+import type { CentreWithKPI } from '../../../store/centres/types';
 
 const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const comingSoon = () => toast('Coming soon');
@@ -37,7 +37,11 @@ const PlansTab: React.FC<Props> = ({ centre }) => {
             Plans currently offered at this centre with local pricing and slot allocations
           </div>
         </div>
-        <button className="cmx-btn cmx-btn-navy" type="button" onClick={comingSoon}>
+        <button
+          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:opacity-90"
+          type="button"
+          onClick={comingSoon}
+        >
           <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
             <line x1="12" x2="12" y1="5" y2="19" />
             <line x1="5" x2="19" y1="12" y2="12" />
@@ -66,12 +70,15 @@ const PlansTab: React.FC<Props> = ({ centre }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: colour, flexShrink: 0 }} />
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)' }}>{b.label}</div>
-                  <span className="cmx-pill" style={{ background: `${colour}18`, color: colour, fontSize: 11 }}>
+                  <span
+                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                    style={{ background: `${colour}18`, color: colour, fontSize: 11 }}
+                  >
                     {b.members} slots
                   </span>
                 </div>
                 <button
-                  className="cmx-btn cmx-btn-outline"
+                  className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
                   style={{ fontSize: 11, padding: '3px 9px' }}
                   type="button"
                   onClick={comingSoon}
@@ -168,7 +175,12 @@ const PlansTab: React.FC<Props> = ({ centre }) => {
           No discounts configured
         </div>
         <div style={{ fontSize: 12 }}>Centre-specific discounts can be added here</div>
-        <button className="cmx-btn cmx-btn-outline" style={{ marginTop: 12 }} type="button" onClick={comingSoon}>
+        <button
+          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
+          style={{ marginTop: 12 }}
+          type="button"
+          onClick={comingSoon}
+        >
           + Add Discount
         </button>
       </div>

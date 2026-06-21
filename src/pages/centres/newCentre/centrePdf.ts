@@ -3,9 +3,9 @@
  * it in the browser's print dialog (where the user can "Save as PDF"). No PDF
  * dependency required — mirrors the Review step's content.
  */
-import { COUNTRIES, DAYS, PLAN_CATALOGUE, TIMEZONES } from './constants';
+import { COUNTRIES, DAYS, PLAN_CATALOGUE, TIMEZONES } from '../constants';
 
-import type { WizardState } from './types';
+import type { WizardState } from '../../../store/centres/types';
 
 const esc = (v: unknown): string =>
   String(v ?? '')
@@ -69,7 +69,7 @@ export function downloadCentrePdf(s: WizardState): boolean {
 <title>${esc(s.name || 'Centre')} — Configuration</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1e293b; margin: 32px; }
+  body { font-family: 'Inter', -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1e293b; margin: 32px; }
   h1 { font-size: 22px; margin: 0 0 2px; color: #21295A; }
   .sub { color: #64748b; font-size: 13px; margin-bottom: 20px; }
   h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: #21295A;

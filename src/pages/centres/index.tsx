@@ -1,24 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
-import './centres.css';
+import { useDispatch, useSelector } from 'react-redux';
 
 import { useCentreNav } from '../../contexts/CentreNavContext';
+import { getCentres } from '../../store/centres/api';
+import { AppDispatch, RootState } from '../../store/store';
 
 import CentreCard from './components/CentreCard';
 import CentreDetailView from './components/CentreDetailView';
-import NewCentreWizard from './components/NewCentreWizard';
-import { useCentres } from './useCentres';
+import { STATUS_FILTERS, PAGE_LIMIT } from './constants';
+import NewCentreWizard from './newCentre/NewCentreWizard';
 
-import type { CentreApiStatus } from './apiTypes';
-
-const STATUS_FILTERS: { key: '' | CentreApiStatus; label: string }[] = [
-  { key: '', label: 'All' },
-  { key: 'active', label: 'Active' },
-  { key: 'draft', label: 'Draft' },
-  { key: 'suspended', label: 'Suspended' },
-];
-
-const LIMIT = 20;
+import type { CentreApiStatus } from '../../store/centres/types';
 
 /** Page numbers with ellipses, mirroring the DataTable pager used on Members. */
 function pageNumbers(current: number, totalPages: number): (number | '...')[] {
@@ -48,19 +41,30 @@ const CentreManagement: React.FC = () => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { facilities, total, isLoading, usingMockData, refetch } = useCentres({
-    status: statusFilter || undefined,
-    search: search || undefined,
-    skip,
-    limit: LIMIT,
-  });
+  const dispatch = useDispatch<AppDispatch>();
+  const { facilities, total, isLoading } = useSelector((state: RootState) => state.centres);
 
-  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
-  const currentPage = Math.floor(skip / LIMIT);
+  const refetch = useCallback(() => {
+    dispatch(
+      getCentres({
+        status: statusFilter || undefined,
+        search: search || undefined,
+        skip,
+        limit: PAGE_LIMIT,
+      })
+    );
+  }, [dispatch, statusFilter, search, skip]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const currentPage = Math.floor(skip / PAGE_LIMIT);
 
   const goToPage = (p: number) => {
     if (p < 0 || p >= totalPages) return;
-    setSkip(p * LIMIT);
+    setSkip(p * PAGE_LIMIT);
   };
 
   // ── Detail view (module nav lives in the global sidebar) ──
@@ -83,14 +87,17 @@ const CentreManagement: React.FC = () => {
   }
 
   return (
-    <div className="cmx">
-      <div className="cmx-page-title">Centre Management</div>
-      <div className="cmx-page-desc">
+    <div className="font-sans text-sm text-cmx-text">
+      <div className="mb-1 text-xl font-bold text-navy">Centre Management</div>
+      <div className="mb-[22px] text-[13px] text-sub">
         Select a centre to open its operations dashboard, or manage network-wide configuration.
       </div>
 
       {/* Filter bar: status chips + search */}
-      <div className="cmx-filter-bar" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        className="mb-5 flex flex-wrap items-end gap-3 rounded-[10px] border border-cmx-border bg-white px-[18px] py-3.5 shadow-cmx"
+        style={{ justifyContent: 'space-between', alignItems: 'center' }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span className="cmx-eyebrow" style={{ margin: 0 }}>
             Status:
@@ -98,7 +105,9 @@ const CentreManagement: React.FC = () => {
           {STATUS_FILTERS.map(f => (
             <button
               key={f.key || 'all'}
-              className={`cmx-country-chip ${statusFilter === f.key ? 'active' : ''}`}
+              className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border bg-white px-2.5 py-1 text-xs font-medium transition-all ${
+                statusFilter === f.key ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : 'border-cmx-border text-sub'
+              }`}
               type="button"
               onClick={() => {
                 setStatusFilter(f.key);
@@ -124,9 +133,9 @@ const CentreManagement: React.FC = () => {
         />
       </div>
 
-      <div className="cmx-section-head" style={{ marginBottom: 16 }}>
-        <div className="cmx-section-title">
-          <span className="dot" />
+      <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+        <div className="flex items-center gap-2 text-sm font-bold text-navy">
+          <span className="h-[7px] w-[7px] rounded-full bg-cmx-blue" />
           All Centres
           {!isLoading && <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--sub)' }}> · {total}</span>}
         </div>
@@ -139,29 +148,13 @@ const CentreManagement: React.FC = () => {
         </button>
       </div>
 
-      {usingMockData && (
-        <div
-          style={{
-            fontSize: 12,
-            color: '#92400e',
-            background: '#fffbeb',
-            border: '1px solid #fde68a',
-            borderRadius: 8,
-            padding: '8px 12px',
-            marginBottom: 14,
-          }}
-        >
-          Showing seed data — the Centre Management API is not yet reachable.
-        </div>
-      )}
-
       {isLoading ? (
-        <div className="cmx-placeholder">
-          <div className="ph-title">Loading centres…</div>
+        <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
+          <div className="text-sm font-bold text-navy">Loading centres…</div>
         </div>
       ) : (
         <>
-          <div className="cmx-centre-cards">
+          <div className="grid grid-cols-1 gap-4 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3">
             {facilities.map(c => (
               <CentreCard
                 key={c.id || c.code}
@@ -180,15 +173,21 @@ const CentreManagement: React.FC = () => {
             {/* Add New Centre dashed card */}
             <button
               aria-label="Add new centre"
-              className="cmx-add-centre-card"
+              className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"
               type="button"
               onClick={() => setWizardOpen(true)}
             >
-              <svg fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <svg
+                className="h-7 w-7 text-muted"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                viewBox="0 0 24 24"
+              >
                 <line x1="12" x2="12" y1="5" y2="19" />
                 <line x1="5" x2="19" y1="12" y2="12" />
               </svg>
-              <span>Add New Centre</span>
+              <span className="text-[13px] font-semibold text-sub">Add New Centre</span>
             </button>
           </div>
 
@@ -196,7 +195,7 @@ const CentreManagement: React.FC = () => {
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
               <span className="text-xs text-gray-400">
-                {skip + 1}–{Math.min(skip + LIMIT, total)} of {total}
+                {skip + 1}–{Math.min(skip + PAGE_LIMIT, total)} of {total}
               </span>
               <div className="flex items-center gap-1">
                 <button
