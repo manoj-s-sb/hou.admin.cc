@@ -40,6 +40,15 @@ export interface FacilityKpi {
   plans?: Record<string, number>;
 }
 
+/** Per-facility rollup exactly as POST /admin/centres/list returns it. */
+export interface FacilityStats {
+  totalMembers?: number;
+  membersByPlan?: Record<string, number>;
+  totalBookingsLast30Days?: number;
+  totalInductions?: number;
+  noShowRatePercent?: number;
+}
+
 /** One row returned by POST /admin/centres/list. */
 export interface FacilitySummary {
   id: string;
@@ -55,7 +64,9 @@ export interface FacilitySummary {
   freeSolts: number; // sic — backend spelling
   createdAt: string;
   updatedAt: string;
-  /** Optional rollup — present once the backend enriches list rows. */
+  /** Raw rollup as the API sends it; mapped into `kpi` by the getCentres thunk. */
+  stats?: FacilityStats;
+  /** Normalised rollup the card reads (mapped from `stats`). */
   kpi?: FacilityKpi;
 }
 

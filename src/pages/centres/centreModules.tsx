@@ -5,6 +5,7 @@ import CoachSchedule from '../coach';
 import Induction from '../induction';
 import Members from '../members';
 import SlotBookings from '../slots';
+import Tailgate from '../tailgate';
 import Tours from '../tours';
 
 import type { CentreModuleKey } from '../../contexts/CentreNavContext';
@@ -116,6 +117,19 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         slug: 'tours',
         component: Tours,
         scope: ACCESS_SCOPES.tour,
+        icon: I(
+          <>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4l3 3" />
+          </>
+        ),
+      },
+      {
+        key: 'tailgate',
+        label: 'Tailgate',
+        slug: 'tailgate',
+        component: Tailgate,
+        scope: ACCESS_SCOPES.tailgate,
         icon: I(
           <>
             <circle cx="12" cy="12" r="10" />

@@ -40,7 +40,18 @@ export const getCentres = createAsyncThunk<
     };
     const res = await api.post<{ data: CentreListResponse }>(endpoints.centres.centresList, body);
     const data = res.data?.data ?? (res.data as unknown as CentreListResponse);
-    return { facilities: data.facilities ?? [], total: data.total ?? data.facilities?.length ?? 0 };
+    // Map the API's `stats` rollup onto the `kpi` shape the card reads. Fields the API
+    // doesn't supply (utilisation, tailgates, open tasks) stay undefined → render as "—".
+    const facilities = (data.facilities ?? []).map(f => ({
+      ...f,
+      kpi: f.kpi ?? {
+        totalMembers: f.stats?.totalMembers,
+        bookings30d: f.stats?.totalBookingsLast30Days,
+        noShowPct: f.stats?.noShowRatePercent,
+        plans: f.stats?.membersByPlan,
+      },
+    }));
+    return { facilities, total: data.total ?? facilities.length };
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to fetch centres'));
   }
