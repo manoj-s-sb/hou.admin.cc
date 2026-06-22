@@ -1,13 +1,13 @@
 import React from 'react';
 
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import menus from '../constants/menus';
-import { ROUTES } from '../constants/routes';
+import { MENU_GROUPS } from '../constants/menus';
+import { ROUTES, buildRoute } from '../constants/routes';
 import { useCentreNav } from '../contexts/CentreNavContext';
 import { CENTRE_MODULE_GROUPS } from '../pages/centres/centreModules';
 import { countryFlag } from '../pages/centres/constants';
-import { canRead } from '../rbac/permissions';
+import { canRead, isSuperAdmin } from '../rbac/permissions';
 
 import type { CentreApiStatus } from '../store/centres/types';
 
@@ -30,9 +30,15 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) 
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const location = useLocation();
-  const { activeCentre, module, setModule, closeCentre } = useCentreNav();
+  const navigate = useNavigate();
+  const { activeCentre, closeCentre } = useCentreNav();
 
-  const menuItems = menus.filter(item => canRead(item.module));
+  const superAdmin = isSuperAdmin();
+  // Filter each group's items by permission + super-admin visibility; drop empty groups.
+  const visibleGroups = MENU_GROUPS.map(g => ({
+    group: g.group,
+    items: g.items.filter(item => canRead(item.module) && !(item.hideForSuperAdmin && superAdmin)),
+  })).filter(g => g.items.length > 0);
 
   const handleOverlayKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!onClose) return;
@@ -74,25 +80,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
         {/* Navigation — swaps to the centre's module nav while a centre is open */}
         {activeCentre ? (
-          <div className="flex flex-[1_1_auto] flex-col gap-px overflow-y-auto bg-[#21295a] px-3 py-3.5">
+          <nav className="flex-1 overflow-y-auto py-4">
+            {/* Back to Centres — same item styling as the global menu */}
             <button
-              className="flex cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-2 py-1.5 text-[12.5px] font-semibold text-white/70 transition-all hover:bg-white/10 hover:text-white"
+              className="mx-2 my-1 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-5 py-3 text-left text-gray-700 transition-all duration-200 hover:translate-x-1 hover:bg-gray-100 hover:text-gray-900"
               type="button"
-              onClick={() => closeCentre()}
+              onClick={() => {
+                closeCentre();
+                navigate(ROUTES.CENTRES.path);
+              }}
             >
-              <svg fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <svg
+                className="h-5 w-5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-              Back to Centres
+              <span className="text-sm font-medium">Back to Centres</span>
             </button>
 
-            <div className="my-2 flex items-center gap-2.5 border-y border-white/10 px-2 py-3">
+            {/* Active centre identity */}
+            <div className="mx-2 my-2 flex items-center gap-2.5 border-y border-gray-200 px-5 py-3">
               <span
-                className={`h-[9px] w-[9px] flex-shrink-0 rounded-full bg-muted ${STATUS_DOT[activeCentre.status] ?? ''}`}
+                className={`h-[9px] w-[9px] flex-shrink-0 rounded-full ${STATUS_DOT[activeCentre.status] ?? 'bg-gray-300'}`}
               />
               <div style={{ minWidth: 0 }}>
-                <div className="truncate text-[13px] font-bold text-white">{activeCentre.name}</div>
-                <div className="truncate text-[11.5px] text-white/60">
+                <div className="truncate text-[13px] font-bold text-gray-900">{activeCentre.name}</div>
+                <div className="truncate text-[11.5px] text-gray-500">
                   {countryFlag(activeCentre.countryCode)} {activeCentre.code}
                 </div>
               </div>
@@ -100,64 +117,81 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
             {CENTRE_MODULE_GROUPS.map(g => (
               <React.Fragment key={g.group}>
-                <div className="px-2 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.06em] text-white/40">
+                <div className="px-5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.06em] text-gray-400">
                   {g.group}
                 </div>
-                {g.items.map(m => (
-                  <button
-                    key={m.key}
-                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-2.5 py-[9px] text-left text-[13px] font-medium text-white/65 transition-all hover:bg-white/10 hover:text-white ${module === m.key ? 'bg-white/[0.18] font-semibold text-white' : ''}`}
-                    type="button"
-                    onClick={() => {
-                      setModule(m.key);
-                      if (window.innerWidth < 1024 && onClose) onClose();
-                    }}
-                  >
-                    {m.icon}
-                    {m.label}
-                  </button>
-                ))}
+                {g.items.map(m => {
+                  const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
+                  const isActive = location.pathname === modulePath;
+                  return (
+                    <button
+                      key={m.key}
+                      className={`mx-2 my-1 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg px-5 py-3 text-left transition-all duration-200 ${
+                        isActive
+                          ? 'border-l-4 border-[#21295A] bg-gradient-to-r from-[#21295A]/10 to-[#21295A]/5 font-semibold text-[#21295A] shadow-sm'
+                          : 'text-gray-700 hover:translate-x-1 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                      type="button"
+                      onClick={() => {
+                        navigate(modulePath);
+                        if (window.innerWidth < 1024 && onClose) onClose();
+                      }}
+                    >
+                      <span className={`flex items-center transition-transform ${isActive ? 'scale-110' : ''}`}>
+                        {m.icon}
+                      </span>
+                      <span className="text-sm">{m.label}</span>
+                    </button>
+                  );
+                })}
               </React.Fragment>
             ))}
-          </div>
+          </nav>
         ) : (
           <nav className="flex-1 overflow-y-auto py-4">
-            {menuItems.map(item => {
-              const isActive =
-                location.pathname === item.path ||
-                location.pathname.startsWith(`${item.path}/`) ||
-                (item.path === ROUTES.INDUCTION.path && location.pathname.startsWith('/view-induction')) ||
-                (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members'));
+            {visibleGroups.map(g => (
+              <React.Fragment key={g.group}>
+                <div className="px-5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.06em] text-gray-400">
+                  {g.group}
+                </div>
+                {g.items.map(item => {
+                  const isActive =
+                    location.pathname === item.path ||
+                    location.pathname.startsWith(`${item.path}/`) ||
+                    (item.path === ROUTES.INDUCTION.path && location.pathname.startsWith('/view-induction')) ||
+                    (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members'));
 
-              return (
-                <Link
-                  key={item.path}
-                  className={`mx-2 my-1 flex items-center rounded-lg px-5 py-3 no-underline transition-all duration-200 ${
-                    isActive
-                      ? 'border-l-4 border-[#21295A] bg-gradient-to-r from-[#21295A]/10 to-[#21295A]/5 font-semibold text-[#21295A] shadow-sm'
-                      : 'text-gray-700 hover:translate-x-1 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                  to={item.path}
-                  onClick={() => {
-                    // Close sidebar on mobile when a link is clicked
-                    if (window.innerWidth < 1024 && onClose) {
-                      onClose();
-                    }
-                  }}
-                >
-                  <span className="flex w-full items-center gap-3">
-                    {item.icon && (
-                      <img
-                        alt={item.label}
-                        className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`}
-                        src={item.icon}
-                      />
-                    )}
-                    <span className="text-sm">{item.label}</span>
-                  </span>
-                </Link>
-              );
-            })}
+                  return (
+                    <Link
+                      key={item.path}
+                      className={`mx-2 my-1 flex items-center rounded-lg px-5 py-3 no-underline transition-all duration-200 ${
+                        isActive
+                          ? 'border-l-4 border-[#21295A] bg-gradient-to-r from-[#21295A]/10 to-[#21295A]/5 font-semibold text-[#21295A] shadow-sm'
+                          : 'text-gray-700 hover:translate-x-1 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                      to={item.path}
+                      onClick={() => {
+                        // Close sidebar on mobile when a link is clicked
+                        if (window.innerWidth < 1024 && onClose) {
+                          onClose();
+                        }
+                      }}
+                    >
+                      <span className="flex w-full items-center gap-3">
+                        {item.icon && (
+                          <img
+                            alt={item.label}
+                            className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`}
+                            src={item.icon}
+                          />
+                        )}
+                        <span className="text-sm">{item.label}</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </React.Fragment>
+            ))}
           </nav>
         )}
       </div>

@@ -7,6 +7,7 @@ import { ROUTES } from '../constants/routes';
 import { CentreNavProvider } from '../contexts/CentreNavContext';
 import { logout as logoutAction } from '../store/auth/reducers';
 import { persistor, RootState } from '../store/store';
+import { facilityScope } from '../utils/facilityScope';
 
 import Sidebar from './Sidebar';
 
@@ -53,6 +54,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleLogout = () => {
     dispatch(logoutAction());
     persistor.purge();
+    facilityScope.reset();
     navigate(ROUTES.LOGIN.path);
   };
 

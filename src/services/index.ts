@@ -1,5 +1,6 @@
 import { AxiosError, create, InternalAxiosRequestConfig } from 'axios';
 
+import { facilityScope } from '../utils/facilityScope';
 import { isTokenExpired } from '../utils/tokenUtils';
 
 // Create axios instance with default configuration
@@ -17,6 +18,7 @@ type StoreLike = {
     auth: {
       tokens?: { access_token?: string } | null;
       tokenExpirationTime?: number | null;
+      user?: { facilityCode?: string } | null;
     };
   };
 };
@@ -24,6 +26,14 @@ let storeRef: StoreLike | null = null;
 export const attachStore = (store: StoreLike) => {
   storeRef = store;
 };
+
+/**
+ * Which facility every request is scoped to.
+ *  - Superadmin who opened a centre → the SELECTED centre (localStorage) wins.
+ *  - Coach / staff → fall through to the facility ASSIGNED at login (auth).
+ * Returns '' when neither applies (e.g. superadmin on the all-centres list).
+ */
+const resolveFacilityCode = (): string => facilityScope.get() || storeRef?.getState().auth.user?.facilityCode || '';
 
 // Callback to trigger session expired modal
 let onSessionExpiredCallback: (() => void) | null = null;
@@ -57,6 +67,24 @@ api.interceptors.request.use(
 
     if (authState?.tokens?.access_token && config.headers) {
       config.headers.Authorization = `Bearer ${authState.tokens.access_token}`;
+    }
+
+    // Scope opt-in requests to the active facility so modules never pass the code by
+    // hand. Only calls flagged `facilityScoped` (via SCOPED) get it — endpoints with
+    // strict schemas omit the flag and are left untouched. Writes carry it in the body
+    // (the codebase convention); reads carry it as a query param. Never override a code
+    // a caller set explicitly.
+    const facilityCode = config.facilityScoped ? resolveFacilityCode() : '';
+    if (facilityCode) {
+      const method = (config.method ?? 'get').toLowerCase();
+      const isWrite = method === 'post' || method === 'put' || method === 'patch';
+      if (isWrite && !(config.data instanceof FormData)) {
+        const body = typeof config.data === 'string' ? JSON.parse(config.data || '{}') : (config.data ?? {});
+        if (body.facilityCode === undefined) body.facilityCode = facilityCode;
+        config.data = body;
+      } else if (!isWrite) {
+        config.params = { facilityCode, ...(config.params ?? {}) };
+      }
     }
     return config;
   },

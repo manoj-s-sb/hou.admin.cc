@@ -21,7 +21,7 @@ import ScheduleCard from './components/ScheduleCard';
 import ScheduleModal from './components/ScheduleModal';
 import StepsModal from './components/StepsModal';
 import TaskCard from './components/TaskCard';
-import { Tab, TaskFrequency, getLocalUser, tabs, taskFrequencies } from './constants';
+import { Tab, TaskFrequency, getFacilityCode, getLocalUser, tabs, taskFrequencies } from './constants';
 
 type IssueFilter = 'new' | 'active' | 'closed';
 const issueFilterStatus: Record<IssueFilter, string> = {
@@ -111,7 +111,7 @@ const Maintenance = () => {
     fetchRequestRef.current?.abort();
     fetchRequestRef.current = dispatch(
       getWorkList({
-        facilityCode: getLocalUser().facilityCode,
+        facilityCode: getFacilityCode(),
         page,
         limit,
         type,
@@ -134,13 +134,11 @@ const Maintenance = () => {
       );
     } else if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(
-        getWorkList({ facilityCode: getLocalUser().facilityCode, page: 1, limit: 20, type: 'task', toDate: yesterday })
-      );
+      dispatch(getWorkList({ facilityCode: getFacilityCode(), page: 1, limit: 20, type: 'task', toDate: yesterday }));
     } else {
       dispatch(
         getWorkList({
-          facilityCode: getLocalUser().facilityCode,
+          facilityCode: getFacilityCode(),
           page: 1,
           limit: 20,
           type: 'task',
@@ -155,7 +153,7 @@ const Maintenance = () => {
     const getCount = (status: string) =>
       api
         .post(endpoints.maintenance.workList, {
-          facilityCode: getLocalUser().facilityCode,
+          facilityCode: getFacilityCode(),
           page: 1,
           limit: 1,
           type: 'issue',
@@ -186,7 +184,7 @@ const Maintenance = () => {
     const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
     api
       .post(endpoints.maintenance.workList, {
-        facilityCode: getLocalUser().facilityCode,
+        facilityCode: getFacilityCode(),
         page: 1,
         limit: 100,
         type: 'task',
@@ -199,7 +197,7 @@ const Maintenance = () => {
       });
     api
       .post(endpoints.maintenance.workList, {
-        facilityCode: getLocalUser().facilityCode,
+        facilityCode: getFacilityCode(),
         page: 1,
         limit: 1,
         type: 'task',
@@ -229,13 +227,11 @@ const Maintenance = () => {
     const limit = workList.limit || 20;
     if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(
-        getWorkList({ facilityCode: getLocalUser().facilityCode, page, limit, type: 'task', toDate: yesterday })
-      );
+      dispatch(getWorkList({ facilityCode: getFacilityCode(), page, limit, type: 'task', toDate: yesterday }));
     } else {
       dispatch(
         getWorkList({
-          facilityCode: getLocalUser().facilityCode,
+          facilityCode: getFacilityCode(),
           page,
           limit,
           type: 'task',
@@ -834,7 +830,7 @@ const Maintenance = () => {
 
       {flagIssueItem && (
         <FlagIssueModal
-          facilityCode={getLocalUser().facilityCode}
+          facilityCode={getFacilityCode()}
           item={flagIssueItem}
           updatedBy={currentUserId}
           onClose={() => setFlagIssueItem(null)}
@@ -847,7 +843,7 @@ const Maintenance = () => {
 
       {markDoneItem && (
         <MarkDoneModal
-          facilityCode={getLocalUser().facilityCode}
+          facilityCode={getFacilityCode()}
           item={markDoneItem}
           updatedBy={currentUserId}
           onClose={() => setMarkDoneItem(null)}
@@ -861,7 +857,7 @@ const Maintenance = () => {
 
       {showCreateIssue && (
         <CreateIssueModal
-          facilityCode={getLocalUser().facilityCode}
+          facilityCode={getFacilityCode()}
           updatedBy={currentUserId}
           onClose={() => setShowCreateIssue(false)}
           onSuccess={() => {

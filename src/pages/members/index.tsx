@@ -6,7 +6,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
-import { getLocalUser } from '../../constants/user';
+import { getFacilityCode } from '../../constants/user';
 import { decodeToken } from '../../helpers';
 import { getMembers, getMembersCount } from '../../store/members/api';
 import { MemberRequest } from '../../store/members/types';
@@ -242,7 +242,7 @@ const Members = () => {
       const payload: MemberRequest = {
         skip: overrides?.skip ?? 0,
         limit,
-        facilityCode: getLocalUser().facilityCode,
+        facilityCode: getFacilityCode(),
       };
 
       const trimmedEmail = appliedFilters.email.trim();
@@ -264,7 +264,7 @@ const Members = () => {
     [filters, membersListData.limit]
   );
 
-  const facilityCode = decodeToken()?.facilityCode;
+  const facilityCode = getFacilityCode() || decodeToken()?.facilityCode;
 
   useEffect(() => {
     setFilters(parseFiltersFromSearchParams(searchParams));
@@ -275,7 +275,7 @@ const Members = () => {
     const payload: MemberRequest = {
       skip: 0,
       limit: currentLimit,
-      facilityCode: getLocalUser().facilityCode,
+      facilityCode: getFacilityCode(),
     };
     const trimmedEmail = applied.email.trim();
     if (trimmedEmail) payload.email = trimmedEmail;

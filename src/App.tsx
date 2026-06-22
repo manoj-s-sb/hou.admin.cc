@@ -24,6 +24,7 @@ import {
   AddStaffMember,
   ViewStaffMember,
   CentreManagement,
+  CentreModuleRoute,
   MembershipPlans,
 } from './pages';
 import { ACCESS_SCOPES, canRead, PermissionRoute } from './rbac';
@@ -181,6 +182,16 @@ const AppRoutes: React.FC = () => {
               </PermissionRoute>
             }
             path={ROUTES.CENTRES.path}
+          />
+          {/* One generic centre-scoped route — the module is resolved from :moduleSlug and
+              permission-gated inside CentreModuleRoute (so no fixed module here). */}
+          <Route
+            element={
+              <PermissionRoute>
+                <CentreModuleRoute />
+              </PermissionRoute>
+            }
+            path={ROUTES.CENTRE_MODULE.path}
           />
           <Route
             element={

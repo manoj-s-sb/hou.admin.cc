@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 
+import { buildRoute } from '../../constants/routes';
 import { useCentreNav } from '../../contexts/CentreNavContext';
+import { isSuperAdmin } from '../../rbac';
 import { getCentres } from '../../store/centres/api';
 import { AppDispatch, RootState } from '../../store/store';
+import { facilityScope } from '../../utils/facilityScope';
 
 import CentreCard from './components/CentreCard';
-import CentreDetailView from './components/CentreDetailView';
 import { STATUS_FILTERS, PAGE_LIMIT } from './constants';
 import NewCentreWizard from './newCentre/NewCentreWizard';
 
@@ -27,10 +30,15 @@ const CentreManagement: React.FC = () => {
   const [search, setSearch] = useState('');
   const [skip, setSkip] = useState(0);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const { activeCentre, openCentre, closeCentre } = useCentreNav();
+  const { closeCentre } = useCentreNav();
+  const navigate = useNavigate();
 
-  // Leaving Centre Management restores the global sidebar menu.
-  useEffect(() => () => closeCentre(), [closeCentre]);
+  // The list page shows the global sidebar (no centre open). Mark management mode so
+  // the rest of the app knows a superadmin is browsing centres.
+  useEffect(() => {
+    if (isSuperAdmin()) facilityScope.enterManagement();
+    closeCentre();
+  }, [closeCentre]);
 
   // Debounce the search box (~400ms) and reset to page 1 on new query.
   useEffect(() => {
@@ -66,11 +74,6 @@ const CentreManagement: React.FC = () => {
     if (p < 0 || p >= totalPages) return;
     setSkip(p * PAGE_LIMIT);
   };
-
-  // ── Detail view (module nav lives in the global sidebar) ──
-  if (activeCentre) {
-    return <CentreDetailView code={activeCentre.code} />;
-  }
 
   // ── New Centre wizard as a full in-content page (keeps sidebar + topbar) ──
   if (wizardOpen) {
@@ -159,14 +162,12 @@ const CentreManagement: React.FC = () => {
               <CentreCard
                 key={c.id || c.code}
                 centre={c}
-                onOpen={summary =>
-                  openCentre({
-                    code: summary.code,
-                    name: summary.name,
-                    countryCode: summary.countryCode,
-                    status: summary.status,
-                  })
-                }
+                onOpen={summary => {
+                  // Scope the API + remember the selection, then route to the centre's
+                  // Members page (the path now carries the facility code).
+                  facilityScope.set(summary.code);
+                  navigate(buildRoute.centreModule(summary.code, 'members'));
+                }}
               />
             ))}
 

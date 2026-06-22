@@ -1,6 +1,7 @@
 // Note: Dashboard and Maintenance are intentionally NOT re-exported here.
 // They are code-split via React.lazy() in App.tsx — adding them back would defeat the chunking.
 import CentreManagement from './centres';
+import CentreModuleRoute from './centres/CentreModuleRoute';
 import CoachSchedule from './coach/index';
 import Induction from './induction';
 import ViewInduction from './induction/viewInduction';
@@ -31,5 +32,6 @@ export {
   AddStaffMember,
   ViewStaffMember,
   CentreManagement,
+  CentreModuleRoute,
   MembershipPlans,
 };
