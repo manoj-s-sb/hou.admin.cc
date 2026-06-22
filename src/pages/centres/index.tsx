@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { buildRoute } from '../../constants/routes';
 import { useCentreNav } from '../../contexts/CentreNavContext';
-import { isSuperAdmin } from '../../rbac';
 import { getCentres } from '../../store/centres/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { facilityScope } from '../../utils/facilityScope';
@@ -33,10 +32,8 @@ const CentreManagement: React.FC = () => {
   const { closeCentre } = useCentreNav();
   const navigate = useNavigate();
 
-  // The list page shows the global sidebar (no centre open). Mark management mode so
-  // the rest of the app knows a superadmin is browsing centres.
+  // The list page shows the global sidebar with no centre open — clear any prior selection.
   useEffect(() => {
-    if (isSuperAdmin()) facilityScope.enterManagement();
     closeCentre();
   }, [closeCentre]);
 
