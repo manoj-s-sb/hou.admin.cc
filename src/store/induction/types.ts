@@ -43,6 +43,7 @@ export interface Induction {
   bookingCode: string;
   isInductionCompleted: boolean;
   profileImageUrl: string;
+  subscriptionCode?: string;
   members: InductionMember[];
 }
 

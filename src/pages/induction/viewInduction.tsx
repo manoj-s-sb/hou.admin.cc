@@ -8,7 +8,7 @@ import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import { ROUTES } from '../../constants/routes';
 import { getInductionStepsDetails, updateInductionSteps, userInductionDetails } from '../../store/induction/api';
-import { SubStep } from '../../store/induction/types';
+import { Induction, SubStep } from '../../store/induction/types';
 import { activateUserSubscription } from '../../store/members/api';
 import { RootState, AppDispatch } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -28,9 +28,9 @@ const ViewInduction = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? '';
-  const { userId } = useParams<{ userId: string | any }>();
+  const { userId = '' } = useParams<{ userId: string }>();
 
-  const [data, setData] = useState<any>(induction?.userInductionDetails);
+  const [data, setData] = useState<Induction | null>(induction?.userInductionDetails ?? null);
 
   useEffect(() => {
     setData(induction?.userInductionDetails);
@@ -41,7 +41,7 @@ const ViewInduction = () => {
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
 
-  const user = useSelector((state: RootState) => state.auth.user) ?? ({} as any);
+  const user = useSelector((state: RootState) => state.auth.user);
 
   // Fetch user induction details when component mounts
   useEffect(() => {
@@ -49,12 +49,12 @@ const ViewInduction = () => {
       setIsLoadingInduction(true);
       dispatch(userInductionDetails({ userId }))
         .unwrap()
-        .then((response: any) => {
+        .then(response => {
           if (response?.data) {
             setOpenAccordions([response.data?.userId || '']);
           }
         })
-        .catch((error: any) => {
+        .catch(error => {
           logger.error('Error fetching user induction details', error, { userId });
           toast.error('Failed to load induction details');
         })
@@ -283,7 +283,7 @@ const ViewInduction = () => {
             <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-700 sm:text-sm">
               Additional Members ({data?.members?.length || 0})
             </h3>
-            {data.members.map((member: any) => (
+            {data.members.map(member => (
               <InductionAccordionItem
                 key={member.userId}
                 buttonLoader={induction?.isLoading}

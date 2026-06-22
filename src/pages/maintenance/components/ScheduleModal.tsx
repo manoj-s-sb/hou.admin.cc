@@ -41,7 +41,7 @@ const ScheduleModal = ({ item, updatedBy, onClose, onSuccess }: ScheduleModalPro
         onSuccess(scheduledDate);
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to schedule task.'))
+      .catch(err => toast.error(err || 'Failed to schedule task.'))
       .finally(() => setSaving(false));
   };
 

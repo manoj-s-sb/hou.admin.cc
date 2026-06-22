@@ -29,6 +29,12 @@ import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
 
+interface HealthDeclarationItem {
+  id: string;
+  selectedOption?: string;
+  selectedOptions?: string;
+}
+
 const ViewMembers = () => {
   const { memberDetails, isLoading } = useSelector((state: RootState) => state.members) as {
     memberDetails: MemberDetailsResponse | null;
@@ -114,15 +120,18 @@ const ViewMembers = () => {
 
   // Helper function to get health declaration value (primary member)
   const getHealthDeclarationValue = (id: string) => {
-    if (!memberDetails.userProfile?.healthDeclaration) return 'N/A';
-    const item = memberDetails.userProfile.healthDeclaration.find((item: any) => item.id === id) as any;
+    const list = memberDetails.userProfile?.healthDeclaration as HealthDeclarationItem[] | undefined;
+    if (!list) return 'N/A';
+    const item = list.find(h => h.id === id);
     return item?.selectedOption || item?.selectedOptions || 'N/A';
   };
 
   // Helper to get health declaration value for any userProfile (e.g. additional members)
-  const getHealthDeclarationValueForProfile = (userProfile: any, id: string) => {
-    if (!userProfile?.healthDeclaration) return 'N/A';
-    const item = userProfile.healthDeclaration.find((item: any) => item.id === id) as any;
+  const getHealthDeclarationValueForProfile = (
+    userProfile: { healthDeclaration?: HealthDeclarationItem[] } | null | undefined,
+    id: string
+  ) => {
+    const item = userProfile?.healthDeclaration?.find(h => h.id === id);
     return item?.selectedOption ?? item?.selectedOptions ?? 'N/A';
   };
 
@@ -264,7 +273,7 @@ const ViewMembers = () => {
                 d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
               const { summary } = memberDetails.slotUsageTable;
               const totalPurchasedFromCycles = memberDetails.slotUsageTable.cycles.reduce(
-                (sum: number, c: any) => sum + (c.purchasedSlotCount ?? 0),
+                (sum: number, c) => sum + (c.purchasedSlotCount ?? 0),
                 0
               );
 
@@ -290,7 +299,7 @@ const ViewMembers = () => {
                       {(showAllCycles
                         ? memberDetails.slotUsageTable.cycles
                         : memberDetails.slotUsageTable.cycles.slice(0, 5)
-                      ).map((cycle: any, index: number) => {
+                      ).map((cycle, index: number) => {
                         const isExpanded = expandedCycles.includes(cycle.cycleNumber);
                         const meta = statusMeta[cycle.status] ?? {
                           label: cycle.status,
@@ -649,7 +658,7 @@ const ViewMembers = () => {
               </div>
               <div className="px-4 py-3 sm:px-6 sm:py-4">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {memberDetails.emergencyContacts.flatMap((contact: any, index: number) => [
+                  {memberDetails.emergencyContacts.flatMap((contact, index: number) => [
                     <div key={`${index}-name`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                       <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
                         {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Name` : 'Name'}

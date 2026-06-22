@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/Table/types';
+import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
 import { getStaffConfig, getStaffList, setStaffStatus } from '../../store/staff/api';
@@ -509,18 +509,20 @@ const StaffManagement: React.FC = () => {
           )}
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <DataTable
-              columns={staffColumns.map(col => ({
-                id: col.field,
-                label: col.headerName,
-                minWidth: col.minWidth,
-                width: col.width,
-                sortable: col.sortable !== false,
-                renderCell: col.renderCell
-                  ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
-                  : col.valueGetter
-                    ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
-                    : undefined,
-              }))}
+              columns={staffColumns.map(
+                (col): TableColumn => ({
+                  id: col.field,
+                  label: col.headerName,
+                  minWidth: col.minWidth,
+                  width: col.width,
+                  sortable: col.sortable !== false,
+                  renderCell: col.renderCell
+                    ? (value, row, index) => col.renderCell?.({ value, row, index })
+                    : col.valueGetter
+                      ? (value, row) => col.valueGetter?.({ value, row, index: 0 }) || ''
+                      : undefined,
+                })
+              )}
               data={staff}
               emptyState={{
                 title: 'No staff members yet',
@@ -544,16 +546,18 @@ const StaffManagement: React.FC = () => {
           )}
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <DataTable
-              columns={designationColumns.map(col => ({
-                id: col.field,
-                label: col.headerName,
-                minWidth: col.minWidth,
-                width: col.width,
-                sortable: col.sortable !== false,
-                renderCell: col.renderCell
-                  ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
-                  : undefined,
-              }))}
+              columns={designationColumns.map(
+                (col): TableColumn => ({
+                  id: col.field,
+                  label: col.headerName,
+                  minWidth: col.minWidth,
+                  width: col.width,
+                  sortable: col.sortable !== false,
+                  renderCell: col.renderCell
+                    ? (value, row, index) => col.renderCell?.({ value, row, index })
+                    : undefined,
+                })
+              )}
               data={designationRows}
               emptyState={{ title: 'No designations configured' }}
               getRowId={row => row.id}

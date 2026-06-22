@@ -13,7 +13,7 @@
  */
 
 interface LogContext {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 class Logger {
@@ -78,7 +78,7 @@ class Logger {
   /**
    * Format error object for logging
    */
-  private formatError(error?: Error | unknown): Record<string, any> {
+  private formatError(error?: Error | unknown): Record<string, unknown> {
     if (!error) return {};
 
     if (error instanceof Error) {

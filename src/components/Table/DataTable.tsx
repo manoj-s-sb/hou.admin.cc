@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- generic table boundary: row shapes are intentionally dynamic */
 import { useState, useMemo } from 'react';
 
 import {

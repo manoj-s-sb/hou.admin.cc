@@ -43,7 +43,7 @@ const AddTaskModal = ({ onClose, onSuccess }: AddTaskModalProps) => {
   const stepImageFiles = useRef<Record<number, File>>({});
   const [videoFile, setVideoFile] = useState<File | null>(null);
 
-  const setField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+  const setField = (key: string, value: string | number | boolean) => setForm(prev => ({ ...prev, [key]: value }));
 
   const toggleLane = (lane: number) =>
     setSelectedLanes(prev => (prev.includes(lane) ? prev.filter(l => l !== lane) : [...prev, lane]));
@@ -144,7 +144,7 @@ const AddTaskModal = ({ onClose, onSuccess }: AddTaskModalProps) => {
         onSuccess();
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to create task.'))
+      .catch(err => toast.error(err || 'Failed to create task.'))
       .finally(() => setSaving(false));
   };
 

@@ -99,8 +99,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         { duration: 4000 }
       );
       setSelectedTimeSlot(null);
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update time slot status.', { duration: 5000 });
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to update time slot status.', { duration: 5000 });
     }
   };
 
@@ -121,8 +121,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           { duration: 4000 }
         );
         setSelectedLane(null);
-      } catch (error: any) {
-        toast.error(error?.message || 'Failed to update lane status.', { duration: 5000 });
+      } catch (error) {
+        toast.error((error as Error)?.message || 'Failed to update lane status.', { duration: 5000 });
       }
     }
   };
@@ -185,8 +185,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
       setSelectedSlotCodes([]);
       setSelectionType(null);
       setIsMultiSelect(false);
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update slots.', { duration: 5000 });
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to update slots.', { duration: 5000 });
     }
   };
 
@@ -213,8 +213,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         await dispatch(getSlots({ date, facilityCode }));
         toast.success('Slot blocked successfully!', { duration: 4000 });
         setSelectedSlot(null);
-      } catch (error: any) {
-        toast.error(error?.message || 'Failed to block slot.', { duration: 5000 });
+      } catch (error) {
+        toast.error((error as Error)?.message || 'Failed to block slot.', { duration: 5000 });
       }
     }
   };
@@ -232,8 +232,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         await dispatch(getSlots({ date, facilityCode }));
         toast.success('Slot unblocked successfully!', { duration: 4000 });
         setSelectedSlot(null);
-      } catch (error: any) {
-        toast.error(error?.message || 'Failed to unblock slot.', { duration: 5000 });
+      } catch (error) {
+        toast.error((error as Error)?.message || 'Failed to unblock slot.', { duration: 5000 });
       }
     }
   };
@@ -324,7 +324,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            handleMenuClick(lane, e as any);
+            handleMenuClick(lane, e as unknown as React.MouseEvent);
           }
         }}
       >
@@ -353,7 +353,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            handleTimeSlotMenuClick(slot, slotIdx, e as any);
+            handleTimeSlotMenuClick(slot, slotIdx, e as unknown as React.MouseEvent);
           }
         }}
       >

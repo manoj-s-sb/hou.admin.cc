@@ -18,7 +18,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const user = useSelector((state: RootState) => state.auth.user) ?? ({} as any);
+  const user = useSelector((state: RootState) => state.auth.user);
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

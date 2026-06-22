@@ -26,6 +26,18 @@ interface SlotKey {
   slotIndex: number;
 }
 
+interface DateCell {
+  day: number;
+  month: number;
+  year: number;
+  fullDate: Date;
+  dateString: string;
+  weekday: string;
+  isToday: boolean;
+  isHoliday: boolean;
+  slots: CoachSlot[];
+}
+
 const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 
 const CoachScheduleGrid: React.FC<{
@@ -315,7 +327,7 @@ const CoachScheduleGrid: React.FC<{
     }
   }, [selectionMode, handleSlotMouseUp]);
 
-  const handleSlotClick = (dateIndex: number, slotIndex: number, date: any, timeSlot: string) => {
+  const handleSlotClick = (dateIndex: number, slotIndex: number, date: DateCell, timeSlot: string) => {
     if (selectionMode || date.isHoliday) return;
     const slot = findSlotByIndices(dateIndex, timeSlot);
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
@@ -371,8 +383,8 @@ const CoachScheduleGrid: React.FC<{
       } else {
         toast.error('Failed to update slot availability');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update slot availability');
+    } catch (error) {
+      toast.error((error as Error).message || 'Failed to update slot availability');
     } finally {
       setIsUpdating(false);
     }
@@ -404,8 +416,8 @@ const CoachScheduleGrid: React.FC<{
       } else {
         toast.error('Failed to update slots availability');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update slots availability');
+    } catch (error) {
+      toast.error((error as Error).message || 'Failed to update slots availability');
     } finally {
       setIsUpdating(false);
     }
@@ -453,7 +465,7 @@ const CoachScheduleGrid: React.FC<{
   }
 
   // Slot cell renderer
-  const renderCell = (dateIdx: number, slotIdx: number, date: any, slot: string, isMobile: boolean) => {
+  const renderCell = (dateIdx: number, slotIdx: number, date: DateCell, slot: string, isMobile: boolean) => {
     const slotStatus = getSlotStatus(dateIdx, slotIdx);
     const isSelected = isSlotSelected(dateIdx, slotIdx);
     const canSelect = canSelectSlot(dateIdx, slotIdx);
@@ -556,7 +568,7 @@ const CoachScheduleGrid: React.FC<{
   };
 
   // Date column header
-  const renderDateHeader = (date: any, dateIdx: number, isMobile: boolean) => (
+  const renderDateHeader = (date: DateCell, dateIdx: number, isMobile: boolean) => (
     <div
       key={dateIdx}
       className={cx(

@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/Table/types';
+import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
 import { decodeToken } from '../../helpers';
@@ -80,11 +80,11 @@ const Members = () => {
         flex: 0.5,
         minWidth: 60,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const currentSkip = membersListData.skip || 0;
           return <span className="text-[13px] font-medium text-gray-400">{currentSkip + params.index + 1}</span>;
         },
-        valueGetter: (params: any) => {
+        valueGetter: params => {
           const currentSkip = membersListData.skip || 0;
           return currentSkip + params.index + 1;
         },
@@ -95,7 +95,7 @@ const Members = () => {
         flex: 1.5,
         minWidth: 220,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const imageUrl = params.row?.profileImageUrl || user_svg;
           const isDefaultImage = !params.row?.profileImageUrl;
           const fullName = `${params.row?.firstName} ${params.row?.lastName}`.trim();
@@ -126,7 +126,7 @@ const Members = () => {
         flex: 0.9,
         minWidth: 120,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const cycle = params.row?.billingCycle || '';
           const label = cycle === 'fortnightly' ? 'Fortnightly' : cycle === 'annual' ? 'Annual' : cycle;
           return (
@@ -146,7 +146,7 @@ const Members = () => {
         flex: 0.9,
         minWidth: 120,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const type = params.row?.subscriptionCode || '';
           const cfg = planConfig[type];
           if (!cfg) return <span className="text-[13px] text-gray-500">{type}</span>;
@@ -168,7 +168,7 @@ const Members = () => {
         flex: 1,
         minWidth: 150,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const type = params.row?.subscriptionStatus || '';
           const { label, className } = subscriptionStatusMap[type] || {
             label: type,
@@ -183,7 +183,7 @@ const Members = () => {
         flex: 1,
         minWidth: 140,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const used = params.row?.cycleLimits?.used ?? '-';
           const total = params.row?.cycleLimits?.total ?? '-';
           const pct = total && total !== '-' && used !== '-' ? Math.round((used / total) * 100) : null;
@@ -215,7 +215,7 @@ const Members = () => {
         flex: 0.6,
         minWidth: 80,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           return (
             <button
               className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
@@ -507,20 +507,22 @@ const Members = () => {
       {/* ── Members Table ───────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <DataTable
-          columns={membersColumns.map(col => ({
-            id: col.field,
-            label: col.headerName,
-            minWidth: col.minWidth,
-            width: col.width,
-            sortable: col.sortable !== false,
-            renderCell: col.renderCell
-              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
-              : col.valueGetter
-                ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
-                : undefined,
-          }))}
+          columns={membersColumns.map(
+            (col): TableColumn => ({
+              id: col.field,
+              label: col.headerName,
+              minWidth: col.minWidth,
+              width: col.width,
+              sortable: col.sortable !== false,
+              renderCell: col.renderCell
+                ? (value, row, index) => col.renderCell?.({ value, row, index })
+                : col.valueGetter
+                  ? (value, row) => col.valueGetter?.({ value, row, index: 0 }) || ''
+                  : undefined,
+            })
+          )}
           data={membersListData.members}
-          getRowId={(row: any) => row.userId}
+          getRowId={row => row.userId}
           loading={isLoading}
           page={Math.floor(membersListData.skip / (membersListData.limit || 15))}
           rowsPerPage={membersListData.limit || 15}
@@ -533,7 +535,7 @@ const Members = () => {
               dispatch(getMembers(buildRequestPayload({ skip: newSkip })));
             }
           }}
-          onRowClick={(row: any) => {
+          onRowClick={row => {
             navigate(buildRoute.viewMembers(row.userId), { state: { listSearch: location.search } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {

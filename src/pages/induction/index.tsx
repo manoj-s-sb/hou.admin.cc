@@ -6,7 +6,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/Table/types';
+import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
@@ -91,7 +91,7 @@ const Induction = () => {
         headerName: 'S.No',
         width: 60,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const serialNumber = currentPage * rowsPerPage + (params.index || 0) + 1;
           return <span className="text-[13px] font-medium text-gray-400">{serialNumber}</span>;
         },
@@ -101,7 +101,7 @@ const Induction = () => {
         headerName: 'Name',
         flex: 1.2,
         sortable: true,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const firstName = params.row?.firstName || '';
           const lastName = params.row?.lastName || '';
           const fullName = `${firstName} ${lastName}`.trim();
@@ -121,7 +121,7 @@ const Induction = () => {
         headerName: 'Booking Date',
         flex: 1,
         sortable: false,
-        renderCell: (params: any) => (
+        renderCell: params => (
           <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
         ),
         valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
@@ -131,7 +131,7 @@ const Induction = () => {
         headerName: 'Slot Time',
         flex: 1,
         sortable: true,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const startTime = params.row?.timeSlot?.startTime;
           const endTime = params.row?.timeSlot?.endTime;
           if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
@@ -149,7 +149,7 @@ const Induction = () => {
         headerName: 'Plan',
         flex: 0.9,
         sortable: true,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const type = params.row?.subscriptionCode || '';
           const label =
             type === 'standard' ? 'Standard' : type === 'premium' ? 'Premium' : type === 'family' ? 'Family' : type;
@@ -170,7 +170,7 @@ const Induction = () => {
         headerName: 'Status',
         flex: 1,
         sortable: true,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const status = params.row?.status || '';
           const { label, className } = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
           return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
@@ -181,7 +181,7 @@ const Induction = () => {
         headerName: 'Actions',
         width: 200,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const handleStatusUpdate = (status: string) => {
             dispatch(
               updateInductionBookingStatus({
@@ -384,29 +384,31 @@ const Induction = () => {
       {/* ── Induction Table ─────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <DataTable
-          columns={inductionColumns.map(col => ({
-            id: col.field,
-            label: col.headerName,
-            minWidth: col.minWidth,
-            width: col.width,
-            sortable: col.sortable !== false,
-            renderCell: col.renderCell
-              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
-              : col.valueGetter
-                ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
-                : undefined,
-            sortValue: (row: any) => {
-              if (col.field === 'firstName')
-                return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
-              if (col.field === 'email') return (row?.email || '').toLowerCase();
-              if (col.field === 'Slot Time') return row?.timeSlot?.startTime || '';
-              if (col.field === 'onboardingType') return row?.subscriptionCode || '';
-              if (col.field === 'status') return row?.status || '';
-              if (col.field === 'bookingCode') return row?.timeSlot?.startTime || '';
-              if (col.field === 'S.No' || col.field === 'actions') return '';
-              return row?.[col.field] || '';
-            },
-          }))}
+          columns={inductionColumns.map(
+            (col): TableColumn => ({
+              id: col.field,
+              label: col.headerName,
+              minWidth: col.minWidth,
+              width: col.width,
+              sortable: col.sortable !== false,
+              renderCell: col.renderCell
+                ? (value, row, index) => col.renderCell?.({ value, row, index })
+                : col.valueGetter
+                  ? (value, row) => col.valueGetter?.({ value, row, index: 0 }) || ''
+                  : undefined,
+              sortValue: row => {
+                if (col.field === 'firstName')
+                  return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
+                if (col.field === 'email') return (row?.email || '').toLowerCase();
+                if (col.field === 'Slot Time') return row?.timeSlot?.startTime || '';
+                if (col.field === 'onboardingType') return row?.subscriptionCode || '';
+                if (col.field === 'status') return row?.status || '';
+                if (col.field === 'bookingCode') return row?.timeSlot?.startTime || '';
+                if (col.field === 'S.No' || col.field === 'actions') return '';
+                return row?.[col.field] || '';
+              },
+            })
+          )}
           data={inductionListData?.bookings || []}
           emptyState={{
             icon: (
@@ -422,7 +424,7 @@ const Induction = () => {
             subtitle: 'Try adjusting your search criteria',
             title: 'No induction bookings found',
           }}
-          getRowId={(row: any) => row.userId || row.bookingCode}
+          getRowId={row => row.userId || row.bookingCode}
           loading={isLoading}
           page={inductionListData?.page ? inductionListData.page - 1 : 0}
           rowsPerPage={inductionListData?.limit || 20}
@@ -441,7 +443,7 @@ const Induction = () => {
               })
             );
           }}
-          onRowClick={(row: any) => {
+          onRowClick={row => {
             navigate(buildRoute.viewInduction(row.userId), { state: { listSearch: location.search } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {

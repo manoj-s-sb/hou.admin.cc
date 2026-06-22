@@ -36,8 +36,8 @@ export const submitTailgateReview = createAsyncThunk(
         actualEventType: payload.isViolation ? null : payload.actualEventType,
       });
       return response?.data?.data as { id: string; eventId: string; review: TailgateReview };
-    } catch (error: any) {
-      if (error?.response?.status === 404) {
+    } catch (error) {
+      if ((error as { response?: { status?: number } })?.response?.status === 404) {
         return rejectWithValue('Event not found in the database.');
       }
       return rejectWithValue(handleApiError(error, 'Failed to submit review'));
@@ -71,7 +71,7 @@ export const fetchTailgateStats = createAsyncThunk(
       if (filters.reviewStatus) payload.reviewStatus = filters.reviewStatus;
       const response = await api.post(endpoints.tailgate.stats, payload);
       return response?.data?.data as TailgateStats;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch tailgate stats'));
     }
   }
@@ -83,7 +83,7 @@ export const fetchTailgateEvents = createAsyncThunk(
     try {
       const response = await api.post(endpoints.tailgate.createEvent, payload);
       return response?.data?.data ?? response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch tailgate events'));
     }
   }

@@ -79,7 +79,7 @@ const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess }: Ma
         onSuccess();
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to update.'))
+      .catch(err => toast.error(err || 'Failed to update.'))
       .finally(() => setSaving(false));
   };
 

@@ -107,7 +107,7 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess }: Creat
         onSuccess();
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to create issue.'))
+      .catch(err => toast.error(err || 'Failed to create issue.'))
       .finally(() => setSaving(false));
   };
 

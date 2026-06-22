@@ -255,7 +255,7 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, updatedBy }: IssueD
       })
     )
       .unwrap()
-      .then((res: any) => {
+      .then(res => {
         const serverData = res?.data;
         // patch always wins — server data fills in activity list etc. but cannot revert known changes
         setCurrentItem(prev => ({
@@ -266,7 +266,7 @@ const IssueDetailModal = ({ item, index, onClose, onSuccess, updatedBy }: IssueD
         onSuccess(prevStatus, newStatus);
         onDone?.();
       })
-      .catch((err: any) => toast.error(err || 'Failed.'))
+      .catch(err => toast.error(err || 'Failed.'))
       .finally(() => setSaving(false));
   };
 

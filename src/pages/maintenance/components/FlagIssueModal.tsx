@@ -113,7 +113,7 @@ const FlagIssueModal = ({ item, facilityCode, updatedBy, onClose, onSuccess }: F
         onSuccess();
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to raise issue.'))
+      .catch(err => toast.error(err || 'Failed to raise issue.'))
       .finally(() => setSaving(false));
   };
 
