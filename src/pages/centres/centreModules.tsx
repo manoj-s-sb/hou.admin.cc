@@ -7,6 +7,7 @@ import Members from '../members';
 import SlotBookings from '../slots';
 import Tailgate from '../tailgate';
 import Tours from '../tours';
+import WaitlistLeads from '../waitlist';
 
 import type { CentreModuleKey } from '../../contexts/CentreNavContext';
 
@@ -108,6 +109,21 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
             <line x1="16" x2="16" y1="2" y2="6" />
             <line x1="8" x2="8" y1="2" y2="6" />
             <line x1="3" x2="21" y1="10" y2="10" />
+          </>
+        ),
+      },
+      {
+        key: 'waitlist',
+        label: 'Waitlist / Leads',
+        slug: 'waitlist',
+        component: WaitlistLeads,
+        scope: ACCESS_SCOPES.members,
+        icon: I(
+          <>
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+            <rect height="4" rx="1" width="8" x="8" y="2" />
+            <line x1="9" x2="15" y1="12" y2="12" />
+            <line x1="9" x2="13" y1="16" y2="16" />
           </>
         ),
       },

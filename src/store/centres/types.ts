@@ -132,7 +132,7 @@ export interface ApiFacility {
   countryCode: string;
   stateCode: string;
   timezone: string;
-  status: 'draft' | 'active';
+  status: 'draft' | 'active' | 'suspended';
   latitude: number;
   longitude: number;
   freeSolts: number; // sic
@@ -325,6 +325,39 @@ export interface CentreBooking {
   status: 'Confirmed' | 'Completed' | 'No-show' | 'Cancelled' | 'Waitlisted';
 }
 
+/** One row from GET /admin/centres/:facilityCode/waitlist. Fields are optional/defensive. */
+export interface WaitlistEntry {
+  id?: string;
+  name?: string;
+  email?: string;
+  /** Backend source flag — 'foundation' | 'launchWaitlist'. */
+  subscriptionSrc?: string;
+  registerdVia?: string; // sic — backend spelling
+  plan?: string;
+  createdAt?: string;
+  /** Server-supplied queue position; derived from the row index when absent. */
+  position?: number;
+  details?: {
+    subscription_code?: string;
+    [key: string]: unknown;
+  };
+}
+
+/** One row from GET /admin/centres/:facilityCode/leads. Fields are optional/defensive. */
+export interface LeadEntry {
+  id?: string;
+  /** Raw funnel action, e.g. "checkout_session_creation_attempted". */
+  action?: string;
+  timestamp?: string;
+  createdAt?: string;
+  details?: {
+    email?: string;
+    subscription_code?: string;
+    billing_cycle?: string;
+    [key: string]: unknown;
+  };
+}
+
 /* ── Wizard form models ── */
 
 export interface CentreDiscount {
@@ -358,7 +391,7 @@ export interface WizardState {
   // Step 1
   name: string;
   shortCode: string;
-  status: 'draft' | 'active';
+  status: 'draft' | 'active' | 'suspended';
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -450,6 +483,20 @@ export interface CentresInitialState {
   membersLoading: boolean;
   bookings: CentreBooking[];
   bookingsLoading: boolean;
+
+  // ── Waitlist / Leads ──
+  waitlist: WaitlistEntry[];
+  waitlistLoading: boolean;
+  waitlistError: string | null;
+  waitlistTotal: number;
+  waitlistPage: number;
+  waitlistLimit: number;
+  leads: LeadEntry[];
+  leadsLoading: boolean;
+  leadsError: string | null;
+  leadsTotal: number;
+  leadsPage: number;
+  leadsLimit: number;
 }
 
 export const initialState: CentresInitialState = {
@@ -468,4 +515,17 @@ export const initialState: CentresInitialState = {
   membersLoading: false,
   bookings: [],
   bookingsLoading: false,
+
+  waitlist: [],
+  waitlistLoading: false,
+  waitlistError: null,
+  waitlistTotal: 0,
+  waitlistPage: 1,
+  waitlistLimit: 20,
+  leads: [],
+  leadsLoading: false,
+  leadsError: null,
+  leadsTotal: 0,
+  leadsPage: 1,
+  leadsLimit: 20,
 };

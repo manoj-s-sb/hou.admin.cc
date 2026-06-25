@@ -6,7 +6,9 @@ import { handleApiError } from '../../utils/errorUtils';
 
 import type { RootState } from '../store';
 import type {
+  AccessLevelConfig,
   CreateStaffRequest,
+  RoleConfig,
   StaffConfig,
   StaffDocumentEntry,
   StaffListRequest,
@@ -40,6 +42,47 @@ export const getStaffConfig = createAsyncThunk(
     },
   }
 );
+
+/**
+ * Create a new staff role and persist it to the DB.
+ * BACKEND TODO: implement POST `/admin/staff/roles/create` accepting
+ * `{ label, description }` and returning the created `RoleConfig`
+ * (with a server-generated `id`, `order`, `isActive: true` and icon colours).
+ * The new role must then be included in `GET /admin/staff/config`.
+ */
+export const createStaffRole = createAsyncThunk<
+  RoleConfig,
+  { label: string; description: string },
+  { rejectValue: string }
+>('staff/createRole', async (payload, { rejectWithValue }) => {
+  try {
+    const response = await api.post<{ data: RoleConfig }>(endpoints.staff.roleCreate, payload);
+    return response.data?.data ?? (response.data as unknown as RoleConfig);
+  } catch (error: unknown) {
+    return rejectWithValue(handleApiError(error, 'Could not create the role. Please try again.'));
+  }
+});
+
+/**
+ * Create a new access level and persist it to the DB.
+ * BACKEND TODO: implement POST `/admin/staff/access-levels/create` accepting
+ * `{ label, description, scopeType }` and returning the created `AccessLevelConfig`
+ * (with a server-generated `id`, `scope` label, `color`, `order` and `isActive: true`).
+ * `scopeType` is `'facility'` (centre-scoped) or `'global'` (all centres).
+ * The new level must then be included in `GET /admin/staff/config`.
+ */
+export const createStaffAccessLevel = createAsyncThunk<
+  AccessLevelConfig,
+  { label: string; description: string; scopeType: 'facility' | 'global' },
+  { rejectValue: string }
+>('staff/createAccessLevel', async (payload, { rejectWithValue }) => {
+  try {
+    const response = await api.post<{ data: AccessLevelConfig }>(endpoints.staff.accessLevelCreate, payload);
+    return response.data?.data ?? (response.data as unknown as AccessLevelConfig);
+  } catch (error: unknown) {
+    return rejectWithValue(handleApiError(error, 'Could not create the access level. Please try again.'));
+  }
+});
 
 export const getStaffDetails = createAsyncThunk(
   'staff/getDetails',

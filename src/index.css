@@ -3,6 +3,30 @@
 @tailwind utilities;
 
 @layer base {
+  /* Centre Management / Membership design tokens.
+     These back the `var(--…)` references used in inline styles across the
+     centres, membership and staff screens (ported from the reference design's
+     :root block). Without them, borders/backgrounds/label colours silently
+     resolve to nothing — leaving fields and cards looking "invisible". */
+  :root {
+    --navy: #1a2340;
+    --red: #d42b2b;
+    --blue: #21295a;
+    --blue-light: #ecedf4;
+    --sidebar-bg: #21295a;
+    --body-bg: #f4f6fb;
+    --text: #1a2340;
+    --sub: #6b7280;
+    --muted: #9ca3af;
+    --border: #e5e7eb;
+    --green: #008482;
+    --green-bg: #d0f0f0;
+    --amber: #d97706;
+    --amber-bg: #fef3c7;
+    --shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+
   html {
     overflow-x: hidden;
   }

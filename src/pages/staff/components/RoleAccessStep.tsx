@@ -31,6 +31,14 @@ interface RoleAccessStepProps {
   onChangeCentres: (next: string[]) => void;
   centresLoading: boolean;
   showAssignedCentres: boolean;
+  /** Create a new role (persisted to the DB) and auto-select it. Resolves to true on success. */
+  onCreateRole?: (label: string, description: string) => Promise<boolean>;
+  /** True while a new role is being persisted. */
+  creatingRole?: boolean;
+  /** Create a new access level (persisted to the DB) and auto-select it. Resolves to true on success. */
+  onCreateAccessLevel?: (label: string, description: string, scopeType: 'facility' | 'global') => Promise<boolean>;
+  /** True while a new access level is being persisted. */
+  creatingAccessLevel?: boolean;
 }
 
 // "🇺🇸 Houston, TX" — flag + name + state/city, mirroring the design.
@@ -53,9 +61,45 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   onChangeCentres,
   centresLoading,
   showAssignedCentres,
+  onCreateRole,
+  creatingRole = false,
+  onCreateAccessLevel,
+  creatingAccessLevel = false,
 }) => {
   const [showOther, setShowOther] = useState(false);
   const [otherInput, setOtherInput] = useState('');
+  // New-role inline form state.
+  const [showNewRole, setShowNewRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleDesc, setNewRoleDesc] = useState('');
+  // New access-level inline form state.
+  const [showNewLevel, setShowNewLevel] = useState(false);
+  const [newLevelName, setNewLevelName] = useState('');
+  const [newLevelDesc, setNewLevelDesc] = useState('');
+  const [newLevelScope, setNewLevelScope] = useState<'facility' | 'global'>('facility');
+
+  const submitNewRole = async () => {
+    const name = newRoleName.trim();
+    if (!name || !onCreateRole) return;
+    const ok = await onCreateRole(name, newRoleDesc.trim());
+    if (ok) {
+      setNewRoleName('');
+      setNewRoleDesc('');
+      setShowNewRole(false);
+    }
+  };
+
+  const submitNewLevel = async () => {
+    const name = newLevelName.trim();
+    if (!name || !onCreateAccessLevel) return;
+    const ok = await onCreateAccessLevel(name, newLevelDesc.trim(), newLevelScope);
+    if (ok) {
+      setNewLevelName('');
+      setNewLevelDesc('');
+      setNewLevelScope('facility');
+      setShowNewLevel(false);
+    }
+  };
 
   const knownCodes = useMemo(() => new Set(centres.map(c => c.code)), [centres]);
   const customEntries = useMemo(() => assignedCentres.filter(c => !knownCodes.has(c)), [assignedCentres, knownCodes]);
@@ -98,6 +142,72 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
               ))}
             </div>
           )}
+
+          {/* Create a brand-new role (persisted to the DB) when none of the above fit. */}
+          {onCreateRole && !isConfigLoading && !configError && (
+            <div className="mt-2 px-1">
+              {!showNewRole ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-[12.5px] font-semibold text-gray-600 transition hover:border-[#21295A] hover:text-[#21295A]"
+                  type="button"
+                  onClick={() => setShowNewRole(true)}
+                >
+                  <span className="text-[15px] leading-none">＋</span> Create new role
+                </button>
+              ) : (
+                <div className="rounded-lg border border-[#21295A]/30 bg-white p-3">
+                  <p className="mb-2 text-[12px] font-semibold text-gray-700">New role</p>
+                  <div className="space-y-2">
+                    <input
+                      className={INPUT_CLASS}
+                      placeholder="Role name (e.g. Physiotherapist)"
+                      value={newRoleName}
+                      onChange={e => setNewRoleName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void submitNewRole();
+                        }
+                      }}
+                    />
+                    <input
+                      className={INPUT_CLASS}
+                      placeholder="Short description (optional)"
+                      value={newRoleDesc}
+                      onChange={e => setNewRoleDesc(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void submitNewRole();
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="mt-2 flex justify-end gap-2">
+                    <button
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 transition hover:bg-gray-50"
+                      type="button"
+                      onClick={() => {
+                        setShowNewRole(false);
+                        setNewRoleName('');
+                        setNewRoleDesc('');
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="rounded-lg bg-[#21295A] px-4 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-[#2c3670] disabled:opacity-40"
+                      disabled={!newRoleName.trim() || creatingRole}
+                      type="button"
+                      onClick={() => void submitNewRole()}
+                    >
+                      {creatingRole ? 'Creating…' : 'Create & select'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -115,6 +225,97 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
                 onSelect={() => onSelectAccessLevel(level.id)}
               />
             ))}
+          </div>
+        )}
+
+        {/* Create a brand-new access level (persisted to the DB) when none of the above fit. */}
+        {onCreateAccessLevel && !isConfigLoading && (
+          <div className="mt-2">
+            {!showNewLevel ? (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-[12.5px] font-semibold text-gray-600 transition hover:border-[#21295A] hover:text-[#21295A]"
+                type="button"
+                onClick={() => setShowNewLevel(true)}
+              >
+                <span className="text-[15px] leading-none">＋</span> Create new access level
+              </button>
+            ) : (
+              <div className="rounded-lg border border-[#21295A]/30 bg-white p-3">
+                <p className="mb-2 text-[12px] font-semibold text-gray-700">New access level</p>
+                <div className="space-y-2">
+                  <input
+                    className={INPUT_CLASS}
+                    placeholder="Access level name (e.g. Regional Manager)"
+                    value={newLevelName}
+                    onChange={e => setNewLevelName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void submitNewLevel();
+                      }
+                    }}
+                  />
+                  <input
+                    className={INPUT_CLASS}
+                    placeholder="Short description (optional)"
+                    value={newLevelDesc}
+                    onChange={e => setNewLevelDesc(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void submitNewLevel();
+                      }
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      className={`flex-1 rounded-lg border px-3 py-2 text-[12.5px] font-semibold transition ${
+                        newLevelScope === 'facility'
+                          ? 'border-[#21295A] bg-[#21295A]/5 text-[#21295A]'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                      type="button"
+                      onClick={() => setNewLevelScope('facility')}
+                    >
+                      Centre-scoped
+                    </button>
+                    <button
+                      className={`flex-1 rounded-lg border px-3 py-2 text-[12.5px] font-semibold transition ${
+                        newLevelScope === 'global'
+                          ? 'border-[#21295A] bg-[#21295A]/5 text-[#21295A]'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                      type="button"
+                      onClick={() => setNewLevelScope('global')}
+                    >
+                      All centres
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 flex justify-end gap-2">
+                  <button
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 transition hover:bg-gray-50"
+                    type="button"
+                    onClick={() => {
+                      setShowNewLevel(false);
+                      setNewLevelName('');
+                      setNewLevelDesc('');
+                      setNewLevelScope('facility');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="rounded-lg bg-[#21295A] px-4 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-[#2c3670] disabled:opacity-40"
+                    disabled={!newLevelName.trim() || creatingAccessLevel}
+                    type="button"
+                    onClick={() => void submitNewLevel()}
+                  >
+                    {creatingAccessLevel ? 'Creating…' : 'Create & select'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

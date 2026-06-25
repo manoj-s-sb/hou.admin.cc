@@ -1,6 +1,15 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { createCentre, getCentreBookings, getCentreDetails, getCentreMembers, getCentres, updateCentre } from './api';
+import {
+  createCentre,
+  getCentreBookings,
+  getCentreDetails,
+  getCentreLeads,
+  getCentreMembers,
+  getCentres,
+  getCentreWaitlist,
+  updateCentre,
+} from './api';
 import { initialState } from './types';
 
 const centresSlice = createSlice({
@@ -87,6 +96,46 @@ const centresSlice = createSlice({
     builder.addCase(getCentreBookings.rejected, state => {
       state.bookingsLoading = false;
       state.bookings = [];
+    });
+
+    // ── Waitlist ── (clear on pending so a stale tab's rows never linger)
+    builder.addCase(getCentreWaitlist.pending, state => {
+      state.waitlistLoading = true;
+      state.waitlistError = null;
+      state.waitlist = [];
+    });
+    builder.addCase(getCentreWaitlist.fulfilled, (state, action) => {
+      state.waitlistLoading = false;
+      state.waitlist = action.payload.entries;
+      state.waitlistTotal = action.payload.total;
+      state.waitlistPage = action.payload.page;
+      state.waitlistLimit = action.payload.limit;
+    });
+    builder.addCase(getCentreWaitlist.rejected, (state, action) => {
+      state.waitlistLoading = false;
+      state.waitlist = [];
+      state.waitlistTotal = 0;
+      state.waitlistError = action.payload ?? 'Failed to fetch waitlist';
+    });
+
+    // ── Leads ──
+    builder.addCase(getCentreLeads.pending, state => {
+      state.leadsLoading = true;
+      state.leadsError = null;
+      state.leads = [];
+    });
+    builder.addCase(getCentreLeads.fulfilled, (state, action) => {
+      state.leadsLoading = false;
+      state.leads = action.payload.entries;
+      state.leadsTotal = action.payload.total;
+      state.leadsPage = action.payload.page;
+      state.leadsLimit = action.payload.limit;
+    });
+    builder.addCase(getCentreLeads.rejected, (state, action) => {
+      state.leadsLoading = false;
+      state.leads = [];
+      state.leadsTotal = 0;
+      state.leadsError = action.payload ?? 'Failed to fetch leads';
     });
   },
 });

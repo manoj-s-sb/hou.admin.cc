@@ -22,6 +22,14 @@ const TABS: { key: PlanTab; label: string }[] = [
 
 const TD = 'border-b border-gray-100 px-3.5 py-[11px] align-middle';
 
+// Each country/centre filter maps to the currency its prices should display in.
+const REGION_CURRENCY: Record<string, string> = {
+  all: 'USD',
+  USA: 'USD',
+  AUS: 'AUD',
+  IND: 'INR',
+};
+
 const money = (usd: number, cur: CurrencyOption) =>
   `${cur.symbol}${(usd * cur.rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -106,6 +114,17 @@ const MembershipPlans: React.FC = () => {
   const [drawerPlan, setDrawerPlan] = useState<MembershipPlan | null>(null);
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | null>(null);
 
+  // Changing the country/centre filter also switches the displayed currency so the
+  // plan prices below update to that region. Currency can still be overridden manually.
+  const selectRegion = (key: string) => {
+    setRegion(key);
+    const code = REGION_CURRENCY[key];
+    if (code) {
+      const match = CURRENCIES.find(c => c.code === code);
+      if (match) setCurrency(match);
+    }
+  };
+
   const visiblePlans = useMemo(
     () => plans.filter(p => region === 'all' || p.regions.includes('all') || p.regions.includes(region)),
     [plans, region]
@@ -158,7 +177,7 @@ const MembershipPlans: React.FC = () => {
               key={f.key}
               className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${region === f.key ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : 'border-cmx-border bg-white text-sub'}`}
               type="button"
-              onClick={() => setRegion(f.key)}
+              onClick={() => selectRegion(f.key)}
             >
               {f.label}
             </button>

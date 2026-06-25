@@ -33,6 +33,10 @@ const endpoints = {
     create: '/admin/staff/create',
     details: '/admin/staff/details',
     update: '/admin/staff/update',
+    // BACKEND TODO: persist a new staff role to the DB and return the created RoleConfig.
+    roleCreate: '/admin/staff/roles/create',
+    // BACKEND TODO: persist a new access level and return the created AccessLevelConfig.
+    accessLevelCreate: '/admin/staff/access-levels/create',
   },
   induction: {
     list: '/admin/bookings/list',
@@ -57,6 +61,8 @@ const endpoints = {
     saveActivate: (id: string) => `/admin/centres/wizard/${id}/save-activate`,
     members: (id: string) => `/admin/centres/${id}/members`,
     bookings: (id: string) => `/admin/centres/${id}/bookings`,
+    waitlist: '/admin/centres/waitlist', // POST { facilityCode, subscriptionSrc?, registerdVia?, page, limit }
+    leads: '/admin/centres/leads', // POST { facilityCode, action?, subscription_code?, page, limit }
   },
   memberships: {
     // Live backend — returns the facility's memberships (rich nested shape).

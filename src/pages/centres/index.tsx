@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { buildRoute } from '../../constants/routes';
 import { useCentreNav } from '../../contexts/CentreNavContext';
-import { getCentres } from '../../store/centres/api';
+import { getCentres, getCentreDetails } from '../../store/centres/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { facilityScope } from '../../utils/facilityScope';
 
@@ -29,6 +29,8 @@ const CentreManagement: React.FC = () => {
   const [search, setSearch] = useState('');
   const [skip, setSkip] = useState(0);
   const [wizardOpen, setWizardOpen] = useState(false);
+  // Code of the draft centre being edited/activated directly from its card.
+  const [editCode, setEditCode] = useState<string | null>(null);
   const { closeCentre } = useCentreNav();
   const navigate = useNavigate();
 
@@ -47,7 +49,16 @@ const CentreManagement: React.FC = () => {
   }, [searchInput]);
 
   const dispatch = useDispatch<AppDispatch>();
-  const { facilities, total, isLoading } = useSelector((state: RootState) => state.centres);
+  const { facilities, total, isLoading, details, detailsLoading } = useSelector((state: RootState) => state.centres);
+
+  // Fetch the full bundle for the draft being edited; the wizard opens once it lands.
+  const startEdit = useCallback(
+    (code: string) => {
+      setEditCode(code);
+      dispatch(getCentreDetails(code));
+    },
+    [dispatch]
+  );
 
   const refetch = useCallback(() => {
     dispatch(
@@ -79,6 +90,30 @@ const CentreManagement: React.FC = () => {
         onClose={() => setWizardOpen(false)}
         onSaved={() => {
           setWizardOpen(false);
+          setSkip(0);
+          refetch();
+        }}
+      />
+    );
+  }
+
+  // ── Edit & Activate a draft directly from its card ──
+  if (editCode) {
+    // Wait for the matching bundle to arrive before rendering the pre-filled wizard.
+    const bundleReady = details && (details.facility?.code ?? '').toUpperCase() === editCode.toUpperCase();
+    if (!bundleReady) {
+      return (
+        <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
+          <div className="text-sm font-bold text-navy">{detailsLoading ? 'Loading centre…' : 'Preparing editor…'}</div>
+        </div>
+      );
+    }
+    return (
+      <NewCentreWizard
+        initialBundle={details}
+        onClose={() => setEditCode(null)}
+        onSaved={() => {
+          setEditCode(null);
           setSkip(0);
           refetch();
         }}
@@ -159,6 +194,7 @@ const CentreManagement: React.FC = () => {
               <CentreCard
                 key={c.id || c.code}
                 centre={c}
+                onEdit={summary => startEdit(summary.code)}
                 onOpen={summary => {
                   // Scope the API + remember the selection, then route to the centre's
                   // Members page (the path now carries the facility code).

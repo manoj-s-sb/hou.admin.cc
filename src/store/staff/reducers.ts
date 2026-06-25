@@ -1,6 +1,14 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { createStaff, getStaffConfig, getStaffDetails, getStaffList, updateStaff } from './api';
+import {
+  createStaff,
+  createStaffAccessLevel,
+  createStaffRole,
+  getStaffConfig,
+  getStaffDetails,
+  getStaffList,
+  updateStaff,
+} from './api';
 import { initialState } from './types';
 
 const staffSlice = createSlice({
@@ -81,6 +89,22 @@ const staffSlice = createSlice({
     builder.addCase(updateStaff.rejected, (state, action) => {
       state.isSubmitting = false;
       state.submitError = (action.payload as string) ?? 'Failed to update staff member';
+    });
+
+    // ── Create role: append to the in-memory config so it shows immediately ──
+    builder.addCase(createStaffRole.fulfilled, (state, action) => {
+      if (state.staffConfig && action.payload) {
+        const exists = state.staffConfig.roles.some(r => r.id === action.payload.id);
+        if (!exists) state.staffConfig.roles.push(action.payload);
+      }
+    });
+
+    // ── Create access level: append so it shows immediately ──
+    builder.addCase(createStaffAccessLevel.fulfilled, (state, action) => {
+      if (state.staffConfig && action.payload) {
+        const exists = state.staffConfig.accessLevels.some(l => l.id === action.payload.id);
+        if (!exists) state.staffConfig.accessLevels.push(action.payload);
+      }
     });
   },
 });

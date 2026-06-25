@@ -24,7 +24,13 @@ import { buildCreatePayload } from './buildCreatePayload';
 import { bundleToWizardState } from './bundleToWizardState';
 import { downloadCentrePdf } from './centrePdf';
 
-import type { CentreBundle, CentreDiscount, WizardPlanRow, WizardState } from '../../../store/centres/types';
+import type {
+  CentreApiStatus,
+  CentreBundle,
+  CentreDiscount,
+  WizardPlanRow,
+  WizardState,
+} from '../../../store/centres/types';
 
 // Toggle a country chip: picking 'all' clears specifics; picking a specific clears 'all'.
 const toggleCountry = (current: string[], code: string): string[] => {
@@ -112,6 +118,33 @@ const STATUS_LABEL: Record<string, string> = {
   suspended: 'Suspended',
 };
 
+type SaveStatus = 'draft' | 'active' | 'suspended';
+
+// Copy for each selectable "Set Centre Status on Save" radio. The `active`
+// title flips to "Reactivate" when the centre is currently suspended.
+const SAVE_STATUS_META: Record<SaveStatus, { title: string; desc: string }> = {
+  draft: {
+    title: 'Save as Draft',
+    desc: 'Centre is saved but invisible to all users including centre staff. Complete setup before going live.',
+  },
+  active: {
+    title: 'Save & Activate',
+    desc: 'Centre goes live immediately. Visible to assigned staff and available for member sign-ups. Sends activation notification to assigned Admins.',
+  },
+  suspended: {
+    title: 'Suspend Centre',
+    desc: 'Centre is taken offline — hidden from members and closed to new bookings. Existing data is preserved and it can be re-activated anytime.',
+  },
+};
+
+// Which status radios to offer, given the wizard mode + the centre's current status:
+//  • New / draft centre  → Draft, Active (Draft is only ever offered here).
+//  • Active / suspended  → Active, Suspend (toggle live ↔ offline).
+const saveStatusOptions = (isEdit: boolean, current?: CentreApiStatus): SaveStatus[] => {
+  if (isEdit && (current === 'active' || current === 'suspended')) return ['active', 'suspended'];
+  return ['draft', 'active'];
+};
+
 interface Props {
   onClose: () => void;
   onSaved: (activated: boolean) => void;
@@ -129,12 +162,14 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   const [s, setS] = useState<WizardState>(() => (initialBundle ? bundleToWizardState(initialBundle) : initialState()));
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  // Current persisted status of the centre being edited (undefined when creating).
+  const currentStatus = initialBundle?.facility?.status;
   // Status the "Create Centre" / "Save Changes" button will persist (Review step radio).
-  const [saveStatus, setSaveStatus] = useState<'draft' | 'active'>(() =>
-    initialBundle?.facility?.status === 'active' ? 'active' : 'draft'
+  const [saveStatus, setSaveStatus] = useState<'draft' | 'active' | 'suspended'>(() =>
+    currentStatus === 'active' ? 'active' : currentStatus === 'suspended' ? 'suspended' : 'draft'
   );
   // After a successful save we show a success modal before returning to the grid.
-  const [savedAs, setSavedAs] = useState<null | 'draft' | 'active'>(null);
+  const [savedAs, setSavedAs] = useState<null | 'draft' | 'active' | 'suspended'>(null);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
   const dirtyRef = useRef(false);
 
@@ -391,12 +426,12 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
             return (
               <React.Fragment key={label}>
                 <button
-                  className={`cursor-pointer whitespace-nowrap rounded-full border border-cmx-border bg-white px-3 py-[5px] text-[11.5px] font-semibold text-sub transition-all ${
+                  className={`cursor-pointer whitespace-nowrap rounded-full border px-3 py-[5px] text-[11.5px] font-semibold transition-all ${
                     cls === 'active'
                       ? 'border-navy bg-navy text-white'
                       : cls === 'done'
                         ? 'border-cmx-green bg-cmx-green-bg text-cmx-green'
-                        : ''
+                        : 'border-cmx-border bg-white text-sub'
                   }`}
                   disabled={!canJump}
                   style={canJump ? undefined : { opacity: 0.5, cursor: 'not-allowed' }}
@@ -456,10 +491,11 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   <select
                     className="cmx-field"
                     value={s.status}
-                    onChange={e => set({ status: e.target.value as 'draft' | 'active' })}
+                    onChange={e => set({ status: e.target.value as SaveStatus })}
                   >
                     <option value="draft">Draft (not visible to members)</option>
                     <option value="active">Active (go live immediately)</option>
+                    <option value="suspended">Suspended (taken offline)</option>
                   </select>
                 </div>
               </div>
@@ -986,8 +1022,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     {DEMOGRAPHICS.map(d => (
                       <button
                         key={d.key}
-                        className={`cursor-pointer whitespace-nowrap rounded-full border border-cmx-border bg-white px-2.5 py-1 text-xs font-medium text-sub transition-all ${
-                          demo === d.key ? 'border-navy bg-navy text-white' : ''
+                        className={`cursor-pointer whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
+                          demo === d.key ? 'border-navy bg-navy text-white' : 'border-cmx-border bg-white text-sub'
                         }`}
                         type="button"
                         onClick={() => setDemo(d.key)}
@@ -1199,50 +1235,6 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               {/* Live allocation bar */}
               <div style={{ marginBottom: 20 }}>
                 <AllocationBar capacity={capacity} plans={s.plans} />
-              </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
-
-              <div className="cmx-eyebrow" style={{ marginBottom: 14 }}>
-                Guest & Extra Session Pricing (centre defaults)
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
-                <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">First Guest Fee (USD) *</span>
-                  <input
-                    className="cmx-field"
-                    min={0}
-                    step={0.01}
-                    type="number"
-                    value={s.firstGuestFee}
-                    onChange={e => set({ firstGuestFee: Number(e.target.value) })}
-                  />
-                  <div className="cmx-hint">Network default: $30</div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Additional Guest Discount (%)</span>
-                  <input
-                    className="cmx-field"
-                    max={100}
-                    min={0}
-                    type="number"
-                    value={s.additionalGuestDiscountPct}
-                    onChange={e => set({ additionalGuestDiscountPct: Number(e.target.value) })}
-                  />
-                  <div className="cmx-hint">Network default: 20%</div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Extra Session Cost (USD)</span>
-                  <input
-                    className="cmx-field"
-                    min={0}
-                    step={0.01}
-                    type="number"
-                    value={s.extraSessionCost}
-                    onChange={e => set({ extraSessionCost: Number(e.target.value) })}
-                  />
-                  <div className="cmx-hint">Configurable per centre</div>
-                </div>
               </div>
 
               <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
@@ -1556,19 +1548,23 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)', marginBottom: 16 }}>
                   Set Centre Status on Save
                 </div>
-                <StatusOption
-                  checked={saveStatus === 'draft'}
-                  desc="Centre is saved but invisible to all users including centre staff. Complete setup before going live."
-                  title="Save as Draft"
-                  onSelect={() => setSaveStatus('draft')}
-                />
-                <div style={{ height: 12 }} />
-                <StatusOption
-                  checked={saveStatus === 'active'}
-                  desc="Centre goes live immediately. Visible to assigned staff and available for member sign-ups. Sends activation notification to assigned Admins."
-                  title="Save & Activate"
-                  onSelect={() => setSaveStatus('active')}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {saveStatusOptions(isEdit, currentStatus).map(opt => {
+                    const meta = SAVE_STATUS_META[opt];
+                    // A suspended centre going back live reads better as "Reactivate".
+                    const title =
+                      opt === 'active' && currentStatus === 'suspended' ? 'Reactivate Centre' : meta.title;
+                    return (
+                      <StatusOption
+                        key={opt}
+                        checked={saveStatus === opt}
+                        desc={meta.desc}
+                        title={title}
+                        onSelect={() => setSaveStatus(opt)}
+                      />
+                    );
+                  })}
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -1662,13 +1658,19 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: savedAs === 'active' ? '#d0f0f0' : '#fef3c7',
-                color: savedAs === 'active' ? '#008482' : '#d97706',
+                background: savedAs === 'active' ? '#d0f0f0' : savedAs === 'suspended' ? '#fee2e2' : '#fef3c7',
+                color: savedAs === 'active' ? '#008482' : savedAs === 'suspended' ? '#dc2626' : '#d97706',
               }}
             >
               <svg fill="none" height={28} stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" width={28}>
                 {savedAs === 'active' ? (
                   <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                ) : savedAs === 'suspended' ? (
+                  <>
+                    <circle cx="12" cy="12" r="9" />
+                    <line strokeLinecap="round" x1="9" x2="9" y1="9" y2="15" />
+                    <line strokeLinecap="round" x1="15" x2="15" y1="9" y2="15" />
+                  </>
                 ) : (
                   <path
                     d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6"
@@ -1681,16 +1683,22 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
             <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--navy)' }}>
               {savedAs === 'active'
                 ? isEdit
-                  ? 'Centre Activated!'
+                  ? currentStatus === 'suspended'
+                    ? 'Centre Reactivated!'
+                    : 'Centre Activated!'
                   : 'Centre Created!'
-                : isEdit
-                  ? 'Changes Saved'
-                  : 'Centre Saved as Draft'}
+                : savedAs === 'suspended'
+                  ? 'Centre Suspended'
+                  : isEdit
+                    ? 'Changes Saved'
+                    : 'Centre Saved as Draft'}
             </p>
             <p style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>
               {savedAs === 'active'
                 ? 'The centre is live and visible to assigned staff.'
-                : 'The centre is saved as a draft. Complete setup and activate it when ready.'}
+                : savedAs === 'suspended'
+                  ? 'The centre is suspended and hidden from members. You can re-activate it anytime.'
+                  : 'The centre is saved as a draft. Complete setup and activate it when ready.'}
             </p>
             <button
               className="cmx-btn cmx-btn-navy"

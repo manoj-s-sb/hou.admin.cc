@@ -21,7 +21,23 @@ import type {
   CentreListResponse,
   CentreMember,
   FacilitySummary,
+  LeadEntry,
+  WaitlistEntry,
 } from './types';
+
+/**
+ * The waitlist/leads endpoints return the standard envelope, but `data` may be
+ * either a bare array or a `{ <listKey>, total }` wrapper depending on backend
+ * version — unwrap both shapes the same defensive way the other thunks do.
+ */
+const unwrapList = <T>(data: unknown, keys: string[]): { entries: T[]; total: number } => {
+  if (Array.isArray(data)) return { entries: data as T[], total: data.length };
+  const obj = (data ?? {}) as Record<string, unknown>;
+  const listKey = keys.find(k => Array.isArray(obj[k]));
+  const entries = (listKey ? (obj[listKey] as T[]) : []) as T[];
+  const total = typeof obj.total === 'number' ? obj.total : entries.length;
+  return { entries, total };
+};
 
 /** POST /admin/centres/list — paginated facility rows (skip + limit). */
 export const getCentres = createAsyncThunk<
@@ -124,6 +140,70 @@ export const getCentreMembers = createAsyncThunk<
     return rejectWithValue(handleApiError(error, 'Failed to fetch members'));
   }
 });
+
+/**
+ * POST /admin/centres/waitlist — paginated waitlist (promo) entries for a centre.
+ *
+ * Body keys are validated server-side with `extra="forbid"`, so we send only the
+ * documented fields; axios drops `undefined` ones (so "All" omits subscriptionSrc).
+ * `registerdVia` keeps the backend's source-data spelling verbatim.
+ */
+export const getCentreWaitlist = createAsyncThunk<
+  { entries: WaitlistEntry[]; total: number; page: number; limit: number },
+  { facilityCode: string; subscriptionSrc?: string; registerdVia?: string; page: number; limit: number },
+  { rejectValue: string }
+>(
+  'centres/getCentreWaitlist',
+  async ({ facilityCode, subscriptionSrc, registerdVia, page, limit }, { rejectWithValue }) => {
+    try {
+      const res = await api.post<{ data: unknown }>(endpoints.centres.waitlist, {
+        facilityCode,
+        subscriptionSrc,
+        registerdVia,
+        page,
+        limit,
+      });
+      const { entries, total } = unwrapList<WaitlistEntry>(res.data?.data ?? res.data, [
+        'items',
+        'waitlist',
+        'entries',
+        'results',
+      ]);
+      return { entries, total, page, limit };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch waitlist'));
+    }
+  }
+);
+
+/** POST /admin/centres/leads — paginated lead-activity logs for a centre. */
+export const getCentreLeads = createAsyncThunk<
+  { entries: LeadEntry[]; total: number; page: number; limit: number },
+  { facilityCode: string; action?: string; subscriptionCode?: string; page: number; limit: number },
+  { rejectValue: string }
+>(
+  'centres/getCentreLeads',
+  async ({ facilityCode, action, subscriptionCode, page, limit }, { rejectWithValue }) => {
+    try {
+      const res = await api.post<{ data: unknown }>(endpoints.centres.leads, {
+        facilityCode,
+        action,
+        subscription_code: subscriptionCode,
+        page,
+        limit,
+      });
+      const { entries, total } = unwrapList<LeadEntry>(res.data?.data ?? res.data, [
+        'items',
+        'leads',
+        'entries',
+        'results',
+      ]);
+      return { entries, total, page, limit };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch leads'));
+    }
+  }
+);
 
 /** GET /admin/centres/:id/bookings — ops dashboard booking list. */
 export const getCentreBookings = createAsyncThunk<CentreBooking[], string, { rejectValue: string }>(

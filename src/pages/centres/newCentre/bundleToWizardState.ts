@@ -134,7 +134,7 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     wizardId: null,
     name: facility.name ?? '',
     shortCode: (facility.code ?? '').toUpperCase(),
-    status: facility.status === 'active' ? 'active' : 'draft',
+    status: facility.status === 'active' ? 'active' : facility.status === 'suspended' ? 'suspended' : 'draft',
     addressLine1: addr?.street ?? '',
     addressLine2: '',
     city: addr?.city ?? facility.cityCode ?? '',

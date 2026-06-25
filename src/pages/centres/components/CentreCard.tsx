@@ -62,9 +62,11 @@ const Stat: React.FC<StatProps> = ({ value, label, suffix = '', hero = false }) 
 interface Props {
   centre: FacilitySummary;
   onOpen: (centre: FacilitySummary) => void;
+  /** Open the wizard in edit mode (Review step) to edit the centre and change its status. */
+  onEdit?: (centre: FacilitySummary) => void;
 }
 
-const CentreCard: React.FC<Props> = ({ centre, onOpen }) => {
+const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
   const [localTime, setLocalTime] = useState(() => getLocalTime(centre.timezone));
 
   // Live local clock — tick every second like the reference design.
@@ -164,19 +166,44 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen }) => {
       {/* ── Footer: open affordance ── */}
       <div className="mt-3.5 flex items-center justify-between border-t border-cmx-border pt-3">
         <span className="text-[11px] font-medium text-muted">Updated {centre.updatedAt?.slice(0, 10) || '—'}</span>
-        <button
-          className="inline-flex cursor-pointer items-center gap-1 border-none bg-transparent text-xs font-semibold text-cmx-blue transition-transform group-hover:translate-x-0.5"
-          type="button"
-          onClick={e => {
-            e.stopPropagation();
-            onOpen(centre);
-          }}
-        >
-          Open
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2.5">
+          {/* Every centre is editable. Drafts get an amber "Edit & Activate" call-to-action
+              to finish setup; active/suspended centres get a neutral "Edit" (the wizard then
+              offers Active ↔ Suspend on save). */}
+          {onEdit && (
+            <button
+              className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-colors ${
+                centre.status === 'draft'
+                  ? 'border-cmx-amber bg-cmx-amber-bg text-cmx-amber hover:bg-cmx-amber hover:text-white'
+                  : 'border-cmx-border bg-white text-sub hover:border-gray-300 hover:text-navy'
+              }`}
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                onEdit(centre);
+              }}
+            >
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              {centre.status === 'draft' ? 'Edit & Activate' : 'Edit'}
+            </button>
+          )}
+          <button
+            className="inline-flex cursor-pointer items-center gap-1 border-none bg-transparent text-xs font-semibold text-cmx-blue transition-transform group-hover:translate-x-0.5"
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onOpen(centre);
+            }}
+          >
+            Open
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

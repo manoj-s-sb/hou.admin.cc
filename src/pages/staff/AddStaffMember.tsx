@@ -7,7 +7,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
 import { getCentres } from '../../store/centres/api';
-import { createStaff, getStaffConfig, getStaffDetails, getStaffList, updateStaff } from '../../store/staff/api';
+import {
+  createStaff,
+  createStaffAccessLevel,
+  createStaffRole,
+  getStaffConfig,
+  getStaffDetails,
+  getStaffList,
+  updateStaff,
+} from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
 
 import AccountStep from './components/AccountStep';
@@ -70,6 +78,10 @@ const AddStaffMember: React.FC = () => {
   const [assignedCentres, setAssignedCentres] = useState<string[]>([]);
   const [editStatus, setEditStatus] = useState<string>('active');
   const [twoFAEnabled, setTwoFAEnabled] = useState(true);
+  // True while a new role is being persisted (drives the create-role button state).
+  const [creatingRole, setCreatingRole] = useState(false);
+  // True while a new access level is being persisted.
+  const [creatingAccessLevel, setCreatingAccessLevel] = useState(false);
 
   // Real centre catalogue for the Assigned Centres picker (centre-scoped levels).
   // Sourced live from the same list as Centre Management — NO seed fallback, so the
@@ -263,6 +275,42 @@ const AddStaffMember: React.FC = () => {
       setProfileImage(dataUrl);
     } catch {
       toast.error('Failed to read image');
+    }
+  };
+
+  // Create a new role (persisted via the backend), then auto-select it for this staff member.
+  const handleCreateRole = async (label: string, description: string): Promise<boolean> => {
+    setCreatingRole(true);
+    try {
+      const role = await dispatch(createStaffRole({ label, description })).unwrap();
+      setSelectedRoles(prev => ({ ...prev, [role.id]: true }));
+      toast.success(`Role “${role.label}” created`);
+      return true;
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not create the role. Please try again.');
+      return false;
+    } finally {
+      setCreatingRole(false);
+    }
+  };
+
+  // Create a new access level (persisted via the backend), then auto-select it.
+  const handleCreateAccessLevel = async (
+    label: string,
+    description: string,
+    scopeType: 'facility' | 'global'
+  ): Promise<boolean> => {
+    setCreatingAccessLevel(true);
+    try {
+      const level = await dispatch(createStaffAccessLevel({ label, description, scopeType })).unwrap();
+      setAccessLevel(level.id);
+      toast.success(`Access level “${level.label}” created`);
+      return true;
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not create the access level. Please try again.');
+      return false;
+    } finally {
+      setCreatingAccessLevel(false);
     }
   };
 
@@ -473,11 +521,15 @@ const AddStaffMember: React.FC = () => {
               centres={centres}
               centresLoading={centresLoading}
               configError={configError}
+              creatingAccessLevel={creatingAccessLevel}
+              creatingRole={creatingRole}
               isConfigLoading={isConfigLoading}
               roles={roles}
               selectedRoles={selectedRoles}
               showAssignedCentres={requiresAssignedCentres}
               onChangeCentres={setAssignedCentres}
+              onCreateAccessLevel={handleCreateAccessLevel}
+              onCreateRole={handleCreateRole}
               onSelectAccessLevel={setAccessLevel}
               onToggleRole={toggleRole}
             />
