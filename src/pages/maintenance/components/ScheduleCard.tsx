@@ -1,14 +1,15 @@
 import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
 import { getWorkUploadUrl, updateWork, uploadFileToBlob } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
+import { AppDispatch } from '../../../store/store';
 import { getLocalUser } from '../constants';
 
 interface ScheduleCardProps {
   item: Work;
-  dispatch: any;
   updatedBy: string;
   onMarkDone: (item: Work) => void;
   onFlagIssue: (item: Work) => void;
@@ -20,7 +21,6 @@ interface ScheduleCardProps {
 
 const ScheduleCard = ({
   item,
-  dispatch,
   updatedBy,
   onMarkDone,
   onFlagIssue,
@@ -29,6 +29,7 @@ const ScheduleCard = ({
   onUndo,
   onSuccess,
 }: ScheduleCardProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const isIssue = item.status === 'issue';
   const [attaching, setAttaching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);

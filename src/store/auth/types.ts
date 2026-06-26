@@ -45,7 +45,7 @@ export interface AuthState {
   user: User | null;
   permissions: Permissions | null;
   tokenExpirationTime: number | null;
-  error: string | null | any;
+  error: string | null;
 }
 
 export const initialState: AuthState = {

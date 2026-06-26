@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- generic table boundary: cell values & row shapes are intentionally dynamic */
 import React from 'react';
 
 export type SortDirection = 'asc' | 'desc';

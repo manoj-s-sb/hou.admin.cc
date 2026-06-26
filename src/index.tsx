@@ -11,7 +11,10 @@ attachStore(store);
 const root = createRoot(document.getElementById('root') as HTMLElement);
 root.render(<App />);
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+// Dev: surface Core Web Vitals in the console. Prod: wire up a real sink (Sentry, GA, Datadog) here.
+if (process.env.NODE_ENV !== 'production') {
+  // eslint-disable-next-line no-console
+  reportWebVitals(metric => console.log('[web-vitals]', metric.name, metric.value, metric));
+} else {
+  reportWebVitals();
+}

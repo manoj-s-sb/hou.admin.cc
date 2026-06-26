@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../constants/routes';
+import { isSuperAdmin } from '../../rbac';
 import { login } from '../../store/auth/api';
 import { AppDispatch, RootState } from '../../store/store';
 
@@ -26,7 +27,9 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       toast.success('Logged in successfully!', { duration: 4000 });
-      setTimeout(() => navigate(ROUTES.ROOT.path), 100);
+      // Super admins land on Centre Management; everyone else uses the default landing.
+      const destination = isSuperAdmin() ? ROUTES.CENTRES.path : ROUTES.ROOT.path;
+      setTimeout(() => navigate(destination), 100);
     }
   }, [isAuthenticated, navigate]);
 

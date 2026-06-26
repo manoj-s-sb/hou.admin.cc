@@ -25,7 +25,7 @@ export const getMembers = createAsyncThunk(
         subscriptionStatus,
       });
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch members list'));
     }
   }
@@ -39,7 +39,7 @@ export const getSingleMemberDetails = createAsyncThunk(
         userId,
       });
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch single member details'));
     }
   }
@@ -68,8 +68,9 @@ export const activateUserSubscription = createAsyncThunk(
       );
 
       return response?.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data || error.message || 'Failed to activate user subscription');
+    } catch (error) {
+      const err = error as { response?: { data?: unknown }; message?: string };
+      return rejectWithValue(err.response?.data || err.message || 'Failed to activate user subscription');
     }
   }
 );
@@ -81,7 +82,7 @@ export const getMembersCount = createAsyncThunk(
         facilityCode,
       });
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch members count'));
     }
   }

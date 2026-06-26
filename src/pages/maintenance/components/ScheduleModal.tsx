@@ -1,9 +1,11 @@
 import { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
 import { updateWork } from '../../../store/maintenance/api';
 import { UpdateWorkRequest, Work } from '../../../store/maintenance/types';
+import { AppDispatch } from '../../../store/store';
 import { getLocalUser } from '../constants';
 
 interface ScheduleModalProps {
@@ -11,10 +13,10 @@ interface ScheduleModalProps {
   updatedBy?: string;
   onClose: () => void;
   onSuccess: (scheduledDate: string) => void;
-  dispatch: any;
 }
 
-const ScheduleModal = ({ item, updatedBy, onClose, onSuccess, dispatch }: ScheduleModalProps) => {
+const ScheduleModal = ({ item, updatedBy, onClose, onSuccess }: ScheduleModalProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [scheduledDate, setScheduledDate] = useState(item.scheduledDate || '');
   const [saving, setSaving] = useState(false);
 
@@ -39,7 +41,7 @@ const ScheduleModal = ({ item, updatedBy, onClose, onSuccess, dispatch }: Schedu
         onSuccess(scheduledDate);
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to schedule task.'))
+      .catch(err => toast.error(err || 'Failed to schedule task.'))
       .finally(() => setSaving(false));
   };
 

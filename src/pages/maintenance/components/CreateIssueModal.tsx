@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
 import { createWork, deleteWorkMedia, getWorkUploadUrl, uploadFileToBlob } from '../../../store/maintenance/api';
+import { AppDispatch } from '../../../store/store';
 import { ALL_LANES, AssignedTo, IssuePriority, RaisedBy, getLocalUser, inputCls, toggleCls } from '../constants';
 
 type IssueCategory = 'customer_support' | 'feature_request' | 'others';
@@ -18,10 +20,10 @@ interface CreateIssueModalProps {
   updatedBy: string;
   onClose: () => void;
   onSuccess: () => void;
-  dispatch: any;
 }
 
-const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatch }: CreateIssueModalProps) => {
+const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess }: CreateIssueModalProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<IssueCategory>('customer_support');
@@ -105,7 +107,7 @@ const CreateIssueModal = ({ facilityCode, updatedBy, onClose, onSuccess, dispatc
         onSuccess();
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to create issue.'))
+      .catch(err => toast.error(err || 'Failed to create issue.'))
       .finally(() => setSaving(false));
   };
 

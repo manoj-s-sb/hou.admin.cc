@@ -5,13 +5,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/Table/types';
+import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
 import { getStaffConfig, getStaffList, setStaffStatus } from '../../store/staff/api';
 
 import { GENERIC_ROLE_ICON, ROLE_ICON_MAP } from './constants';
-import { formatCentres } from './utils';
+import { useCentreLookup } from './useCentreLookup';
 
 import type { StaffListRow } from '../../store/staff/types';
 import type { AppDispatch, RootState } from '../../store/store';
@@ -126,7 +126,10 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
   return 'active';
 };
 
-const mapStaff = (row: StaffListRow): StaffRow => {
+const mapStaff = (
+  row: StaffListRow,
+  resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string
+): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
   const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
   const initialsSource = fullName || row.email || '?';
@@ -140,7 +143,7 @@ const mapStaff = (row: StaffListRow): StaffRow => {
 
   const roles = (row.userType ?? []).map(role => ({ label: formatRoleLabel(role) }));
 
-  const centres = formatCentres(row.assignedCentres, row.facilityCode);
+  const centres = resolveCentres(row.assignedCentres, row.facilityCode);
 
   return {
     id: row.staffId,
@@ -178,6 +181,7 @@ const StaffManagement: React.FC = () => {
   const { staffList, isListLoading, listError, staffConfig, isConfigLoading, configError } = useSelector(
     (state: RootState) => state.staff
   );
+  const centreLookup = useCentreLookup();
 
   const loadStaff = useCallback(() => {
     dispatch(getStaffList({ facilityCode: getLocalUser().facilityCode, limit: 50, offset: 0 }));
@@ -189,7 +193,10 @@ const StaffManagement: React.FC = () => {
     dispatch(getStaffConfig());
   }, [dispatch, loadStaff]);
 
-  const staff: StaffRow[] = useMemo(() => staffList.map(mapStaff), [staffList]);
+  const staff: StaffRow[] = useMemo(
+    () => staffList.map(row => mapStaff(row, centreLookup.text)),
+    [staffList, centreLookup.text]
+  );
   const isLoading = isListLoading;
   const error = listError;
 
@@ -502,18 +509,20 @@ const StaffManagement: React.FC = () => {
           )}
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <DataTable
-              columns={staffColumns.map(col => ({
-                id: col.field,
-                label: col.headerName,
-                minWidth: col.minWidth,
-                width: col.width,
-                sortable: col.sortable !== false,
-                renderCell: col.renderCell
-                  ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
-                  : col.valueGetter
-                    ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
-                    : undefined,
-              }))}
+              columns={staffColumns.map(
+                (col): TableColumn => ({
+                  id: col.field,
+                  label: col.headerName,
+                  minWidth: col.minWidth,
+                  width: col.width,
+                  sortable: col.sortable !== false,
+                  renderCell: col.renderCell
+                    ? (value, row, index) => col.renderCell?.({ value, row, index })
+                    : col.valueGetter
+                      ? (value, row) => col.valueGetter?.({ value, row, index: 0 }) || ''
+                      : undefined,
+                })
+              )}
               data={staff}
               emptyState={{
                 title: 'No staff members yet',
@@ -537,16 +546,18 @@ const StaffManagement: React.FC = () => {
           )}
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <DataTable
-              columns={designationColumns.map(col => ({
-                id: col.field,
-                label: col.headerName,
-                minWidth: col.minWidth,
-                width: col.width,
-                sortable: col.sortable !== false,
-                renderCell: col.renderCell
-                  ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
-                  : undefined,
-              }))}
+              columns={designationColumns.map(
+                (col): TableColumn => ({
+                  id: col.field,
+                  label: col.headerName,
+                  minWidth: col.minWidth,
+                  width: col.width,
+                  sortable: col.sortable !== false,
+                  renderCell: col.renderCell
+                    ? (value, row, index) => col.renderCell?.({ value, row, index })
+                    : undefined,
+                })
+              )}
               data={designationRows}
               emptyState={{ title: 'No designations configured' }}
               getRowId={row => row.id}

@@ -1,34 +1,36 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
+import NumberInput from '../../../components/NumberInput';
+import { createCentre, updateCentre } from '../../../store/centres/api';
+import { AppDispatch } from '../../../store/store';
 import {
   COUNTRIES,
   DAYS,
   DEMOGRAPHICS,
   FACILITY_OPTIONS,
   PLAN_CATALOGUE,
+  PLAN_COUNTRY_CHIPS,
   SLOT_DURATIONS,
   TIMEZONES,
+  WIZARD_STEPS,
 } from '../constants';
-import { commitWizard, saveWizardStep, startWizard } from '../useCentres';
 
 import AdditionalFacilitiesStep from './AdditionalFacilitiesStep';
 import AllocationBar from './AllocationBar';
+import { buildCreatePayload } from './buildCreatePayload';
+import { bundleToWizardState } from './bundleToWizardState';
+import { downloadCentrePdf } from './centrePdf';
 
-import type { CentreDiscount, WizardPlanRow, WizardState } from '../types';
-
-const STEPS = ['Details', 'Facilities', 'Add. Facilities', 'Plans & Pricing', 'Review'];
-
-const PLAN_COUNTRY_CHIPS = [
-  { code: 'all', label: '🌐 All countries' },
-  { code: 'US', label: '🇺🇸 USA' },
-  { code: 'AU', label: '🇦🇺 Australia' },
-  { code: 'IN', label: '🇮🇳 India' },
-  { code: 'UK', label: '🇬🇧 UK' },
-  { code: 'NZ', label: '🇳🇿 New Zealand' },
-  { code: 'ZA', label: '🇿🇦 South Africa' },
-];
+import type {
+  CentreApiStatus,
+  CentreBundle,
+  CentreDiscount,
+  WizardPlanRow,
+  WizardState,
+} from '../../../store/centres/types';
 
 // Toggle a country chip: picking 'all' clears specifics; picking a specific clears 'all'.
 const toggleCountry = (current: string[], code: string): string[] => {
@@ -116,18 +118,58 @@ const STATUS_LABEL: Record<string, string> = {
   suspended: 'Suspended',
 };
 
+type SaveStatus = 'draft' | 'active' | 'suspended';
+
+// Copy for each selectable "Set Centre Status on Save" radio. The `active`
+// title flips to "Reactivate" when the centre is currently suspended.
+const SAVE_STATUS_META: Record<SaveStatus, { title: string; desc: string }> = {
+  draft: {
+    title: 'Save as Draft',
+    desc: 'Centre is saved but invisible to all users including centre staff. Complete setup before going live.',
+  },
+  active: {
+    title: 'Save & Activate',
+    desc: 'Centre goes live immediately. Visible to assigned staff and available for member sign-ups. Sends activation notification to assigned Admins.',
+  },
+  suspended: {
+    title: 'Suspend Centre',
+    desc: 'Centre is taken offline — hidden from members and closed to new bookings. Existing data is preserved and it can be re-activated anytime.',
+  },
+};
+
+// Which status radios to offer, given the wizard mode + the centre's current status:
+//  • New / draft centre  → Draft, Active (Draft is only ever offered here).
+//  • Active / suspended  → Active, Suspend (toggle live ↔ offline).
+const saveStatusOptions = (isEdit: boolean, current?: CentreApiStatus): SaveStatus[] => {
+  if (isEdit && (current === 'active' || current === 'suspended')) return ['active', 'suspended'];
+  return ['draft', 'active'];
+};
+
 interface Props {
   onClose: () => void;
   onSaved: (activated: boolean) => void;
+  /** When provided, the wizard opens in edit mode, pre-filled from this bundle. */
+  initialBundle?: CentreBundle;
 }
 
-const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
-  const [step, setStep] = useState(1);
-  const [maxStepReached, setMaxStepReached] = useState(1);
+const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const isEdit = Boolean(initialBundle);
+  // Edit mode jumps straight to Review (step 5) with all steps already unlocked.
+  const [step, setStep] = useState(isEdit ? 5 : 1);
+  const [maxStepReached, setMaxStepReached] = useState(isEdit ? 5 : 1);
   const [demo, setDemo] = useState('all');
-  const [s, setS] = useState<WizardState>(initialState);
+  const [s, setS] = useState<WizardState>(() => (initialBundle ? bundleToWizardState(initialBundle) : initialState()));
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  // Current persisted status of the centre being edited (undefined when creating).
+  const currentStatus = initialBundle?.facility?.status;
+  // Status the "Create Centre" / "Save Changes" button will persist (Review step radio).
+  const [saveStatus, setSaveStatus] = useState<'draft' | 'active' | 'suspended'>(() =>
+    currentStatus === 'active' ? 'active' : currentStatus === 'suspended' ? 'suspended' : 'draft'
+  );
+  // After a successful save we show a success modal before returning to the grid.
+  const [savedAs, setSavedAs] = useState<null | 'draft' | 'active' | 'suspended'>(null);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
   const dirtyRef = useRef(false);
 
@@ -207,7 +249,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
     }
   };
 
-  const goStep = async (n: number) => {
+  const goStep = (n: number) => {
     // Moving forward requires the current step to be valid.
     if (n > step && !stepValid(step)) {
       setShowErrors(true);
@@ -215,15 +257,6 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
       return;
     }
     setShowErrors(false);
-    // Best-effort persist of the step we are leaving.
-    if (n > step) {
-      let id = s.wizardId;
-      if (!id) {
-        id = await startWizard();
-        if (id) set({ wizardId: id });
-      }
-      saveWizardStep(id, step, s);
-    }
     setStep(n);
     setMaxStepReached(m => Math.max(m, n));
   };
@@ -264,30 +297,72 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
     return PLAN_CATALOGUE.filter(p => p.demographics.includes(demo));
   }, [demo]);
 
-  const save = async (activate: boolean) => {
+  const save = async () => {
     if (!stepValid(4)) {
       toast.error('Resolve plan & capacity validation before saving.');
       setStep(4);
       return;
     }
     setSaving(true);
-    const finalState: WizardState = { ...s, status: activate ? 'active' : 'draft' };
-    const ok = await commitWizard(finalState, activate);
-    setSaving(false);
-    if (ok) {
-      toast.success(activate ? 'Centre submitted for activation (staging).' : 'Centre saved as draft.');
-      onSaved(activate);
-    } else {
-      toast.error('Could not save the centre. Please try again.');
+    const finalState: WizardState = { ...s, status: saveStatus };
+    const payload = buildCreatePayload(finalState, initialBundle);
+    // Centres are addressed by their (uppercase) short code everywhere in this API
+    // — /details is fetched by code, and the lookup is case-sensitive — so the
+    // update endpoint's centreId is the facility code, not the facility doc id
+    // (which is "<code>-facility").
+    const centreId =
+      (initialBundle?.facility?.code ?? '').toUpperCase() ||
+      (initialBundle?.facility?.id ?? '').replace(/-facility$/i, '');
+    try {
+      if (isEdit) await dispatch(updateCentre({ payload, centreId })).unwrap();
+      else await dispatch(createCentre(payload)).unwrap();
+      setSavedAs(saveStatus); // success modal → grid on dismiss
+    } catch (e) {
+      // 401 is handled globally (session-expired modal); the thunk rejects with a
+      // ready-to-show message (via handleApiError) otherwise.
+      toast.error(typeof e === 'string' ? e : 'Could not save the centre. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onDownloadPdf = () => {
+    if (!downloadCentrePdf(s)) {
+      toast.error('Could not open the PDF — please allow pop-ups for this site.');
     }
   };
 
   const err = (cond: boolean) => (showErrors && cond ? { borderColor: '#dc2626' } : undefined);
 
   return (
-    <>
-      <div aria-hidden="true" className="cmx-overlay" onClick={requestClose} />
-      <div aria-label="New Centre wizard" className="cmx-drawer" role="dialog">
+    <div className="font-sans text-sm text-cmx-text">
+      <button
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'var(--sub)',
+          fontSize: 12.5,
+          fontWeight: 600,
+          padding: 0,
+          marginBottom: 12,
+        }}
+        type="button"
+        onClick={requestClose}
+      >
+        <svg fill="none" height={14} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={14}>
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Centres
+      </button>
+      <div
+        aria-label="New Centre wizard"
+        className="relative w-full animate-cmx-fade-in overflow-hidden rounded-xl border border-cmx-border bg-white text-cmx-text"
+        role="dialog"
+      >
         {/* Header */}
         <div
           style={{
@@ -303,9 +378,13 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
           }}
         >
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>New Centre</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>
+              {isEdit ? `Edit Centre${s.name ? ` — ${s.name}` : ''}` : 'New Centre'}
+            </div>
             <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
-              Complete all steps to create and activate the centre
+              {isEdit
+                ? 'Review the pre-filled configuration, then save or activate the centre'
+                : 'Complete all steps to create and activate the centre'}
             </div>
           </div>
           <button
@@ -338,7 +417,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
             overflowX: 'auto',
           }}
         >
-          {STEPS.map((label, i) => {
+          {WIZARD_STEPS.map((label, i) => {
             const n = i + 1;
             const cls = n === step ? 'active' : n < step ? 'done' : '';
             // Allow jumping back freely; forward jumps require every prior step to still be valid.
@@ -347,7 +426,13 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
             return (
               <React.Fragment key={label}>
                 <button
-                  className={`cmx-step-pill ${cls}`}
+                  className={`cursor-pointer whitespace-nowrap rounded-full border px-3 py-[5px] text-[11.5px] font-semibold transition-all ${
+                    cls === 'active'
+                      ? 'border-navy bg-navy text-white'
+                      : cls === 'done'
+                        ? 'border-cmx-green bg-cmx-green-bg text-cmx-green'
+                        : 'border-cmx-border bg-white text-sub'
+                  }`}
                   disabled={!canJump}
                   style={canJump ? undefined : { opacity: 0.5, cursor: 'not-allowed' }}
                   type="button"
@@ -355,7 +440,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 >
                   {n} · {label}
                 </button>
-                {i < STEPS.length - 1 && (
+                {i < WIZARD_STEPS.length - 1 && (
                   <div style={{ flex: 1, minWidth: 8, height: 2, background: 'var(--border)', margin: '0 4px' }} />
                 )}
               </React.Fragment>
@@ -370,10 +455,11 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               <div className="cmx-eyebrow" style={{ marginBottom: 14 }}>
                 Centre Identity
               </div>
-              <div className="cmx-ff" style={{ marginBottom: 14 }}>
-                <span className="cmx-fld-lbl">Centre Name *</span>
+              <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
+                <span className="cmx-field-label">Centre Name *</span>
                 <input
                   ref={firstFieldRef}
+                  className="cmx-field"
                   placeholder="e.g. Century Cricket Centre — Dallas"
                   style={err(!s.name.trim())}
                   type="text"
@@ -382,9 +468,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Short Code *</span>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Short Code *</span>
                   <input
+                    className="cmx-field"
                     maxLength={6}
                     placeholder="e.g. DAL001"
                     style={{ textTransform: 'uppercase', ...(err(!shortCodeValid || !s.shortCode) || {}) }}
@@ -399,11 +486,16 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                     <div style={{ fontSize: 11, color: '#dc2626' }}>Must be 3–6 uppercase letters/numbers.</div>
                   )}
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Status</span>
-                  <select value={s.status} onChange={e => set({ status: e.target.value as 'draft' | 'active' })}>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Status</span>
+                  <select
+                    className="cmx-field"
+                    value={s.status}
+                    onChange={e => set({ status: e.target.value as SaveStatus })}
+                  >
                     <option value="draft">Draft (not visible to members)</option>
                     <option value="active">Active (go live immediately)</option>
+                    <option value="suspended">Suspended (taken offline)</option>
                   </select>
                 </div>
               </div>
@@ -411,9 +503,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               <div className="cmx-eyebrow" style={{ margin: '20px 0 14px' }}>
                 Address
               </div>
-              <div className="cmx-ff" style={{ marginBottom: 14 }}>
-                <span className="cmx-fld-lbl">Address Line 1 *</span>
+              <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
+                <span className="cmx-field-label">Address Line 1 *</span>
                 <input
+                  className="cmx-field"
                   placeholder="Street address"
                   style={err(!s.addressLine1.trim())}
                   type="text"
@@ -421,9 +514,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                   onChange={e => set({ addressLine1: e.target.value })}
                 />
               </div>
-              <div className="cmx-ff" style={{ marginBottom: 14 }}>
-                <span className="cmx-fld-lbl">Address Line 2</span>
+              <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
+                <span className="cmx-field-label">Address Line 2</span>
                 <input
+                  className="cmx-field"
                   placeholder="Suite, unit, floor (optional)"
                   type="text"
                   value={s.addressLine2}
@@ -431,9 +525,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">City *</span>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">City *</span>
                   <input
+                    className="cmx-field"
                     placeholder="e.g. Dallas"
                     style={err(!s.city.trim())}
                     type="text"
@@ -441,18 +536,20 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                     onChange={e => onCityChange(e.target.value)}
                   />
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">State / Province</span>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">State / Province</span>
                   <input
+                    className="cmx-field"
                     placeholder="e.g. TX"
                     type="text"
                     value={s.state}
                     onChange={e => set({ state: e.target.value })}
                   />
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Postcode *</span>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Postcode *</span>
                   <input
+                    className="cmx-field"
                     placeholder="e.g. 75201"
                     style={err(!s.postcode.trim())}
                     type="text"
@@ -462,9 +559,14 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Country *</span>
-                  <select style={err(!s.country)} value={s.country} onChange={e => set({ country: e.target.value })}>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Country *</span>
+                  <select
+                    className="cmx-field"
+                    style={err(!s.country)}
+                    value={s.country}
+                    onChange={e => set({ country: e.target.value })}
+                  >
                     <option value="">Select country…</option>
                     {COUNTRIES.map(c => (
                       <option key={c.code} value={c.code}>
@@ -473,9 +575,14 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                     ))}
                   </select>
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Time Zone *</span>
-                  <select style={err(!s.timezone)} value={s.timezone} onChange={e => set({ timezone: e.target.value })}>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Time Zone *</span>
+                  <select
+                    className="cmx-field"
+                    style={err(!s.timezone)}
+                    value={s.timezone}
+                    onChange={e => set({ timezone: e.target.value })}
+                  >
                     <option value="">Select timezone…</option>
                     {TIMEZONES.map(tz => (
                       <option key={tz.value} value={tz.value}>
@@ -490,9 +597,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 Contact
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Phone *</span>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Phone *</span>
                   <input
+                    className="cmx-field"
                     placeholder="+1 555 000 0000"
                     style={err(!s.phone.trim())}
                     type="tel"
@@ -500,9 +608,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                     onChange={e => set({ phone: e.target.value })}
                   />
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Email *</span>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Email *</span>
                   <input
+                    className="cmx-field"
                     placeholder="dallas@centurycricket.com"
                     style={err(!s.email.trim() || !emailValid)}
                     type="email"
@@ -536,16 +645,16 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                     Centre operates around the clock — no closing hours
                   </div>
                 </div>
-                <label className="cmx-toggle green">
+                <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
                   <input
                     aria-label="Open 24/7"
                     checked={s.is24x7}
+                    className="peer sr-only"
                     type="checkbox"
                     onChange={e => set({ is24x7: e.target.checked })}
                   />
-                  <span className="track">
-                    <span className="knob" />
-                  </span>
+                  <span className="absolute inset-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-cmx-green" />
+                  <span className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform peer-checked:translate-x-[18px]" />
                 </label>
               </div>
 
@@ -618,16 +727,16 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                         />
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <label className="cmx-toggle green">
+                        <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
                           <input
                             aria-label={`${DAYS[i]} open`}
                             checked={h.isOpen}
+                            className="peer sr-only"
                             type="checkbox"
                             onChange={e => setHour(h.day, { isOpen: e.target.checked })}
                           />
-                          <span className="track">
-                            <span className="knob" />
-                          </span>
+                          <span className="absolute inset-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-cmx-green" />
+                          <span className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform peer-checked:translate-x-[18px]" />
                         </label>
                       </div>
                     </div>
@@ -654,26 +763,26 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 are set in step 4 and must not exceed this total.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Overall Capacity (total slots) *</span>
-                  <input
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Overall Capacity (total slots) *</span>
+                  <NumberInput
+                    className="cmx-field"
                     min={1}
                     placeholder="e.g. 450"
                     style={err(capacity <= 0)}
-                    type="number"
-                    value={s.overallCapacity}
-                    onChange={e => set({ overallCapacity: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.overallCapacity === 'number' ? s.overallCapacity : 0}
+                    onValueChange={v => set({ overallCapacity: v })}
                   />
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Foundation Membership Pool</span>
-                  <input
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Foundation Membership Pool</span>
+                  <NumberInput
+                    className="cmx-field"
                     min={0}
                     placeholder="e.g. 100"
                     style={err(foundationOverflow)}
-                    type="number"
-                    value={s.foundationPool}
-                    onChange={e => set({ foundationPool: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.foundationPool === 'number' ? s.foundationPool : 0}
+                    onValueChange={v => set({ foundationPool: v })}
                   />
                   <div className="cmx-hint">
                     Subset of overall capacity reserved for foundation members. Leave blank if N/A.
@@ -758,31 +867,31 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 Lanes
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Batting Lanes *</span>
-                  <input
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Batting Lanes *</span>
+                  <NumberInput
+                    className="cmx-field"
                     min={0}
-                    type="number"
-                    value={s.battingLanes}
-                    onChange={e => set({ battingLanes: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.battingLanes === 'number' ? s.battingLanes : 0}
+                    onValueChange={v => set({ battingLanes: v })}
                   />
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Bowling Lanes *</span>
-                  <input
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Bowling Lanes *</span>
+                  <NumberInput
+                    className="cmx-field"
                     min={0}
-                    type="number"
-                    value={s.bowlingLanes}
-                    onChange={e => set({ bowlingLanes: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.bowlingLanes === 'number' ? s.bowlingLanes : 0}
+                    onValueChange={v => set({ bowlingLanes: v })}
                   />
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Multi-purpose Lanes</span>
-                  <input
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Multi-purpose Lanes</span>
+                  <NumberInput
+                    className="cmx-field"
                     min={0}
-                    type="number"
-                    value={s.multipurposeLanes}
-                    onChange={e => set({ multipurposeLanes: e.target.value === '' ? '' : Number(e.target.value) })}
+                    value={typeof s.multipurposeLanes === 'number' ? s.multipurposeLanes : 0}
+                    onValueChange={v => set({ multipurposeLanes: v })}
                   />
                 </div>
               </div>
@@ -794,8 +903,19 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 {FACILITY_OPTIONS.map(f => {
                   const on = s.facilities.includes(f);
                   return (
-                    <label key={f} className={`cmx-check-chip ${on ? 'on' : ''}`}>
-                      <input checked={on} type="checkbox" onChange={() => toggleFacility(f)} /> {f}
+                    <label
+                      key={f}
+                      className={`inline-flex cursor-pointer select-none items-center gap-1.5 rounded-[7px] border border-cmx-border bg-white px-2.5 py-1.5 text-xs font-medium text-sub transition-all ${
+                        on ? 'border-[#9096be] bg-cmx-blue-light text-cmx-blue' : ''
+                      }`}
+                    >
+                      <input
+                        checked={on}
+                        className="h-[13px] w-[13px] accent-cmx-blue"
+                        type="checkbox"
+                        onChange={() => toggleFacility(f)}
+                      />{' '}
+                      {f}
                     </label>
                   );
                 })}
@@ -805,9 +925,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 Slot Configuration
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Slot Duration (minutes) *</span>
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Slot Duration (minutes) *</span>
                   <select
+                    className="cmx-field"
                     value={s.slotDurationMinutes}
                     onChange={e => set({ slotDurationMinutes: Number(e.target.value) })}
                   >
@@ -819,14 +940,14 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                   </select>
                   <div className="cmx-hint">Network standard: 45 mins</div>
                 </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Advance Booking Window (days)</span>
-                  <input
+                <div className="flex flex-col gap-1">
+                  <span className="cmx-field-label">Advance Booking Window (days)</span>
+                  <NumberInput
+                    className="cmx-field"
                     max={30}
                     min={1}
-                    type="number"
                     value={s.advanceBookingWindowDays}
-                    onChange={e => set({ advanceBookingWindowDays: Number(e.target.value) })}
+                    onValueChange={v => set({ advanceBookingWindowDays: v })}
                   />
                   <div className="cmx-hint">Network default: 7 days</div>
                 </div>
@@ -901,7 +1022,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                     {DEMOGRAPHICS.map(d => (
                       <button
                         key={d.key}
-                        className={`cmx-demo-btn ${demo === d.key ? 'active' : ''}`}
+                        className={`cursor-pointer whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
+                          demo === d.key ? 'border-navy bg-navy text-white' : 'border-cmx-border bg-white text-sub'
+                        }`}
                         type="button"
                         onClick={() => setDemo(d.key)}
                       >
@@ -967,44 +1090,39 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                               alignItems: 'end',
                             }}
                           >
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">Fortnightly Price *</span>
-                              <input
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">Fortnightly Price *</span>
+                              <NumberInput
+                                className="cmx-field"
                                 min={0}
                                 step={0.01}
-                                type="number"
                                 value={row.fortnightlyPrice}
-                                onChange={e =>
-                                  setPlan(meta.id, { fortnightlyPrice: Math.max(0, Number(e.target.value) || 0) })
-                                }
+                                onValueChange={v => setPlan(meta.id, { fortnightlyPrice: v })}
                               />
                             </div>
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">Annual Price</span>
-                              <input
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">Annual Price</span>
+                              <NumberInput
+                                className="cmx-field"
                                 min={0}
                                 step={0.01}
-                                type="number"
                                 value={row.annualPrice}
-                                onChange={e =>
-                                  setPlan(meta.id, { annualPrice: Math.max(0, Number(e.target.value) || 0) })
-                                }
+                                onValueChange={v => setPlan(meta.id, { annualPrice: v })}
                               />
                             </div>
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">Allocated Slots *</span>
-                              <input
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">Allocated Slots *</span>
+                              <NumberInput
+                                className="cmx-field"
                                 min={1}
-                                type="number"
                                 value={row.allocatedSlots}
-                                onChange={e =>
-                                  setPlan(meta.id, { allocatedSlots: Math.max(1, Number(e.target.value) || 1) })
-                                }
+                                onValueChange={v => setPlan(meta.id, { allocatedSlots: v })}
                               />
                             </div>
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">Foundation Eligible</span>
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">Foundation Eligible</span>
                               <select
+                                className="cmx-field"
                                 value={row.isFoundationEligible ? 'yes' : 'no'}
                                 onChange={e => setPlan(meta.id, { isFoundationEligible: e.target.value === 'yes' })}
                               >
@@ -1014,9 +1132,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                             </div>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 10 }}>
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">Member Cap</span>
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">Member Cap</span>
                               <input
+                                className="cmx-field"
                                 min={1}
                                 placeholder="Blank = plan cap"
                                 type="number"
@@ -1035,59 +1154,61 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                                   </div>
                                 )}
                             </div>
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">First Guest Fee (USD)</span>
-                              <input
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">First Guest Fee (USD)</span>
+                              <NumberInput
+                                className="cmx-field"
                                 min={0}
                                 step={0.01}
-                                type="number"
                                 value={row.firstGuestFee}
-                                onChange={e => setPlan(meta.id, { firstGuestFee: Number(e.target.value) })}
+                                onValueChange={v => setPlan(meta.id, { firstGuestFee: v })}
                               />
                             </div>
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">Add. Guest Discount (%)</span>
-                              <input
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">Add. Guest Discount (%)</span>
+                              <NumberInput
+                                className="cmx-field"
                                 max={100}
                                 min={0}
-                                type="number"
                                 value={row.additionalGuestDiscountPct}
-                                onChange={e => setPlan(meta.id, { additionalGuestDiscountPct: Number(e.target.value) })}
+                                onValueChange={v => setPlan(meta.id, { additionalGuestDiscountPct: v })}
                               />
                             </div>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">Extra Session Cost (USD)</span>
-                              <input
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">Extra Session Cost (USD)</span>
+                              <NumberInput
+                                className="cmx-field"
                                 min={0}
                                 step={0.01}
-                                type="number"
                                 value={row.extraSessionCost}
-                                onChange={e => setPlan(meta.id, { extraSessionCost: Number(e.target.value) })}
+                                onValueChange={v => setPlan(meta.id, { extraSessionCost: v })}
                               />
                             </div>
-                            <div className="cmx-ff">
-                              <span className="cmx-fld-lbl">Joining Fee (USD)</span>
-                              <input
+                            <div className="flex flex-col gap-1">
+                              <span className="cmx-field-label">Joining Fee (USD)</span>
+                              <NumberInput
+                                className="cmx-field"
                                 min={0}
                                 placeholder="0 = no joining fee"
                                 step={0.01}
-                                type="number"
                                 value={row.joiningFee}
-                                onChange={e => setPlan(meta.id, { joiningFee: Number(e.target.value) })}
+                                onValueChange={v => setPlan(meta.id, { joiningFee: v })}
                               />
                             </div>
                           </div>
                           <div style={{ marginTop: 10 }}>
-                            <span className="cmx-fld-lbl">Available in</span>
+                            <span className="cmx-field-label">Available in</span>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                               {PLAN_COUNTRY_CHIPS.map(c => {
                                 const active = row.availableCountries.includes(c.code);
                                 return (
                                   <button
                                     key={c.code}
-                                    className={`cmx-country-chip ${active ? 'active' : ''}`}
+                                    className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border border-cmx-border bg-white px-2.5 py-1 text-xs font-medium text-sub transition-all ${
+                                      active ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : ''
+                                    }`}
                                     type="button"
                                     onClick={() =>
                                       setPlan(meta.id, {
@@ -1114,47 +1235,6 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
               {/* Live allocation bar */}
               <div style={{ marginBottom: 20 }}>
                 <AllocationBar capacity={capacity} plans={s.plans} />
-              </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
-
-              <div className="cmx-eyebrow" style={{ marginBottom: 14 }}>
-                Guest & Extra Session Pricing (centre defaults)
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">First Guest Fee (USD) *</span>
-                  <input
-                    min={0}
-                    step={0.01}
-                    type="number"
-                    value={s.firstGuestFee}
-                    onChange={e => set({ firstGuestFee: Number(e.target.value) })}
-                  />
-                  <div className="cmx-hint">Network default: $30</div>
-                </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Additional Guest Discount (%)</span>
-                  <input
-                    max={100}
-                    min={0}
-                    type="number"
-                    value={s.additionalGuestDiscountPct}
-                    onChange={e => set({ additionalGuestDiscountPct: Number(e.target.value) })}
-                  />
-                  <div className="cmx-hint">Network default: 20%</div>
-                </div>
-                <div className="cmx-ff">
-                  <span className="cmx-fld-lbl">Extra Session Cost (USD)</span>
-                  <input
-                    min={0}
-                    step={0.01}
-                    type="number"
-                    value={s.extraSessionCost}
-                    onChange={e => set({ extraSessionCost: Number(e.target.value) })}
-                  />
-                  <div className="cmx-hint">Configurable per centre</div>
-                </div>
               </div>
 
               <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
@@ -1193,9 +1273,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                       ×
                     </button>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 10 }}>
-                      <div className="cmx-ff">
-                        <span className="cmx-fld-lbl">Discount Name *</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="cmx-field-label">Discount Name *</span>
                         <input
+                          className="cmx-field"
                           placeholder="e.g. Senior Concession"
                           type="text"
                           value={d.name}
@@ -1206,9 +1287,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                           }
                         />
                       </div>
-                      <div className="cmx-ff">
-                        <span className="cmx-fld-lbl">Type *</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="cmx-field-label">Type *</span>
                         <select
+                          className="cmx-field"
                           value={d.type}
                           onChange={e =>
                             set({
@@ -1225,11 +1307,12 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                      <div className="cmx-ff">
-                        <span className="cmx-fld-lbl">
+                      <div className="flex flex-col gap-1">
+                        <span className="cmx-field-label">
                           Value{d.type === 'percentage' ? ' (%)' : d.type === 'fixed' ? ' ($)' : ' (sessions)'}
                         </span>
                         <input
+                          className="cmx-field"
                           max={d.type === 'percentage' ? 100 : d.type === 'free_sessions' ? 30 : 99999}
                           min={0}
                           type="number"
@@ -1243,9 +1326,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                           }}
                         />
                       </div>
-                      <div className="cmx-ff">
-                        <span className="cmx-fld-lbl">Applies To</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="cmx-field-label">Applies To</span>
                         <input
+                          className="cmx-field"
                           type="text"
                           value={d.appliesTo}
                           onChange={e =>
@@ -1257,9 +1341,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                           }
                         />
                       </div>
-                      <div className="cmx-ff">
-                        <span className="cmx-fld-lbl">Promo Code</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="cmx-field-label">Promo Code</span>
                         <input
+                          className="cmx-field"
                           placeholder="OPTIONAL"
                           type="text"
                           value={d.promoCode}
@@ -1451,31 +1536,35 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                 </table>
               </ReviewCard>
 
-              {/* Activation warning */}
+              {/* Set Centre Status on Save */}
               <div
                 style={{
-                  border: '1px solid #fde68a',
-                  background: '#fffbeb',
-                  borderRadius: 10,
-                  padding: 16,
-                  marginBottom: 20,
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: 22,
+                  marginBottom: 22,
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
-                  Two-stage activation
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)', marginBottom: 16 }}>
+                  Set Centre Status on Save
                 </div>
-                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: '#92400e', lineHeight: 1.7 }}>
-                  <li>
-                    <strong>Save as Draft</strong> → status becomes <em>draft</em>. No notifications sent.
-                  </li>
-                  <li>
-                    <strong>Save &amp; Activate</strong> → status becomes <em>staging</em>, DevOps is notified. The
-                    centre is <strong>not live</strong> until deployment.
-                  </li>
-                  <li>
-                    After DevOps deploys → status becomes <em>active</em> and the centre is visible to members.
-                  </li>
-                </ul>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {saveStatusOptions(isEdit, currentStatus).map(opt => {
+                    const meta = SAVE_STATUS_META[opt];
+                    // A suspended centre going back live reads better as "Reactivate".
+                    const title =
+                      opt === 'active' && currentStatus === 'suspended' ? 'Reactivate Centre' : meta.title;
+                    return (
+                      <StatusOption
+                        key={opt}
+                        checked={saveStatus === opt}
+                        desc={meta.desc}
+                        title={title}
+                        onSelect={() => setSaveStatus(opt)}
+                      />
+                    );
+                  })}
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -1483,22 +1572,50 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
                   ← Back
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    className="cmx-btn cmx-btn-outline"
-                    disabled={saving}
-                    type="button"
-                    onClick={() => save(false)}
-                  >
-                    Save as Draft
+                  <button className="cmx-btn cmx-btn-outline" type="button" onClick={onDownloadPdf}>
+                    <svg
+                      fill="none"
+                      height={14}
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      style={{ marginRight: 6 }}
+                      viewBox="0 0 24 24"
+                      width={14}
+                    >
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round" strokeLinejoin="round" />
+                      <polyline points="7 10 12 15 17 10" strokeLinecap="round" strokeLinejoin="round" />
+                      <line strokeLinecap="round" x1="12" x2="12" y1="15" y2="3" />
+                    </svg>
+                    Download PDF
+                  </button>
+                  <button className="cmx-btn cmx-btn-outline" disabled={saving} type="button" onClick={requestClose}>
+                    Cancel
                   </button>
                   <button
                     className="cmx-btn cmx-btn-navy"
                     disabled={saving}
                     style={{ padding: '8px 20px' }}
                     type="button"
-                    onClick={() => save(true)}
+                    onClick={save}
                   >
-                    {saving ? 'Saving…' : 'Save & Activate'}
+                    <svg
+                      fill="none"
+                      height={14}
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      style={{ marginRight: 6 }}
+                      viewBox="0 0 24 24"
+                      width={14}
+                    >
+                      <path
+                        d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <polyline points="17 21 17 13 7 13 7 21" strokeLinecap="round" strokeLinejoin="round" />
+                      <polyline points="7 3 7 8 15 8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Centre'}
                   </button>
                 </div>
               </div>
@@ -1506,11 +1623,142 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved }) => {
           )}
         </div>
       </div>
-    </>
+
+      {/* Success modal — shown on 201, then returns to the grid + refreshes the list */}
+      {savedAs && (
+        <div
+          aria-modal="true"
+          role="dialog"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 600, // must sit above the drawer (z-index 501), else it's hidden behind the form
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(15,23,42,0.5)',
+          }}
+        >
+          <div
+            style={{
+              width: 'min(440px, 92vw)',
+              background: '#fff',
+              borderRadius: 16,
+              padding: '28px 26px',
+              textAlign: 'center',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+            }}
+          >
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                margin: '0 auto 14px',
+                borderRadius: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: savedAs === 'active' ? '#d0f0f0' : savedAs === 'suspended' ? '#fee2e2' : '#fef3c7',
+                color: savedAs === 'active' ? '#008482' : savedAs === 'suspended' ? '#dc2626' : '#d97706',
+              }}
+            >
+              <svg fill="none" height={28} stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" width={28}>
+                {savedAs === 'active' ? (
+                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                ) : savedAs === 'suspended' ? (
+                  <>
+                    <circle cx="12" cy="12" r="9" />
+                    <line strokeLinecap="round" x1="9" x2="9" y1="9" y2="15" />
+                    <line strokeLinecap="round" x1="15" x2="15" y1="9" y2="15" />
+                  </>
+                ) : (
+                  <path
+                    d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </svg>
+            </div>
+            <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--navy)' }}>
+              {savedAs === 'active'
+                ? isEdit
+                  ? currentStatus === 'suspended'
+                    ? 'Centre Reactivated!'
+                    : 'Centre Activated!'
+                  : 'Centre Created!'
+                : savedAs === 'suspended'
+                  ? 'Centre Suspended'
+                  : isEdit
+                    ? 'Changes Saved'
+                    : 'Centre Saved as Draft'}
+            </p>
+            <p style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>
+              {savedAs === 'active'
+                ? 'The centre is live and visible to assigned staff.'
+                : savedAs === 'suspended'
+                  ? 'The centre is suspended and hidden from members. You can re-activate it anytime.'
+                  : 'The centre is saved as a draft. Complete setup and activate it when ready.'}
+            </p>
+            <button
+              className="cmx-btn cmx-btn-navy"
+              style={{ marginTop: 18, width: '100%', justifyContent: 'center' }}
+              type="button"
+              onClick={() => onSaved(savedAs === 'active')}
+            >
+              {isEdit ? 'Back to Centre' : 'Back to Centres'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
 /* ── Review helpers ── */
+const StatusOption: React.FC<{ checked: boolean; title: string; desc: string; onSelect: () => void }> = ({
+  checked,
+  title,
+  desc,
+  onSelect,
+}) => (
+  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+  <div
+    style={{
+      display: 'flex',
+      gap: 12,
+      alignItems: 'flex-start',
+      border: `1px solid ${checked ? 'var(--blue)' : 'var(--border)'}`,
+      borderRadius: 10,
+      padding: '16px 18px',
+      cursor: 'pointer',
+      background: checked ? 'rgba(37,99,235,0.04)' : '#fff',
+      transition: 'border-color .15s, background .15s',
+    }}
+    onClick={onSelect}
+  >
+    <span
+      style={{
+        flexShrink: 0,
+        marginTop: 2,
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        border: `2px solid ${checked ? 'var(--blue)' : 'var(--muted)'}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {checked && <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--blue)' }} />}
+    </span>
+    <div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)' }}>{title}</div>
+      <div style={{ fontSize: 12.5, color: 'var(--sub)', marginTop: 3, lineHeight: 1.5 }}>{desc}</div>
+    </div>
+  </div>
+);
+
 const ReviewCard: React.FC<{ title: string; onEdit: () => void; children: React.ReactNode }> = ({
   title,
   onEdit,

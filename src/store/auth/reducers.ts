@@ -49,7 +49,7 @@ const authSlice = createSlice({
       state.isLoading = false;
       state.isAuthenticated = false;
       state.loginResponse = null;
-      state.error = action.payload || 'Login failed. Please try again.';
+      state.error = (action.payload as string) || 'Login failed. Please try again.';
     });
   },
 });

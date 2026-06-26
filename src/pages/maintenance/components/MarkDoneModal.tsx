@@ -1,9 +1,11 @@
 import { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
 import { createWork, updateWork } from '../../../store/maintenance/api';
 import { Work } from '../../../store/maintenance/types';
+import { AppDispatch } from '../../../store/store';
 import { ActionType, actionTypes, getLocalUser, toggleCls } from '../constants';
 
 interface MarkDoneModalProps {
@@ -12,10 +14,10 @@ interface MarkDoneModalProps {
   facilityCode: string;
   onClose: () => void;
   onSuccess: () => void;
-  dispatch: any;
 }
 
-const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess, dispatch }: MarkDoneModalProps) => {
+const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess }: MarkDoneModalProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [actionType, setActionType] = useState<ActionType>('no_action');
   const [actionNotes, setActionNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -77,7 +79,7 @@ const MarkDoneModal = ({ item, updatedBy, facilityCode, onClose, onSuccess, disp
         onSuccess();
         onClose();
       })
-      .catch((err: any) => toast.error(err || 'Failed to update.'))
+      .catch(err => toast.error(err || 'Failed to update.'))
       .finally(() => setSaving(false));
   };
 

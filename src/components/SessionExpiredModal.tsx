@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants/routes';
 import { logout as logoutAction } from '../store/auth/reducers';
 import { persistor } from '../store/store';
+import { facilityScope } from '../utils/facilityScope';
 
 interface SessionExpiredModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const SessionExpiredModal: React.FC<SessionExpiredModalProps> = ({ isOpen, onClo
   const handleLogout = () => {
     dispatch(logoutAction());
     persistor.purge();
+    facilityScope.reset();
     onClose();
     navigate(ROUTES.LOGIN.path);
   };

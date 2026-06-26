@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 
 import { LoaderSpinner } from '../../../components/Loader';
 import { getInductionStepsDetails } from '../../../store/induction/api';
-import { SubStep } from '../../../store/induction/types';
+import { Induction, SubStep } from '../../../store/induction/types';
+import { AppDispatch } from '../../../store/store';
 import { formatDateTimeChicago } from '../../../utils/dateUtils';
 
 import ButtonLoader from './ButtonLoader';
@@ -28,13 +30,12 @@ interface AccordionItemProps {
   isPrimary: boolean;
   isOpen: boolean;
   onToggle: () => void;
-  dispatch: any;
   onSaveInduction: (userId: string, steps: SubStep[]) => void;
   onActivateSubscription: (userId: string) => void;
   isSaving: boolean;
   isSubscriptionActivation: boolean;
   isActivatingSubscription: boolean;
-  data: any;
+  data: Induction | null;
   buttonLoader: boolean;
 }
 
@@ -47,7 +48,6 @@ const InductionAccordionItem = ({
   isPrimary,
   isOpen,
   onToggle,
-  dispatch,
   onSaveInduction,
   onActivateSubscription,
   isSaving,
@@ -56,6 +56,7 @@ const InductionAccordionItem = ({
   data,
   buttonLoader,
 }: AccordionItemProps) => {
+  const dispatch = useDispatch<AppDispatch>();
   const [steps, setSteps] = useState<SubStep[]>([]);
   const [originalSteps, setOriginalSteps] = useState<SubStep[]>([]); // Track original API data
   const [isLoadingSteps, setIsLoadingSteps] = useState(false);
@@ -69,13 +70,13 @@ const InductionAccordionItem = ({
       setIsLoadingSteps(true);
       dispatch(getInductionStepsDetails({ userId }))
         .unwrap()
-        .then((data: any) => {
+        .then(data => {
           if (data) {
             setSteps(data?.data?.subSteps);
             setOriginalSteps(data?.data?.subSteps); // Store original API data
           }
         })
-        .catch((error: any) => {
+        .catch(error => {
           console.error(`Error fetching induction steps for user ${userId}:`, error);
         })
         .finally(() => {
@@ -91,13 +92,13 @@ const InductionAccordionItem = ({
       setIsLoadingSteps(true);
       dispatch(getInductionStepsDetails({ userId }))
         .unwrap()
-        .then((data: any) => {
+        .then(data => {
           if (data) {
             setSteps(data?.data?.subSteps);
             setOriginalSteps(data?.data?.subSteps); // Store original API data
           }
         })
-        .catch((error: any) => {
+        .catch(error => {
           console.error(`Error fetching induction steps for user ${userId}:`, error);
         })
         .finally(() => {
@@ -366,7 +367,7 @@ const InductionAccordionItem = ({
 
           <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
             {/* Save Induction Button */}
-            {isPrimary && data.subscriptionStatus !== 'active' && (
+            {isPrimary && data?.subscriptionStatus !== 'active' && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   isSaveDisabled ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
@@ -391,7 +392,7 @@ const InductionAccordionItem = ({
               </button>
             )}
             {/* Activate Subscription Button - Hide when status is completed and subscriptionStatus is active */}
-            {isPrimary && data.subscriptionStatus !== 'active' && (
+            {isPrimary && data?.subscriptionStatus !== 'active' && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader

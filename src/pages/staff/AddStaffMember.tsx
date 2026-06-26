@@ -6,7 +6,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getLocalUser } from '../../constants/user';
-import { createStaff, getStaffConfig, getStaffDetails, getStaffList, updateStaff } from '../../store/staff/api';
+import { getCentres } from '../../store/centres/api';
+import {
+  createStaff,
+  createStaffAccessLevel,
+  createStaffRole,
+  getStaffConfig,
+  getStaffDetails,
+  getStaffList,
+  updateStaff,
+} from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
 
 import AccountStep from './components/AccountStep';
@@ -17,8 +26,16 @@ import StepFooter from './components/StepFooter';
 import StepIndicator from './components/StepIndicator';
 import { STEPS } from './constants';
 import { OTHER_QUALIFICATION, ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
-import { blankToNull, fileToDataUrl, getConfigOtherQualificationId, sortActiveUnique, validatePassword } from './utils';
+import {
+  blankToNull,
+  fileToDataUrl,
+  getConfigOtherQualificationId,
+  isCentreScopedLevel,
+  sortActiveUnique,
+  validatePassword,
+} from './utils';
 
+import type { FacilitySummary } from '../../store/centres/types';
 import type { AppDispatch, RootState } from '../../store/store';
 
 const AddStaffMember: React.FC = () => {
@@ -57,9 +74,20 @@ const AddStaffMember: React.FC = () => {
   const [existingDocs, setExistingDocs] = useState<StaffDocument[]>([]);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string>('');
   const [editFacilityCode, setEditFacilityCode] = useState<string>('');
-  const [editAssignedCentres, setEditAssignedCentres] = useState<string[]>([]);
+  // Centres a centre-scoped staff member is assigned to (codes). Used for both create & edit.
+  const [assignedCentres, setAssignedCentres] = useState<string[]>([]);
   const [editStatus, setEditStatus] = useState<string>('active');
   const [twoFAEnabled, setTwoFAEnabled] = useState(true);
+  // True while a new role is being persisted (drives the create-role button state).
+  const [creatingRole, setCreatingRole] = useState(false);
+  // True while a new access level is being persisted.
+  const [creatingAccessLevel, setCreatingAccessLevel] = useState(false);
+
+  // Real centre catalogue for the Assigned Centres picker (centre-scoped levels).
+  // Sourced live from the same list as Centre Management — NO seed fallback, so the
+  // codes saved here always match real centres in the DB.
+  const [centres, setCentres] = useState<FacilitySummary[]>([]);
+  const [centresLoading, setCentresLoading] = useState(false);
 
   // Sorted/filtered config slices for the wizard steps
   const qualifications = useMemo(() => sortActiveUnique(staffConfig?.qualifications), [staffConfig]);
@@ -76,6 +104,27 @@ const AddStaffMember: React.FC = () => {
   // Load config once on mount (cached in store after first fetch)
   useEffect(() => {
     dispatch(getStaffConfig());
+  }, [dispatch]);
+
+  // Load the real centre catalogue. On error/empty the picker shows an empty state
+  // (plus the "Other" manual option) — we never substitute seed centres here.
+  useEffect(() => {
+    let cancelled = false;
+    setCentresLoading(true);
+    dispatch(getCentres({ skip: 0, limit: 200 }))
+      .unwrap()
+      .then(res => {
+        if (!cancelled) setCentres(res.facilities ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setCentres([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCentresLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
 
   // Load existing staff details in edit mode
@@ -119,7 +168,7 @@ const AddStaffMember: React.FC = () => {
     setExistingDocs(sp.documents ?? []);
     setExistingPhotoUrl(sp.photoSasUrl ?? '');
     setEditFacilityCode(data.facilityCode ?? '');
-    setEditAssignedCentres(sp.assignedCentres ?? []);
+    setAssignedCentres(sp.assignedCentres ?? []);
     setEditStatus(data.status ?? 'active');
     setLoginEmail(data.loginEmail ?? data.email ?? '');
     loginEmailInitedRef.current = true;
@@ -172,6 +221,13 @@ const AddStaffMember: React.FC = () => {
     setSelectedRoles(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // The currently-selected access level, and whether it scopes to specific centres.
+  const selectedAccessLevel = useMemo(
+    () => accessLevels.find(l => l.id === accessLevel) ?? null,
+    [accessLevels, accessLevel]
+  );
+  const requiresAssignedCentres = isCentreScopedLevel(selectedAccessLevel);
+
   const handleDocSelect = (key: string, file: File | null, maxSizeMB: number) => {
     if (!file) return;
     if (file.size > maxSizeMB * 1024 * 1024) {
@@ -222,6 +278,42 @@ const AddStaffMember: React.FC = () => {
     }
   };
 
+  // Create a new role (persisted via the backend), then auto-select it for this staff member.
+  const handleCreateRole = async (label: string, description: string): Promise<boolean> => {
+    setCreatingRole(true);
+    try {
+      const role = await dispatch(createStaffRole({ label, description })).unwrap();
+      setSelectedRoles(prev => ({ ...prev, [role.id]: true }));
+      toast.success(`Role “${role.label}” created`);
+      return true;
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not create the role. Please try again.');
+      return false;
+    } finally {
+      setCreatingRole(false);
+    }
+  };
+
+  // Create a new access level (persisted via the backend), then auto-select it.
+  const handleCreateAccessLevel = async (
+    label: string,
+    description: string,
+    scopeType: 'facility' | 'global'
+  ): Promise<boolean> => {
+    setCreatingAccessLevel(true);
+    try {
+      const level = await dispatch(createStaffAccessLevel({ label, description, scopeType })).unwrap();
+      setAccessLevel(level.id);
+      toast.success(`Access level “${level.label}” created`);
+      return true;
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not create the access level. Please try again.');
+      return false;
+    } finally {
+      setCreatingAccessLevel(false);
+    }
+  };
+
   const buildSelectedRoleIds = (): string[] => roles.filter(r => selectedRoles[r.id]).map(r => r.id);
   const buildSelectedCertificationIds = (): string[] =>
     certifications.filter(c => profile.certifications[c.id]).map(c => c.id);
@@ -233,6 +325,8 @@ const AddStaffMember: React.FC = () => {
     if (draft) return null;
     if (buildSelectedRoleIds().length === 0) return 'Select at least one role';
     if (!accessLevel) return 'Select an access level';
+    if (requiresAssignedCentres && assignedCentres.length === 0)
+      return 'Assign at least one centre for centre-scoped access';
     if (!loginEmail.trim()) return 'Login email is required';
     if (isEditMode) return null;
     const pwError = validatePassword(defaultPassword);
@@ -287,7 +381,7 @@ const AddStaffMember: React.FC = () => {
             additionalNotes: profile.notes,
             roles: buildSelectedRoleIds(),
             accessLevel,
-            assignedCentres: editAssignedCentres,
+            assignedCentres: requiresAssignedCentres ? assignedCentres : [],
             documents: [...existingEntries, ...newDocEntries],
             twoFactorAuth: twoFAEnabled,
             twoFactorMethod: twoFAEnabled ? 'email' : '',
@@ -326,7 +420,7 @@ const AddStaffMember: React.FC = () => {
           additionalNotes: profile.notes,
           roles: buildSelectedRoleIds(),
           accessLevel,
-          assignedCentres: [],
+          assignedCentres: requiresAssignedCentres ? assignedCentres : [],
           documents: newDocEntries,
           twoFactorAuth: twoFAEnabled,
           twoFactorMethod: twoFAEnabled ? 'email' : '',
@@ -423,10 +517,19 @@ const AddStaffMember: React.FC = () => {
             <RoleAccessStep
               accessLevel={accessLevel}
               accessLevels={accessLevels}
+              assignedCentres={assignedCentres}
+              centres={centres}
+              centresLoading={centresLoading}
               configError={configError}
+              creatingAccessLevel={creatingAccessLevel}
+              creatingRole={creatingRole}
               isConfigLoading={isConfigLoading}
               roles={roles}
               selectedRoles={selectedRoles}
+              showAssignedCentres={requiresAssignedCentres}
+              onChangeCentres={setAssignedCentres}
+              onCreateAccessLevel={handleCreateAccessLevel}
+              onCreateRole={handleCreateRole}
               onSelectAccessLevel={setAccessLevel}
               onToggleRole={toggleRole}
             />

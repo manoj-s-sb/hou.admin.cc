@@ -1,8 +1,8 @@
 /**
- * Membership Plans — TypeScript data models.
+ * Memberships — TypeScript data models + Redux state shape.
  *
  * These are the *global* plan templates (defined once, assigned to any centre
- * with local pricing). Mirrors the shape the backend will expose so the page,
+ * with local pricing). Mirrors the shape the backend exposes so the page,
  * comparison tables and drawer all speak the same model.
  */
 import type { PlanId } from '../centres/types';
@@ -72,13 +72,6 @@ export interface MembershipPlan {
    * benefits, isPopular, door/lane access, …). Undefined for brand-new plans.
    */
   _raw?: ApiMembership;
-}
-
-/** Network-default guest charge config (overridable per centre). */
-export interface GuestChargeDefaults {
-  firstGuestFee: number;
-  additionalGuestDiscountPct: number;
-  maxGuestsPerSlot: number;
 }
 
 /* ── Live backend shapes ──────────────────────────────────────────────────── */
@@ -151,3 +144,32 @@ export interface ApiMembershipsPayload {
   memberships: ApiMembership[];
   count: number;
 }
+
+/* ── Thunk results ────────────────────────────────────────────────────────── */
+
+/** Outcome of a create attempt, discriminated so the drawer can show field/toasts. */
+export type CreatePlanResult =
+  | { status: 'ok' }
+  | { status: 'duplicate' } // 409 — code already exists
+  | { status: 'validation'; fields: string[] } // 400 — data.errors[].loc
+  | { status: 'auth' } // 401 / 403
+  | { status: 'error' };
+
+/** Shape of a 400 validation body returned by the create endpoint. */
+export interface ValidationErrorBody {
+  data?: { errors?: { loc?: string[] | string; msg?: string }[] };
+}
+
+/* ── Redux slice state ────────────────────────────────────────────────────── */
+
+export interface MembershipsInitialState {
+  plans: MembershipPlan[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+export const initialState: MembershipsInitialState = {
+  plans: [],
+  isLoading: true,
+  error: null,
+};

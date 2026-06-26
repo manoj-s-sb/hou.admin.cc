@@ -8,7 +8,10 @@
  * @param date - The date to check
  * @returns true if the date is valid, false otherwise
  */
-export const isValidDate = (date: any): boolean => {
+/** Anything that can sensibly be coerced to a Date. */
+export type DateInput = string | number | Date | null | undefined;
+
+export const isValidDate = (date: unknown): boolean => {
   return date instanceof Date && !isNaN(date.getTime());
 };
 
@@ -17,7 +20,7 @@ export const isValidDate = (date: any): boolean => {
  * @param value - The value to convert to a Date (can be string, Date, number, etc.)
  * @returns A valid Date object or null if the date is invalid
  */
-export const safeDate = (value: any): Date | null => {
+export const safeDate = (value: DateInput): Date | null => {
   if (!value) return null;
 
   const date = value instanceof Date ? value : new Date(value);
@@ -36,7 +39,7 @@ const DEFAULT_LOCALE = 'en-US';
 const DEFAULT_TIME_ZONE = 'America/Chicago';
 
 export const formatDate = (
-  dateValue: any,
+  dateValue: DateInput,
   options: Intl.DateTimeFormatOptions = {
     month: 'short',
     day: 'numeric',
@@ -58,7 +61,7 @@ export const formatDate = (
  * @param dateValue - The date value to convert
  * @returns ISO string or null if the date is invalid
  */
-export const toISOString = (dateValue: any): string | null => {
+export const toISOString = (dateValue: DateInput): string | null => {
   const date = safeDate(dateValue);
   return date ? date.toISOString() : null;
 };
@@ -68,7 +71,7 @@ export const toISOString = (dateValue: any): string | null => {
  * @param dateValue - The date value to convert
  * @returns Timestamp in milliseconds or null if the date is invalid
  */
-export const getTimestamp = (dateValue: any): number | null => {
+export const getTimestamp = (dateValue: DateInput): number | null => {
   const date = safeDate(dateValue);
   return date ? date.getTime() : null;
 };
@@ -88,7 +91,7 @@ export const INVALID_DATE_SORT_VALUE = Number.MAX_SAFE_INTEGER;
  * @returns Formatted date time string or 'Invalid Date' if the date is invalid
  */
 export const formatDateTime = (
-  dateValue: any,
+  dateValue: DateInput,
   options: Intl.DateTimeFormatOptions = {
     hour: 'numeric',
     minute: '2-digit',
@@ -132,7 +135,7 @@ export const getTodayDateInChicago = (): string => {
  * @param dateValue - The date value to format
  * @returns Formatted date string or 'Invalid Date' if the date is invalid
  */
-export const formatDateChicago = (dateValue: any): string => {
+export const formatDateChicago = (dateValue: DateInput): string => {
   const date = safeDate(dateValue);
   if (!date) return 'Invalid Date';
 
@@ -151,7 +154,7 @@ export const formatDateChicago = (dateValue: any): string => {
  * @param dateValue - The date value to format
  * @returns Formatted time string or 'Invalid Date' if the date is invalid
  */
-export const formatTimeChicago = (dateValue: any): string => {
+export const formatTimeChicago = (dateValue: DateInput): string => {
   const date = safeDate(dateValue);
   if (!date) return 'Invalid Date';
 
@@ -169,7 +172,7 @@ export const formatTimeChicago = (dateValue: any): string => {
  * @param dateValue - The date value to format
  * @returns Formatted date and time string or 'Invalid Date' if the date is invalid
  */
-export const formatDateTimeChicago = (dateValue: any): string => {
+export const formatDateTimeChicago = (dateValue: DateInput): string => {
   const date = safeDate(dateValue);
   if (!date) return 'Invalid Date';
 
@@ -192,7 +195,7 @@ export const formatDateTimeChicago = (dateValue: any): string => {
  * @param endTime - The end time value
  * @returns Formatted time range string or 'Invalid Date' if either date is invalid
  */
-export const formatTimeRangeChicago = (startTime: any, endTime: any): string => {
+export const formatTimeRangeChicago = (startTime: DateInput, endTime: DateInput): string => {
   const start = formatTimeChicago(startTime);
   const end = formatTimeChicago(endTime);
 

@@ -79,16 +79,23 @@ api.interceptors.response.use(
       const { status } = error.response;
 
       if (status === 400) {
-        // Bad Request - Log full details for debugging
-        console.error('Bad Request (400):', {
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.config?.data,
-          response: error.response.data,
-        });
+        // Bad Request — never log request body (may contain credentials/PII).
+        // Dev: include response body for debugging. Prod: status only.
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('Bad Request (400):', {
+            url: error.config?.url,
+            method: error.config?.method,
+            response: error.response.data,
+          });
+        } else {
+          console.error('Bad Request (400):', error.config?.url);
+        }
       } else if (status === 401) {
         console.error('Unauthorized (401) - Token may be invalid or expired');
-        // Trigger session expired modal for 401 errors
+        // Server rejected the token (e.g. expired server-side but still passed the
+        // client-side expiry check) — surface the session-expired modal so the user
+        // re-logs in, instead of bubbling up a cryptic per-feature error.
+        triggerSessionExpired();
       } else if (status === 403) {
         // Forbidden - user doesn't have permission
         console.error('Access forbidden (403)');

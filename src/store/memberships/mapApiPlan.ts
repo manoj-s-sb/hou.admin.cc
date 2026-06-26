@@ -3,12 +3,13 @@
  * `MembershipPlan` model the Membership Plans page renders.
  *
  *  - `mapApiMembership`  GET `/admin/memberships?facilityCode=…` → flat plan
+ *  - `toCreatePayload`   flat plan → POST `/admin/memberships/create` body
  *  - `toUpdatePayload`   flat plan → POST `/admin/memberships/update` body
  *
  * Keep this as the single translation point — if the backend shape shifts,
  * only this file changes, not the page or the drawer.
  */
-import { PLAN_COLORS } from '../centres/constants';
+import { PLAN_COLORS } from '../../pages/centres/constants';
 
 import type { AccessType, ApiMembership, ApiMembershipsPayload, MembershipPlan, PlanStatus } from './types';
 
@@ -73,6 +74,63 @@ export function mapApiMembership(m: ApiMembership): MembershipPlan {
     // Preserve the full backend shape for a lossless round-trip on save.
     _raw: m,
   };
+}
+
+/* ── Flat plan → POST /admin/memberships/create body ──────────────────────── */
+
+/** The flat body accepted by `POST /admin/memberships/create` (global template). */
+export interface CreatePlanBody {
+  name: string;
+  code: string;
+  description?: string;
+  priceFortnightly: number;
+  priceAnnual?: number;
+  accessType: AccessType;
+  customHours?: { start: string; end: string };
+  peakAccess: boolean;
+  slotsPerCycle: number;
+  dailyLimit: number;
+  maxFutureBookings: number;
+  carryover: number;
+  carryCap: number;
+  advanceWindowDays: number;
+  extraSessionEnabled: boolean;
+  eligibilityAdult: boolean;
+  eligibilityJunior: boolean;
+  eligibilityFamily: boolean;
+  additionalMemberFee?: number;
+  memberCap: number;
+  status: PlanStatus;
+}
+
+/** Maps the drawer's flat plan model to the create endpoint's flat body. */
+export function toCreatePayload(plan: MembershipPlan, customHours?: { start: string; end: string }): CreatePlanBody {
+  const body: CreatePlanBody = {
+    name: plan.name.trim(),
+    code: plan.code.trim().toLowerCase(),
+    description: plan.description?.trim() || undefined,
+    priceFortnightly: plan.fortnightlyPrice,
+    accessType: plan.accessType,
+    peakAccess: plan.peakAccess,
+    slotsPerCycle: plan.slotsPerCycle,
+    dailyLimit: plan.dailyBookingLimit,
+    maxFutureBookings: plan.maxFutureBookings,
+    carryover: plan.carryover,
+    carryCap: plan.carryCap,
+    advanceWindowDays: plan.advanceWindowDays,
+    extraSessionEnabled: plan.extraSessionEnabled,
+    eligibilityAdult: plan.eligibility.adult,
+    eligibilityJunior: plan.eligibility.junior,
+    eligibilityFamily: plan.eligibility.family,
+    memberCap: plan.memberCap,
+    status: plan.status,
+  };
+  if (plan.annualPrice) body.priceAnnual = plan.annualPrice;
+  if (plan.accessType === 'custom' && customHours) body.customHours = customHours;
+  if (plan.additionalMemberFee !== null && plan.additionalMemberFee !== undefined) {
+    body.additionalMemberFee = plan.additionalMemberFee;
+  }
+  return body;
 }
 
 /* ── Flat plan → POST /admin/memberships/update body ──────────────────────── */

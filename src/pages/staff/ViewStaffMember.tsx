@@ -10,7 +10,7 @@ import { getStaffDetails, setStaffStatus } from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
 
 import { StaffDocument } from './types';
-import { formatCentres } from './utils';
+import { useCentreLookup } from './useCentreLookup';
 
 import type { AppDispatch, RootState } from '../../store/store';
 
@@ -110,6 +110,7 @@ const ViewStaffMember: React.FC = () => {
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
   const [isSuspending, setIsSuspending] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
+  const centreLookup = useCentreLookup();
 
   const error = !staffId ? 'Missing staff id' : detailsError;
 
@@ -174,8 +175,8 @@ const ViewStaffMember: React.FC = () => {
   const status = statusToneClass[statusKey];
   const rolesSource = profile.roles && profile.roles.length > 0 ? profile.roles : (staff.userType ?? []);
   const roles = rolesSource.map(formatRoleLabel);
-  const centres = formatCentres(profile.assignedCentres, staff.facilityCode);
-  const facilityName = formatCentres(null, staff.facilityCode);
+  const centres = centreLookup.text(profile.assignedCentres, staff.facilityCode);
+  const facilityName = centreLookup.text(null, staff.facilityCode);
   const documents = profile.documents ?? [];
   const photoUrl = profile.photoSasUrl;
 

@@ -2,22 +2,15 @@ import React from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import type { CentreWithKPI } from '../types';
+import { DEFAULT_AMENITIES } from '../constants';
+
+import type { CentreWithKPI } from '../../../store/centres/types';
 
 const comingSoon = () => toast('Coming soon');
 
 interface Props {
   centre: CentreWithKPI;
 }
-
-const DEFAULT_AMENITIES = [
-  'Changing Rooms',
-  'Parking',
-  'Café / Canteen',
-  'Lounge / Viewing',
-  'Pro Shop',
-  'Coaching Area',
-];
 
 /** Ops → Facilities: lanes, general amenities, and additional bookable spaces. */
 const FacilitiesTab: React.FC<Props> = ({ centre }) => {
@@ -56,7 +49,11 @@ const FacilitiesTab: React.FC<Props> = ({ centre }) => {
             Primary lanes, general amenities and additional bookable spaces at this centre
           </div>
         </div>
-        <button className="cmx-btn cmx-btn-outline" type="button" onClick={comingSoon}>
+        <button
+          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
+          type="button"
+          onClick={comingSoon}
+        >
           <svg fill="none" height={13} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={13}>
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />

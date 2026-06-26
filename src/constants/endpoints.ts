@@ -33,6 +33,10 @@ const endpoints = {
     create: '/admin/staff/create',
     details: '/admin/staff/details',
     update: '/admin/staff/update',
+    // BACKEND TODO: persist a new staff role to the DB and return the created RoleConfig.
+    roleCreate: '/admin/staff/roles/create',
+    // BACKEND TODO: persist a new access level and return the created AccessLevelConfig.
+    accessLevelCreate: '/admin/staff/access-levels/create',
   },
   induction: {
     list: '/admin/bookings/list',
@@ -43,6 +47,12 @@ const endpoints = {
     userInductionDetails: '/admin/induction/details',
   },
   centres: {
+    // New doc-bundle model (live backend) — all POST.
+    centresList: '/admin/centres/list', // POST { status?, search?, skip, limit, sort, order }
+    centreDetails: '/admin/centres/details', // POST { code }
+    centreCreate: '/admin/centres/create', // POST { facility, lanes[], memberships[], membershipSalesFlow }
+    centreUpdate: '/admin/centres/update', // POST { centreId, facility } — edit facility / activate draft
+    // Legacy model (ops dashboard + update/suspend/delete — not re-wired yet).
     list: '/admin/centres',
     wizardStart: '/admin/centres/wizard/start',
     wizardStep: (id: string, step: number) => `/admin/centres/wizard/${id}/step${step}`,
@@ -51,11 +61,15 @@ const endpoints = {
     saveActivate: (id: string) => `/admin/centres/wizard/${id}/save-activate`,
     members: (id: string) => `/admin/centres/${id}/members`,
     bookings: (id: string) => `/admin/centres/${id}/bookings`,
+    waitlist: '/admin/centres/waitlist', // POST { facilityCode, subscriptionSrc?, registerdVia?, page, limit }
+    leads: '/admin/centres/leads', // POST { facilityCode, action?, subscription_code?, page, limit }
   },
   memberships: {
     // Live backend — returns the facility's memberships (rich nested shape).
     // Pass the facility code via the `facilityCode` query param.
     list: '/admin/memberships',
+    // Create a new GLOBAL plan template (flat body). POST.
+    create: '/admin/memberships/create',
     // Create/update a membership (full nested body).
     update: '/admin/memberships/update',
   },

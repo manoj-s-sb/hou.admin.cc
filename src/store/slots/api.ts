@@ -12,7 +12,7 @@ export const getSlots = createAsyncThunk(
     try {
       const response = await api.post(endpoints.slots.list, { date, facilityCode });
       return response.data?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch slots'));
     }
   }
@@ -36,7 +36,7 @@ export const updateLaneStatus = createAsyncThunk(
         startTime,
       });
       return response.data?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to update lane status'));
     }
   }
@@ -48,7 +48,7 @@ export const coachSlots = createAsyncThunk(
     try {
       const response = await api.post(endpoints.slots.coachSlots, { startDate, endDate, facilityCode });
       return response.data?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch coach slots'));
     }
   }
@@ -71,7 +71,7 @@ export const updateCoachSlots = createAsyncThunk(
     try {
       const response = await api.post(endpoints.slots.updateCoachSlots, { slotCodes, action, reason });
       return response.data?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to update coach slots'));
     }
   }

@@ -31,7 +31,7 @@ export const getWorkList = createAsyncThunk(
   'maintenance/getWorkList',
   async (payload: WorkListRequest, { rejectWithValue }) => {
     try {
-      const body: Record<string, any> = {
+      const body: Record<string, unknown> = {
         facilityCode: payload.facilityCode,
         page: payload.page,
         limit: payload.limit,
@@ -49,7 +49,7 @@ export const getWorkList = createAsyncThunk(
 
       const response = await api.post(`${endpoints.maintenance.workList}`, body);
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch work list'));
     }
   }
@@ -61,7 +61,7 @@ export const updateWork = createAsyncThunk(
     try {
       const response = await api.post(`${endpoints.maintenance.updateWork}`, payload);
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to update work item'));
     }
   }
@@ -73,7 +73,7 @@ export const createWork = createAsyncThunk(
     try {
       const response = await api.post(`${endpoints.maintenance.createWork}`, payload);
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to create work item'));
     }
   }

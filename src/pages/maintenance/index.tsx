@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/Table/types';
+import { ColumnDef, TableColumn } from '../../components/Table/types';
 import endpoints from '../../constants/endpoints';
 import api from '../../services';
 import { getWorkList, updateWork } from '../../store/maintenance/api';
@@ -21,7 +21,7 @@ import ScheduleCard from './components/ScheduleCard';
 import ScheduleModal from './components/ScheduleModal';
 import StepsModal from './components/StepsModal';
 import TaskCard from './components/TaskCard';
-import { Tab, TaskFrequency, getLocalUser, tabs, taskFrequencies } from './constants';
+import { Tab, TaskFrequency, getFacilityCode, getLocalUser, tabs, taskFrequencies } from './constants';
 
 type IssueFilter = 'new' | 'active' | 'closed';
 const issueFilterStatus: Record<IssueFilter, string> = {
@@ -77,7 +77,7 @@ const Maintenance = () => {
   const [showCreateIssue, setShowCreateIssue] = useState(false);
   const [issueCounts, setIssueCounts] = useState({ new: 0, active: 0, closed: 0 });
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('new');
-  const fetchRequestRef = useRef<any>(null);
+  const fetchRequestRef = useRef<{ abort: () => void } | null>(null);
 
   const applyScheduleDelta = (item: Work, newScheduledDate: string) => {
     const inRange = (d: string) => d >= today && d <= sevenDaysLater;
@@ -111,7 +111,7 @@ const Maintenance = () => {
     fetchRequestRef.current?.abort();
     fetchRequestRef.current = dispatch(
       getWorkList({
-        facilityCode: getLocalUser().facilityCode,
+        facilityCode: getFacilityCode(),
         page,
         limit,
         type,
@@ -134,13 +134,11 @@ const Maintenance = () => {
       );
     } else if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(
-        getWorkList({ facilityCode: getLocalUser().facilityCode, page: 1, limit: 20, type: 'task', toDate: yesterday })
-      );
+      dispatch(getWorkList({ facilityCode: getFacilityCode(), page: 1, limit: 20, type: 'task', toDate: yesterday }));
     } else {
       dispatch(
         getWorkList({
-          facilityCode: getLocalUser().facilityCode,
+          facilityCode: getFacilityCode(),
           page: 1,
           limit: 20,
           type: 'task',
@@ -155,13 +153,13 @@ const Maintenance = () => {
     const getCount = (status: string) =>
       api
         .post(endpoints.maintenance.workList, {
-          facilityCode: getLocalUser().facilityCode,
+          facilityCode: getFacilityCode(),
           page: 1,
           limit: 1,
           type: 'issue',
           status,
         })
-        .then((res: any) => {
+        .then(res => {
           const data = res.data?.data;
           return Array.isArray(data) ? data.length : (data?.total ?? 0);
         })
@@ -186,26 +184,26 @@ const Maintenance = () => {
     const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
     api
       .post(endpoints.maintenance.workList, {
-        facilityCode: getLocalUser().facilityCode,
+        facilityCode: getFacilityCode(),
         page: 1,
         limit: 100,
         type: 'task',
         fromDate: today,
         toDate: sevenDaysLater,
       })
-      .then((res: any) => {
+      .then(res => {
         const data = res.data?.data;
         setAllScheduleItems(Array.isArray(data) ? data : data?.items || []);
       });
     api
       .post(endpoints.maintenance.workList, {
-        facilityCode: getLocalUser().facilityCode,
+        facilityCode: getFacilityCode(),
         page: 1,
         limit: 1,
         type: 'task',
         toDate: yesterday,
       })
-      .then((res: any) => {
+      .then(res => {
         const data = res.data?.data;
         setOverdueCount(Array.isArray(data) ? data.length : (data?.total ?? 0));
       })
@@ -229,13 +227,11 @@ const Maintenance = () => {
     const limit = workList.limit || 20;
     if (selectedScheduleDate === 'overdue') {
       const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(
-        getWorkList({ facilityCode: getLocalUser().facilityCode, page, limit, type: 'task', toDate: yesterday })
-      );
+      dispatch(getWorkList({ facilityCode: getFacilityCode(), page, limit, type: 'task', toDate: yesterday }));
     } else {
       dispatch(
         getWorkList({
-          facilityCode: getLocalUser().facilityCode,
+          facilityCode: getFacilityCode(),
           page,
           limit,
           type: 'task',
@@ -277,7 +273,7 @@ const Maintenance = () => {
         toast.success('Issue undone — task set back to pending.');
         refreshSchedule();
       })
-      .catch((err: any) => toast.error(err || 'Failed to undo.'));
+      .catch(err => toast.error(err || 'Failed to undo.'));
   };
 
   // ─── Column definitions ───────────────────────────────────────────────────
@@ -287,10 +283,11 @@ const Maintenance = () => {
     headerName: 'S.No',
     width: 70,
     sortable: false,
-    renderCell: (params: any) => ((workList.page || 1) - 1) * (workList.limit || 20) + (params.index || 0) + 1,
+    renderCell: (params: { index?: number }) =>
+      ((workList.page || 1) - 1) * (workList.limit || 20) + (params.index || 0) + 1,
   };
 
-  const statusRenderCell = (params: any) => {
+  const statusRenderCell = (params: { row?: Work }) => {
     const s = params.row?.status || '';
     const map: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-700',
@@ -310,7 +307,7 @@ const Maintenance = () => {
     );
   };
 
-  const priorityRenderCell = (params: any) => {
+  const priorityRenderCell = (params: { row?: Work }) => {
     const p = params.row?.priority || '';
     const map: Record<string, string> = {
       high: 'bg-red-100 text-red-700',
@@ -358,7 +355,7 @@ const Maintenance = () => {
         headerName: 'Task',
         flex: 2,
         sortable: true,
-        renderCell: (params: any) => <span className="font-semibold text-gray-900">{params.row?.title || '-'}</span>,
+        renderCell: params => <span className="font-semibold text-gray-900">{params.row?.title || '-'}</span>,
       },
       {
         field: 'laneNo',
@@ -382,7 +379,7 @@ const Maintenance = () => {
         headerName: 'Action',
         flex: 1,
         sortable: false,
-        renderCell: (params: any) => {
+        renderCell: params => {
           const s = params.value || params.row?.status;
           if (s === 'completed' || s === 'done') {
             return (
@@ -464,7 +461,7 @@ const Maintenance = () => {
     ],
   };
 
-  const adaptColumns = (cols: ColumnDef[]) =>
+  const adaptColumns = (cols: ColumnDef[]): TableColumn[] =>
     cols.map(col => ({
       id: col.field,
       label: col.headerName,
@@ -472,9 +469,9 @@ const Maintenance = () => {
       minWidth: col.minWidth,
       sortable: col.sortable !== false,
       renderCell: col.renderCell
-        ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
+        ? (value, row, index) => col.renderCell?.({ value, row, index })
         : col.valueGetter
-          ? (value: any, row: any, index: number) => col.valueGetter?.({ value, row, index }) || ''
+          ? (value, row, index) => col.valueGetter?.({ value, row, index }) || ''
           : undefined,
     }));
 
@@ -741,7 +738,6 @@ const Maintenance = () => {
                   {scheduleDisplayItems.map(item => (
                     <ScheduleCard
                       key={item.itemId}
-                      dispatch={dispatch}
                       item={item}
                       updatedBy={currentUserId}
                       onFlagIssue={setFlagIssueItem}
@@ -816,7 +812,7 @@ const Maintenance = () => {
                 columns={adaptColumns(columnsMap[activeTab])}
                 data={workList.items || []}
                 emptyState={{ subtitle: 'No records available', title: 'No records found' }}
-                getRowId={(row: any) => row.itemId}
+                getRowId={row => row.itemId}
                 loading={isLoading}
                 page={(workList.page || 1) - 1}
                 rowsPerPage={workList.limit || 20}
@@ -834,8 +830,7 @@ const Maintenance = () => {
 
       {flagIssueItem && (
         <FlagIssueModal
-          dispatch={dispatch}
-          facilityCode={getLocalUser().facilityCode}
+          facilityCode={getFacilityCode()}
           item={flagIssueItem}
           updatedBy={currentUserId}
           onClose={() => setFlagIssueItem(null)}
@@ -848,8 +843,7 @@ const Maintenance = () => {
 
       {markDoneItem && (
         <MarkDoneModal
-          dispatch={dispatch}
-          facilityCode={getLocalUser().facilityCode}
+          facilityCode={getFacilityCode()}
           item={markDoneItem}
           updatedBy={currentUserId}
           onClose={() => setMarkDoneItem(null)}
@@ -858,17 +852,12 @@ const Maintenance = () => {
       )}
 
       {showAddTask && (
-        <AddTaskModal
-          dispatch={dispatch}
-          onClose={() => setShowAddTask(false)}
-          onSuccess={() => fetchList(activeTab, taskFrequency, 1)}
-        />
+        <AddTaskModal onClose={() => setShowAddTask(false)} onSuccess={() => fetchList(activeTab, taskFrequency, 1)} />
       )}
 
       {showCreateIssue && (
         <CreateIssueModal
-          dispatch={dispatch}
-          facilityCode={getLocalUser().facilityCode}
+          facilityCode={getFacilityCode()}
           updatedBy={currentUserId}
           onClose={() => setShowCreateIssue(false)}
           onSuccess={() => {
@@ -880,7 +869,6 @@ const Maintenance = () => {
 
       {schedulingItem && (
         <ScheduleModal
-          dispatch={dispatch}
           item={schedulingItem}
           updatedBy={currentUserId}
           onClose={() => setSchedulingItem(null)}
@@ -893,7 +881,6 @@ const Maintenance = () => {
 
       {viewIssue && (
         <IssueDetailModal
-          dispatch={dispatch}
           index={viewIssue.index}
           item={viewIssue.item}
           updatedBy={currentUserId}

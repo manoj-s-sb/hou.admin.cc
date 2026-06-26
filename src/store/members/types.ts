@@ -61,8 +61,8 @@ export interface userProfile {
       selectedOption: string;
     },
   ];
-  height: any;
-  weight: any;
+  height: { value: number | string; unit?: string };
+  weight: { value: number | string; unit?: string };
 }
 
 export interface Member {
@@ -80,7 +80,7 @@ export interface Member {
   profileImageUrl: string;
   playerProfile: PlayerProfile;
   subscription: UserSubscription;
-  userProfile: any;
+  userProfile: Record<string, unknown>;
   userId: string;
 }
 
@@ -186,6 +186,11 @@ export interface Cycles {
   slotsUsed: number;
   unused: number;
   purchasedSlotCount?: number;
+  status: string;
+  cancelledAt: string | null;
+  holdFrom: string | null;
+  holdUntil: string | null;
+  planChange?: { type?: string; from?: string; to?: string; effectiveDate?: string } | null;
 }
 
 export interface SlotUsageTable {
@@ -277,7 +282,7 @@ export interface MembersInitialState {
   isLoading: boolean;
   membersCountLoading: boolean;
   isPurchasedSlotsLoading: boolean;
-  error: string | null | any;
+  error: string | null;
   membersList: MemberListResponse;
   memberDetails: MemberDetailsResponse | null;
   isSubscriptionActivation: boolean;

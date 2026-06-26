@@ -112,7 +112,7 @@ export interface CoachSlotsResponse {
 
 export interface SlotsInitialState {
   isLoading: boolean;
-  error: string | null | any;
+  error: string | null;
   slots: GetSlotsResponse | null;
   isBlockLaneLoading: boolean;
   coachSlotsList: CoachSlotsResponse[] | null;

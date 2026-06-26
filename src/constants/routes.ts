@@ -18,6 +18,8 @@ export const ROUTES = {
   STAFF_MANAGEMENT_VIEW: { path: '/staff-management/:staffId', label: 'View Staff Member' },
   STAFF_MANAGEMENT_EDIT: { path: '/staff-management/:staffId/edit', label: 'Edit Staff Member' },
   CENTRES: { path: '/centres', label: 'Centre Management' },
+  // One generic centre-scoped route — :moduleSlug resolves to a module in the registry.
+  CENTRE_MODULE: { path: '/centres/:facilityCode/:moduleSlug', label: 'Centre Module' },
   MEMBERSHIP_PLANS: { path: '/membership-plans', label: 'Membership Plans' },
 } as const;
 
@@ -27,4 +29,5 @@ export const buildRoute = {
   viewInduction: (userId: string) => `/view-induction/${userId}`,
   viewStaffMember: (staffId: string) => `/staff-management/${staffId}`,
   editStaffMember: (staffId: string) => `/staff-management/${staffId}/edit`,
+  centreModule: (facilityCode: string, moduleSlug: string) => `/centres/${facilityCode}/${moduleSlug}`,
 };
