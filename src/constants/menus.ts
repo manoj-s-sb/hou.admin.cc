@@ -81,6 +81,14 @@ export const MENU_GROUPS: MenuGroup[] = [
         module: ACCESS_SCOPES.tailgate,
         hideForSuperAdmin: true,
       },
+      {
+        // Cross-centre tickets view — a superadmin-owned monitoring page (centre
+        // staff use the per-centre Tickets module instead).
+        path: ROUTES.TICKETS.path,
+        label: ROUTES.TICKETS.label,
+        icon: '/assets/maintenance.svg',
+        module: ACCESS_SCOPES.superAdmin,
+      },
     ],
   },
   {

@@ -6,6 +6,7 @@ import Induction from '../induction';
 import Members from '../members';
 import SlotBookings from '../slots';
 import Tailgate from '../tailgate';
+import Tickets from '../tickets';
 import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
 
@@ -124,6 +125,19 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
             <rect height="4" rx="1" width="8" x="8" y="2" />
             <line x1="9" x2="15" y1="12" y2="12" />
             <line x1="9" x2="13" y1="16" y2="16" />
+          </>
+        ),
+      },
+      {
+        key: 'tickets',
+        label: 'Tickets / Incidents',
+        slug: 'tickets',
+        component: Tickets,
+        scope: ACCESS_SCOPES.maintenance,
+        icon: I(
+          <>
+            <path d="M4 5a2 2 0 0 0-2 2v3a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2H4z" />
+            <path d="M9 5v14" strokeDasharray="2 3" />
           </>
         ),
       },

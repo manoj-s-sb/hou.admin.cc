@@ -78,6 +78,10 @@ const endpoints = {
     update: (id: string) => `/admin/membership-plans/${id}`,
     archive: (id: string) => `/admin/membership-plans/${id}/archive`,
   },
+  // Tickets / Incidents — ONE action-dispatched endpoint. Body always carries an
+  // `action` (create | list | get | updateStatus | acknowledge | comment |
+  // addAttachment | reassign | counts) plus that action's payload.
+  tickets: '/admin/tickets',
 };
 
 export default endpoints;

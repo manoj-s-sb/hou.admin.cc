@@ -26,6 +26,7 @@ import {
   CentreManagement,
   CentreModuleRoute,
   MembershipPlans,
+  Tickets,
 } from './pages';
 import { ACCESS_SCOPES, canRead, PermissionRoute } from './rbac';
 import { setSessionExpiredCallback } from './services';
@@ -200,6 +201,14 @@ const AppRoutes: React.FC = () => {
               </PermissionRoute>
             }
             path={ROUTES.MEMBERSHIP_PLANS.path}
+          />
+          <Route
+            element={
+              <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
+                <Tickets />
+              </PermissionRoute>
+            }
+            path={ROUTES.TICKETS.path}
           />
           <Route element={<DefaultLanding />} path={ROUTES.ROOT.path} />
         </Routes>

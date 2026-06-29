@@ -11,6 +11,7 @@ import { authPersistConfig } from './persistConfig';
 import slotsReducer from './slots/reducers';
 import staffReducer from './staff/reducers';
 import tailgateReducer from './tailgate/reducers';
+import ticketsReducer from './tickets/reducers';
 
 const rootReducer = combineReducers({
   auth: persistReducer(authPersistConfig, authReducer),
@@ -22,6 +23,7 @@ const rootReducer = combineReducers({
   slots: slotsReducer,
   staff: staffReducer,
   tailgate: tailgateReducer,
+  tickets: ticketsReducer,
 });
 
 const store = configureStore({
