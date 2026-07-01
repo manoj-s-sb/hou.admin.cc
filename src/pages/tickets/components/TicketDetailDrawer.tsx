@@ -61,6 +61,73 @@ const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, ch
   </div>
 );
 
+// On read the backend swaps `blobName` for a SAS URL; guard both assumptions here so a
+// raw blobName / expired SAS degrades to a neutral tile instead of a broken image.
+const isVideoSrc = (src: string): boolean => /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(src);
+const isHttpUrl = (src: string): boolean => /^https?:\/\//i.test(src);
+
+const FileGlyph: React.FC = () => (
+  <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
+
+/** Attachment thumbnail — image or video, with a graceful fallback when the source isn't
+ *  a usable URL (raw blobName) or fails to load. Purely presentational; no flow impact. */
+const AttachmentThumb: React.FC<{ src: string; index: number; onOpen: () => void }> = ({ src, index, onOpen }) => {
+  const [failed, setFailed] = useState(false);
+  const video = isVideoSrc(src);
+  const previewable = isHttpUrl(src) && !failed;
+
+  if (!previewable) {
+    return (
+      <div
+        className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-400"
+        title="Preview unavailable"
+      >
+        <FileGlyph />
+        <span className="text-[9px] font-medium">{video ? 'Video' : 'File'}</span>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      aria-label={`Open attachment ${index + 1}`}
+      className="relative block h-16 w-16 overflow-hidden rounded-lg border border-gray-200 bg-gray-50"
+      type="button"
+      onClick={onOpen}
+    >
+      {video ? (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <video
+          muted
+          playsInline
+          className="h-full w-full object-cover"
+          preload="metadata"
+          src={src}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <img
+          alt={`attachment ${index + 1}`}
+          className="h-full w-full object-cover"
+          src={src}
+          onError={() => setFailed(true)}
+        />
+      )}
+      {video && (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-white">
+          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </span>
+      )}
+    </button>
+  );
+};
+
 const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { current, detailLoading, saving } = useSelector((state: RootState) => state.tickets);
@@ -246,15 +313,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {ticket.attachments.map((a, i) => (
-                      <button
-                        key={i}
-                        aria-label={`Open attachment ${i + 1}`}
-                        className="block h-16 w-16 overflow-hidden rounded-lg border border-gray-200 bg-gray-50"
-                        type="button"
-                        onClick={() => setPreview(a.blobName)}
-                      >
-                        <img alt={`attachment ${i + 1}`} className="h-full w-full object-cover" src={a.blobName} />
-                      </button>
+                      <AttachmentThumb key={i} index={i} src={a.blobName} onOpen={() => setPreview(a.blobName)} />
                     ))}
                   </div>
                 </div>
@@ -403,14 +462,25 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
         )}
       </div>
 
-      {/* In-page image preview — opens over the drawer, click anywhere to close. */}
+      {/* In-page media preview — opens over the drawer, click the backdrop to close. */}
       {preview && (
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <div
           className="fixed inset-0 z-[700] flex items-center justify-center bg-black/80 p-6"
           onClick={() => setPreview(null)}
         >
-          <img alt="attachment preview" className="max-h-full max-w-full rounded-lg object-contain" src={preview} />
+          {isVideoSrc(preview) ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              autoPlay
+              controls
+              className="max-h-full max-w-full rounded-lg"
+              src={preview}
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <img alt="attachment preview" className="max-h-full max-w-full rounded-lg object-contain" src={preview} />
+          )}
         </div>
       )}
     </div>

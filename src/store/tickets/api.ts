@@ -27,26 +27,18 @@ import type {
   UpdateTicketStatusRequest,
 } from './types';
 
-// Drop undefined keys so the action body only carries what the caller set
-// (the backend ignores unknown fields, but this keeps payloads tidy).
-const clean = <T extends Record<string, unknown>>(obj: T): Record<string, unknown> =>
-  Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
-
-const post = async <T>(action: string, payload: Record<string, unknown>): Promise<T> => {
-  const res = await api.post<{ data: T }>(endpoints.tickets, { action, ...clean(payload) });
-  return res.data?.data ?? (res.data as unknown as T);
-};
-
 /**
  * Upload a file to the dedicated tickets blob account and return its blobName
  * (for create/addAttachment). Mints the write SAS via the tickets `uploadUrl`
  * action so the blob lands in the same account the read SAS reads from.
  */
 export const uploadTicketFile = async (facilityCode: string, file: File): Promise<string> => {
-  const { uploadUrl, blobName } = await post<{ uploadUrl: string; blobName: string }>('uploadUrl', {
+  const res = await api.post<{ data: { uploadUrl: string; blobName: string } }>(endpoints.tickets, {
+    action: 'uploadUrl',
     fileName: file.name,
     facilityCode,
   });
+  const { uploadUrl, blobName } = res.data?.data ?? res.data;
   await uploadFileToBlob(uploadUrl, file);
   return blobName;
 };
@@ -55,7 +47,8 @@ export const getTickets = createAsyncThunk<ListTicketsResponse, ListTicketsReque
   'tickets/list',
   async (params, { rejectWithValue }) => {
     try {
-      const data = await post<ListTicketsResponse>('list', { ...params });
+      const res = await api.post<{ data: ListTicketsResponse }>(endpoints.tickets, { action: 'list', ...params });
+      const data = res.data?.data ?? (res.data as unknown as ListTicketsResponse);
       return {
         items: Array.isArray(data?.items) ? data.items : [],
         total: data?.total ?? 0,
@@ -73,7 +66,8 @@ export const getTicketCounts = createAsyncThunk<TicketCounts, TicketCountsReques
   'tickets/counts',
   async (params, { rejectWithValue }) => {
     try {
-      return await post<TicketCounts>('counts', { ...params });
+      const res = await api.post<{ data: TicketCounts }>(endpoints.tickets, { action: 'counts', ...params });
+      return res.data?.data ?? (res.data as unknown as TicketCounts);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch ticket counts'));
     }
@@ -84,7 +78,8 @@ export const getTicket = createAsyncThunk<Ticket, string, { rejectValue: string 
   'tickets/get',
   async (ticketId, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('get', { ticketId });
+      const res = await api.post<{ data: Ticket }>(endpoints.tickets, { action: 'get', ticketId });
+      return res.data?.data ?? (res.data as unknown as Ticket);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to load the ticket'));
     }
@@ -95,7 +90,8 @@ export const createTicket = createAsyncThunk<Ticket, CreateTicketRequest, { reje
   'tickets/create',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('create', { ...payload });
+      const res = await api.post<{ data: Ticket }>(endpoints.tickets, { action: 'create', ...payload });
+      return res.data?.data ?? (res.data as unknown as Ticket);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not create the ticket. Please try again.'));
     }
@@ -106,7 +102,8 @@ export const updateTicketStatus = createAsyncThunk<Ticket, UpdateTicketStatusReq
   'tickets/updateStatus',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('updateStatus', { ...payload });
+      const res = await api.post<{ data: Ticket }>(endpoints.tickets, { action: 'updateStatus', ...payload });
+      return res.data?.data ?? (res.data as unknown as Ticket);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not update the ticket status.'));
     }
@@ -117,7 +114,8 @@ export const acknowledgeTicket = createAsyncThunk<Ticket, AcknowledgeTicketReque
   'tickets/acknowledge',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('acknowledge', { ...payload });
+      const res = await api.post<{ data: Ticket }>(endpoints.tickets, { action: 'acknowledge', ...payload });
+      return res.data?.data ?? (res.data as unknown as Ticket);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not acknowledge the ticket.'));
     }
@@ -128,7 +126,8 @@ export const addTicketComment = createAsyncThunk<Ticket, AddCommentRequest, { re
   'tickets/comment',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('comment', { ...payload });
+      const res = await api.post<{ data: Ticket }>(endpoints.tickets, { action: 'comment', ...payload });
+      return res.data?.data ?? (res.data as unknown as Ticket);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not add the comment.'));
     }
@@ -141,7 +140,8 @@ export const addTicketAttachment = createAsyncThunk<
   { rejectValue: string }
 >('tickets/addAttachment', async (payload, { rejectWithValue }) => {
   try {
-    return await post<Ticket>('addAttachment', { ...payload });
+    const res = await api.post<{ data: Ticket }>(endpoints.tickets, { action: 'addAttachment', ...payload });
+    return res.data?.data ?? (res.data as unknown as Ticket);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Could not attach the file.'));
   }
@@ -151,7 +151,8 @@ export const reassignTicket = createAsyncThunk<Ticket, ReassignTicketRequest, { 
   'tickets/reassign',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('reassign', { ...payload });
+      const res = await api.post<{ data: Ticket }>(endpoints.tickets, { action: 'reassign', ...payload });
+      return res.data?.data ?? (res.data as unknown as Ticket);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not reassign the ticket.'));
     }
