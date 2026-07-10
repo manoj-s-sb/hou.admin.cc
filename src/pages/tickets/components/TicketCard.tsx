@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { formatDateTimeChicago } from '../../../utils/dateUtils';
-import { CATEGORY_META, PRIORITY_META, ROLE_LABELS, slaState, STATUS_META } from '../constants';
+import { CATEGORY_META, PRIORITY_META, ROLE_LABELS, STATUS_META } from '../constants';
 
 import type { Ticket, TicketRole } from '../../../store/tickets/types';
 
@@ -30,20 +30,20 @@ const TicketCard: React.FC<Props> = ({ ticket, currentUserId, onOpen }) => {
   const isMine = Boolean(currentUserId && ticket.assignedToId === currentUserId);
   const commentCount = ticket.activities.filter(a => a.action === 'comment').length;
   const lanes = laneLabel(ticket.laneNo);
-  const sla = slaState(ticket.slaDeadline, ticket.status);
 
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
-      className="mb-2.5 flex cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:border-indigo-300 hover:shadow-md"
+      className="mb-2.5 cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:border-indigo-300 hover:shadow-md"
+      style={{ borderTopWidth: 3, borderTopColor: priority.accent }}
       onClick={() => onOpen(ticket)}
     >
-      <span className="w-1 flex-shrink-0" style={{ background: status.stripe }} />
-      <div className="flex-1 p-4">
+      <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold text-gray-400">
               {ticket.ticketNo} &nbsp;·&nbsp; {ticket.facilityCode}
+              {ticket.facilityName && <> &nbsp;·&nbsp; {ticket.facilityName}</>}
             </div>
             <div className="mt-0.5 text-[14px] font-bold text-[#21295A]">{ticket.title}</div>
           </div>
@@ -51,9 +51,6 @@ const TicketCard: React.FC<Props> = ({ ticket, currentUserId, onOpen }) => {
             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.pill}`}>
               {status.label}
             </span>
-            {sla && (
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sla.className}`}>{sla.label}</span>
-            )}
             {isMine && (
               <span className="rounded-lg bg-[#ecedf4] px-2 py-0.5 text-[10px] font-bold text-[#21295A]">
                 Assigned to me

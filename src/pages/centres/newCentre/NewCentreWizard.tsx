@@ -51,9 +51,10 @@ const makePlanRows = (): WizardPlanRow[] =>
     memberCap: p.defaultSlots,
     isFoundationEligible: p.defaultFoundation,
     availableCountries: ['all'],
-    firstGuestFee: 30,
-    additionalGuestDiscountPct: 20,
-    extraSessionCost: 30,
+    // Guest / extra-session pricing is blank until explicitly set (no hardcoded default).
+    firstGuestFee: null,
+    additionalGuestDiscountPct: null,
+    extraSessionCost: null,
   }));
 
 const initialState = (): WizardState => ({
@@ -87,9 +88,9 @@ const initialState = (): WizardState => ({
   advanceBookingWindowDays: 7,
   additionalFacilities: [],
   plans: makePlanRows(),
-  firstGuestFee: 30,
-  additionalGuestDiscountPct: 20,
-  extraSessionCost: 30,
+  firstGuestFee: null,
+  additionalGuestDiscountPct: null,
+  extraSessionCost: null,
   discounts: [],
 });
 
@@ -1156,34 +1157,53 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                             </div>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">First Guest Fee (USD)</span>
-                              <NumberInput
+                              <input
                                 className="cmx-field"
                                 min={0}
+                                placeholder="Blank = not set"
                                 step={0.01}
-                                value={row.firstGuestFee}
-                                onValueChange={v => setPlan(meta.id, { firstGuestFee: v })}
+                                type="number"
+                                value={row.firstGuestFee ?? ''}
+                                onChange={e =>
+                                  setPlan(meta.id, {
+                                    firstGuestFee: e.target.value === '' ? null : Math.max(0, Number(e.target.value)),
+                                  })
+                                }
                               />
                             </div>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">Add. Guest Discount (%)</span>
-                              <NumberInput
+                              <input
                                 className="cmx-field"
                                 max={100}
                                 min={0}
-                                value={row.additionalGuestDiscountPct}
-                                onValueChange={v => setPlan(meta.id, { additionalGuestDiscountPct: v })}
+                                placeholder="Blank = not set"
+                                type="number"
+                                value={row.additionalGuestDiscountPct ?? ''}
+                                onChange={e =>
+                                  setPlan(meta.id, {
+                                    additionalGuestDiscountPct:
+                                      e.target.value === '' ? null : Math.min(100, Math.max(0, Number(e.target.value))),
+                                  })
+                                }
                               />
                             </div>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">Extra Session Cost (USD)</span>
-                              <NumberInput
+                              <input
                                 className="cmx-field"
                                 min={0}
+                                placeholder="Blank = not set"
                                 step={0.01}
-                                value={row.extraSessionCost}
-                                onValueChange={v => setPlan(meta.id, { extraSessionCost: v })}
+                                type="number"
+                                value={row.extraSessionCost ?? ''}
+                                onChange={e =>
+                                  setPlan(meta.id, {
+                                    extraSessionCost: e.target.value === '' ? null : Math.max(0, Number(e.target.value)),
+                                  })
+                                }
                               />
                             </div>
                             <div className="flex flex-col gap-1">

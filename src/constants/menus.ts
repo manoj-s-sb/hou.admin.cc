@@ -68,18 +68,11 @@ export const MENU_GROUPS: MenuGroup[] = [
     group: 'Monitoring',
     items: [
       {
-        path: ROUTES.MAINTENANCE.path,
-        label: ROUTES.MAINTENANCE.label,
-        icon: '/assets/maintenance.svg',
-        module: ACCESS_SCOPES.maintenance,
-        hideForSuperAdmin: true,
-      },
-      {
-        path: ROUTES.TAILGATE.path,
-        label: ROUTES.TAILGATE.label,
-        icon: '/assets/tailgate.svg',
-        module: ACCESS_SCOPES.tailgate,
-        hideForSuperAdmin: true,
+        // Network-wide analytics page (gated by the reports scope).
+        path: ROUTES.REPORTS.path,
+        label: 'Reports',
+        icon: '/assets/reports.svg',
+        module: ACCESS_SCOPES.reports,
       },
       {
         // Cross-centre tickets view — a superadmin-owned monitoring page (centre
@@ -88,6 +81,25 @@ export const MENU_GROUPS: MenuGroup[] = [
         label: ROUTES.TICKETS.label,
         icon: '/assets/maintenance.svg',
         module: ACCESS_SCOPES.superAdmin,
+      },
+      {
+        // Tailgate access logs — visible to super admins and any role with the scope.
+        path: ROUTES.TAILGATE.path,
+        label: 'Tailgate Logs',
+        icon: '/assets/tailgate.svg',
+        module: ACCESS_SCOPES.tailgate,
+      },
+    ],
+  },
+  {
+    group: 'Maintenance',
+    items: [
+      {
+        // Global task library — define tasks once; scheduling/execution happens per centre.
+        path: ROUTES.MAINTENANCE.path,
+        label: 'Maintenance & Tasks',
+        icon: '/assets/maintenance.svg',
+        module: ACCESS_SCOPES.maintenance,
       },
     ],
   },

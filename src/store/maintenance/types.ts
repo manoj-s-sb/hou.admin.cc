@@ -1,132 +1,196 @@
-export interface UpdateWorkRequest {
-  itemId: string;
-  scheduledDate?: string;
-  status?: string;
-  lastCompletedAt?: string;
-  nextDueDate?: string;
-  updatedBy?: string;
-  updatedByName?: string;
-  actionTaken?: string;
-  attachments?: string[];
-  comment?: string;
-  commentAttachment?: string;
-}
+/**
+ * Maintenance & Tasks — TypeScript models mirroring the backend contract
+ * (POST /admin/maintenance, action-dispatched). Global `task_template` documents
+ * live under facilityCode "GLOBAL"; per-centre `task_schedule` documents carry the
+ * facility code and embed a `template` snapshot on read. Attachments/videoUrl are
+ * returned as temporary SAS URLs on read.
+ */
 
-export interface CreateWorkRequest {
-  facilityCode: string;
-  type: string;
-  title: string;
-  category: string;
-  frequency?: string;
-  priority: string;
-  laneNo?: number;
-  notes?: string;
-  videoUrl?: string;
-  status?: string;
-  raisedBy?: string;
-  raisedByName?: string;
-  assignedTo?: string;
-  createdBy?: string;
-  createdByName?: string;
-  attachments?: string[];
-  steps?: {
-    stepId: string;
-    order: number;
-    title: string;
-    imageUrl: string | null;
-    videoUrl: string | null;
-  }[];
-}
+export type TaskType = 'mech' | 'elec' | 'other';
+export type FreqUnit = 'day' | 'week' | 'month' | 'year';
+export type TemplatePriority = 'low' | 'medium' | 'high';
+export type TemplateStatus = 'active' | 'archived';
+export type ScheduleStatus = 'pending' | 'done' | 'overdue';
+export type ScheduleView = 'today' | 'week' | 'overdue';
 
-export interface WorkListRequest {
-  facilityCode: string;
-  page: number;
-  limit: number;
-  type?: string;
-  status?: string;
-  category?: string;
-  frequency?: string;
-  scheduledDate?: string;
-  fromDate?: string;
-  toDate?: string;
-  laneNo?: number;
-  isActive?: boolean;
-}
-
-export interface WorkStep {
+export interface TemplateStep {
   stepId: string;
   order: number;
   title: string;
   imageUrl: string | null;
-  videoUrl: string | null;
 }
 
-export interface WorkActivity {
-  action: string;
-  label: string;
-  byId: string | null;
-  byName: string | null;
-  toId: string | null;
-  toName: string | null;
-  at: string;
-  attachmentUrl?: string | null;
-}
-
-export interface Work {
-  itemId: string;
-  facilityCode: string;
-  type: string;
+export interface TaskTemplate {
+  id: string;
+  facilityCode: string; // "GLOBAL"
+  type: 'task_template';
   title: string;
-  category: string | null;
-  description: string | null;
-  steps: WorkStep[];
-  frequency: string | null;
-  status: string | null;
-  priority: string | null;
-  scheduledDate: string | null;
-  lastCompletedAt: string | null;
-  nextDueDate: string | null;
-  actionTaken: string | null;
-  notes: string | null;
+  description: string;
+  category: string;
+  equipment: string | null;
+  equipmentCustom: string | null;
+  taskType: TaskType;
+  freqN: number;
+  freqUnit: FreqUnit;
+  steps: TemplateStep[];
+  priority: TemplatePriority;
+  status: TemplateStatus;
   videoUrl: string | null;
-  attachments: { blobName: string; addedAt: string; addedBy: string; addedByName: string }[] | null;
-  raisedBy: string | null;
-  raisedByName: string | null;
-  assignedTo: string | null;
-  templateId: string | null;
-  isActive: boolean | null;
-  laneNo: number | null;
   createdAt: string;
   createdBy: string;
-  createdByName: string | null;
+  createdByName: string;
   updatedAt: string;
   updatedBy: string;
-  updatedByName: string | null;
-  activities: WorkActivity[] | null;
+  updatedByName: string;
 }
 
-export interface WorkListResponse {
-  items: Work[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+/** Template snapshot embedded in a schedule read response. */
+export interface TemplateEnrich {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  equipment: string | null;
+  equipmentCustom: string | null;
+  taskType: TaskType;
+  freqN: number;
+  freqUnit: FreqUnit;
+  steps: TemplateStep[];
+  priority: TemplatePriority;
+  status: TemplateStatus;
+  videoUrl: string | null;
 }
+
+export interface ScheduleAttachment {
+  blobName: string; // SAS URL on read; raw blobName on write
+  addedAt: string;
+  addedBy: string;
+  addedByName: string;
+}
+
+export interface TaskSchedule {
+  id: string;
+  facilityCode: string;
+  type: 'task_schedule';
+  templateId: string;
+  laneNo: number | null;
+  status: ScheduleStatus; // backend-derived (pending | done | overdue)
+  scheduledDate: string;
+  nextDueDate: string | null;
+  lastCompletedAt: string | null;
+  actionTaken: string | null;
+  attachments: ScheduleAttachment[];
+  createdAt: string;
+  createdBy: string;
+  createdByName: string;
+  updatedAt: string;
+  updatedBy: string;
+  updatedByName: string;
+  template: TemplateEnrich;
+}
+
+/* ── Request payloads ── */
+
+/** A step on write: title, plus an optional image blobName (from upload_url).
+ * Omit `imageUrl` to keep an existing step's image on update (merged by order). */
+export interface StepInput {
+  title: string;
+  imageUrl?: string | null;
+}
+
+export interface CreateTemplatePayload {
+  title: string;
+  description?: string;
+  category: string;
+  equipment?: string | null;
+  equipmentCustom?: string | null;
+  taskType: TaskType;
+  freqN: number;
+  freqUnit: FreqUnit;
+  steps?: StepInput[];
+  priority: TemplatePriority;
+  videoUrl?: string | null;
+}
+
+export interface UpdateTemplatePayload extends Partial<CreateTemplatePayload> {
+  id: string;
+  status?: TemplateStatus;
+}
+
+export interface ListTemplatesPayload {
+  status?: TemplateStatus;
+  freqUnit?: FreqUnit;
+}
+
+export interface ScheduleTaskPayload {
+  templateId: string;
+  facilityCode: string;
+  laneNo?: number | null;
+  scheduledDate: string; // YYYY-MM-DD
+}
+
+export interface ListSchedulesPayload {
+  facilityCode: string;
+  status?: ScheduleStatus;
+  view?: ScheduleView;
+}
+
+export interface CompleteTaskPayload {
+  id: string;
+  facilityCode: string;
+  actionTaken?: string;
+  attachments?: string[];
+}
+
+export interface FlagIssuePayload {
+  scheduleId: string;
+  facilityCode: string;
+  title: string;
+  notes?: string;
+  priority: TemplatePriority;
+  laneNo?: number | null;
+  attachments?: string[];
+}
+
+export interface UnscheduleTaskPayload {
+  id: string;
+  facilityCode: string;
+}
+
+/* ── Response shapes ── */
+
+export interface ListTemplatesResponse {
+  items: TaskTemplate[];
+  total: number;
+}
+
+export interface ListSchedulesResponse {
+  items: TaskSchedule[];
+  total: number;
+  facilityCode: string;
+}
+
+export interface FlagIssueResponse {
+  ticket: { id: string; ticketNo?: string } & Record<string, unknown>;
+  scheduleId: string;
+}
+
+/* ── Redux slice state ── */
 
 export interface MaintenanceState {
-  isLoading: boolean;
+  templates: TaskTemplate[];
+  templatesLoading: boolean;
+  schedules: TaskSchedule[];
+  schedulesLoading: boolean;
+  saving: boolean;
   error: string | null;
-  workList: WorkListResponse;
 }
 
-export const initialState: MaintenanceState = {
-  isLoading: false,
-  error: '',
-  workList: {
-    items: [],
-    total: 0,
-    page: 1,
-    limit: 20,
-    totalPages: 1,
-  },
+export const initialMaintenanceState: MaintenanceState = {
+  templates: [],
+  templatesLoading: false,
+  schedules: [],
+  schedulesLoading: false,
+  saving: false,
+  error: null,
 };

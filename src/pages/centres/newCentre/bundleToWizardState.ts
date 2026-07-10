@@ -34,6 +34,9 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/** Present (not null/undefined) — used to keep guest-pricing blank when unset. */
+const hasVal = (v: unknown): boolean => v !== undefined && v !== null;
+
 /** Parse a "HH:MM-HH:MM" range into [open, close]; falls back to sane defaults. */
 const splitRange = (range: string | undefined): [string, string] => {
   const m = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(range ?? '');
@@ -62,9 +65,9 @@ const basePlanRows = (): WizardPlanRow[] =>
     memberCap: p.defaultSlots,
     isFoundationEligible: p.defaultFoundation,
     availableCountries: ['all'],
-    firstGuestFee: 30,
-    additionalGuestDiscountPct: 20,
-    extraSessionCost: 30,
+    firstGuestFee: null,
+    additionalGuestDiscountPct: null,
+    extraSessionCost: null,
   }));
 
 const guestRulesOf = (m: ApiMembership): Record<string, unknown> =>
@@ -78,7 +81,10 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
   const reg = memberships[0] ? guestRulesOf(memberships[0]) : {};
 
   const laneCount = (type: string) => lanes.filter(l => l.laneType === type).length;
-  const totalCapacity = num(membershipSalesFlow?.capacity?.total);
+  // Capacity source of truth is the sales-flow doc; fall back to the value mirrored
+  // onto the facility doc (facility.capacity.overallCapacity) when the sales-flow is absent.
+  const totalCapacity =
+    num(membershipSalesFlow?.capacity?.total) || num(facility.capacity?.overallCapacity);
 
   // The saved per-plan allocation lives in capacity.plans. Backends may key it by
   // plan id, membership code, or name — try each. Returns null when truly absent
@@ -113,9 +119,11 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
       joiningFee: num(m.registrationFee),
       isFoundationEligible: row.isFoundationEligible,
       availableCountries: countries.length ? countries : ['all'],
-      firstGuestFee: num(guest.firstGuestFee) || row.firstGuestFee,
-      additionalGuestDiscountPct: num(guest.additionalGuestDiscountPct) || row.additionalGuestDiscountPct,
-      extraSessionCost: num(guest.extraSessionCost) || row.extraSessionCost,
+      firstGuestFee: hasVal(guest.firstGuestFee) ? num(guest.firstGuestFee) : null,
+      additionalGuestDiscountPct: hasVal(guest.additionalGuestDiscountPct)
+        ? num(guest.additionalGuestDiscountPct)
+        : null,
+      extraSessionCost: hasVal(guest.extraSessionCost) ? num(guest.extraSessionCost) : null,
     };
   });
 
@@ -146,7 +154,7 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     email: facility.contact?.email ?? '',
     is24x7: is24x7Hours(facility.operatingHours),
     operatingHours: toWizardHours(facility.operatingHours),
-    overallCapacity: num(membershipSalesFlow?.capacity?.total) || '',
+    overallCapacity: totalCapacity || '',
     foundationPool:
       num(facility.freeSolts) ||
       num((membershipSalesFlow?.foundationMembership as Record<string, unknown>)?.pool) ||
@@ -159,9 +167,9 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     advanceBookingWindowDays: num(slotCfg.advanceBookingWindowDays) || 7,
     additionalFacilities: [],
     plans,
-    firstGuestFee: num(reg.firstGuestFee) || 30,
-    additionalGuestDiscountPct: num(reg.additionalGuestDiscountPct) || 20,
-    extraSessionCost: num(reg.extraSessionCost) || 30,
+    firstGuestFee: hasVal(reg.firstGuestFee) ? num(reg.firstGuestFee) : null,
+    additionalGuestDiscountPct: hasVal(reg.additionalGuestDiscountPct) ? num(reg.additionalGuestDiscountPct) : null,
+    extraSessionCost: hasVal(reg.extraSessionCost) ? num(reg.extraSessionCost) : null,
     discounts: [],
   };
 }

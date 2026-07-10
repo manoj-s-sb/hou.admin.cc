@@ -10,6 +10,9 @@ import Tickets from '../tickets';
 import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
 
+import Facilities from './facilities';
+import PlansPricing from './plans';
+
 import type { CentreModuleKey } from '../../contexts/CentreNavContext';
 
 // Maintenance is a large page kept in its own chunk (see App.tsx) — lazy-load it here too
@@ -164,6 +167,39 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
           <>
             <circle cx="12" cy="12" r="10" />
             <path d="M12 8v4l3 3" />
+          </>
+        ),
+      },
+    ],
+  },
+  {
+    group: 'Centre Config',
+    items: [
+      {
+        key: 'facilities',
+        label: 'Facilities',
+        slug: 'facilities',
+        component: Facilities,
+        scope: ACCESS_SCOPES.superAdmin,
+        icon: I(
+          <>
+            <path d="M3 21h18" />
+            <path d="M5 21V7l7-4 7 4v14" />
+            <path d="M9 21v-6h6v6" />
+          </>
+        ),
+      },
+      {
+        key: 'plans',
+        label: 'Plans & Pricing',
+        slug: 'plans-pricing',
+        component: PlansPricing,
+        scope: ACCESS_SCOPES.superAdmin,
+        icon: I(
+          <>
+            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />
+            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4" />
+            <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" />
           </>
         ),
       },

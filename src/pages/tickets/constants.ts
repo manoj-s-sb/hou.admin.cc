@@ -38,8 +38,6 @@ export const STATUS_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   closed: [],
 };
 
-export const SLA_HOURS: Record<TicketPriority, number> = { high: 4, medium: 24, low: 72 };
-
 export const STATUS_META: Record<TicketStatus, { label: string; pill: string; stripe: string }> = {
   open: { label: 'Open', pill: 'bg-gray-100 text-gray-600', stripe: '#9ca3af' },
   noc: { label: 'With NOC', pill: 'bg-blue-100 text-blue-700', stripe: '#2563eb' },
@@ -48,10 +46,10 @@ export const STATUS_META: Record<TicketStatus, { label: string; pill: string; st
   closed: { label: 'Closed', pill: 'bg-emerald-100 text-emerald-700', stripe: '#16a34a' },
 };
 
-export const PRIORITY_META: Record<TicketPriority, { label: string; dot: string; text: string }> = {
-  high: { label: 'High', dot: 'bg-red-500', text: 'text-red-600' },
-  medium: { label: 'Medium', dot: 'bg-amber-500', text: 'text-amber-600' },
-  low: { label: 'Low', dot: 'bg-emerald-500', text: 'text-emerald-600' },
+export const PRIORITY_META: Record<TicketPriority, { label: string; dot: string; text: string; accent: string }> = {
+  high: { label: 'High', dot: 'bg-red-500', text: 'text-red-600', accent: '#ef4444' },
+  medium: { label: 'Medium', dot: 'bg-amber-500', text: 'text-amber-600', accent: '#f59e0b' },
+  low: { label: 'Low', dot: 'bg-emerald-500', text: 'text-emerald-600', accent: '#10b981' },
 };
 
 export const CATEGORY_META: Record<TicketCategory, { label: string; className: string }> = {
@@ -82,25 +80,6 @@ export const ACTION_LABELS: Record<string, string> = {
   verify: 'Sent for Verification',
   closed: 'Closed',
   reopened: 'Reopened',
-};
-
-// SLA badge derived from slaDeadline vs now. Null for closed tickets / no deadline.
-// "SLA overdue" (red) once past due; amber within 4h; muted green otherwise.
-export const slaState = (
-  slaDeadline: string | null | undefined,
-  status: TicketStatus
-): { label: string; className: string } | null => {
-  if (!slaDeadline || status === 'closed') return null;
-  const deadline = new Date(slaDeadline).getTime();
-  if (Number.isNaN(deadline)) return null;
-  const diffMs = deadline - Date.now();
-  if (diffMs <= 0) return { label: 'SLA overdue', className: 'bg-red-100 text-red-700' };
-  const hours = Math.floor(diffMs / 3_600_000);
-  if (hours >= 24) return { label: `Due in ${Math.floor(hours / 24)}d`, className: 'bg-emerald-50 text-emerald-700' };
-  return {
-    label: hours <= 0 ? 'Due < 1h' : `Due in ${hours}h`,
-    className: hours <= 4 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-50 text-emerald-700',
-  };
 };
 
 export const PAGE_LIMIT = 20;

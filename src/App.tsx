@@ -35,6 +35,7 @@ import store, { persistor } from './store/store';
 // Heavy routes split into their own chunks — Dashboard pulls in recharts (~300 KB),
 // Maintenance is a 900+ LOC page. Keeps the initial bundle lean for everyone else.
 const Dashboard = lazy(() => import('./pages/dashboard'));
+const Reports = lazy(() => import('./pages/reports'));
 const Maintenance = lazy(() => import('./pages/maintenance'));
 
 const DefaultLanding: React.FC = () => {
@@ -63,6 +64,14 @@ const AppRoutes: React.FC = () => {
               </PermissionRoute>
             }
             path={ROUTES.DASHBOARD.path}
+          />
+          <Route
+            element={
+              <PermissionRoute module={ACCESS_SCOPES.reports}>
+                <Reports />
+              </PermissionRoute>
+            }
+            path={ROUTES.REPORTS.path}
           />
           <Route
             element={

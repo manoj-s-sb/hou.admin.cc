@@ -7,7 +7,9 @@ import type { CentreApiStatus } from '../store/centres/types';
 /** Modules shown in the centre's left nav (mirrors the HTML ops-nav). */
 export type CentreModuleKey =
   // Operations
-  'members' | 'bookings' | 'coach' | 'induction' | 'tours' | 'tailgate' | 'maintenance' | 'waitlist' | 'tickets';
+  | 'members' | 'bookings' | 'coach' | 'induction' | 'tours' | 'tailgate' | 'maintenance' | 'waitlist' | 'tickets'
+  // Centre config
+  | 'facilities' | 'plans';
 
 /** Minimal centre identity needed to drive the sidebar badge + detail fetch. */
 export interface ActiveCentre {

@@ -109,10 +109,14 @@ const buildMemberships = (state: WizardState): ApiMembership[] =>
       access: {},
       bookingRules: {
         ...DEFAULT_BOOKING_RULES,
+        // Only persist guest-pricing fields that were actually set — blank stays absent
+        // (so the centre shows "—" rather than a hardcoded value).
         guestBookingRules: {
-          firstGuestFee: p.firstGuestFee,
-          additionalGuestDiscountPct: p.additionalGuestDiscountPct,
-          extraSessionCost: p.extraSessionCost,
+          ...(p.firstGuestFee !== null ? { firstGuestFee: p.firstGuestFee } : {}),
+          ...(p.additionalGuestDiscountPct !== null
+            ? { additionalGuestDiscountPct: p.additionalGuestDiscountPct }
+            : {}),
+          ...(p.extraSessionCost !== null ? { extraSessionCost: p.extraSessionCost } : {}),
         },
       },
       memberTypes: [],
@@ -179,6 +183,12 @@ const buildFacility = (state: WizardState): ApiFacility => ({
   latitude: 0,
   longitude: 0,
   freeSolts: num(state.foundationPool),
+  // Mirror the overall capacity onto the facility doc (matches the seed shape) so
+  // Reports/analytics — which read facility.capacity.overallCapacity — reflect it.
+  capacity: {
+    overallCapacity: num(state.overallCapacity),
+    foundationPool: num(state.foundationPool),
+  },
   address: {
     street: [state.addressLine1, state.addressLine2].filter(Boolean).join(', '),
     suburb: '',

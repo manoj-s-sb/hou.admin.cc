@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
@@ -9,10 +9,8 @@ import {
   ALL_LANES,
   CATEGORY_META,
   EQUIPMENT_LIST,
-  MAINTENANCE_CATEGORY,
   PRIORITY_META,
   ROLE_LABELS,
-  SLA_HOURS,
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
   TICKET_ROLES,
@@ -73,8 +71,6 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [submitting, setSubmitting] = useState(false);
   const [triedSubmit, setTriedSubmit] = useState(false);
 
-  const isMaintenance = category === MAINTENANCE_CATEGORY;
-
   // Field-level validation surfaced inline — required inputs like Centre (dropdown)
   // and Lanes (chips) are easy to miss, so we show the reason on the field itself
   // rather than relying only on a transient toast.
@@ -82,7 +78,6 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
     centre: !centre ? 'Select a centre' : '',
     title: !title.trim() ? 'Title is required' : '',
     description: !description.trim() ? 'Description is required' : '',
-    lanes: isMaintenance && lanes.length === 0 ? 'Select at least one lane' : '',
     assigneeName: assignedTo === 'others' && !assigneeName.trim() ? 'Enter the assignee name' : '',
   };
   const hasErrors = Object.values(errors).some(Boolean);
@@ -90,8 +85,6 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
 
   const toggle = <T,>(list: T[], value: T, set: (v: T[]) => void) =>
     set(list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
-
-  const slaText = useMemo(() => `${SLA_HOURS[priority]}h SLA`, [priority]);
 
   const handleSubmit = async () => {
     setTriedSubmit(true);
@@ -128,8 +121,8 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         priority,
         assignedTo,
         assignedToName: assignedTo === 'others' && assigneeName.trim() ? assigneeName.trim() : undefined,
-        laneNo: isMaintenance ? lanes : null,
-        equipment: isMaintenance && equipment.length ? equipment : null,
+        laneNo: lanes.length ? lanes : null,
+        equipment: equipment.length ? equipment : null,
         attachments: blobNames.length ? blobNames : undefined,
       };
       await dispatch(createTicket(payload)).unwrap();
@@ -252,7 +245,6 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
                 );
               })}
             </div>
-            <p className="mt-1 text-[10.5px] text-gray-400">{slaText}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -298,41 +290,36 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
             </div>
           )}
 
-          {isMaintenance && (
-            <>
-              <div>
-                <span className={labelClass}>Lanes *</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {ALL_LANES.map(n => (
-                    <Chip key={n} active={lanes.includes(n)} onClick={() => toggle(lanes, n, setLanes)}>
-                      {n}
-                    </Chip>
-                  ))}
-                  <Chip
-                    active={lanes.length === ALL_LANES.length}
-                    onClick={() => setLanes(lanes.length === ALL_LANES.length ? [] : [...ALL_LANES])}
-                  >
-                    All
-                  </Chip>
-                </div>
-                {triedSubmit && errors.lanes && <p className="mt-1 text-[11px] text-red-500">{errors.lanes}</p>}
-              </div>
-              <div>
-                <span className={labelClass}>Equipment</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {EQUIPMENT_LIST.map(item => (
-                    <Chip
-                      key={item}
-                      active={equipment.includes(item)}
-                      onClick={() => toggle(equipment, item, setEquipment)}
-                    >
-                      {item}
-                    </Chip>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+          <div>
+            <span className={labelClass}>Lanes</span>
+            <div className="flex flex-wrap gap-1.5">
+              {ALL_LANES.map(n => (
+                <Chip key={n} active={lanes.includes(n)} onClick={() => toggle(lanes, n, setLanes)}>
+                  {n}
+                </Chip>
+              ))}
+              <Chip
+                active={lanes.length === ALL_LANES.length}
+                onClick={() => setLanes(lanes.length === ALL_LANES.length ? [] : [...ALL_LANES])}
+              >
+                All
+              </Chip>
+            </div>
+          </div>
+          <div>
+            <span className={labelClass}>Equipment</span>
+            <div className="flex flex-wrap gap-1.5">
+              {EQUIPMENT_LIST.map(item => (
+                <Chip
+                  key={item}
+                  active={equipment.includes(item)}
+                  onClick={() => toggle(equipment, item, setEquipment)}
+                >
+                  {item}
+                </Chip>
+              ))}
+            </div>
+          </div>
 
           <div>
             <span className={labelClass}>Attachments</span>

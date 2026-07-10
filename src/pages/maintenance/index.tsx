@@ -1,906 +1,493 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
 
-import DataTable from '../../components/Table/DataTable';
-import { ColumnDef, TableColumn } from '../../components/Table/types';
-import endpoints from '../../constants/endpoints';
-import api from '../../services';
-import { getWorkList, updateWork } from '../../store/maintenance/api';
-import { Work } from '../../store/maintenance/types';
+import { archiveTemplate, listSchedules, listTemplates, restoreTemplate, unscheduleTask } from '../../store/maintenance/api';
 import { AppDispatch, RootState } from '../../store/store';
 
-import AddTaskModal from './components/AddTaskModal';
-import CreateIssueModal from './components/CreateIssueModal';
 import FlagIssueModal from './components/FlagIssueModal';
-import IssueCard from './components/IssueCard';
-import IssueDetailModal from './components/IssueDetailModal';
-import MarkDoneModal from './components/MarkDoneModal';
+import LaneTaskCard from './components/LaneTaskCard';
+import LogsView from './components/LogsView';
 import ScheduleCard from './components/ScheduleCard';
 import ScheduleModal from './components/ScheduleModal';
 import StepsModal from './components/StepsModal';
-import TaskCard from './components/TaskCard';
-import { Tab, TaskFrequency, getFacilityCode, getLocalUser, tabs, taskFrequencies } from './constants';
+import TemplateCard from './components/TemplateCard';
+import TemplateModal from './components/TemplateModal';
+import {
+  ALL_LANES,
+  CENTRE_BUCKETS,
+  GLOBAL_BUCKETS,
+  canManageTasks,
+  centreBucket,
+  globalBucket,
+  type CentreBucket,
+  type GlobalBucket,
+} from './constants';
 
-type IssueFilter = 'new' | 'active' | 'closed';
-const issueFilterStatus: Record<IssueFilter, string> = {
-  new: 'open',
-  active: 'inprogress',
-  closed: 'closed',
+import type { TaskSchedule, TaskTemplate, TemplateStep } from '../../store/maintenance/types';
+
+type CentreModule = 'library' | 'schedule';
+interface StepsView {
+  title: string;
+  steps: TemplateStep[];
+  videoUrl: string | null;
+}
+
+const tabBtn = (active: boolean) =>
+  `px-3 py-1.5 text-[13px] font-semibold transition border-b-2 ${
+    active ? 'border-[#21295A] text-[#21295A]' : 'border-transparent text-gray-400 hover:text-gray-600'
+  }`;
+
+const lanePillCls = (active: boolean) =>
+  `rounded-lg border px-3 py-1 text-[12px] font-semibold transition ${
+    active ? 'border-[#21295A] bg-[#21295A] text-white' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+  }`;
+
+const toISODate = (d: Date): string => {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
 };
 
-const filterKeyFromStatus = (status: string): IssueFilter | null => {
-  if (status === 'open' || status === 'issue') return 'new';
-  if (status === 'inprogress') return 'active';
-  if (status === 'closed') return 'closed';
-  return null;
-};
-
-const issueFilterMeta: Record<IssueFilter, { label: string; activeText: string; underline: string; badgeCls: string }> =
-  {
-    new: { label: 'New', activeText: 'text-gray-800', underline: 'bg-[#21295A]', badgeCls: 'bg-red-100 text-red-700' },
-    active: {
-      label: 'Active',
-      activeText: 'text-yellow-600',
-      underline: 'bg-yellow-400',
-      badgeCls: 'bg-yellow-100 text-yellow-700',
-    },
-    closed: {
-      label: 'Closed',
-      activeText: 'text-green-600',
-      underline: 'bg-green-500',
-      badgeCls: 'bg-green-100 text-green-700',
-    },
-  };
-
-const Maintenance = () => {
+const Maintenance: React.FC = () => {
+  const { facilityCode: routeFacility } = useParams<{ facilityCode?: string }>();
+  const isCentre = Boolean(routeFacility);
+  const facilityCode = routeFacility ?? '';
   const dispatch = useDispatch<AppDispatch>();
-  const { workList, isLoading } = useSelector((state: RootState) => state.maintenance);
-  const currentUserId = useSelector((state: RootState) => state.auth.user?.userId) || '';
+  const { templates, templatesLoading, schedules, schedulesLoading } = useSelector((s: RootState) => s.maintenance);
+  const canManage = canManageTasks();
 
-  const toDateStr = (d: Date) => d.toISOString().split('T')[0];
-  const today = toDateStr(new Date());
-  const sevenDaysLater = toDateStr(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000));
+  // View state
+  const [centreModule, setCentreModule] = useState<CentreModule>('library');
+  const [globalTab, setGlobalTab] = useState<GlobalBucket>('weekly');
+  const [centreTab, setCentreTab] = useState<CentreBucket>('weekly');
+  const [scheduleDay, setScheduleDay] = useState<string>(toISODate(new Date())); // ISO date | 'overdue'
+  const [showArchived, setShowArchived] = useState(false);
+  const [libLane, setLibLane] = useState<number>(1); // Task Library lane (centre)
 
-  const [activeTab, setActiveTab] = useState<Tab>('task');
-  const [taskFrequency, setTaskFrequency] = useState<TaskFrequency | null>(null);
-  const [selectedLane, setSelectedLane] = useState<number>(1);
-  const [selectedScheduleDate, setSelectedScheduleDate] = useState<string>('overdue');
-  const [allScheduleItems, setAllScheduleItems] = useState<Work[]>([]);
-  const [overdueCount, setOverdueCount] = useState(0);
-  const [selectedItem, setSelectedItem] = useState<Work | null>(null);
-  const [schedulingItem, setSchedulingItem] = useState<Work | null>(null);
-  const [markDoneItem, setMarkDoneItem] = useState<Work | null>(null);
-  const [flagIssueItem, setFlagIssueItem] = useState<Work | null>(null);
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [showCreateIssue, setShowCreateIssue] = useState(false);
-  const [issueCounts, setIssueCounts] = useState({ new: 0, active: 0, closed: 0 });
-  const [issueFilter, setIssueFilter] = useState<IssueFilter>('new');
-  const fetchRequestRef = useRef<{ abort: () => void } | null>(null);
+  // Modals
+  const [templateModal, setTemplateModal] = useState<{ open: boolean; template: TaskTemplate | null }>({
+    open: false,
+    template: null,
+  });
+  const [scheduleTemplate, setScheduleTemplate] = useState<TaskTemplate | null>(null);
+  const [reschedule, setReschedule] = useState<TaskSchedule | null>(null);
+  const [stepsView, setStepsView] = useState<StepsView | null>(null);
+  const [flag, setFlag] = useState<TaskSchedule | null>(null);
+  const [showLogs, setShowLogs] = useState(false);
 
-  const applyScheduleDelta = (item: Work, newScheduledDate: string) => {
-    const inRange = (d: string) => d >= today && d <= sevenDaysLater;
-    setAllScheduleItems(prev => {
-      const filtered =
-        item.scheduledDate && inRange(item.scheduledDate) ? prev.filter(s => s.itemId !== item.itemId) : prev;
-      return inRange(newScheduledDate) ? [...filtered, { ...item, scheduledDate: newScheduledDate }] : filtered;
-    });
-  };
+  const loadTemplates = useCallback(() => {
+    dispatch(listTemplates({ status: showArchived ? undefined : 'active' }));
+  }, [dispatch, showArchived]);
 
-  const applyCountDelta = (prevStatus: string, newStatus: string) => {
-    const prevKey = filterKeyFromStatus(prevStatus);
-    const newKey = filterKeyFromStatus(newStatus);
-    setIssueCounts(prev => {
-      const next = { ...prev };
-      if (prevKey) next[prevKey] = Math.max(0, next[prevKey] - 1);
-      if (newKey) next[newKey] = next[newKey] + 1;
-      return next;
-    });
-  };
-  const [viewIssue, setViewIssue] = useState<{ item: Work; index: number } | null>(null);
+  // One fetch of ALL this centre's schedules powers both the day tabs and the
+  // Task Library "scheduled" counts.
+  const loadSchedules = useCallback(() => {
+    if (isCentre) dispatch(listSchedules({ facilityCode }));
+  }, [dispatch, isCentre, facilityCode]);
 
-  const fetchList = (
-    type: Tab,
-    frequency: TaskFrequency | null,
-    page = 1,
-    limit = workList.limit || 20,
-    lane = selectedLane,
-    status?: string
-  ) => {
-    fetchRequestRef.current?.abort();
-    fetchRequestRef.current = dispatch(
-      getWorkList({
-        facilityCode: getFacilityCode(),
-        page,
-        limit,
-        type,
-        ...(type === 'task' && { ...(frequency ? { frequency } : {}), laneNo: lane }),
-        ...(status ? { status } : {}),
-      })
-    );
-  };
-
-  // Non-schedule tabs: re-fetch on filter change
   useEffect(() => {
-    if (activeTab !== 'schedule') {
-      fetchList(
-        activeTab,
-        taskFrequency,
-        1,
-        workList.limit || 20,
-        selectedLane,
-        activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined
-      );
-    } else if (selectedScheduleDate === 'overdue') {
-      const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(getWorkList({ facilityCode: getFacilityCode(), page: 1, limit: 20, type: 'task', toDate: yesterday }));
-    } else {
-      dispatch(
-        getWorkList({
-          facilityCode: getFacilityCode(),
-          page: 1,
-          limit: 20,
-          type: 'task',
-          scheduledDate: selectedScheduleDate,
-        })
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, taskFrequency, selectedLane, selectedScheduleDate, issueFilter]);
+    loadTemplates();
+  }, [loadTemplates]);
 
-  const fetchIssueCounts = () => {
-    const getCount = (status: string) =>
-      api
-        .post(endpoints.maintenance.workList, {
-          facilityCode: getFacilityCode(),
-          page: 1,
-          limit: 1,
-          type: 'issue',
-          status,
-        })
-        .then(res => {
-          const data = res.data?.data;
-          return Array.isArray(data) ? data.length : (data?.total ?? 0);
-        })
-        .catch(() => 0);
-
-    Promise.all([getCount('open'), getCount('inprogress'), getCount('closed')]).then(
-      ([newCount, activeCount, closedCount]) => {
-        setIssueCounts({ new: newCount, active: activeCount, closed: closedCount });
-      }
-    );
-  };
-
-  // Fetch issue counts + schedule counts on mount
   useEffect(() => {
-    fetchIssueCounts();
-    fetchScheduleCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadSchedules();
+  }, [loadSchedules]);
+
+  // Filter active-ish templates by the current frequency tab bucket.
+  const visibleTemplates = useMemo(
+    () => templates.filter(t => (isCentre ? centreBucket(t) === centreTab : globalBucket(t) === globalTab)),
+    [templates, isCentre, centreTab, globalTab]
+  );
+
+  // Per-frequency counts for the library tab badges.
+  const bucketCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    templates.forEach(t => {
+      const key = isCentre ? centreBucket(t) : globalBucket(t);
+      c[key] = (c[key] || 0) + 1;
+    });
+    return c;
+  }, [templates, isCentre]);
+
+  // A template's schedule at a given lane (for the per-lane Task Library rows).
+  const scheduleFor = useCallback(
+    (templateId: string, lane: number): TaskSchedule | null =>
+      schedules.find(s => s.templateId === templateId && s.laneNo === lane) ?? null,
+    [schedules]
+  );
+
+  // Frequency-tab status dot for the selected lane: red = something needs doing,
+  // green = all scheduled tasks done, null = nothing scheduled.
+  const bucketDot = useCallback(
+    (bucketKey: string): 'red' | 'green' | null => {
+      const scheds = templates
+        .filter(t => centreBucket(t) === bucketKey)
+        .map(t => scheduleFor(t.id, libLane))
+        .filter((s): s is TaskSchedule => Boolean(s));
+      if (!scheds.length) return null;
+      if (scheds.some(s => s.status !== 'done')) return 'red';
+      return 'green';
+    },
+    [templates, scheduleFor, libLane]
+  );
+
+  // Day tabs — today + next 6 days, plus an Overdue tab. Tasks bucket by scheduledDate.
+  const dayTabs = useMemo(() => {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      const iso = toISODate(d);
+      const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short' });
+      const sub = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return { iso, label, sub };
+    });
   }, []);
 
-  // Schedule tab: fetch 7-day range + overdue count for badges only (does not affect workList)
-  const fetchScheduleCounts = () => {
-    const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-    api
-      .post(endpoints.maintenance.workList, {
-        facilityCode: getFacilityCode(),
-        page: 1,
-        limit: 100,
-        type: 'task',
-        fromDate: today,
-        toDate: sevenDaysLater,
-      })
-      .then(res => {
-        const data = res.data?.data;
-        setAllScheduleItems(Array.isArray(data) ? data : data?.items || []);
-      });
-    api
-      .post(endpoints.maintenance.workList, {
-        facilityCode: getFacilityCode(),
-        page: 1,
-        limit: 1,
-        type: 'task',
-        toDate: yesterday,
-      })
-      .then(res => {
-        const data = res.data?.data;
-        setOverdueCount(Array.isArray(data) ? data.length : (data?.total ?? 0));
-      })
-      .catch(() => setOverdueCount(0));
-  };
+  const overdueSchedules = useMemo(() => schedules.filter(s => s.status === 'overdue'), [schedules]);
+  const dayCount = useCallback(
+    (iso: string) => schedules.filter(s => s.status !== 'overdue' && s.scheduledDate === iso).length,
+    [schedules]
+  );
 
-  useEffect(() => {
-    if (activeTab === 'schedule') fetchScheduleCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  const visibleSchedules = useMemo(() => {
+    if (scheduleDay === 'overdue') return overdueSchedules;
+    return schedules.filter(s => s.status !== 'overdue' && s.scheduledDate === scheduleDay);
+  }, [schedules, overdueSchedules, scheduleDay]);
 
-  const scheduleCountByDate = allScheduleItems.reduce<Record<string, number>>((acc, item) => {
-    if (item.scheduledDate) acc[item.scheduledDate] = (acc[item.scheduledDate] || 0) + 1;
-    return acc;
-  }, {});
-
-  const scheduleDisplayItems = workList.items || [];
-
-  const refreshSchedule = () => {
-    const page = workList.page || 1;
-    const limit = workList.limit || 20;
-    if (selectedScheduleDate === 'overdue') {
-      const yesterday = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
-      dispatch(getWorkList({ facilityCode: getFacilityCode(), page, limit, type: 'task', toDate: yesterday }));
-    } else {
-      dispatch(
-        getWorkList({
-          facilityCode: getFacilityCode(),
-          page,
-          limit,
-          type: 'task',
-          scheduledDate: selectedScheduleDate,
-        })
-      );
+  const onArchiveToggle = async (t: TaskTemplate) => {
+    try {
+      await dispatch(t.status === 'archived' ? restoreTemplate(t.id) : archiveTemplate(t.id)).unwrap();
+      toast.success(t.status === 'archived' ? 'Task restored' : 'Task archived');
+      loadTemplates();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not update the task');
     }
-    fetchScheduleCounts();
   };
 
-  const onSuccess = () => {
-    if (activeTab === 'schedule') {
-      refreshSchedule();
-      return;
+  const onUnschedule = async (s: TaskSchedule) => {
+    if (!window.confirm('Remove this scheduled task?')) return;
+    try {
+      await dispatch(unscheduleTask({ id: s.id, facilityCode })).unwrap();
+      toast.success('Schedule removed');
+      loadSchedules();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not remove the schedule');
     }
-    fetchList(
-      activeTab,
-      taskFrequency,
-      workList.page || 1,
-      workList.limit || 20,
-      selectedLane,
-      activeTab === 'issue' ? issueFilterStatus[issueFilter] : undefined
-    );
-    if (activeTab === 'issue') fetchIssueCounts();
   };
 
-  const handleUndo = (item: Work) => {
-    const { name: updatedByName } = getLocalUser();
-    dispatch(
-      updateWork({
-        itemId: item.itemId,
-        status: 'pending',
-        ...(currentUserId ? { updatedBy: currentUserId } : {}),
-        ...(updatedByName ? { updatedByName } : {}),
-      })
-    )
-      .unwrap()
-      .then(() => {
-        toast.success('Issue undone — task set back to pending.');
-        refreshSchedule();
-      })
-      .catch(err => toast.error(err || 'Failed to undo.'));
-  };
+  const openTemplateSteps = (t: TaskTemplate) => setStepsView({ title: t.title, steps: t.steps, videoUrl: t.videoUrl });
+  const openScheduleSteps = (s: TaskSchedule) =>
+    setStepsView({ title: s.template.title, steps: s.template.steps, videoUrl: s.template.videoUrl });
 
-  // ─── Column definitions ───────────────────────────────────────────────────
+  const buckets = isCentre ? CENTRE_BUCKETS : GLOBAL_BUCKETS;
+  const activeBucket: string = isCentre ? centreTab : globalTab;
+  const setBucket = (key: string) => (isCentre ? setCentreTab(key as CentreBucket) : setGlobalTab(key as GlobalBucket));
 
-  const snoColumn: ColumnDef = {
-    field: 'sno',
-    headerName: 'S.No',
-    width: 70,
-    sortable: false,
-    renderCell: (params: { index?: number }) =>
-      ((workList.page || 1) - 1) * (workList.limit || 20) + (params.index || 0) + 1,
-  };
-
-  const statusRenderCell = (params: { row?: Work }) => {
-    const s = params.row?.status || '';
-    const map: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      completed: 'bg-green-100 text-green-700',
-      inprogress: 'bg-blue-100 text-blue-700',
-      issue: 'bg-orange-100 text-orange-700',
-      open: 'bg-red-100 text-red-700',
-      closed: 'bg-gray-100 text-gray-600',
-      cancelled: 'bg-red-100 text-red-700',
-    };
-    return (
-      <span
-        className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${map[s] || 'bg-gray-100 text-gray-600'}`}
-      >
-        {s}
-      </span>
-    );
-  };
-
-  const priorityRenderCell = (params: { row?: Work }) => {
-    const p = params.row?.priority || '';
-    const map: Record<string, string> = {
-      high: 'bg-red-100 text-red-700',
-      medium: 'bg-yellow-100 text-yellow-700',
-      low: 'bg-green-100 text-green-700',
-    };
-    return (
-      <span
-        className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${map[p] || 'bg-gray-100 text-gray-600'}`}
-      >
-        {p || '-'}
-      </span>
-    );
-  };
-
-  const columnsMap: Record<Tab, ColumnDef[]> = {
-    task: [
-      snoColumn,
-      { field: 'title', headerName: 'Title', flex: 2, sortable: true, valueGetter: p => p.row?.title || '-' },
-      { field: 'category', headerName: 'Category', flex: 1, sortable: true, valueGetter: p => p.row?.category || '-' },
-      {
-        field: 'frequency',
-        headerName: 'Frequency',
-        flex: 1,
-        sortable: true,
-        valueGetter: p => p.row?.frequency || '-',
-      },
-      { field: 'laneNo', headerName: 'Lane', width: 80, sortable: true, valueGetter: p => p.row?.laneNo ?? '-' },
-      { field: 'steps', headerName: 'Steps', width: 80, sortable: false, valueGetter: p => p.row?.steps?.length ?? 0 },
-      { field: 'priority', headerName: 'Priority', flex: 1, sortable: true, renderCell: priorityRenderCell },
-      { field: 'status', headerName: 'Status', flex: 1, sortable: true, renderCell: statusRenderCell },
-    ],
-    issue: [
-      snoColumn,
-      { field: 'title', headerName: 'Title', flex: 2, sortable: true, valueGetter: p => p.row?.title || '-' },
-      { field: 'category', headerName: 'Category', flex: 1, sortable: true, valueGetter: p => p.row?.category || '-' },
-      { field: 'laneNo', headerName: 'Lane', width: 80, sortable: true, valueGetter: p => p.row?.laneNo ?? '-' },
-      { field: 'priority', headerName: 'Priority', flex: 1, sortable: true, renderCell: priorityRenderCell },
-      { field: 'status', headerName: 'Status', flex: 1, sortable: true, renderCell: statusRenderCell },
-      { field: 'notes', headerName: 'Notes', flex: 2, sortable: false, valueGetter: p => p.row?.notes || '-' },
-    ],
-    log: [
-      {
-        field: 'title',
-        headerName: 'Task',
-        flex: 2,
-        sortable: true,
-        renderCell: params => <span className="font-semibold text-gray-900">{params.row?.title || '-'}</span>,
-      },
-      {
-        field: 'laneNo',
-        headerName: 'Lane',
-        flex: 1,
-        sortable: true,
-        valueGetter: p => (p.row?.laneNo ? `Lane ${p.row.laneNo}` : '-'),
-      },
-      {
-        field: 'frequency',
-        headerName: 'Frequency',
-        flex: 1,
-        sortable: true,
-        valueGetter: p => {
-          const f = p.row?.frequency;
-          return f ? f.charAt(0).toUpperCase() + f.slice(1) : '-';
-        },
-      },
-      {
-        field: 'status',
-        headerName: 'Action',
-        flex: 1,
-        sortable: false,
-        renderCell: params => {
-          const s = params.value || params.row?.status;
-          if (s === 'completed' || s === 'done') {
-            return (
-              <span className="flex items-center gap-1 font-semibold text-green-600">
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-                </svg>
-                Done
-              </span>
-            );
-          }
-          if (s === 'issue') {
-            return (
-              <span className="flex items-center gap-1 font-semibold text-red-500">
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5v4m0-4h14"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-                Issue
-              </span>
-            );
-          }
-          return <span className="capitalize text-gray-500">{s || '-'}</span>;
-        },
-      },
-      {
-        field: 'createdBy',
-        headerName: 'Created By',
-        flex: 1,
-        sortable: true,
-        valueGetter: p =>
-          p.row?.createdByName ||
-          p.row?.raisedByName ||
-          p.row?.updatedByName ||
-          p.row?.updatedBy ||
-          p.row?.createdBy ||
-          '-',
-      },
-      {
-        field: 'createdAt',
-        headerName: 'Date & Time',
-        flex: 1.5,
-        sortable: true,
-        valueGetter: p => {
-          if (!p.row?.createdAt) return '-';
-          return new Date(p.row.createdAt).toLocaleString('en-US', {
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            month: 'short',
-          });
-        },
-      },
-    ],
-    schedule: [
-      snoColumn,
-      { field: 'title', headerName: 'Title', flex: 2, sortable: true, valueGetter: p => p.row?.title || '-' },
-      { field: 'category', headerName: 'Category', flex: 1, sortable: true, valueGetter: p => p.row?.category || '-' },
-      {
-        field: 'frequency',
-        headerName: 'Frequency',
-        flex: 1,
-        sortable: true,
-        valueGetter: p => p.row?.frequency || '-',
-      },
-      {
-        field: 'scheduledDate',
-        headerName: 'Scheduled Date',
-        flex: 1.2,
-        sortable: true,
-        valueGetter: p => p.row?.scheduledDate || '-',
-      },
-      { field: 'laneNo', headerName: 'Lane', width: 80, sortable: true, valueGetter: p => p.row?.laneNo ?? '-' },
-      { field: 'status', headerName: 'Status', flex: 1, sortable: true, renderCell: statusRenderCell },
-    ],
-  };
-
-  const adaptColumns = (cols: ColumnDef[]): TableColumn[] =>
-    cols.map(col => ({
-      id: col.field,
-      label: col.headerName,
-      width: col.width,
-      minWidth: col.minWidth,
-      sortable: col.sortable !== false,
-      renderCell: col.renderCell
-        ? (value, row, index) => col.renderCell?.({ value, row, index })
-        : col.valueGetter
-          ? (value, row, index) => col.valueGetter?.({ value, row, index }) || ''
-          : undefined,
-    }));
-
-  // ─── Render ───────────────────────────────────────────────────────────────
-
-  return (
+  const renderLibrary = () => (
     <>
-      <div className="w-full max-w-full">
-        {/* ── Page Header ─────────────────────────────────────── */}
-        <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4">
-          <div>
-            <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Maintenance</h1>
-            <p className="mt-1 text-[12px] font-medium text-gray-400">
-              Manage facility maintenance tasks and schedules
-            </p>
-          </div>
-          {activeTab === 'task' && (
-            <button
-              className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1a2149]"
-              type="button"
-              onClick={() => setShowAddTask(true)}
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-              </svg>
-              Add Task
-            </button>
-          )}
-          {activeTab === 'issue' && (
-            <button
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-              type="button"
-              onClick={() => setShowCreateIssue(true)}
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-              </svg>
-              Create Ticket
-            </button>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-          {/* Tabs + Frequency toggle */}
-          <div className="border-b border-gray-200 px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex">
-                {tabs.map(tab => (
-                  <button
-                    key={tab.key}
-                    className={`relative flex items-center gap-1.5 px-5 pb-3.5 pt-4 text-sm transition-colors ${
-                      activeTab === tab.key
-                        ? 'font-semibold text-[#21295A]'
-                        : 'font-medium text-gray-400 hover:text-gray-600'
-                    }`}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(tab.key);
-                      if (tab.key === 'task') setTaskFrequency(null);
-                      if (tab.key === 'schedule') setSelectedScheduleDate('overdue');
-                    }}
-                  >
-                    {tab.label}
-                    {tab.key === 'issue' && (issueCounts.new > 0 || issueCounts.active > 0) && (
-                      <span
-                        className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
-                          issueCounts.new > 0 ? 'bg-red-500' : 'bg-yellow-500'
-                        }`}
-                      >
-                        {issueCounts.new > 0
-                          ? issueCounts.new > 99
-                            ? '99+'
-                            : issueCounts.new
-                          : issueCounts.active > 99
-                            ? '99+'
-                            : issueCounts.active}
-                      </span>
-                    )}
-                    {tab.key === 'schedule' && allScheduleItems.length + overdueCount > 0 && (
-                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#21295A] px-1 text-[10px] font-bold text-white">
-                        {allScheduleItems.length + overdueCount > 99 ? '99+' : allScheduleItems.length + overdueCount}
-                      </span>
-                    )}
-                    {activeTab === tab.key && (
-                      <span className="absolute bottom-0 left-0 h-[2.5px] w-full rounded-full bg-[#21295A]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center rounded-full border border-gray-200 bg-gray-100 p-1">
-                <button
-                  className={`rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-all duration-200 ${
-                    activeTab === 'task' && taskFrequency === null
-                      ? 'bg-[#21295A] text-white shadow-sm'
-                      : 'text-gray-400 hover:text-gray-600'
-                  }`}
-                  type="button"
-                  onClick={() => {
-                    setTaskFrequency(null);
-                    setActiveTab('task');
-                  }}
-                >
-                  Tasks
-                </button>
-                {taskFrequencies.map(f => (
-                  <button
-                    key={f.key}
-                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                      taskFrequency === f.key && activeTab === 'task'
-                        ? 'bg-[#21295A] text-white shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                    type="button"
-                    onClick={() => {
-                      setTaskFrequency(f.key);
-                      setActiveTab('task');
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Lane filter strip — task tab only */}
-          {activeTab === 'task' && (
-            <div className="flex gap-2 border-b border-gray-100 bg-gray-50/60 px-6 py-3">
-              {Array.from({ length: 7 }, (_, i) => i + 1).map(lane => (
-                <button
-                  key={lane}
-                  className={`rounded-full px-4 py-1 text-xs font-semibold transition-all ${
-                    selectedLane === lane
-                      ? 'bg-[#21295A] text-white shadow-sm'
-                      : 'border border-gray-200 bg-white text-gray-500 hover:border-[#21295A]/40 hover:text-[#21295A]'
-                  }`}
-                  type="button"
-                  onClick={() => setSelectedLane(lane)}
-                >
-                  Lane {lane}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* 7-day date strip — schedule tab only */}
-          {activeTab === 'schedule' && (
-            <div className="overflow-x-auto border-b border-gray-200 px-6">
-              <div className="flex">
-                {Array.from({ length: 7 }, (_, i) => {
-                  const d = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
-                  const dateStr = toDateStr(d);
-                  const isSelected = selectedScheduleDate === dateStr;
-                  const dayLabel =
-                    i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short' });
-                  return (
-                    <button
-                      key={dateStr}
-                      className="relative flex shrink-0 flex-col items-center px-6 pb-3 pt-3 text-center transition-colors"
-                      type="button"
-                      onClick={() => setSelectedScheduleDate(dateStr)}
-                    >
-                      <span
-                        className={`text-sm font-bold ${isSelected ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                        {dayLabel}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                      {scheduleCountByDate[dateStr] > 0 ? (
-                        <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#21295A] text-[10px] font-bold text-white">
-                          {scheduleCountByDate[dateStr] > 9 ? '9+' : scheduleCountByDate[dateStr]}
-                        </span>
-                      ) : (
-                        <span className="mt-1 h-5" />
-                      )}
-                      {isSelected && <span className="absolute bottom-0 left-0 h-0.5 w-full bg-[#21295A]" />}
-                    </button>
-                  );
-                })}
-                {/* Overdue */}
-                {(() => {
-                  const isSelected = selectedScheduleDate === 'overdue';
-                  return (
-                    <button
-                      className="relative flex shrink-0 flex-col items-center px-6 pb-3 pt-3 text-center transition-colors"
-                      type="button"
-                      onClick={() => setSelectedScheduleDate('overdue')}
-                    >
-                      <span
-                        className={`text-sm font-bold ${isSelected ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                        Overdue
-                      </span>
-                      <span className="text-xs text-gray-400">Past due</span>
-                      {overdueCount > 0 ? (
-                        <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                          {overdueCount > 9 ? '9+' : overdueCount}
-                        </span>
-                      ) : (
-                        <span className="mt-1 h-5" />
-                      )}
-                      {isSelected && <span className="absolute bottom-0 left-0 h-0.5 w-full bg-[#21295A]" />}
-                    </button>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* Content */}
-          <div className="p-4">
-            {activeTab === 'task' ? (
-              isLoading ? (
-                <div className="flex items-center justify-center py-16 text-gray-400">Loading...</div>
-              ) : (workList.items || []).length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <svg className="mb-3 h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1 border-b border-gray-100">
+          {buckets.map(b => {
+            const dot = isCentre ? bucketDot(b.key) : null;
+            return (
+              <button key={b.key} className={tabBtn(activeBucket === b.key)} type="button" onClick={() => setBucket(b.key)}>
+                {b.label}
+                {isCentre ? (
+                  dot && (
+                    <span
+                      className={`ml-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${dot === 'red' ? 'bg-red-500' : 'bg-emerald-500'}`}
                     />
-                    <path
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                    />
-                  </svg>
-                  <p className="text-sm font-medium text-gray-500">No tasks found</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {(workList.items || []).map(item => (
-                    <TaskCard
-                      key={item.itemId}
-                      item={item}
-                      onSchedule={setSchedulingItem}
-                      onStepsView={setSelectedItem}
-                    />
-                  ))}
-                </div>
-              )
-            ) : activeTab === 'schedule' ? (
-              isLoading ? (
-                <div className="flex items-center justify-center py-16 text-gray-400">Loading...</div>
-              ) : scheduleDisplayItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <svg className="mb-3 h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                    />
-                  </svg>
-                  <p className="text-sm font-medium text-gray-500">No scheduled tasks found</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {scheduleDisplayItems.map(item => (
-                    <ScheduleCard
-                      key={item.itemId}
-                      item={item}
-                      updatedBy={currentUserId}
-                      onFlagIssue={setFlagIssueItem}
-                      onMarkDone={setMarkDoneItem}
-                      onSchedule={setSchedulingItem}
-                      onStepsView={setSelectedItem}
-                      onSuccess={onSuccess}
-                      onUndo={handleUndo}
-                    />
-                  ))}
-                </div>
-              )
-            ) : activeTab === 'issue' ? (
-              <>
-                <div className="mb-4 flex border-b border-gray-200">
-                  {(['new', 'active', 'closed'] as IssueFilter[]).map(f => {
-                    const meta = issueFilterMeta[f];
-                    const isActive = issueFilter === f;
-                    return (
-                      <button
-                        key={f}
-                        className={`relative flex items-center gap-2 px-5 pb-3 pt-1 text-sm font-semibold transition-colors ${
-                          isActive ? meta.activeText : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                        type="button"
-                        onClick={() => setIssueFilter(f)}
-                      >
-                        {meta.label}
-                        {issueCounts[f] > 0 && (
-                          <span
-                            className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold ${meta.badgeCls}`}
-                          >
-                            {issueCounts[f] > 99 ? '99+' : issueCounts[f]}
-                          </span>
-                        )}
-                        {isActive && (
-                          <span className={`absolute bottom-0 left-0 h-0.5 w-full rounded-full ${meta.underline}`} />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-16 text-gray-400">Loading...</div>
-                ) : (workList.items || []).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <svg className="mb-3 h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5v4m0-4h14"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                      />
-                    </svg>
-                    <p className="text-sm font-medium text-gray-500">No issues found</p>
-                  </div>
+                  )
                 ) : (
-                  <div className="flex flex-col gap-3">
-                    {(workList.items || []).map((item, index) => (
-                      <IssueCard
-                        key={item.itemId}
-                        index={index}
-                        item={item}
-                        onViewIssue={(i, idx) => setViewIssue({ item: i, index: idx })}
-                      />
-                    ))}
-                  </div>
+                  <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-gray-500">
+                    {bucketCounts[b.key] || 0}
+                  </span>
                 )}
-              </>
-            ) : (
-              <DataTable
-                columns={adaptColumns(columnsMap[activeTab])}
-                data={workList.items || []}
-                emptyState={{ subtitle: 'No records available', title: 'No records found' }}
-                getRowId={row => row.itemId}
-                loading={isLoading}
-                page={(workList.page || 1) - 1}
-                rowsPerPage={workList.limit || 20}
-                serverSide={true}
-                totalRows={workList.total || 0}
-                onPageChange={(page: number) => fetchList(activeTab, taskFrequency, page + 1, workList.limit || 20)}
-                onRowsPerPageChange={(limit: number) => fetchList(activeTab, taskFrequency, 1, limit)}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-3">
+          {!isCentre && (
+            <label className="flex cursor-pointer items-center gap-1.5 text-[12px] font-medium text-gray-500">
+              <input
+                checked={showArchived}
+                className="h-3.5 w-3.5 rounded border-gray-300"
+                type="checkbox"
+                onChange={e => setShowArchived(e.target.checked)}
               />
-            )}
-          </div>
+              Show archived
+            </label>
+          )}
+          {canManage && (
+            <button
+              className="rounded-lg bg-[#21295A] px-3.5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
+              type="button"
+              onClick={() => setTemplateModal({ open: true, template: null })}
+            >
+              + Add Task
+            </button>
+          )}
         </div>
       </div>
 
-      {selectedItem && <StepsModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
-
-      {flagIssueItem && (
-        <FlagIssueModal
-          facilityCode={getFacilityCode()}
-          item={flagIssueItem}
-          updatedBy={currentUserId}
-          onClose={() => setFlagIssueItem(null)}
-          onSuccess={() => {
-            onSuccess();
-            setIssueCounts(prev => ({ ...prev, new: prev.new + 1 }));
-          }}
-        />
+      {/* Lane tabs — centre Task Library is tracked per lane. */}
+      {isCentre && (
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_LANES.map(n => (
+            <button key={n} className={lanePillCls(libLane === n)} type="button" onClick={() => setLibLane(n)}>
+              Lane {n}
+            </button>
+          ))}
+        </div>
       )}
 
-      {markDoneItem && (
-        <MarkDoneModal
-          facilityCode={getFacilityCode()}
-          item={markDoneItem}
-          updatedBy={currentUserId}
-          onClose={() => setMarkDoneItem(null)}
-          onSuccess={onSuccess}
-        />
-      )}
-
-      {showAddTask && (
-        <AddTaskModal onClose={() => setShowAddTask(false)} onSuccess={() => fetchList(activeTab, taskFrequency, 1)} />
-      )}
-
-      {showCreateIssue && (
-        <CreateIssueModal
-          facilityCode={getFacilityCode()}
-          updatedBy={currentUserId}
-          onClose={() => setShowCreateIssue(false)}
-          onSuccess={() => {
-            setIssueCounts(prev => ({ ...prev, new: prev.new + 1 }));
-            fetchList('issue', taskFrequency, 1, workList.limit || 20, selectedLane, issueFilterStatus[issueFilter]);
-          }}
-        />
-      )}
-
-      {schedulingItem && (
-        <ScheduleModal
-          item={schedulingItem}
-          updatedBy={currentUserId}
-          onClose={() => setSchedulingItem(null)}
-          onSuccess={scheduledDate => {
-            applyScheduleDelta(schedulingItem, scheduledDate);
-            onSuccess();
-          }}
-        />
-      )}
-
-      {viewIssue && (
-        <IssueDetailModal
-          index={viewIssue.index}
-          item={viewIssue.item}
-          updatedBy={currentUserId}
-          onClose={() => setViewIssue(null)}
-          onSuccess={(prevStatus, newStatus) => {
-            fetchList(
-              'issue',
-              taskFrequency,
-              workList.page || 1,
-              workList.limit || 20,
-              selectedLane,
-              issueFilterStatus[issueFilter]
-            );
-            if (prevStatus !== undefined && newStatus !== undefined) {
-              applyCountDelta(prevStatus, newStatus);
-            }
-          }}
-        />
+      {templatesLoading ? (
+        <p className="py-12 text-center text-[13px] text-gray-400">Loading tasks…</p>
+      ) : visibleTemplates.length === 0 ? (
+        <div className="py-12 text-center">
+          <p className="text-[13px] font-semibold text-gray-500">No tasks in this frequency.</p>
+          <p className="mt-1 text-[12px] text-gray-400">
+            {canManage ? 'Add a task to the library to get started.' : 'Nothing here yet.'}
+          </p>
+        </div>
+      ) : isCentre ? (
+        <div className="space-y-3">
+          {visibleTemplates.map(t => (
+            <LaneTaskCard
+              key={t.id}
+              canManage={canManage}
+              schedule={scheduleFor(t.id, libLane)}
+              template={t}
+              onSchedule={tmpl => setScheduleTemplate(tmpl)}
+              onViewSteps={openTemplateSteps}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3.5">
+          {visibleTemplates.map(t => (
+            <TemplateCard
+              key={t.id}
+              canManage={canManage}
+              scheduledCount={0}
+              template={t}
+              onArchiveToggle={canManage ? onArchiveToggle : undefined}
+              onEdit={canManage ? tmpl => setTemplateModal({ open: true, template: tmpl }) : undefined}
+              onViewSteps={openTemplateSteps}
+            />
+          ))}
+        </div>
       )}
     </>
+  );
+
+  const renderSchedule = () => (
+    <>
+      <div className="flex flex-wrap items-end gap-1 overflow-x-auto border-b border-gray-100 pb-px">
+        {dayTabs.map(d => {
+          const count = dayCount(d.iso);
+          return (
+            <button
+              key={d.iso}
+              className={`flex flex-col items-center px-3 py-1.5 text-[12px] font-semibold transition border-b-2 ${
+                scheduleDay === d.iso ? 'border-[#21295A] text-[#21295A]' : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+              type="button"
+              onClick={() => setScheduleDay(d.iso)}
+            >
+              <span>
+                {d.label}
+                {/* Colour the count only when the day has tasks; muted otherwise. */}
+                <span
+                  className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                    count > 0 ? 'bg-[#21295A] text-white' : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  {count}
+                </span>
+              </span>
+              <span className="text-[10px] font-medium text-gray-400">{d.sub}</span>
+            </button>
+          );
+        })}
+        <button
+          className={`flex flex-col items-center px-3 py-1.5 text-[12px] font-semibold transition border-b-2 ${
+            scheduleDay === 'overdue' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+          type="button"
+          onClick={() => setScheduleDay('overdue')}
+        >
+          <span>
+            Overdue
+            <span
+              className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                overdueSchedules.length > 0 ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400'
+              }`}
+            >
+              {overdueSchedules.length}
+            </span>
+          </span>
+          <span className="text-[10px] font-medium text-gray-400">Past due</span>
+        </button>
+      </div>
+
+      {schedulesLoading ? (
+        <p className="py-12 text-center text-[13px] text-gray-400">Loading schedule…</p>
+      ) : visibleSchedules.length === 0 ? (
+        <div className="py-12 text-center">
+          <p className="text-[13px] font-semibold text-gray-500">
+            {scheduleDay === 'overdue' ? '🎉 No overdue tasks — all up to date!' : 'No tasks scheduled for this day.'}
+          </p>
+          {canManage && <p className="mt-1 text-[12px] text-gray-400">Schedule tasks from the Task Library.</p>}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {visibleSchedules.map(s => (
+            <ScheduleCard
+              key={s.id}
+              canManage={canManage}
+              facilityCode={facilityCode}
+              schedule={s}
+              onChanged={loadSchedules}
+              onFlag={setFlag}
+              onReschedule={canManage ? setReschedule : undefined}
+              onUnschedule={canManage ? onUnschedule : undefined}
+              onViewSteps={openScheduleSteps}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[20px] font-bold text-[#21295A]">Maintenance &amp; Tasks</h1>
+          <p className="mt-0.5 text-[13px] text-gray-500">
+            {isCentre
+              ? 'Browse the task library, schedule tasks for this centre, mark them done, and flag issues.'
+              : 'Global task library — define a task once and it becomes available at every centre for scheduling.'}
+          </p>
+        </div>
+        {isCentre && (
+          <button
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+            type="button"
+            onClick={() => setShowLogs(true)}
+          >
+            📋 Logs
+          </button>
+        )}
+      </div>
+
+      {isCentre && (
+        <div className="flex gap-2">
+          {(
+            [
+              { key: 'library', label: 'Task Library', sub: 'Browse · schedule tasks' },
+              { key: 'schedule', label: 'My Schedule', sub: 'Today · this week · overdue' },
+            ] as { key: CentreModule; label: string; sub: string }[]
+          ).map(m => {
+            const active = centreModule === m.key;
+            // "My Schedule" shows a live count of everything currently scheduled at this centre.
+            const count = m.key === 'schedule' ? schedules.length : 0;
+            return (
+              <button
+                key={m.key}
+                className={`flex-1 rounded-xl border px-4 py-3 text-left transition ${
+                  active ? 'border-[#21295A] bg-[#ecedf4]' : 'border-gray-200 bg-white hover:bg-gray-50'
+                }`}
+                type="button"
+                onClick={() => {
+                  setCentreModule(m.key);
+                  setShowLogs(false);
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-bold text-[#21295A]">{m.label}</span>
+                  {m.key === 'schedule' && count > 0 && (
+                    <span className="rounded-full bg-[#21295A] px-1.5 py-0.5 text-[10.5px] font-bold leading-none text-white">
+                      {count}
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-gray-500">{m.sub}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {isCentre && showLogs ? (
+        <LogsView schedules={schedules} onBack={() => setShowLogs(false)} />
+      ) : isCentre && centreModule === 'schedule' ? (
+        renderSchedule()
+      ) : (
+        renderLibrary()
+      )}
+
+      {templateModal.open && (
+        <TemplateModal
+          template={templateModal.template}
+          onClose={() => setTemplateModal({ open: false, template: null })}
+          onSaved={() => {
+            setTemplateModal({ open: false, template: null });
+            loadTemplates();
+          }}
+        />
+      )}
+      {scheduleTemplate && (
+        <ScheduleModal
+          defaultLane={libLane}
+          facilityCode={facilityCode}
+          template={scheduleTemplate}
+          onClose={() => setScheduleTemplate(null)}
+          onScheduled={() => {
+            setScheduleTemplate(null);
+            loadSchedules();
+          }}
+        />
+      )}
+      {reschedule && (
+        <ScheduleModal
+          existing={reschedule}
+          facilityCode={facilityCode}
+          template={reschedule.template}
+          onClose={() => setReschedule(null)}
+          onScheduled={() => {
+            setReschedule(null);
+            loadSchedules();
+          }}
+        />
+      )}
+      {flag && (
+        <FlagIssueModal
+          facilityCode={facilityCode}
+          schedule={flag}
+          onClose={() => setFlag(null)}
+          onFlagged={() => {
+            setFlag(null);
+            loadSchedules();
+          }}
+        />
+      )}
+      {stepsView && (
+        <StepsModal
+          steps={stepsView.steps}
+          title={stepsView.title}
+          videoUrl={stepsView.videoUrl}
+          onClose={() => setStepsView(null)}
+        />
+      )}
+    </div>
   );
 };
 

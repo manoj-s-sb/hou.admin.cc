@@ -14,14 +14,11 @@ const endpoints = {
   tour: {
     updateTourStatus: '/admin/bookings/tour/status/update',
   },
-  maintenance: {
-    workList: '/admin/work/list',
-    createWork: '/admin/work/create',
-    updateWork: '/admin/work/update',
-    workDetail: '/admin/work/detail',
-    uploadUrl: '/admin/work/uploadurl',
-    deleteMedia: '/admin/work/deletemedia',
-  },
+  // Maintenance & Tasks — ONE action-dispatched endpoint. Body always carries an
+  // `action` (list_templates | create_template | update_template | archive_template |
+  // restore_template | get_template | list_schedules | schedule_task | complete_task |
+  // flag_issue | unschedule_task | upload_url) plus that action's `payload`.
+  maintenance: '/admin/maintenance',
   tailgate: {
     createEvent: '/admin/tailgate/events',
     review: '/admin/tailgate/review',
@@ -82,6 +79,10 @@ const endpoints = {
   // `action` (create | list | get | updateStatus | acknowledge | comment |
   // addAttachment | reassign | counts) plus that action's payload.
   tickets: '/admin/tickets',
+  // Reports / Analytics — ONE GET endpoint. Filters (tab, view, centreId, country,
+  // period, startDate, endDate) are passed as query params; the `tab` selects the
+  // response shape (overview | membership | utilisation | sessions | capacity).
+  reports: '/admin/reports',
 };
 
 export default endpoints;

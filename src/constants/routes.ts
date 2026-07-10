@@ -3,6 +3,7 @@ export const ROUTES = {
   ROOT: { path: '/', label: '' },
   LOGIN: { path: '/login', label: 'Login' },
   DASHBOARD: { path: '/dashboard', label: 'Dashboard' },
+  REPORTS: { path: '/reports', label: 'Reports' },
   USERS: { path: '/users', label: 'Users' },
   MEMBERS: { path: '/members', label: 'Members' },
   VIEW_MEMBERS: { path: '/members/:userId', label: 'View Member' },

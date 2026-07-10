@@ -47,6 +47,8 @@ export interface FacilityStats {
   totalBookingsLast30Days?: number;
   totalInductions?: number;
   noShowRatePercent?: number;
+  tailgates?: number;
+  openTasks?: number;
 }
 
 /** One row returned by POST /admin/centres/list. */
@@ -136,6 +138,10 @@ export interface ApiFacility {
   latitude: number;
   longitude: number;
   freeSolts: number; // sic
+  // Overall member-slot capacity mirrored onto the facility doc so analytics
+  // (Reports) can read it directly. The sales-flow doc's capacity.total remains
+  // the source of truth; this write keeps the two in sync.
+  capacity?: { overallCapacity: number; foundationPool?: number };
   address: FacilityAddress;
   contact: FacilityContact;
   operatingHours: OperatingHoursMap;
@@ -380,9 +386,9 @@ export interface WizardPlanRow {
   isFoundationEligible: boolean;
   /** Country codes the plan is available in; ['all'] = everywhere. */
   availableCountries: string[];
-  firstGuestFee: number;
-  additionalGuestDiscountPct: number;
-  extraSessionCost: number;
+  firstGuestFee: number | null;
+  additionalGuestDiscountPct: number | null;
+  extraSessionCost: number | null;
 }
 
 export interface WizardState {
@@ -416,9 +422,9 @@ export interface WizardState {
   additionalFacilities: AdditionalFacility[];
   // Step 4
   plans: WizardPlanRow[];
-  firstGuestFee: number;
-  additionalGuestDiscountPct: number;
-  extraSessionCost: number;
+  firstGuestFee: number | null;
+  additionalGuestDiscountPct: number | null;
+  extraSessionCost: number | null;
   discounts: CentreDiscount[];
 }
 

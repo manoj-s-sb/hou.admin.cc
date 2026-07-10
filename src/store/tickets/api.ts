@@ -10,6 +10,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
 import endpoints from '../../constants/endpoints';
+import { getLocalUser } from '../../constants/user';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 import { uploadFileToBlob } from '../maintenance/api';
@@ -31,6 +32,12 @@ import type {
 // (the backend ignores unknown fields, but this keeps payloads tidy).
 const clean = <T extends Record<string, unknown>>(obj: T): Record<string, unknown> =>
   Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+
+// The audit trail's actor name. The backend records `request.updatedByName or
+// <token identity>`; the token only carries an email, so we send the logged-in
+// user's display name to make activities read "… by Uday Reddy" rather than the
+// raw email. Empty → undefined so `clean()` drops it and the token wins.
+const actorName = (): string | undefined => getLocalUser().name || undefined;
 
 const post = async <T>(action: string, payload: Record<string, unknown>): Promise<T> => {
   const res = await api.post<{ data: T }>(endpoints.tickets, { action, ...clean(payload) });
@@ -95,7 +102,8 @@ export const createTicket = createAsyncThunk<Ticket, CreateTicketRequest, { reje
   'tickets/create',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('create', { ...payload });
+      const name = actorName();
+      return await post<Ticket>('create', { raisedByName: name, createdByName: name, ...payload });
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not create the ticket. Please try again.'));
     }
@@ -106,7 +114,7 @@ export const updateTicketStatus = createAsyncThunk<Ticket, UpdateTicketStatusReq
   'tickets/updateStatus',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('updateStatus', { ...payload });
+      return await post<Ticket>('updateStatus', { updatedByName: actorName(), ...payload });
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not update the ticket status.'));
     }
@@ -117,7 +125,7 @@ export const acknowledgeTicket = createAsyncThunk<Ticket, AcknowledgeTicketReque
   'tickets/acknowledge',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('acknowledge', { ...payload });
+      return await post<Ticket>('acknowledge', { updatedByName: actorName(), ...payload });
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not acknowledge the ticket.'));
     }
@@ -128,7 +136,7 @@ export const addTicketComment = createAsyncThunk<Ticket, AddCommentRequest, { re
   'tickets/comment',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('comment', { ...payload });
+      return await post<Ticket>('comment', { updatedByName: actorName(), ...payload });
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not add the comment.'));
     }
@@ -141,7 +149,7 @@ export const addTicketAttachment = createAsyncThunk<
   { rejectValue: string }
 >('tickets/addAttachment', async (payload, { rejectWithValue }) => {
   try {
-    return await post<Ticket>('addAttachment', { ...payload });
+    return await post<Ticket>('addAttachment', { updatedByName: actorName(), ...payload });
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Could not attach the file.'));
   }
@@ -151,7 +159,7 @@ export const reassignTicket = createAsyncThunk<Ticket, ReassignTicketRequest, { 
   'tickets/reassign',
   async (payload, { rejectWithValue }) => {
     try {
-      return await post<Ticket>('reassign', { ...payload });
+      return await post<Ticket>('reassign', { updatedByName: actorName(), ...payload });
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not reassign the ticket.'));
     }

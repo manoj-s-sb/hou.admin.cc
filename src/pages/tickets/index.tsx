@@ -26,14 +26,6 @@ import type { ListTicketsRequest, TicketCategory, TicketPriority, TicketStatus }
 type Tab = 'all' | 'mine';
 type View = '' | 'active' | 'closed';
 
-// Active sub-state breakdown. "In Progress" folds the verify count in (verify is a
-// sub-stage of being worked; the status dropdown still exposes it explicitly).
-const BREAKDOWN: { key: TicketStatus; label: string; dot: string }[] = [
-  { key: 'open', label: 'Open', dot: 'bg-gray-400' },
-  { key: 'noc', label: 'With NOC', dot: 'bg-blue-500' },
-  { key: 'inprogress', label: 'In Progress', dot: 'bg-amber-500' },
-];
-
 const Tickets: React.FC = () => {
   // Centre context provides :facilityCode; the global /tickets route does not.
   const { facilityCode: routeFacility } = useParams<{ facilityCode?: string }>();
@@ -135,8 +127,59 @@ const Tickets: React.FC = () => {
   const mineCount = counts?.mine ?? 0;
   const activeCount = counts ? counts.total - counts.closed : 0;
   const closedCount = counts?.closed ?? 0;
-  const inProgressCount = counts ? counts.inprogress + counts.verify : 0;
-  const overdueCount = counts?.overdue ?? 0;
+
+  // Summary chips — all rendered in one uniform format (dot · label · count).
+  // Each count matches exactly what its filter shows; "Needs Verification" stays
+  // available via the status dropdown.
+  const summaryChips: {
+    key: string;
+    label: string;
+    dot: string;
+    count: number;
+    selected: boolean;
+    onClick: () => void;
+  }[] = [
+    {
+      key: 'active',
+      label: 'Active',
+      dot: 'bg-[#21295A]',
+      count: activeCount,
+      selected: view === 'active',
+      onClick: () => selectView('active'),
+    },
+    {
+      key: 'open',
+      label: 'Open',
+      dot: 'bg-gray-400',
+      count: counts?.open ?? 0,
+      selected: status === 'open',
+      onClick: () => selectStatus('open'),
+    },
+    {
+      key: 'noc',
+      label: 'With NOC',
+      dot: 'bg-blue-500',
+      count: counts?.noc ?? 0,
+      selected: status === 'noc',
+      onClick: () => selectStatus('noc'),
+    },
+    {
+      key: 'inprogress',
+      label: 'In Progress',
+      dot: 'bg-amber-500',
+      count: counts?.inprogress ?? 0,
+      selected: status === 'inprogress',
+      onClick: () => selectStatus('inprogress'),
+    },
+    {
+      key: 'closed',
+      label: 'Closed',
+      dot: 'bg-emerald-500',
+      count: closedCount,
+      selected: view === 'closed',
+      onClick: () => selectView('closed'),
+    },
+  ];
 
   const selectFieldClass =
     'rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[13px] text-gray-700 outline-none focus:border-[#21295A]';
@@ -167,71 +210,22 @@ const Tickets: React.FC = () => {
         </button>
       </div>
 
-      {/* Summary: Active vs Closed split + Overdue, with a clickable status breakdown */}
-      <div className="mb-4 flex flex-wrap items-stretch gap-3">
-        <button
-          className={`flex min-w-[120px] flex-col rounded-xl border px-4 py-2.5 text-left transition ${
-            view === 'active' ? 'border-[#9096be] bg-[#ecedf4]' : 'border-gray-100 bg-white hover:bg-gray-50'
-          }`}
-          type="button"
-          onClick={() => selectView('active')}
-        >
-          <span className="text-[22px] font-bold leading-none text-[#21295A]">{activeCount}</span>
-          <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Active</span>
-        </button>
-
-        <button
-          className={`flex min-w-[120px] flex-col rounded-xl border px-4 py-2.5 text-left transition ${
-            view === 'closed' ? 'border-[#9096be] bg-[#ecedf4]' : 'border-gray-100 bg-white hover:bg-gray-50'
-          }`}
-          type="button"
-          onClick={() => selectView('closed')}
-        >
-          <span className="text-[22px] font-bold leading-none text-[#21295A]">{closedCount}</span>
-          <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Closed</span>
-        </button>
-
-        {/* Overdue — display-only "what's on fire" signal (red when > 0) */}
-        <div
-          className={`flex min-w-[120px] flex-col rounded-xl border px-4 py-2.5 ${
-            overdueCount > 0 ? 'border-red-200 bg-red-50' : 'border-gray-100 bg-white'
-          }`}
-        >
-          <span
-            className={`text-[22px] font-bold leading-none ${overdueCount > 0 ? 'text-red-600' : 'text-[#21295A]'}`}
-          >
-            {overdueCount}
-          </span>
-          <span
-            className={`mt-1 text-[11px] font-semibold uppercase tracking-wide ${
-              overdueCount > 0 ? 'text-red-500' : 'text-gray-500'
+      {/* Summary bar — every item in one uniform chip format (dot · label · count) */}
+      <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+        {summaryChips.map(c => (
+          <button
+            key={c.key}
+            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium transition ${
+              c.selected ? 'bg-[#ecedf4] text-[#21295A]' : 'text-gray-600 hover:bg-gray-50'
             }`}
+            type="button"
+            onClick={c.onClick}
           >
-            ⚠ Overdue
-          </span>
-        </div>
-
-        {/* Active sub-state breakdown — quick status filters */}
-        <div className="flex flex-1 flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-2.5">
-          {BREAKDOWN.map(b => {
-            const value = b.key === 'inprogress' ? inProgressCount : (counts?.[b.key] ?? 0);
-            const active = status === b.key;
-            return (
-              <button
-                key={b.key}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-medium transition ${
-                  active ? 'bg-[#ecedf4] text-[#21295A]' : 'text-gray-600 hover:bg-gray-50'
-                }`}
-                type="button"
-                onClick={() => selectStatus(b.key)}
-              >
-                <span className={`h-2 w-2 rounded-full ${b.dot}`} />
-                {b.label}
-                <b className="font-bold text-[#21295A]">{value}</b>
-              </button>
-            );
-          })}
-        </div>
+            <span className={`h-2 w-2 rounded-full ${c.dot}`} />
+            {c.label}
+            <span className="font-bold text-[#21295A]">{c.count}</span>
+          </button>
+        ))}
       </div>
 
       {/* Tabs + filters */}

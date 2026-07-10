@@ -43,6 +43,8 @@ export interface TicketActivity {
 export interface Ticket {
   id: string;
   facilityCode: string;
+  /** Human-readable centre name, resolved server-side from facilityCode. */
+  facilityName: string | null;
   type: 'ticket';
   ticketNo: string;
   title: string;
