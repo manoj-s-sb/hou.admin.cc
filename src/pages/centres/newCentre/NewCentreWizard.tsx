@@ -1572,8 +1572,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   {saveStatusOptions(isEdit, currentStatus).map(opt => {
                     const meta = SAVE_STATUS_META[opt];
                     // A suspended centre going back live reads better as "Reactivate".
-                    const title =
-                      opt === 'active' && currentStatus === 'suspended' ? 'Reactivate Centre' : meta.title;
+                    const title = opt === 'active' && currentStatus === 'suspended' ? 'Reactivate Centre' : meta.title;
                     return (
                       <StatusOption
                         key={opt}

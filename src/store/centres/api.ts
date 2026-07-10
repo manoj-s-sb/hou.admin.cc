@@ -185,29 +185,26 @@ export const getCentreLeads = createAsyncThunk<
   { entries: LeadEntry[]; total: number; page: number; limit: number },
   { facilityCode: string; action?: string; subscriptionCode?: string; page: number; limit: number },
   { rejectValue: string }
->(
-  'centres/getCentreLeads',
-  async ({ facilityCode, action, subscriptionCode, page, limit }, { rejectWithValue }) => {
-    try {
-      const res = await api.post<{ data: unknown }>(endpoints.centres.leads, {
-        facilityCode,
-        action,
-        subscription_code: subscriptionCode,
-        page,
-        limit,
-      });
-      const { entries, total } = unwrapList<LeadEntry>(res.data?.data ?? res.data, [
-        'items',
-        'leads',
-        'entries',
-        'results',
-      ]);
-      return { entries, total, page, limit };
-    } catch (error) {
-      return rejectWithValue(handleApiError(error, 'Failed to fetch leads'));
-    }
+>('centres/getCentreLeads', async ({ facilityCode, action, subscriptionCode, page, limit }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: unknown }>(endpoints.centres.leads, {
+      facilityCode,
+      action,
+      subscription_code: subscriptionCode,
+      page,
+      limit,
+    });
+    const { entries, total } = unwrapList<LeadEntry>(res.data?.data ?? res.data, [
+      'items',
+      'leads',
+      'entries',
+      'results',
+    ]);
+    return { entries, total, page, limit };
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to fetch leads'));
   }
-);
+});
 
 /** GET /admin/centres/:id/bookings — ops dashboard booking list. */
 export const getCentreBookings = createAsyncThunk<CentreBooking[], string, { rejectValue: string }>(
