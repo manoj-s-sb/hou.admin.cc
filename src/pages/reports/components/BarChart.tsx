@@ -64,7 +64,14 @@ const BarChart: React.FC<BarChartProps> = ({
     <ResponsiveContainer height={height} width="100%">
       <ReBarChart data={data} margin={{ top: 16, right: 8, left: -8, bottom: 0 }}>
         <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey={xKey} interval={0} stroke="#6b7280" style={axisStyle} tick={<CategoryTick />} tickLine={false} />
+        <XAxis
+          dataKey={xKey}
+          interval={0}
+          stroke="#6b7280"
+          style={axisStyle}
+          tick={<CategoryTick />}
+          tickLine={false}
+        />
         <YAxis allowDecimals={false} stroke="#6b7280" style={axisStyle} tickLine={false} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
         {showLegend && bars.length > 1 && <Legend wrapperStyle={{ fontSize: '13px', fontWeight: 600 }} />}
@@ -73,13 +80,12 @@ const BarChart: React.FC<BarChartProps> = ({
             key={series.key}
             dataKey={series.key}
             fill={series.color}
+            label={showValueLabels ? { position: 'top', fontSize: 11, fill: '#6b7280' } : undefined}
             name={series.name}
             radius={series.stackId ? [0, 0, 0, 0] : [6, 6, 0, 0]}
             stackId={series.stackId}
-            label={showValueLabels ? { position: 'top', fontSize: 11, fill: '#6b7280' } : undefined}
           >
-            {colorByPoint &&
-              data.map((entry, i) => <Cell key={i} fill={entry.color || series.color} />)}
+            {colorByPoint && data.map((entry, i) => <Cell key={i} fill={entry.color || series.color} />)}
           </Bar>
         ))}
       </ReBarChart>

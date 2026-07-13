@@ -46,11 +46,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Filters</span>
-        <button
-          className="text-xs font-semibold text-[#21295A] hover:underline"
-          onClick={onReset}
-          type="button"
-        >
+        <button className="text-xs font-semibold text-[#21295A] hover:underline" type="button" onClick={onReset}>
           Reset
         </button>
       </div>
@@ -66,8 +62,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
                 className={`flex-1 rounded-md px-2 py-1.5 text-[12px] font-semibold transition ${
                   draft.view === v ? 'bg-[#21295A] text-white' : 'text-gray-500 hover:text-gray-700'
                 }`}
-                onClick={() => set({ view: v, centreId: v === 'network' ? undefined : draft.centreId })}
                 type="button"
+                onClick={() => set({ view: v, centreId: v === 'network' ? undefined : draft.centreId })}
               >
                 {v === 'network' ? 'All Centres' : 'Single Centre'}
               </button>
@@ -79,11 +75,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
         {isCentre && (
           <div>
             <span className={labelCls}>Centre</span>
-            <select
-              className={inputCls}
-              onChange={e => set({ centreId: e.target.value })}
-              value={draft.centreId || ''}
-            >
+            <select className={inputCls} value={draft.centreId || ''} onChange={e => set({ centreId: e.target.value })}>
               <option value="">Select a centre</option>
               {centres.map(c => (
                 <option key={c.code} value={c.code}>
@@ -99,8 +91,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
           <span className={labelCls}>Period</span>
           <select
             className={inputCls}
-            onChange={e => set({ period: e.target.value as ReportPeriod })}
             value={draft.period}
+            onChange={e => set({ period: e.target.value as ReportPeriod })}
           >
             {PERIODS.map(p => (
               <option key={p.value} value={p.value}>
@@ -118,9 +110,9 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
               <input
                 className={inputCls}
                 max={draft.endDate || undefined}
-                onChange={e => set({ startDate: e.target.value })}
                 type="date"
                 value={draft.startDate || ''}
+                onChange={e => set({ startDate: e.target.value })}
               />
             </div>
             <div>
@@ -128,9 +120,9 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
               <input
                 className={inputCls}
                 min={draft.startDate || undefined}
-                onChange={e => set({ endDate: e.target.value })}
                 type="date"
                 value={draft.endDate || ''}
+                onChange={e => set({ endDate: e.target.value })}
               />
             </div>
           </>
@@ -141,8 +133,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
           <button
             className="w-full rounded-lg bg-[#21295A] px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[#2c3670] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isCentre && !draft.centreId}
-            onClick={apply}
             type="button"
+            onClick={apply}
           >
             Apply
           </button>

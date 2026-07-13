@@ -66,9 +66,7 @@ const TemplateCard: React.FC<Props> = ({
 
       <div className="mt-2 text-[14px] font-bold text-[#21295A]">{template.title}</div>
       <div className="text-[12px] text-gray-500">{equipmentText}</div>
-      {template.description && (
-        <p className="mt-1.5 line-clamp-2 text-[12px] text-gray-600">{template.description}</p>
-      )}
+      {template.description && <p className="mt-1.5 line-clamp-2 text-[12px] text-gray-600">{template.description}</p>}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px]">
         <span className={`rounded px-1.5 py-0.5 font-semibold ${freqBadgeCls(template.freqN, template.freqUnit)}`}>
@@ -103,7 +101,9 @@ const TemplateCard: React.FC<Props> = ({
             </button>
           ) : null
         ) : (
-          <span className="text-[10.5px] text-gray-400">{new Date(template.createdAt).toLocaleDateString('en-CA')}</span>
+          <span className="text-[10.5px] text-gray-400">
+            {new Date(template.createdAt).toLocaleDateString('en-CA')}
+          </span>
         )}
       </div>
     </div>

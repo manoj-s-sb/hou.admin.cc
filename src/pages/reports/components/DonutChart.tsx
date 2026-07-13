@@ -55,9 +55,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, centerLabel, centerValue,
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold text-gray-900">
-            {centerValue ?? total.toLocaleString()}
-          </span>
+          <span className="text-2xl font-bold text-gray-900">{centerValue ?? total.toLocaleString()}</span>
           {centerLabel && <span className="text-xs font-medium text-gray-500">{centerLabel}</span>}
         </div>
       </div>

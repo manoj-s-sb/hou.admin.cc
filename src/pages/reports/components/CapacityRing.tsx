@@ -26,14 +26,7 @@ const CapacityRing: React.FC<CapacityRingProps> = ({
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg height={size} width={size}>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          fill="none"
-          r={radius}
-          stroke="#f0f0f0"
-          strokeWidth={strokeWidth}
-        />
+        <circle cx={size / 2} cy={size / 2} fill="none" r={radius} stroke="#f0f0f0" strokeWidth={strokeWidth} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -44,8 +37,8 @@ const CapacityRing: React.FC<CapacityRingProps> = ({
           strokeDashoffset={circumference / 4}
           strokeLinecap="round"
           strokeWidth={strokeWidth}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: 'stroke-dasharray 0.6s ease' }}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">

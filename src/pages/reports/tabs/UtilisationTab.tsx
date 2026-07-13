@@ -12,10 +12,30 @@ const UtilisationTab: React.FC<{ data: UtilisationData }> = ({ data }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard accent="from-indigo-500 to-blue-500" subtitle="slots filled" title="Avg Utilisation" value={`${stats.avgUtilisation}%`} />
-        <StatCard accent="from-violet-500 to-purple-500" subtitle="busiest slot" title="Peak Hour" value={stats.peakHour} />
-        <StatCard accent="from-emerald-500 to-teal-500" subtitle="non-peak hours" title="Off-Peak Avg" value={`${stats.offPeakAvg}%`} />
-        <StatCard accent="from-amber-500 to-orange-500" subtitle="in period" title="Total Capacity Hours" value={stats.totalCapacityHrs} />
+        <StatCard
+          accent="from-indigo-500 to-blue-500"
+          subtitle="slots filled"
+          title="Avg Utilisation"
+          value={`${stats.avgUtilisation}%`}
+        />
+        <StatCard
+          accent="from-violet-500 to-purple-500"
+          subtitle="busiest slot"
+          title="Peak Hour"
+          value={stats.peakHour}
+        />
+        <StatCard
+          accent="from-emerald-500 to-teal-500"
+          subtitle="non-peak hours"
+          title="Off-Peak Avg"
+          value={`${stats.offPeakAvg}%`}
+        />
+        <StatCard
+          accent="from-amber-500 to-orange-500"
+          subtitle="in period"
+          title="Total Capacity Hours"
+          value={stats.totalCapacityHrs}
+        />
       </div>
 
       <ChartCard subtitle="Utilisation intensity by day and hour" title="Utilisation Heatmap">

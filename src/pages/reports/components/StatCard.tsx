@@ -28,7 +28,9 @@ const StatCard: React.FC<StatCardProps> = ({
         <div className="mb-1.5 flex items-start justify-between">
           <h3 className="text-[12.5px] font-semibold text-gray-600">{title}</h3>
           {icon && (
-            <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${accent} text-white shadow`}>
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${accent} text-white shadow`}
+            >
               {icon}
             </div>
           )}
@@ -38,9 +40,7 @@ const StatCard: React.FC<StatCardProps> = ({
           {trend && (
             <span
               className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold ${
-                trend.positive ?? trend.value >= 0
-                  ? 'bg-emerald-50 text-emerald-600'
-                  : 'bg-red-50 text-red-600'
+                (trend.positive ?? trend.value >= 0) ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
               }`}
             >
               {(trend.positive ?? trend.value >= 0) ? '▲' : '▼'} {Math.abs(trend.value)}%

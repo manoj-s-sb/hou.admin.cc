@@ -211,12 +211,7 @@ export interface CapacityData {
   meta: ReportMeta;
 }
 
-export type ReportData =
-  | OverviewData
-  | MembershipData
-  | UtilisationData
-  | SessionsData
-  | CapacityData;
+export type ReportData = OverviewData | MembershipData | UtilisationData | SessionsData | CapacityData;
 
 // ─── slice state ───────────────────────────────────────────────────────
 export interface ReportsInitialState {

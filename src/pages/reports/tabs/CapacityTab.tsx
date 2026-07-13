@@ -11,10 +11,30 @@ const CapacityTab: React.FC<{ data: CapacityData }> = ({ data }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard accent="from-indigo-500 to-blue-500" subtitle="in period" title="Total Slots" value={stats.totalSlots} />
-        <StatCard accent="from-emerald-500 to-teal-500" subtitle="booked" title="Filled Slots" value={stats.filledSlots} />
-        <StatCard accent="from-amber-500 to-orange-500" subtitle="free capacity" title="Buffer" value={`${stats.bufferPct}%`} />
-        <StatCard accent="from-violet-500 to-purple-500" subtitle="across plans" title="Waitlist Total" value={stats.waitlistTotal} />
+        <StatCard
+          accent="from-indigo-500 to-blue-500"
+          subtitle="in period"
+          title="Total Slots"
+          value={stats.totalSlots}
+        />
+        <StatCard
+          accent="from-emerald-500 to-teal-500"
+          subtitle="booked"
+          title="Filled Slots"
+          value={stats.filledSlots}
+        />
+        <StatCard
+          accent="from-amber-500 to-orange-500"
+          subtitle="free capacity"
+          title="Buffer"
+          value={`${stats.bufferPct}%`}
+        />
+        <StatCard
+          accent="from-violet-500 to-purple-500"
+          subtitle="across plans"
+          title="Waitlist Total"
+          value={stats.waitlistTotal}
+        />
       </div>
 
       <ChartCard subtitle="Fill % with plan breakdown per centre" title="Centre Capacity">
@@ -61,9 +81,7 @@ const CapacityTab: React.FC<{ data: CapacityData }> = ({ data }) => {
                                   style={{ width: `${w}%`, background: p.color }}
                                 />
                               </span>
-                              <span className="min-w-[28px] text-right font-semibold text-[#21295A]">
-                                {p.used}
-                              </span>
+                              <span className="min-w-[28px] text-right font-semibold text-[#21295A]">{p.used}</span>
                             </div>
                           );
                         });

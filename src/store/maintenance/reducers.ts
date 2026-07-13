@@ -51,21 +51,28 @@ const maintenanceSlice = createSlice({
 
     // Mutations — the page re-fetches the relevant list on success, so these only
     // track the shared `saving` flag + surface errors.
-    [createTemplate, updateTemplate, archiveTemplate, restoreTemplate, scheduleTask, completeTask, flagIssue, unscheduleTask].forEach(
-      thunk => {
-        builder.addCase(thunk.pending, state => {
-          state.saving = true;
-          state.error = null;
-        });
-        builder.addCase(thunk.fulfilled, state => {
-          state.saving = false;
-        });
-        builder.addCase(thunk.rejected, (state, action) => {
-          state.saving = false;
-          state.error = (action.payload as string) || 'Something went wrong.';
-        });
-      }
-    );
+    [
+      createTemplate,
+      updateTemplate,
+      archiveTemplate,
+      restoreTemplate,
+      scheduleTask,
+      completeTask,
+      flagIssue,
+      unscheduleTask,
+    ].forEach(thunk => {
+      builder.addCase(thunk.pending, state => {
+        state.saving = true;
+        state.error = null;
+      });
+      builder.addCase(thunk.fulfilled, state => {
+        state.saving = false;
+      });
+      builder.addCase(thunk.rejected, (state, action) => {
+        state.saving = false;
+        state.error = (action.payload as string) || 'Something went wrong.';
+      });
+    });
   },
 });
 

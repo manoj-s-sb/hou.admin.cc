@@ -40,7 +40,13 @@ const columns: TableColumn<SessionCentreRow>[] = [
       </span>
     ),
   },
-  { id: 'total', label: 'Total', align: 'right', sortable: true, renderCell: v => <b className="font-bold text-gray-900">{Number(v).toLocaleString()}</b> },
+  {
+    id: 'total',
+    label: 'Total',
+    align: 'right',
+    sortable: true,
+    renderCell: v => <b className="font-bold text-gray-900">{Number(v).toLocaleString()}</b>,
+  },
   { id: 'batting', label: 'Batting', align: 'right', sortable: true },
   { id: 'bowling', label: 'Bowling', align: 'right', sortable: true },
   { id: 'coaching', label: 'Coaching', align: 'right', sortable: true },
@@ -60,10 +66,30 @@ const SessionsTab: React.FC<{ data: SessionsData }> = ({ data }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard accent="from-indigo-500 to-blue-500" subtitle="in period" title="Total Sessions" value={stats.totalSessions} />
-        <StatCard accent="from-indigo-500 to-violet-500" subtitle="of sessions" title="Batting" value={`${stats.battingPct}%`} />
-        <StatCard accent="from-blue-500 to-cyan-500" subtitle="of sessions" title="Bowling" value={`${stats.bowlingPct}%`} />
-        <StatCard accent="from-emerald-500 to-teal-500" subtitle="of sessions" title="Coaching" value={`${stats.coachingPct}%`} />
+        <StatCard
+          accent="from-indigo-500 to-blue-500"
+          subtitle="in period"
+          title="Total Sessions"
+          value={stats.totalSessions}
+        />
+        <StatCard
+          accent="from-indigo-500 to-violet-500"
+          subtitle="of sessions"
+          title="Batting"
+          value={`${stats.battingPct}%`}
+        />
+        <StatCard
+          accent="from-blue-500 to-cyan-500"
+          subtitle="of sessions"
+          title="Bowling"
+          value={`${stats.bowlingPct}%`}
+        />
+        <StatCard
+          accent="from-emerald-500 to-teal-500"
+          subtitle="of sessions"
+          title="Coaching"
+          value={`${stats.coachingPct}%`}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -84,11 +110,11 @@ const SessionsTab: React.FC<{ data: SessionsData }> = ({ data }) => {
 
       <ChartCard subtitle="Per-centre session detail" title="Centre Sessions">
         <DataTable<SessionCentreRow>
+          sortable
           columns={columns}
           data={data.centreTable}
           emptyState={{ title: 'No session data for these filters' }}
           getRowId={row => row.centreId}
-          sortable
         />
       </ChartCard>
     </div>

@@ -7,7 +7,12 @@ import DonutChart from '../components/DonutChart';
 import StatCard from '../components/StatCard';
 
 const PLAN_COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
-const ACCENTS = ['from-indigo-500 to-blue-500', 'from-blue-500 to-cyan-500', 'from-emerald-500 to-teal-500', 'from-amber-500 to-orange-500'];
+const ACCENTS = [
+  'from-indigo-500 to-blue-500',
+  'from-blue-500 to-cyan-500',
+  'from-emerald-500 to-teal-500',
+  'from-amber-500 to-orange-500',
+];
 
 const MembershipTab: React.FC<{ data: MembershipData }> = ({ data }) => {
   const donut = data.donutData.plans.map((p, i) => ({

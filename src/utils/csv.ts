@@ -18,16 +18,11 @@ const escapeCell = (value: any): string => {
  * Convert an array of objects to CSV text. `columns` fixes header order/labels;
  * when omitted, keys of the first row are used.
  */
-export const toCsv = (
-  rows: Row[],
-  columns?: Array<{ key: string; label: string }>
-): string => {
+export const toCsv = (rows: Row[], columns?: Array<{ key: string; label: string }>): string => {
   if (!rows.length) return '';
   const cols = columns ?? Object.keys(rows[0]).map(k => ({ key: k, label: k }));
   const header = cols.map(c => escapeCell(c.label)).join(',');
-  const body = rows
-    .map(row => cols.map(c => escapeCell(row[c.key])).join(','))
-    .join('\n');
+  const body = rows.map(row => cols.map(c => escapeCell(row[c.key])).join(',')).join('\n');
   return `${header}\n${body}`;
 };
 
@@ -45,10 +40,6 @@ export const downloadFile = (content: string, fileName: string, mimeType = 'text
 };
 
 /** Build CSV from rows and download it in one call. */
-export const exportCsv = (
-  rows: Row[],
-  fileName: string,
-  columns?: Array<{ key: string; label: string }>
-): void => {
+export const exportCsv = (rows: Row[], fileName: string, columns?: Array<{ key: string; label: string }>): void => {
   downloadFile(toCsv(rows, columns), fileName);
 };

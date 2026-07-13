@@ -64,7 +64,11 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
   };
 
   return (
-    <div aria-modal="true" className="fixed inset-0 z-[640] flex items-center justify-center bg-black/40 p-4" role="dialog">
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[640] flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+    >
       <div className="flex max-h-[90vh] w-full max-w-[500px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div className="min-w-0">
@@ -88,7 +92,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
           <div>
             <span className={labelCls}>Issue Title *</span>
             <input
-              className={`${inputCls}${tried && !title.trim() ? ' border-red-400 ring-1 ring-red-300' : ''}`}
+              className={`${inputCls}${tried && !title.trim() ? 'border-red-400 ring-1 ring-red-300' : ''}`}
               value={title}
               onChange={e => setTitle(e.target.value)}
             />
@@ -96,7 +100,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
           <div>
             <span className={labelCls}>Description *</span>
             <textarea
-              className={`${inputCls}${tried && !notes.trim() ? ' border-red-400 ring-1 ring-red-300' : ''}`}
+              className={`${inputCls}${tried && !notes.trim() ? 'border-red-400 ring-1 ring-red-300' : ''}`}
               placeholder="Describe the issue…"
               rows={3}
               value={notes}
@@ -106,7 +110,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
           <div>
             <span className={labelCls}>Lane *</span>
             <select
-              className={`${inputCls}${tried && !lane ? ' border-red-400 ring-1 ring-red-300' : ''}`}
+              className={`${inputCls}${tried && !lane ? 'border-red-400 ring-1 ring-red-300' : ''}`}
               value={lane}
               onChange={e => setLane(e.target.value)}
             >

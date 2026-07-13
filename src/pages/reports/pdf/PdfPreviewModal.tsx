@@ -34,7 +34,9 @@ const PdfPreviewModal: React.FC<Props> = ({ data, onClose }) => {
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
           <div>
             <h2 className="text-[15px] font-bold text-[#21295A]">Report Preview</h2>
-            <p className="text-[11.5px] text-gray-400">{data.title} · {data.periodLabel}</p>
+            <p className="text-[11.5px] text-gray-400">
+              {data.title} · {data.periodLabel}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button

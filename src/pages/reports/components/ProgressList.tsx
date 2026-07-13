@@ -2,10 +2,10 @@ import React from 'react';
 
 export interface ProgressItem {
   label: string;
-  value: number;         // numerator (e.g. filled / used / util%)
-  max?: number;          // denominator; when omitted, `value` is treated as a 0–100 pct
+  value: number; // numerator (e.g. filled / used / util%)
+  max?: number; // denominator; when omitted, `value` is treated as a 0–100 pct
   color?: string;
-  valueLabel?: string;   // overrides the right-side label
+  valueLabel?: string; // overrides the right-side label
   sublabel?: string;
 }
 

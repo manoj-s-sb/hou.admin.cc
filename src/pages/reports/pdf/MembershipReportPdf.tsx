@@ -30,7 +30,13 @@ const s = StyleSheet.create({
   page: { paddingHorizontal: 32, paddingVertical: 20, fontFamily: 'Helvetica', fontSize: 10, color: C.ink },
 
   // 1. header
-  header: { backgroundColor: C.headerBlue, borderRadius: 6, padding: 16, flexDirection: 'row', justifyContent: 'space-between' },
+  header: {
+    backgroundColor: C.headerBlue,
+    borderRadius: 6,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   pill: {
     alignSelf: 'flex-start',
     color: C.headerBlue,
@@ -100,7 +106,15 @@ const s = StyleSheet.create({
     paddingVertical: 1,
     marginRight: 4,
   },
-  badge: { fontSize: 7, fontFamily: 'Helvetica-Bold', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1.5, borderWidth: 1, alignSelf: 'flex-start' },
+  badge: {
+    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
   progressTrack: { height: 6, backgroundColor: '#eef2f7', borderRadius: 3, flex: 1, marginRight: 4 },
 
   // 6. insights
@@ -123,7 +137,15 @@ const s = StyleSheet.create({
     paddingTop: 6,
   },
   footTxt: { fontSize: 7, color: C.sub },
-  pagePill: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#ffffff', backgroundColor: C.headerBlue, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  pagePill: {
+    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
+    color: '#ffffff',
+    backgroundColor: C.headerBlue,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
 });
 
 // column widths (spec): Country 22, counts 10 each (×5=50), Active Rate 14, Plan Mix 8, Trend 6
@@ -208,12 +230,20 @@ const CountRow: React.FC<{ c: PdfCountry; alt: boolean; bold?: boolean }> = ({ c
       <Text style={[s.td, { width: W.count, fontFamily: font }]}>{c.expired.toLocaleString()}</Text>
       <View style={[{ width: W.rate, flexDirection: 'row', alignItems: 'center', padding: 6 }]}>
         <View style={s.progressTrack}>
-          <View style={{ height: 6, borderRadius: 3, width: `${c.activeRate}%`, backgroundColor: rateColor(c.activeRate) }} />
+          <View
+            style={{ height: 6, borderRadius: 3, width: `${c.activeRate}%`, backgroundColor: rateColor(c.activeRate) }}
+          />
         </View>
-        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: rateColor(c.activeRate) }}>{c.activeRate}%</Text>
+        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: rateColor(c.activeRate) }}>
+          {c.activeRate}%
+        </Text>
       </View>
       <View style={[{ width: W.mix, padding: 6 }]}>
-        {c.planMix.label !== '—' ? <Badge color={c.planMix.color} label={c.planMix.label} /> : <Text style={s.td}>—</Text>}
+        {c.planMix.label !== '—' ? (
+          <Badge color={c.planMix.color} label={c.planMix.label} />
+        ) : (
+          <Text style={s.td}>—</Text>
+        )}
       </View>
       <View style={[{ width: W.trend, padding: 6 }]}>{!bold && <Sparkline values={c.trend} />}</View>
     </View>

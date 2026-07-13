@@ -128,7 +128,7 @@ const Reports: React.FC = () => {
         {TABS.map(t => (
           <button
             key={t.key}
-            className={`px-3 py-1.5 text-[13px] font-semibold transition border-b-2 ${
+            className={`border-b-2 px-3 py-1.5 text-[13px] font-semibold transition ${
               applied.tab === t.key
                 ? 'border-[#21295A] text-[#21295A]'
                 : 'border-transparent text-gray-400 hover:text-gray-600'

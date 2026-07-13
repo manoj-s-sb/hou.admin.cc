@@ -63,7 +63,12 @@ const REGION_PALETTE = ['#0C447C', '#1baf7a', '#eda100', '#e34948', '#6366f1', '
 
 const FLAGS: Record<string, string> = { US: '🇺🇸', IN: '🇮🇳', AU: '🇦🇺', GB: '🇬🇧' };
 const flagOf = (c: string) => FLAGS[(c || '').toUpperCase()] ?? '🏳️';
-const COUNTRY_NAME: Record<string, string> = { US: 'United States', IN: 'India', AU: 'Australia', GB: 'United Kingdom' };
+const COUNTRY_NAME: Record<string, string> = {
+  US: 'United States',
+  IN: 'India',
+  AU: 'Australia',
+  GB: 'United Kingdom',
+};
 const countryName = (c: string) => COUNTRY_NAME[(c || '').toUpperCase()] ?? (c || '—');
 
 const PERIOD_LABEL: Record<string, string> = {

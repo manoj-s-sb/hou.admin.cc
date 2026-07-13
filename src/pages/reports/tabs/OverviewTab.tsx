@@ -60,19 +60,28 @@ const columns: TableColumn<CentreSummaryRow>[] = [
     sortable: true,
     renderCell: (v, row) => (
       <span className="flex items-center gap-2">
-        <span
-          className="h-2 w-2 flex-shrink-0 rounded-full"
-          style={{ background: centreColour(row.centreId) }}
-        />
+        <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: centreColour(row.centreId) }} />
         <span className="text-sm leading-none">{countryFlag(row.country)}</span>
         <span className="font-semibold text-gray-900">{String(v)}</span>
       </span>
     ),
   },
   { id: 'country', label: 'Country', renderCell: v => (v ? String(v).toUpperCase() : '—') },
-  { id: 'members', label: 'Members', align: 'right', sortable: true, renderCell: v => <b className="font-bold text-gray-900">{Number(v).toLocaleString()}</b> },
+  {
+    id: 'members',
+    label: 'Members',
+    align: 'right',
+    sortable: true,
+    renderCell: v => <b className="font-bold text-gray-900">{Number(v).toLocaleString()}</b>,
+  },
   { id: 'active', label: 'Active', align: 'right', sortable: true, renderCell: v => Number(v).toLocaleString() },
-  { id: 'bookingHrs', label: 'Bookings', align: 'right', sortable: true, renderCell: v => `${Number(v).toLocaleString()} hrs` },
+  {
+    id: 'bookingHrs',
+    label: 'Bookings',
+    align: 'right',
+    sortable: true,
+    renderCell: v => `${Number(v).toLocaleString()} hrs`,
+  },
   { id: 'utilisationPct', label: 'Utilisation', align: 'right', sortable: true, renderCell: v => utilPill(Number(v)) },
   { id: 'noshowPct', label: 'No-show', align: 'right', sortable: true, renderCell: v => noshowPill(Number(v)) },
   { id: 'status', label: 'Status', renderCell: v => statusPill(String(v)) },
@@ -97,8 +106,18 @@ const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
           trend={{ value: stats.bookingsTrendPct, positive: stats.bookingsTrendPct >= 0 }}
           value={stats.bookingsPerDay}
         />
-        <StatCard accent="from-emerald-500 to-teal-500" subtitle="slots filled" title="Utilisation" value={`${stats.utilisationPct}%`} />
-        <StatCard accent="from-rose-500 to-red-500" subtitle="of bookings" title="No-show Rate" value={`${stats.noshowPct}%`} />
+        <StatCard
+          accent="from-emerald-500 to-teal-500"
+          subtitle="slots filled"
+          title="Utilisation"
+          value={`${stats.utilisationPct}%`}
+        />
+        <StatCard
+          accent="from-rose-500 to-red-500"
+          subtitle="of bookings"
+          title="No-show Rate"
+          value={`${stats.noshowPct}%`}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -114,8 +133,8 @@ const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
         </ChartCard>
         <ChartCard subtitle="Total booking hours per centre" title="Bookings by Centre">
           <BarChart
-            bars={[{ key: 'bookingHrs', name: 'Booking hrs', color: '#6366f1' }]}
             colorByPoint
+            bars={[{ key: 'bookingHrs', name: 'Booking hrs', color: '#6366f1' }]}
             data={data.centreBookings}
             showLegend={false}
             xKey="centreName"
@@ -125,11 +144,11 @@ const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
 
       <ChartCard subtitle="Per-centre rollup" title="Centre Summary">
         <DataTable<CentreSummaryRow>
+          sortable
           columns={columns}
           data={data.centreSummary}
           emptyState={{ title: 'No centres match these filters' }}
           getRowId={row => row.centreId}
-          sortable
         />
       </ChartCard>
     </div>
