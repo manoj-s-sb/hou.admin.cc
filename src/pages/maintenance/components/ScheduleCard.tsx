@@ -74,7 +74,11 @@ const ScheduleCard: React.FC<Props> = ({
   return (
     <div
       className={`flex gap-4 rounded-xl border p-4 ${
-        isDone ? 'border-teal-200 bg-teal-50/50' : isOverdue ? 'border-red-200 bg-red-50/40' : 'border-gray-200 bg-white'
+        isDone
+          ? 'border-teal-200 bg-teal-50/50'
+          : isOverdue
+            ? 'border-red-200 bg-red-50/40'
+            : 'border-gray-200 bg-white'
       }`}
     >
       {/* Left — details */}
@@ -140,7 +144,8 @@ const ScheduleCard: React.FC<Props> = ({
             />
             {(comment.trim() || files.length > 0) && (
               <p className="mt-1 text-[11px] text-gray-400">
-                Your comment{files.length ? ' & attachment' : ''} is saved when you tap <span className="font-semibold text-teal-700">Mark Done</span>.
+                Your comment{files.length ? ' & attachment' : ''} is saved when you tap{' '}
+                <span className="font-semibold text-teal-700">Mark Done</span>.
               </p>
             )}
           </>
@@ -178,7 +183,11 @@ const ScheduleCard: React.FC<Props> = ({
                 className="flex h-12 items-center gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 text-[10px] font-semibold text-gray-500"
               >
                 📎 {f.name.length > 12 ? `${f.name.slice(0, 12)}…` : f.name}
-                <button className="text-red-400 hover:text-red-600" type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))}>
+                <button
+                  className="text-red-400 hover:text-red-600"
+                  type="button"
+                  onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                >
                   ×
                 </button>
               </span>

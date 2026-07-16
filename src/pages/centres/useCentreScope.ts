@@ -15,15 +15,28 @@ import { RootState } from '../../store/store';
 export const useCentreScope = (facilityCode: string): void => {
   const { activeCentre, openCentre } = useCentreNav();
   const facilities = useSelector((state: RootState) => state.centres.facilities);
+  const details = useSelector((state: RootState) => state.centres.details);
 
   useEffect(() => {
-    if (!facilityCode || activeCentre?.code === facilityCode) return;
+    if (!facilityCode) return;
+    // The summary list may not be loaded yet on a direct/refreshed load — fall back to
+    // the single-centre details bundle (fetched separately by CentreDetailView) so the
+    // sidebar upgrades from the bare code to the real name once either source resolves.
     const f = facilities.find(x => x.code === facilityCode);
-    openCentre({
+    const resolved = f ?? (details?.facility.code === facilityCode ? details.facility : undefined);
+
+    const next = {
       code: facilityCode,
-      name: f?.name ?? facilityCode,
-      countryCode: f?.countryCode ?? '',
-      status: f?.status ?? 'active',
-    });
-  }, [facilityCode, activeCentre, facilities, openCentre]);
+      name: resolved?.name ?? facilityCode,
+      countryCode: resolved?.countryCode ?? '',
+      status: resolved?.status ?? 'active',
+    };
+    const isSame =
+      activeCentre?.code === next.code &&
+      activeCentre?.name === next.name &&
+      activeCentre?.countryCode === next.countryCode &&
+      activeCentre?.status === next.status;
+
+    if (!isSame) openCentre(next);
+  }, [facilityCode, activeCentre, facilities, details, openCentre]);
 };

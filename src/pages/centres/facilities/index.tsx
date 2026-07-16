@@ -83,7 +83,8 @@ const Facilities: React.FC = () => {
   const features = (bundle?.facility?.features ?? {}) as Record<string, unknown>;
   const items: { type: string; entry: FeatureEntry }[] = [];
   Object.entries(features).forEach(([type, val]) => {
-    if (Array.isArray(val)) val.forEach(v => v && typeof v === 'object' && items.push({ type, entry: v as FeatureEntry }));
+    if (Array.isArray(val))
+      val.forEach(v => v && typeof v === 'object' && items.push({ type, entry: v as FeatureEntry }));
     else if (val && typeof val === 'object') items.push({ type, entry: val as FeatureEntry });
   });
 
@@ -196,7 +197,9 @@ const Facilities: React.FC = () => {
           }}
         >
           No additional facilities configured for this centre yet.
-          <div style={{ fontSize: 11, marginTop: 4 }}>Add them from the New Centre wizard or the Facilities editor.</div>
+          <div style={{ fontSize: 11, marginTop: 4 }}>
+            Add them from the New Centre wizard or the Facilities editor.
+          </div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>

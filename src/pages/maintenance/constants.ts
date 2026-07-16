@@ -14,8 +14,7 @@ export const ALL_LANES = [1, 2, 3, 4, 5, 6, 7];
 
 // Template CRUD + scheduling are admin-only server-side (ADMIN_ROLES). Mirror that
 // gate in the UI so non-admins don't see actions the backend would 403.
-export const canManageTasks = (): boolean =>
-  ['superadmin', 'super_admin', 'admin'].includes(getRole().toLowerCase());
+export const canManageTasks = (): boolean => ['superadmin', 'super_admin', 'admin'].includes(getRole().toLowerCase());
 
 export const EQUIPMENT_CUSTOM_SENTINEL = 'Other (custom)';
 export const EQUIPMENT_OPTIONS: string[] = [
@@ -51,7 +50,13 @@ export const FREQ_UNITS: { value: FreqUnit; label: string }[] = [
 ];
 
 export const PRIORITIES: { value: TemplatePriority; label: string; dot: string; text: string; pill: string }[] = [
-  { value: 'high', label: 'High', dot: 'bg-red-500', text: 'text-red-600', pill: 'bg-red-50 text-red-700 border border-red-200' },
+  {
+    value: 'high',
+    label: 'High',
+    dot: 'bg-red-500',
+    text: 'text-red-600',
+    pill: 'bg-red-50 text-red-700 border border-red-200',
+  },
   {
     value: 'medium',
     label: 'Medium',

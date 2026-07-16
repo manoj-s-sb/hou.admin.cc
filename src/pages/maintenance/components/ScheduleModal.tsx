@@ -79,13 +79,21 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
   };
 
   return (
-    <div aria-modal="true" className="fixed inset-0 z-[640] flex items-center justify-center bg-black/40 p-4" role="dialog">
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[640] flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+    >
       <div className="w-full max-w-[460px] overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[#21295A]">{isReschedule ? 'Reschedule Task' : 'Schedule Task'}</h2>
+            <h2 className="text-[16px] font-bold text-[#21295A]">
+              {isReschedule ? 'Reschedule Task' : 'Schedule Task'}
+            </h2>
             <p className="mt-0.5 text-[12px] text-gray-400">
-              {isReschedule ? 'Change the date (or lane) for this scheduled task' : 'Assign this task from the library to this centre'}
+              {isReschedule
+                ? 'Change the date (or lane) for this scheduled task'
+                : 'Assign this task from the library to this centre'}
             </p>
           </div>
           <button
@@ -105,7 +113,9 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
               <span className={`rounded px-1.5 py-0.5 font-semibold ${type.badge}`}>
                 {type.icon} {type.label}
               </span>
-              <span className={`rounded px-1.5 py-0.5 font-semibold ${freqBadgeCls(template.freqN, template.freqUnit)}`}>
+              <span
+                className={`rounded px-1.5 py-0.5 font-semibold ${freqBadgeCls(template.freqN, template.freqUnit)}`}
+              >
                 {freqLabel(template.freqN, template.freqUnit)}
               </span>
               <span className={`rounded px-1.5 py-0.5 font-semibold ${prio.pill}`}>{prio.label} Priority</span>

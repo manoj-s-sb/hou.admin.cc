@@ -568,10 +568,7 @@ const WaitlistLeads = () => {
           </div>
 
           {waitlistError ? (
-            <ErrorState
-              message={waitlistError}
-              onRetry={() => fetchWaitlist(1, waitlistLimit || PAGE_SIZE)}
-            />
+            <ErrorState message={waitlistError} onRetry={() => fetchWaitlist(1, waitlistLimit || PAGE_SIZE)} />
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
               <DataTable

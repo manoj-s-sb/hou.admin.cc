@@ -674,103 +674,103 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               <div
                 style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}
               >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '100px 1fr 1fr 60px',
+                    background: '#f9fafb',
+                    padding: '8px 14px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--sub)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '.04em',
+                  }}
+                >
+                  <div>Day</div>
+                  <div>Open</div>
+                  <div>Close</div>
+                  <div>Open?</div>
+                </div>
+                {s.operatingHours.map((h, i) => (
                   <div
+                    key={h.day}
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '100px 1fr 1fr 60px',
-                      background: '#f9fafb',
                       padding: '8px 14px',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: 'var(--sub)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '.04em',
+                      borderTop: '1px solid var(--border)',
+                      alignItems: 'center',
                     }}
                   >
-                    <div>Day</div>
-                    <div>Open</div>
-                    <div>Close</div>
-                    <div>Open?</div>
-                  </div>
-                  {s.operatingHours.map((h, i) => (
-                    <div
-                      key={h.day}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '100px 1fr 1fr 60px',
-                        padding: '8px 14px',
-                        borderTop: '1px solid var(--border)',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)' }}>{DAYS[i]}</div>
-                      <div style={{ paddingRight: 10 }}>
-                        {s.is24x7 ? (
-                          <div style={readonlyTimeBox}>12:00 AM</div>
-                        ) : (
-                          <input
-                            aria-disabled={!h.isOpen}
-                            disabled={!h.isOpen}
-                            style={{
-                              width: '100%',
-                              padding: '5px 8px',
-                              border: '1px solid var(--border)',
-                              borderRadius: 6,
-                              fontSize: 12.5,
-                              opacity: h.isOpen ? 1 : 0.4,
-                            }}
-                            type="time"
-                            value={h.openTime}
-                            onChange={e => setHour(h.day, { openTime: e.target.value })}
-                          />
-                        )}
-                      </div>
-                      <div style={{ paddingRight: 10 }}>
-                        {s.is24x7 ? (
-                          <div style={readonlyTimeBox}>11:59 PM</div>
-                        ) : (
-                          <input
-                            aria-disabled={!h.isOpen}
-                            disabled={!h.isOpen}
-                            style={{
-                              width: '100%',
-                              padding: '5px 8px',
-                              border: '1px solid var(--border)',
-                              borderRadius: 6,
-                              fontSize: 12.5,
-                              opacity: h.isOpen ? 1 : 0.4,
-                            }}
-                            type="time"
-                            value={h.closeTime}
-                            onChange={e => setHour(h.day, { closeTime: e.target.value })}
-                          />
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
-                          <input
-                            aria-label={`${DAYS[i]} open`}
-                            checked={s.is24x7 || h.isOpen}
-                            className="peer sr-only"
-                            disabled={s.is24x7}
-                            type="checkbox"
-                            onChange={e => setHour(h.day, { isOpen: e.target.checked })}
-                          />
-                          {/* Track/knob coloured via inline style so the 24/7 (disabled)
-                              toggle stays solid teal instead of the browser's dimmed look. */}
-                          <span
-                            className="absolute inset-0 rounded-full transition-colors"
-                            style={{ background: s.is24x7 || h.isOpen ? '#008482' : '#d1d5db' }}
-                          />
-                          <span
-                            className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform"
-                            style={{ transform: s.is24x7 || h.isOpen ? 'translateX(18px)' : 'none' }}
-                          />
-                        </label>
-                      </div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)' }}>{DAYS[i]}</div>
+                    <div style={{ paddingRight: 10 }}>
+                      {s.is24x7 ? (
+                        <div style={readonlyTimeBox}>12:00 AM</div>
+                      ) : (
+                        <input
+                          aria-disabled={!h.isOpen}
+                          disabled={!h.isOpen}
+                          style={{
+                            width: '100%',
+                            padding: '5px 8px',
+                            border: '1px solid var(--border)',
+                            borderRadius: 6,
+                            fontSize: 12.5,
+                            opacity: h.isOpen ? 1 : 0.4,
+                          }}
+                          type="time"
+                          value={h.openTime}
+                          onChange={e => setHour(h.day, { openTime: e.target.value })}
+                        />
+                      )}
                     </div>
-                  ))}
-                </div>
+                    <div style={{ paddingRight: 10 }}>
+                      {s.is24x7 ? (
+                        <div style={readonlyTimeBox}>11:59 PM</div>
+                      ) : (
+                        <input
+                          aria-disabled={!h.isOpen}
+                          disabled={!h.isOpen}
+                          style={{
+                            width: '100%',
+                            padding: '5px 8px',
+                            border: '1px solid var(--border)',
+                            borderRadius: 6,
+                            fontSize: 12.5,
+                            opacity: h.isOpen ? 1 : 0.4,
+                          }}
+                          type="time"
+                          value={h.closeTime}
+                          onChange={e => setHour(h.day, { closeTime: e.target.value })}
+                        />
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
+                        <input
+                          aria-label={`${DAYS[i]} open`}
+                          checked={s.is24x7 || h.isOpen}
+                          className="peer sr-only"
+                          disabled={s.is24x7}
+                          type="checkbox"
+                          onChange={e => setHour(h.day, { isOpen: e.target.checked })}
+                        />
+                        {/* Track/knob coloured via inline style so the 24/7 (disabled)
+                              toggle stays solid teal instead of the browser's dimmed look. */}
+                        <span
+                          className="absolute inset-0 rounded-full transition-colors"
+                          style={{ background: s.is24x7 || h.isOpen ? '#008482' : '#d1d5db' }}
+                        />
+                        <span
+                          className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform"
+                          style={{ transform: s.is24x7 || h.isOpen ? 'translateX(18px)' : 'none' }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => goStep(2)}>
@@ -1228,7 +1228,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                                 value={row.extraSessionCost ?? ''}
                                 onChange={e =>
                                   setPlan(meta.id, {
-                                    extraSessionCost: e.target.value === '' ? null : Math.max(0, Number(e.target.value)),
+                                    extraSessionCost:
+                                      e.target.value === '' ? null : Math.max(0, Number(e.target.value)),
                                   })
                                 }
                               />

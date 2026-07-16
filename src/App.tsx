@@ -33,9 +33,8 @@ import { setSessionExpiredCallback } from './services';
 import { fetchMe } from './store/auth/api';
 import store, { persistor, AppDispatch } from './store/store';
 
-// Heavy routes split into their own chunks — Dashboard pulls in recharts (~300 KB),
+// Heavy routes split into their own chunks — Reports pulls in recharts (~300 KB),
 // Maintenance is a 900+ LOC page. Keeps the initial bundle lean for everyone else.
-const Dashboard = lazy(() => import('./pages/dashboard'));
 const Reports = lazy(() => import('./pages/reports'));
 const Maintenance = lazy(() => import('./pages/maintenance'));
 
@@ -66,14 +65,6 @@ const AppRoutes: React.FC = () => {
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route element={<Login />} path={ROUTES.LOGIN.path} />
-          <Route
-            element={
-              <PermissionRoute module={ACCESS_SCOPES.reports}>
-                <Dashboard />
-              </PermissionRoute>
-            }
-            path={ROUTES.DASHBOARD.path}
-          />
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.reports}>

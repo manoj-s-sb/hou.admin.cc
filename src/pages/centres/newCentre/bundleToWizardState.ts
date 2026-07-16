@@ -122,8 +122,7 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
   const laneCount = (type: string) => lanes.filter(l => l.laneType === type).length;
   // Capacity source of truth is the sales-flow doc; fall back to the value mirrored
   // onto the facility doc (facility.capacity.overallCapacity) when the sales-flow is absent.
-  const totalCapacity =
-    num(membershipSalesFlow?.capacity?.total) || num(facility.capacity?.overallCapacity);
+  const totalCapacity = num(membershipSalesFlow?.capacity?.total) || num(facility.capacity?.overallCapacity);
 
   // The saved per-plan allocation lives in capacity.plans. Backends may key it by
   // plan id, membership code, or name — try each. Returns null when truly absent

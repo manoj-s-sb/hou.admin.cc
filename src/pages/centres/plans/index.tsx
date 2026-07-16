@@ -132,7 +132,9 @@ const PlansPricing: React.FC = () => {
           }}
         >
           No plans configured for this centre yet.
-          <div style={{ fontSize: 11, marginTop: 4 }}>Add them from the New Centre wizard or Centre Management → Edit.</div>
+          <div style={{ fontSize: 11, marginTop: 4 }}>
+            Add them from the New Centre wizard or Centre Management → Edit.
+          </div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 28 }}>

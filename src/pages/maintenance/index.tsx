@@ -5,7 +5,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 
 import { getFacilityCode } from '../../constants/user';
-import { archiveTemplate, listSchedules, listTemplates, restoreTemplate, unscheduleTask } from '../../store/maintenance/api';
+import {
+  archiveTemplate,
+  listSchedules,
+  listTemplates,
+  restoreTemplate,
+  unscheduleTask,
+} from '../../store/maintenance/api';
 import { AppDispatch, RootState } from '../../store/store';
 
 import FlagIssueModal from './components/FlagIssueModal';
@@ -170,8 +176,7 @@ const Maintenance: React.FC = () => {
 
   // Whether the selected date falls outside the 7-day quick tabs (picked via the
   // calendar) — used to surface a labelled chip for that custom day.
-  const isCustomDay =
-    scheduleDay !== 'overdue' && scheduleDay !== 'all' && !dayTabs.some(d => d.iso === scheduleDay);
+  const isCustomDay = scheduleDay !== 'overdue' && scheduleDay !== 'all' && !dayTabs.some(d => d.iso === scheduleDay);
 
   const onArchiveToggle = async (t: TaskTemplate) => {
     try {
@@ -209,7 +214,12 @@ const Maintenance: React.FC = () => {
           {buckets.map(b => {
             const dot = isCentre ? bucketDot(b.key) : null;
             return (
-              <button key={b.key} className={tabBtn(activeBucket === b.key)} type="button" onClick={() => setBucket(b.key)}>
+              <button
+                key={b.key}
+                className={tabBtn(activeBucket === b.key)}
+                type="button"
+                onClick={() => setBucket(b.key)}
+              >
                 {b.label}
                 {isCentre ? (
                   dot && (
@@ -309,8 +319,10 @@ const Maintenance: React.FC = () => {
           return (
             <button
               key={d.iso}
-              className={`flex flex-col items-center px-3 py-1.5 text-[12px] font-semibold transition border-b-2 ${
-                scheduleDay === d.iso ? 'border-[#21295A] text-[#21295A]' : 'border-transparent text-gray-400 hover:text-gray-600'
+              className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
+                scheduleDay === d.iso
+                  ? 'border-[#21295A] text-[#21295A]'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
               type="button"
               onClick={() => setScheduleDay(d.iso)}
@@ -331,8 +343,10 @@ const Maintenance: React.FC = () => {
           );
         })}
         <button
-          className={`flex flex-col items-center px-3 py-1.5 text-[12px] font-semibold transition border-b-2 ${
-            scheduleDay === 'overdue' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+          className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
+            scheduleDay === 'overdue'
+              ? 'border-red-500 text-red-600'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
           type="button"
           onClick={() => setScheduleDay('overdue')}
@@ -352,8 +366,10 @@ const Maintenance: React.FC = () => {
 
         {/* All — every scheduled task, past and future. */}
         <button
-          className={`flex flex-col items-center px-3 py-1.5 text-[12px] font-semibold transition border-b-2 ${
-            scheduleDay === 'all' ? 'border-[#21295A] text-[#21295A]' : 'border-transparent text-gray-400 hover:text-gray-600'
+          className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
+            scheduleDay === 'all'
+              ? 'border-[#21295A] text-[#21295A]'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
           type="button"
           onClick={() => setScheduleDay('all')}
@@ -374,11 +390,16 @@ const Maintenance: React.FC = () => {
         {/* Calendar — jump to any specific date (past or future). */}
         <label
           className={`ml-auto flex cursor-pointer items-center gap-1.5 self-center rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition ${
-            isCustomDay ? 'border-[#21295A] bg-[#ecedf4] text-[#21295A]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            isCustomDay
+              ? 'border-[#21295A] bg-[#ecedf4] text-[#21295A]'
+              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
           }`}
           title="Pick a date"
         >
-          📅 {isCustomDay ? new Date(`${scheduleDay}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Calendar'}
+          📅{' '}
+          {isCustomDay
+            ? new Date(`${scheduleDay}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : 'Calendar'}
           <input
             className="sr-only"
             type="date"

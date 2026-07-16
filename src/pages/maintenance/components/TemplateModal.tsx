@@ -55,8 +55,8 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
   const [title, setTitle] = useState(template?.title ?? '');
   const [description, setDescription] = useState(template?.description ?? '');
-  const [category, setCategory] = useState(isPresetCat ? template?.category ?? 'machine' : 'other');
-  const [categoryCustom, setCategoryCustom] = useState(isPresetCat ? '' : template?.category ?? '');
+  const [category, setCategory] = useState(isPresetCat ? (template?.category ?? 'machine') : 'other');
+  const [categoryCustom, setCategoryCustom] = useState(isPresetCat ? '' : (template?.category ?? ''));
   const [equipment, setEquipment] = useState(initialEquip);
   const [equipmentCustom, setEquipmentCustom] = useState(template?.equipmentCustom ?? '');
   const [taskType, setTaskType] = useState<TaskType>(template?.taskType ?? 'mech');
@@ -105,7 +105,10 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
   const patchStep = (i: number, patch: Partial<StepRow>) =>
     setStepRows(rows => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const addStep = () =>
-    setStepRows(rows => [...rows, { title: '', keepImageUrl: null, newBlobName: null, previewUrl: null, uploading: false }]);
+    setStepRows(rows => [
+      ...rows,
+      { title: '', keepImageUrl: null, newBlobName: null, previewUrl: null, uploading: false },
+    ]);
   const removeStep = (i: number) => setStepRows(rows => rows.filter((_, j) => j !== i));
   const uploadStepImage = async (i: number, file: File | null) => {
     if (!file) return;
@@ -163,7 +166,11 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
   const errRing = (msg: string) => (tried && msg ? ' border-red-400 ring-1 ring-red-300' : '');
 
   return (
-    <div aria-modal="true" className="fixed inset-0 z-[640] flex items-center justify-center bg-black/40 p-4" role="dialog">
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[640] flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+    >
       <div className="flex max-h-[90vh] w-full max-w-[600px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
@@ -353,7 +360,11 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                       <span className={`${labelCls} mt-2`}>Image</span>
                       {preview ? (
                         <div className="flex items-center gap-3">
-                          <img alt={`Step ${i + 1}`} className="h-16 w-16 rounded-lg border border-gray-200 object-cover" src={preview} />
+                          <img
+                            alt={`Step ${i + 1}`}
+                            className="h-16 w-16 rounded-lg border border-gray-200 object-cover"
+                            src={preview}
+                          />
                           <label className="cursor-pointer text-[11.5px] font-semibold text-indigo-600 hover:text-indigo-700">
                             {s.uploading ? 'Uploading…' : 'Replace'}
                             <input

@@ -100,37 +100,37 @@ const buildMemberships = (state: WizardState): ApiMembership[] =>
     .map(p => {
       const meta = PLAN_CATALOGUE.find(c => c.id === p.planId);
       return {
-      type: 'membership',
-      code: p.planId,
-      // Persist the proper display label + access hours so the centre's Plans &
-      // Pricing page reads them from the API (not a frontend lookup).
-      name: meta?.name ?? p.planId.charAt(0).toUpperCase() + p.planId.slice(1),
-      isPopular: p.planId === 'premium',
-      pricing: {
-        billingCycles: ['fortnightly', 'annual'],
-        regular: { fortnightly: p.fortnightlyPrice, annual: p.annualPrice },
-        promo: {},
-      },
-      registrationFee: p.joiningFee,
-      access: { hours: meta?.access ?? '' },
-      bookingRules: {
-        ...DEFAULT_BOOKING_RULES,
-        // Only persist guest-pricing fields that were actually set — blank stays absent
-        // (so the centre shows "—" rather than a hardcoded value).
-        guestBookingRules: {
-          ...(p.firstGuestFee !== null ? { firstGuestFee: p.firstGuestFee } : {}),
-          ...(p.additionalGuestDiscountPct !== null
-            ? { additionalGuestDiscountPct: p.additionalGuestDiscountPct }
-            : {}),
-          ...(p.extraSessionCost !== null ? { extraSessionCost: p.extraSessionCost } : {}),
+        type: 'membership',
+        code: p.planId,
+        // Persist the proper display label + access hours so the centre's Plans &
+        // Pricing page reads them from the API (not a frontend lookup).
+        name: meta?.name ?? p.planId.charAt(0).toUpperCase() + p.planId.slice(1),
+        isPopular: p.planId === 'premium',
+        pricing: {
+          billingCycles: ['fortnightly', 'annual'],
+          regular: { fortnightly: p.fortnightlyPrice, annual: p.annualPrice },
+          promo: {},
         },
-      },
-      memberTypes: [],
-      accessControl: { availableCountries: p.availableCountries },
-      membershipPolicies: {},
-      description: '',
-      stripe: { regular: null, promo: null, texRateId: null, taxRate: 0 },
-      benefits: [],
+        registrationFee: p.joiningFee,
+        access: { hours: meta?.access ?? '' },
+        bookingRules: {
+          ...DEFAULT_BOOKING_RULES,
+          // Only persist guest-pricing fields that were actually set — blank stays absent
+          // (so the centre shows "—" rather than a hardcoded value).
+          guestBookingRules: {
+            ...(p.firstGuestFee !== null ? { firstGuestFee: p.firstGuestFee } : {}),
+            ...(p.additionalGuestDiscountPct !== null
+              ? { additionalGuestDiscountPct: p.additionalGuestDiscountPct }
+              : {}),
+            ...(p.extraSessionCost !== null ? { extraSessionCost: p.extraSessionCost } : {}),
+          },
+        },
+        memberTypes: [],
+        accessControl: { availableCountries: p.availableCountries },
+        membershipPolicies: {},
+        description: '',
+        stripe: { regular: null, promo: null, texRateId: null, taxRate: 0 },
+        benefits: [],
       };
     });
 
