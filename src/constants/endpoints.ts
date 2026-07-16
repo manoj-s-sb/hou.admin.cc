@@ -6,6 +6,7 @@ const endpoints = {
     updateCoachSlots: 'admin/coach/status/update',
   },
   login: '/admin/auth/login',
+  me: '/admin/auth/me',
   members: {
     list: '/admin/members/list',
     membersDetails: '/admin/member/details',

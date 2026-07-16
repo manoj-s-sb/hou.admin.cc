@@ -14,7 +14,8 @@ export const ALL_LANES = [1, 2, 3, 4, 5, 6, 7];
 
 // Template CRUD + scheduling are admin-only server-side (ADMIN_ROLES). Mirror that
 // gate in the UI so non-admins don't see actions the backend would 403.
-export const canManageTasks = (): boolean => ['superadmin', 'super_admin', 'admin'].includes(getRole().toLowerCase());
+export const canManageTasks = (): boolean =>
+  ['superadmin', 'super_admin', 'admin'].includes(getRole().toLowerCase());
 
 export const EQUIPMENT_CUSTOM_SENTINEL = 'Other (custom)';
 export const EQUIPMENT_OPTIONS: string[] = [
@@ -50,13 +51,7 @@ export const FREQ_UNITS: { value: FreqUnit; label: string }[] = [
 ];
 
 export const PRIORITIES: { value: TemplatePriority; label: string; dot: string; text: string; pill: string }[] = [
-  {
-    value: 'high',
-    label: 'High',
-    dot: 'bg-red-500',
-    text: 'text-red-600',
-    pill: 'bg-red-50 text-red-700 border border-red-200',
-  },
+  { value: 'high', label: 'High', dot: 'bg-red-500', text: 'text-red-600', pill: 'bg-red-50 text-red-700 border border-red-200' },
   {
     value: 'medium',
     label: 'Medium',
@@ -90,6 +85,23 @@ export const freqLabel = (freqN: number, freqUnit: FreqUnit): string => {
     return `Every ${freqN} Months`;
   }
   return freqN === 1 ? 'Yearly' : `Every ${freqN} Years`;
+};
+
+/**
+ * The next occurrence date after `fromISO`, advancing by the task frequency
+ * (e.g. a Weekly task on 2026-07-17 → 2026-07-24). Returns an ISO yyyy-mm-dd
+ * string. Month/year steps clamp naturally via the Date API.
+ */
+export const nextOccurrence = (fromISO: string, freqN: number, freqUnit: FreqUnit): string => {
+  const d = new Date(`${fromISO}T00:00:00`);
+  const n = Math.max(1, freqN || 1);
+  if (freqUnit === 'day') d.setDate(d.getDate() + n);
+  else if (freqUnit === 'week') d.setDate(d.getDate() + n * 7);
+  else if (freqUnit === 'month') d.setMonth(d.getMonth() + n);
+  else d.setFullYear(d.getFullYear() + n);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
 };
 
 /** Coloured pill class for a frequency badge on cards. */

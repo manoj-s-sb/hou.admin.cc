@@ -4,13 +4,8 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 
-import {
-  archiveTemplate,
-  listSchedules,
-  listTemplates,
-  restoreTemplate,
-  unscheduleTask,
-} from '../../store/maintenance/api';
+import { getFacilityCode } from '../../constants/user';
+import { archiveTemplate, listSchedules, listTemplates, restoreTemplate, unscheduleTask } from '../../store/maintenance/api';
 import { AppDispatch, RootState } from '../../store/store';
 
 import FlagIssueModal from './components/FlagIssueModal';
@@ -59,8 +54,12 @@ const toISODate = (d: Date): string => {
 
 const Maintenance: React.FC = () => {
   const { facilityCode: routeFacility } = useParams<{ facilityCode?: string }>();
-  const isCentre = Boolean(routeFacility);
-  const facilityCode = routeFacility ?? '';
+  // Prefer the centre route param; otherwise fall back to the user's own scoped centre
+  // (facility roles reach Maintenance via the global nav, not by opening a centre —
+  // they should still get the full per-centre scheduling view for their own centre).
+  // Superadmin on the global route has no scoped centre → sees the global task library.
+  const facilityCode = routeFacility || getFacilityCode();
+  const isCentre = Boolean(facilityCode);
   const dispatch = useDispatch<AppDispatch>();
   const { templates, templatesLoading, schedules, schedulesLoading } = useSelector((s: RootState) => s.maintenance);
   const canManage = canManageTasks();
@@ -162,8 +161,17 @@ const Maintenance: React.FC = () => {
 
   const visibleSchedules = useMemo(() => {
     if (scheduleDay === 'overdue') return overdueSchedules;
+    // "All" — every scheduled task, past and future, newest first.
+    if (scheduleDay === 'all') {
+      return [...schedules].sort((a, b) => (a.scheduledDate < b.scheduledDate ? 1 : -1));
+    }
     return schedules.filter(s => s.status !== 'overdue' && s.scheduledDate === scheduleDay);
   }, [schedules, overdueSchedules, scheduleDay]);
+
+  // Whether the selected date falls outside the 7-day quick tabs (picked via the
+  // calendar) — used to surface a labelled chip for that custom day.
+  const isCustomDay =
+    scheduleDay !== 'overdue' && scheduleDay !== 'all' && !dayTabs.some(d => d.iso === scheduleDay);
 
   const onArchiveToggle = async (t: TaskTemplate) => {
     try {
@@ -201,12 +209,7 @@ const Maintenance: React.FC = () => {
           {buckets.map(b => {
             const dot = isCentre ? bucketDot(b.key) : null;
             return (
-              <button
-                key={b.key}
-                className={tabBtn(activeBucket === b.key)}
-                type="button"
-                onClick={() => setBucket(b.key)}
-              >
+              <button key={b.key} className={tabBtn(activeBucket === b.key)} type="button" onClick={() => setBucket(b.key)}>
                 {b.label}
                 {isCentre ? (
                   dot && (
@@ -300,16 +303,14 @@ const Maintenance: React.FC = () => {
 
   const renderSchedule = () => (
     <>
-      <div className="flex flex-wrap items-end gap-1 overflow-x-auto border-b border-gray-100 pb-px">
+      <div className="flex flex-wrap items-end gap-1 border-b border-gray-100 pb-px">
         {dayTabs.map(d => {
           const count = dayCount(d.iso);
           return (
             <button
               key={d.iso}
-              className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
-                scheduleDay === d.iso
-                  ? 'border-[#21295A] text-[#21295A]'
-                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              className={`flex flex-col items-center px-3 py-1.5 text-[12px] font-semibold transition border-b-2 ${
+                scheduleDay === d.iso ? 'border-[#21295A] text-[#21295A]' : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
               type="button"
               onClick={() => setScheduleDay(d.iso)}
@@ -330,10 +331,8 @@ const Maintenance: React.FC = () => {
           );
         })}
         <button
-          className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
-            scheduleDay === 'overdue'
-              ? 'border-red-500 text-red-600'
-              : 'border-transparent text-gray-400 hover:text-gray-600'
+          className={`flex flex-col items-center px-3 py-1.5 text-[12px] font-semibold transition border-b-2 ${
+            scheduleDay === 'overdue' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-400 hover:text-gray-600'
           }`}
           type="button"
           onClick={() => setScheduleDay('overdue')}
@@ -350,6 +349,43 @@ const Maintenance: React.FC = () => {
           </span>
           <span className="text-[10px] font-medium text-gray-400">Past due</span>
         </button>
+
+        {/* All — every scheduled task, past and future. */}
+        <button
+          className={`flex flex-col items-center px-3 py-1.5 text-[12px] font-semibold transition border-b-2 ${
+            scheduleDay === 'all' ? 'border-[#21295A] text-[#21295A]' : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+          type="button"
+          onClick={() => setScheduleDay('all')}
+        >
+          <span>
+            All
+            <span
+              className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                schedules.length > 0 ? 'bg-[#21295A] text-white' : 'bg-gray-100 text-gray-400'
+              }`}
+            >
+              {schedules.length}
+            </span>
+          </span>
+          <span className="text-[10px] font-medium text-gray-400">Past &amp; future</span>
+        </button>
+
+        {/* Calendar — jump to any specific date (past or future). */}
+        <label
+          className={`ml-auto flex cursor-pointer items-center gap-1.5 self-center rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition ${
+            isCustomDay ? 'border-[#21295A] bg-[#ecedf4] text-[#21295A]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+          title="Pick a date"
+        >
+          📅 {isCustomDay ? new Date(`${scheduleDay}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Calendar'}
+          <input
+            className="sr-only"
+            type="date"
+            value={isCustomDay ? scheduleDay : ''}
+            onChange={e => e.target.value && setScheduleDay(e.target.value)}
+          />
+        </label>
       </div>
 
       {schedulesLoading ? (
@@ -357,7 +393,11 @@ const Maintenance: React.FC = () => {
       ) : visibleSchedules.length === 0 ? (
         <div className="py-12 text-center">
           <p className="text-[13px] font-semibold text-gray-500">
-            {scheduleDay === 'overdue' ? '🎉 No overdue tasks — all up to date!' : 'No tasks scheduled for this day.'}
+            {scheduleDay === 'overdue'
+              ? '🎉 No overdue tasks — all up to date!'
+              : scheduleDay === 'all'
+                ? 'No tasks scheduled yet.'
+                : 'No tasks scheduled for this day.'}
           </p>
           {canManage && <p className="mt-1 text-[12px] text-gray-400">Schedule tasks from the Task Library.</p>}
         </div>

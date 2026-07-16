@@ -5,7 +5,16 @@ import { useDispatch } from 'react-redux';
 
 import { scheduleTask, unscheduleTask } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
-import { ALL_LANES, freqBadgeCls, freqLabel, inputCls, labelCls, priorityMeta, taskTypeMeta } from '../constants';
+import {
+  ALL_LANES,
+  freqBadgeCls,
+  freqLabel,
+  inputCls,
+  labelCls,
+  nextOccurrence,
+  priorityMeta,
+  taskTypeMeta,
+} from '../constants';
 
 import type { TaskSchedule, TaskTemplate, TemplateEnrich } from '../../../store/maintenance/types';
 
@@ -31,7 +40,15 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
   ); // '' = facility-wide
   const type = taskTypeMeta(template.taskType);
   const prio = priorityMeta(template.priority);
-  const [scheduledDate, setScheduledDate] = useState<string>(existing?.scheduledDate ?? todayStr());
+  // For a done/recurred task, default to its next occurrence date (not the past
+  // completed date); otherwise use the current scheduled date.
+  const [scheduledDate, setScheduledDate] = useState<string>(
+    existing
+      ? existing.status === 'done'
+        ? existing.nextDueDate || existing.scheduledDate
+        : existing.scheduledDate
+      : todayStr()
+  );
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -62,21 +79,13 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
   };
 
   return (
-    <div
-      aria-modal="true"
-      className="fixed inset-0 z-[640] flex items-center justify-center bg-black/40 p-4"
-      role="dialog"
-    >
+    <div aria-modal="true" className="fixed inset-0 z-[640] flex items-center justify-center bg-black/40 p-4" role="dialog">
       <div className="w-full max-w-[460px] overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[#21295A]">
-              {isReschedule ? 'Reschedule Task' : 'Schedule Task'}
-            </h2>
+            <h2 className="text-[16px] font-bold text-[#21295A]">{isReschedule ? 'Reschedule Task' : 'Schedule Task'}</h2>
             <p className="mt-0.5 text-[12px] text-gray-400">
-              {isReschedule
-                ? 'Change the date (or lane) for this scheduled task'
-                : 'Assign this task from the library to this centre'}
+              {isReschedule ? 'Change the date (or lane) for this scheduled task' : 'Assign this task from the library to this centre'}
             </p>
           </div>
           <button
@@ -96,9 +105,7 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
               <span className={`rounded px-1.5 py-0.5 font-semibold ${type.badge}`}>
                 {type.icon} {type.label}
               </span>
-              <span
-                className={`rounded px-1.5 py-0.5 font-semibold ${freqBadgeCls(template.freqN, template.freqUnit)}`}
-              >
+              <span className={`rounded px-1.5 py-0.5 font-semibold ${freqBadgeCls(template.freqN, template.freqUnit)}`}>
                 {freqLabel(template.freqN, template.freqUnit)}
               </span>
               <span className={`rounded px-1.5 py-0.5 font-semibold ${prio.pill}`}>{prio.label} Priority</span>
@@ -128,6 +135,22 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
               />
             </div>
           </div>
+
+          {/* Next occurrence preview — recurs by the task frequency. The backend
+              rolls the schedule forward to this date once it is marked done. */}
+          {scheduledDate && (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-[12px] text-emerald-700">
+              <span>🔁</span>
+              <span>
+                Recurs <span className="font-semibold">{freqLabel(template.freqN, template.freqUnit)}</span> — next on{' '}
+                <span className="font-semibold">
+                  {new Date(
+                    `${nextOccurrence(scheduledDate, template.freqN, template.freqUnit)}T00:00:00`
+                  ).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">

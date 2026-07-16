@@ -31,6 +31,7 @@ import {
   fileToDataUrl,
   getConfigOtherQualificationId,
   isCentreScopedLevel,
+  isCountryScopedLevel,
   sortActiveUnique,
   validatePassword,
 } from './utils';
@@ -76,6 +77,8 @@ const AddStaffMember: React.FC = () => {
   const [editFacilityCode, setEditFacilityCode] = useState<string>('');
   // Centres a centre-scoped staff member is assigned to (codes). Used for both create & edit.
   const [assignedCentres, setAssignedCentres] = useState<string[]>([]);
+  // Country a country-scoped staff member manages (code). Used instead of centres.
+  const [countryCode, setCountryCode] = useState<string>('');
   const [editStatus, setEditStatus] = useState<string>('active');
   const [twoFAEnabled, setTwoFAEnabled] = useState(true);
   // True while a new role is being persisted (drives the create-role button state).
@@ -169,6 +172,7 @@ const AddStaffMember: React.FC = () => {
     setExistingPhotoUrl(sp.photoSasUrl ?? '');
     setEditFacilityCode(data.facilityCode ?? '');
     setAssignedCentres(sp.assignedCentres ?? []);
+    setCountryCode((data as { countryCode?: string | null }).countryCode ?? '');
     setEditStatus(data.status ?? 'active');
     setLoginEmail(data.loginEmail ?? data.email ?? '');
     loginEmailInitedRef.current = true;
@@ -227,6 +231,17 @@ const AddStaffMember: React.FC = () => {
     [accessLevels, accessLevel]
   );
   const requiresAssignedCentres = isCentreScopedLevel(selectedAccessLevel);
+  // Country-scoped levels (e.g. Country Manager) pick a country instead of centres.
+  const requiresCountry = isCountryScopedLevel(selectedAccessLevel);
+  // For a country-scoped member, assignedCentres = every centre in the picked country
+  // (matched case-insensitively) so the backend scopes them to those facilities.
+  const countryCentreCodes = useMemo(
+    () =>
+      requiresCountry && countryCode
+        ? centres.filter(c => (c.countryCode || '').toLowerCase() === countryCode.toLowerCase()).map(c => c.code)
+        : [],
+    [requiresCountry, countryCode, centres]
+  );
 
   const handleDocSelect = (key: string, file: File | null, maxSizeMB: number) => {
     if (!file) return;
@@ -327,6 +342,7 @@ const AddStaffMember: React.FC = () => {
     if (!accessLevel) return 'Select an access level';
     if (requiresAssignedCentres && assignedCentres.length === 0)
       return 'Assign at least one centre for centre-scoped access';
+    if (requiresCountry && !countryCode) return 'Select a country for country-scoped access';
     if (!loginEmail.trim()) return 'Login email is required';
     if (isEditMode) return null;
     const pwError = validatePassword(defaultPassword);
@@ -371,7 +387,8 @@ const AddStaffMember: React.FC = () => {
           dateOfBirth: blankToNull(profile.dob),
           gender: blankToNull(profile.gender),
           userType: buildSelectedRoleIds(),
-          facilityCode: editFacilityCode || getLocalUser().facilityCode,
+          facilityCode: requiresCountry ? null : editFacilityCode || getLocalUser().facilityCode,
+          countryCode: requiresCountry ? countryCode : null,
           status: editStatus,
           staffProfile: {
             employmentType: profile.employmentType,
@@ -381,7 +398,7 @@ const AddStaffMember: React.FC = () => {
             additionalNotes: profile.notes,
             roles: buildSelectedRoleIds(),
             accessLevel,
-            assignedCentres: requiresAssignedCentres ? assignedCentres : [],
+            assignedCentres: requiresCountry ? countryCentreCodes : requiresAssignedCentres ? assignedCentres : [],
             documents: [...existingEntries, ...newDocEntries],
             twoFactorAuth: twoFAEnabled,
             twoFactorMethod: twoFAEnabled ? 'email' : '',
@@ -420,7 +437,7 @@ const AddStaffMember: React.FC = () => {
           additionalNotes: profile.notes,
           roles: buildSelectedRoleIds(),
           accessLevel,
-          assignedCentres: requiresAssignedCentres ? assignedCentres : [],
+          assignedCentres: requiresCountry ? countryCentreCodes : requiresAssignedCentres ? assignedCentres : [],
           documents: newDocEntries,
           twoFactorAuth: twoFAEnabled,
           twoFactorMethod: twoFAEnabled ? 'email' : '',
@@ -428,7 +445,9 @@ const AddStaffMember: React.FC = () => {
         loginEmail: (loginEmail || profile.email).trim(),
         defaultPassword,
         userType: buildSelectedRoleIds(),
-        facilityCode,
+        // Country-scoped → no facility, carry the country instead (empty assignedCentres).
+        facilityCode: requiresCountry ? null : facilityCode,
+        countryCode: requiresCountry ? countryCode : null,
         draftMode: draft,
         sendWelcomeEmail: draft ? false : sendWelcomeEmail,
       })
@@ -521,13 +540,16 @@ const AddStaffMember: React.FC = () => {
               centres={centres}
               centresLoading={centresLoading}
               configError={configError}
+              countryCode={countryCode}
               creatingAccessLevel={creatingAccessLevel}
               creatingRole={creatingRole}
               isConfigLoading={isConfigLoading}
               roles={roles}
               selectedRoles={selectedRoles}
               showAssignedCentres={requiresAssignedCentres}
+              showCountry={requiresCountry}
               onChangeCentres={setAssignedCentres}
+              onChangeCountry={setCountryCode}
               onCreateAccessLevel={handleCreateAccessLevel}
               onCreateRole={handleCreateRole}
               onSelectAccessLevel={setAccessLevel}

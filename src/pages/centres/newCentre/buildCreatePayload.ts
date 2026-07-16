@@ -8,6 +8,8 @@
  * constants below so refinement — once a real CENTRE_CREATE_SAMPLE.json is
  * supplied — is localized to this file.
  */
+import { PLAN_CATALOGUE } from '../constants';
+
 import type {
   ApiFacility,
   ApiLane,
@@ -95,10 +97,14 @@ const buildLanes = (state: WizardState): ApiLane[] => {
 const buildMemberships = (state: WizardState): ApiMembership[] =>
   state.plans
     .filter(p => p.enabled)
-    .map(p => ({
+    .map(p => {
+      const meta = PLAN_CATALOGUE.find(c => c.id === p.planId);
+      return {
       type: 'membership',
       code: p.planId,
-      name: p.planId.charAt(0).toUpperCase() + p.planId.slice(1),
+      // Persist the proper display label + access hours so the centre's Plans &
+      // Pricing page reads them from the API (not a frontend lookup).
+      name: meta?.name ?? p.planId.charAt(0).toUpperCase() + p.planId.slice(1),
       isPopular: p.planId === 'premium',
       pricing: {
         billingCycles: ['fortnightly', 'annual'],
@@ -106,7 +112,7 @@ const buildMemberships = (state: WizardState): ApiMembership[] =>
         promo: {},
       },
       registrationFee: p.joiningFee,
-      access: {},
+      access: { hours: meta?.access ?? '' },
       bookingRules: {
         ...DEFAULT_BOOKING_RULES,
         // Only persist guest-pricing fields that were actually set — blank stays absent
@@ -125,7 +131,8 @@ const buildMemberships = (state: WizardState): ApiMembership[] =>
       description: '',
       stripe: { regular: null, promo: null, texRateId: null, taxRate: 0 },
       benefits: [],
-    }));
+      };
+    });
 
 /** Capacity + foundation → sales-flow doc. */
 const buildSalesFlow = (state: WizardState): ApiMembershipSalesFlow => {
@@ -189,6 +196,9 @@ const buildFacility = (state: WizardState): ApiFacility => ({
     overallCapacity: num(state.overallCapacity),
     foundationPool: num(state.foundationPool),
   },
+  // General amenities the user ticked in "Facilities Available" — surfaced on the
+  // centre Facilities page (so those chips are real per-centre data, not hardcoded).
+  amenities: state.facilities,
   address: {
     street: [state.addressLine1, state.addressLine2].filter(Boolean).join(', '),
     suburb: '',

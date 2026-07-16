@@ -9,16 +9,18 @@ export const SUPER_ADMIN_ROLES = ['stancebeamadmin', 'superadmin'] as const;
 export const [SUPER_ADMIN_ROLE] = SUPER_ADMIN_ROLES;
 export const SUPER_ADMIN_ONLY = '__superadmin__';
 
+// The 10 backend module ids (RBAC spec §1). Values MUST match the keys the
+// backend sends in permissions.modules.
 export const MODULES = {
   MEMBERS: 'members',
   SLOT_BOOKING: 'slotbooking',
-  // Backend uses 'coachshedule' (typo intentional — do not "correct" without backend change)
-  COACH_SCHEDULE: 'coachshedule',
+  COACH_SCHEDULE: 'coachschedule',
   REPORTS: 'reports',
   INDUCTION: 'induction',
   TOUR: 'tour',
   MAINTENANCE: 'maintenance',
   TAILGATE: 'tailgate',
+  CENTRE_MANAGEMENT: 'centremanagement',
   STAFF: 'staffmanagement',
   SUPER_ADMIN: SUPER_ADMIN_ONLY,
 } as const;
@@ -34,6 +36,7 @@ export const ACCESS_SCOPES = {
   tour: [MODULES.TOUR],
   maintenance: [MODULES.MAINTENANCE],
   tailgate: [MODULES.TAILGATE],
+  centreManagement: [MODULES.CENTRE_MANAGEMENT],
   staff: [MODULES.STAFF],
   superAdmin: [MODULES.SUPER_ADMIN],
 } as const;

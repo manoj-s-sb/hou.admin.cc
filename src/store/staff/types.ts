@@ -167,7 +167,10 @@ export interface CreateStaffRequest {
   loginEmail: string;
   defaultPassword: string;
   userType: string[];
-  facilityCode: string;
+  // Country-scoped roles send facilityCode: null + a countryCode (with empty
+  // assignedCentres); centre/facility roles send facilityCode + assignedCentres.
+  facilityCode: string | null;
+  countryCode?: string | null;
   draftMode: boolean;
   sendWelcomeEmail: boolean;
 }
@@ -182,7 +185,8 @@ export interface UpdateStaffRequest {
   dateOfBirth: string | null;
   gender: string | null;
   userType: string[];
-  facilityCode: string;
+  facilityCode: string | null;
+  countryCode?: string | null;
   status: string;
   staffProfile: StaffProfilePayload;
   profileImageUrl?: string;

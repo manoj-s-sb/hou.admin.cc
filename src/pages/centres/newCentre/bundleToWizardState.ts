@@ -9,7 +9,11 @@
  */
 import { DAYS, PLAN_CATALOGUE } from '../constants';
 
+import { makeAdditionalFacility } from './AdditionalFacilitiesStep';
+
 import type {
+  AdditionalFacility,
+  AdditionalFacilityType,
   ApiMembership,
   CentreBundle,
   OperatingHoursDay,
@@ -36,6 +40,41 @@ const num = (v: unknown): number => {
 
 /** Present (not null/undefined) — used to keep guest-pricing blank when unset. */
 const hasVal = (v: unknown): boolean => v !== undefined && v !== null;
+
+const FEATURE_TYPES: AdditionalFacilityType[] = ['gym', 'podcast', 'meeting', 'gaming'];
+
+/**
+ * Rebuild the wizard's additional-facilities list from the saved `facility.features`
+ * map so editing a centre shows the ones already configured (and re-saving keeps
+ * them instead of replacing the map with only the newly-added one).
+ */
+const featuresToAdditional = (features: Record<string, unknown> | undefined): AdditionalFacility[] => {
+  const out: AdditionalFacility[] = [];
+  Object.entries(features ?? {}).forEach(([type, val]) => {
+    if (!FEATURE_TYPES.includes(type as AdditionalFacilityType)) return;
+    const entries = Array.isArray(val) ? val : val && typeof val === 'object' ? [val] : [];
+    entries.forEach((raw, i) => {
+      const e = raw as Record<string, unknown>;
+      const base = makeAdditionalFacility(type as AdditionalFacilityType, i + 1);
+      out.push({
+        ...base,
+        name: (e.name as string) || base.name,
+        fortnightlyPrice: num(e.fortnightlyPrice),
+        annualDiscountPct: num(e.annualDiscountPct),
+        totalCapacity: num(e.totalCapacity) || base.totalCapacity,
+        concurrentCapacity: num(e.concurrentCapacity) || base.concurrentCapacity,
+        slotDuration: (e.slotDuration as string) || base.slotDuration,
+        guestSessionPrice: num(e.guestSessionPrice),
+        freeGuestVisits: num(e.freeGuestVisits),
+        openTime: (e.openTime as string) || base.openTime,
+        closeTime: (e.closeTime as string) || base.closeTime,
+        psUnits: hasVal(e.psUnits) ? num(e.psUnits) : base.psUnits,
+        chargePerHour: hasVal(e.chargePerHour) ? num(e.chargePerHour) : base.chargePerHour,
+      });
+    });
+  });
+  return out;
+};
 
 /** Parse a "HH:MM-HH:MM" range into [open, close]; falls back to sane defaults. */
 const splitRange = (range: string | undefined): [string, string] => {
@@ -83,7 +122,8 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
   const laneCount = (type: string) => lanes.filter(l => l.laneType === type).length;
   // Capacity source of truth is the sales-flow doc; fall back to the value mirrored
   // onto the facility doc (facility.capacity.overallCapacity) when the sales-flow is absent.
-  const totalCapacity = num(membershipSalesFlow?.capacity?.total) || num(facility.capacity?.overallCapacity);
+  const totalCapacity =
+    num(membershipSalesFlow?.capacity?.total) || num(facility.capacity?.overallCapacity);
 
   // The saved per-plan allocation lives in capacity.plans. Backends may key it by
   // plan id, membership code, or name — try each. Returns null when truly absent
@@ -161,10 +201,10 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     battingLanes: laneCount('batting'),
     bowlingLanes: laneCount('bowling'),
     multipurposeLanes: laneCount('multipurpose'),
-    facilities: ['Batting Lanes', 'Bowling Lanes'],
+    facilities: facility.amenities?.length ? facility.amenities : ['Batting Lanes', 'Bowling Lanes'],
     slotDurationMinutes: num(slotCfg.slotDurationMinutes) || 45,
     advanceBookingWindowDays: num(slotCfg.advanceBookingWindowDays) || 7,
-    additionalFacilities: [],
+    additionalFacilities: featuresToAdditional(facility.features),
     plans,
     firstGuestFee: hasVal(reg.firstGuestFee) ? num(reg.firstGuestFee) : null,
     additionalGuestDiscountPct: hasVal(reg.additionalGuestDiscountPct) ? num(reg.additionalGuestDiscountPct) : null,

@@ -31,6 +31,10 @@ interface RoleAccessStepProps {
   onChangeCentres: (next: string[]) => void;
   centresLoading: boolean;
   showAssignedCentres: boolean;
+  // Country picker (shown for country/region-scoped access levels instead of centres).
+  showCountry: boolean;
+  countryCode: string;
+  onChangeCountry: (code: string) => void;
   /** Create a new role (persisted to the DB) and auto-select it. Resolves to true on success. */
   onCreateRole?: (label: string, description: string) => Promise<boolean>;
   /** True while a new role is being persisted. */
@@ -61,6 +65,9 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   onChangeCentres,
   centresLoading,
   showAssignedCentres,
+  showCountry,
+  countryCode,
+  onChangeCountry,
   onCreateRole,
   creatingRole = false,
   onCreateAccessLevel,
@@ -104,6 +111,14 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   const knownCodes = useMemo(() => new Set(centres.map(c => c.code)), [centres]);
   const customEntries = useMemo(() => assignedCentres.filter(c => !knownCodes.has(c)), [assignedCentres, knownCodes]);
   const otherOpen = showOther || customEntries.length > 0;
+  // Country options are the distinct country codes across the (scope-filtered) centres,
+  // so the value we send always matches the codes facilities/scope use — no hardcoding.
+  // Deduped case-insensitively (data has mixed case, e.g. "USA" vs "usa") and emitted
+  // lowercase to match the RBAC scope's country codes.
+  const countryOptions = useMemo(
+    () => Array.from(new Set(centres.map(c => (c.countryCode || '').toLowerCase()).filter(Boolean))),
+    [centres]
+  );
 
   const toggleOne = (code: string) =>
     onChangeCentres(
@@ -319,6 +334,30 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
           </div>
         )}
       </div>
+
+      {/* Country — only for country/region-scoped access levels (e.g. Country Manager). */}
+      {showCountry && (
+        <div>
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+            Country <span className="text-red-500">*</span>
+          </p>
+          <select
+            className="w-full max-w-sm rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+            value={countryCode}
+            onChange={e => onChangeCountry(e.target.value)}
+          >
+            <option value="">Select a country…</option>
+            {countryOptions.map(code => (
+              <option key={code} value={code}>
+                {countryFlag(code)} {code.toUpperCase()}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-[11.5px] text-gray-400">
+            This role manages every centre in the selected country — no individual centre assignment.
+          </p>
+        </div>
+      )}
 
       {/* Assigned Centres — only for centre-scoped access levels (Facility Only / Admin). */}
       {showAssignedCentres && (

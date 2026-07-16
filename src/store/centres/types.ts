@@ -142,6 +142,9 @@ export interface ApiFacility {
   // (Reports) can read it directly. The sales-flow doc's capacity.total remains
   // the source of truth; this write keeps the two in sync.
   capacity?: { overallCapacity: number; foundationPool?: number };
+  // General amenities selected in the wizard's "Facilities Available" step — read
+  // back by the centre Facilities page (so the chips are per-centre, not hardcoded).
+  amenities?: string[];
   address: FacilityAddress;
   contact: FacilityContact;
   operatingHours: OperatingHoursMap;

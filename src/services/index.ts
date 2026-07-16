@@ -1,4 +1,5 @@
 import { AxiosError, create, InternalAxiosRequestConfig } from 'axios';
+import { toast } from 'react-hot-toast';
 
 import { isTokenExpired } from '../utils/tokenUtils';
 
@@ -97,8 +98,11 @@ api.interceptors.response.use(
         // re-logs in, instead of bubbling up a cryptic per-feature error.
         triggerSessionExpired();
       } else if (status === 403) {
-        // Forbidden - user doesn't have permission
+        // Forbidden — the user is authenticated but lacks access to this resource
+        // (e.g. a scoped user hitting an out-of-scope centre, or a non-superadmin
+        // attempting a centre mutation). Surface it without crashing (§6).
         console.error('Access forbidden (403)');
+        toast.error("You don't have access to this.");
       } else if (status >= 500) {
         // Server error
         console.error('Server error:', error.response.data);

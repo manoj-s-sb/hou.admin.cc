@@ -67,6 +67,8 @@ export interface Ticket {
   linkedMemberId: string | null;
   linkedMemberName: string | null;
   linkedIssueId: string | null;
+  /** Customer's email — captured for Customer Support tickets. */
+  customerEmail: string | null;
   slaDeadline: string | null;
   closedAt: string | null;
   closedBy: string | null;
@@ -112,6 +114,8 @@ export interface CreateTicketRequest {
   linkedMemberId?: string | null;
   linkedMemberName?: string | null;
   linkedIssueId?: string | null;
+  /** Customer's email — captured for Customer Support tickets. */
+  customerEmail?: string | null;
   /** Pre-uploaded blob names (uploaded via the work upload util first). */
   attachments?: string[];
 }

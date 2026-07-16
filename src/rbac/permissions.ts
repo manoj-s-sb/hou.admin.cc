@@ -1,4 +1,4 @@
-import { PermissionAction } from '../store/auth/types';
+import { PermissionAction, Scope, ScopeType } from '../store/auth/types';
 import store from '../store/store';
 
 import { SUPER_ADMIN_ONLY, SUPER_ADMIN_ROLES } from './constants';
@@ -34,11 +34,37 @@ export const hasPermission = (modules: ModuleKey | undefined, action: Permission
   if (list.includes(SUPER_ADMIN_ONLY)) return isSuperAdmin();
 
   const storedModules = getModules();
-  if (!storedModules) return false;
+  // §6 fallback — permissions missing: superadmin gets full access, everyone else
+  // is denied (deny-by-default).
+  if (!storedModules) return isSuperAdmin();
 
   return list.some(m => storedModules[m]?.includes(action));
 };
 
+/** can(module, verb) — single-module permission check (spec §2). */
+export const can = (module: string, verb: PermissionAction): boolean => hasPermission(module, verb);
+
 export const canRead = (modules: ModuleKey | undefined): boolean => hasPermission(modules, 'read');
 
 export const canWrite = (modules: ModuleKey | undefined): boolean => hasPermission(modules, 'write');
+
+// ─── Data-visibility scope (spec §2 / §5) ───────────────────────────────
+const getScope = (): Scope | null => store.getState().auth.scope;
+
+/** Effective scope type — superadmin is always global even if scope is null. */
+export const scopeType = (): ScopeType | null => {
+  if (isSuperAdmin()) return 'global';
+  return getScope()?.scopeType ?? null;
+};
+
+/** Global reach — superadmin or an explicit global scope: no centre restriction. */
+export const isGlobalScope = (): boolean => isSuperAdmin() || getScope()?.scopeType === 'global';
+
+/** Allowed country codes (lowercase). Empty = unrestricted only when global. */
+export const allowedCountries = (): string[] => getScope()?.countryCodes ?? [];
+
+/** Allowed region codes (lowercase). */
+export const allowedRegions = (): string[] => getScope()?.regionCodes ?? [];
+
+/** Allowed facility codes (UPPERCASE). */
+export const allowedFacilities = (): string[] => (getScope()?.facilityCodes ?? []).map(c => c.toUpperCase());

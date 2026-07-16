@@ -26,13 +26,26 @@ export interface Permissions {
   modules: Record<string, PermissionAction[]>;
 }
 
+export type ScopeType = 'global' | 'country' | 'regional' | 'facility';
+
+/** Data-visibility scope from login/me. Country & region codes are lowercase;
+ *  facility codes are UPPERCASE. May be null → treated as no centre access. */
+export interface Scope {
+  role: string;
+  scopeType: ScopeType;
+  countryCodes: string[];
+  regionCodes: string[];
+  facilityCodes: string[];
+}
+
 export interface LoginResponse {
   status: string;
   message: string;
   data: {
     user: User;
     tokens: AuthTokens;
-    permissions?: Permissions;
+    permissions?: Permissions | null;
+    scope?: Scope | null;
   };
   statusCode: string;
 }
@@ -44,6 +57,7 @@ export interface AuthState {
   tokens: AuthTokens | null;
   user: User | null;
   permissions: Permissions | null;
+  scope: Scope | null;
   tokenExpirationTime: number | null;
   error: string | null;
 }
@@ -55,6 +69,7 @@ export const initialState: AuthState = {
   tokens: null,
   user: null,
   permissions: null,
+  scope: null,
   tokenExpirationTime: null,
   error: null,
 };

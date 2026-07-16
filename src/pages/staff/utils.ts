@@ -3,14 +3,27 @@ import { FORMAT_TO_ACCEPT } from './constants';
 import type { AccessLevelConfig } from './types';
 
 /**
+ * Whether an access level scopes to a COUNTRY/REGION (e.g. Country Manager) — it
+ * needs a country picked, not a centre list. Defaults to false when unselected.
+ */
+export const isCountryScopedLevel = (level?: AccessLevelConfig | null): boolean => {
+  if (!level) return false;
+  return /country|region/i.test(`${level.scopeType ?? ''} ${level.scope ?? ''}`);
+};
+
+/**
  * Whether an access level scopes to specific centres (Facility Only / Admin) and
  * therefore needs an Assigned Centres selection — as opposed to a global level
- * ("All centres"), which covers the whole network. Defaults to false for an
- * unselected level so we never demand centre assignment before a level is picked.
+ * ("All centres"), which covers the whole network, or a country/region level
+ * (which needs a country). Defaults to false for an unselected level so we never
+ * demand centre assignment before a level is picked.
  */
 export const isCentreScopedLevel = (level?: AccessLevelConfig | null): boolean => {
   if (!level) return false;
-  return !/global|all|network/i.test(`${level.scopeType ?? ''} ${level.scope ?? ''}`);
+  const s = `${level.scopeType ?? ''} ${level.scope ?? ''}`;
+  if (/global|all|network/i.test(s)) return false;
+  if (/country|region/i.test(s)) return false;
+  return true;
 };
 
 export const buildAcceptString = (formats: string[] = []): string =>

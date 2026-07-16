@@ -15,10 +15,10 @@ import {
   CATEGORY_META,
   PAGE_LIMIT,
   PRIORITY_META,
+  SELECTABLE_STATUSES,
   STATUS_META,
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
-  TICKET_STATUSES,
 } from './constants';
 
 import type { ListTicketsRequest, TicketCategory, TicketPriority, TicketStatus } from '../../store/tickets/types';
@@ -148,22 +148,6 @@ const Tickets: React.FC = () => {
       onClick: () => selectView('active'),
     },
     {
-      key: 'open',
-      label: 'Open',
-      dot: 'bg-gray-400',
-      count: counts?.open ?? 0,
-      selected: status === 'open',
-      onClick: () => selectStatus('open'),
-    },
-    {
-      key: 'noc',
-      label: 'With NOC',
-      dot: 'bg-blue-500',
-      count: counts?.noc ?? 0,
-      selected: status === 'noc',
-      onClick: () => selectStatus('noc'),
-    },
-    {
       key: 'inprogress',
       label: 'In Progress',
       dot: 'bg-amber-500',
@@ -206,7 +190,7 @@ const Tickets: React.FC = () => {
           type="button"
           onClick={() => setShowCreate(true)}
         >
-          <span className="text-[14px] leading-none">+</span> Create Ticket
+          Create Ticket
         </button>
       </div>
 
@@ -280,7 +264,7 @@ const Tickets: React.FC = () => {
             }}
           >
             <option value="">All Statuses</option>
-            {TICKET_STATUSES.map(s => (
+            {SELECTABLE_STATUSES.map(s => (
               <option key={s} value={s}>
                 {STATUS_META[s].label}
               </option>
@@ -318,7 +302,7 @@ const Tickets: React.FC = () => {
           </select>
           <input
             className={`${selectFieldClass} min-w-[180px]`}
-            placeholder="Search title or description…"
+            placeholder="Search ticket #, title, or description…"
             type="text"
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}

@@ -61,6 +61,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<TicketCategory>('maintenance');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [task, setTask] = useState('');
   const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
@@ -74,11 +75,20 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   // Field-level validation surfaced inline — required inputs like Centre (dropdown)
   // and Lanes (chips) are easy to miss, so we show the reason on the field itself
   // rather than relying only on a transient toast.
+  const isCustomerSupport = category === 'customer_support';
+  const emailInvalid = Boolean(customerEmail.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim());
   const errors = {
     centre: !centre ? 'Select a centre' : '',
     title: !title.trim() ? 'Title is required' : '',
     description: !description.trim() ? 'Description is required' : '',
     assigneeName: assignedTo === 'others' && !assigneeName.trim() ? 'Enter the assignee name' : '',
+    customerEmail: isCustomerSupport
+      ? !customerEmail.trim()
+        ? 'Customer email is required'
+        : emailInvalid
+          ? 'Enter a valid email'
+          : ''
+      : '',
   };
   const hasErrors = Object.values(errors).some(Boolean);
   const errClass = (msg: string) => (triedSubmit && msg ? ' border-red-400 ring-1 ring-red-300' : '');
@@ -117,6 +127,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         title: title.trim(),
         description: description.trim(),
         category,
+        customerEmail: isCustomerSupport && customerEmail.trim() ? customerEmail.trim() : undefined,
         task: task.trim() || null,
         priority,
         assignedTo,
@@ -197,6 +208,23 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
               </select>
             </div>
           </div>
+
+          {/* Customer email — only relevant for Customer Support tickets */}
+          {isCustomerSupport && (
+            <div>
+              <span className={labelClass}>Customer Email *</span>
+              <input
+                className={`${fieldClass}${errClass(errors.customerEmail)}`}
+                placeholder="customer@example.com"
+                type="email"
+                value={customerEmail}
+                onChange={e => setCustomerEmail(e.target.value)}
+              />
+              {triedSubmit && errors.customerEmail && (
+                <p className="mt-1 text-[11px] text-red-500">{errors.customerEmail}</p>
+              )}
+            </div>
+          )}
 
           <div>
             <span className={labelClass}>Title *</span>

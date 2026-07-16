@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { buildRoute } from '../../constants/routes';
 import { useCentreNav } from '../../contexts/CentreNavContext';
+import { isSuperAdmin } from '../../rbac';
 import { getCentres, getCentreDetails } from '../../store/centres/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { facilityScope } from '../../utils/facilityScope';
@@ -50,6 +51,10 @@ const CentreManagement: React.FC = () => {
 
   const dispatch = useDispatch<AppDispatch>();
   const { facilities, total, isLoading, details, detailsLoading } = useSelector((state: RootState) => state.centres);
+  // Centre mutations (create / edit / activate / suspend / delete) are super-admin
+  // only — the backend 403s everyone else, so hide the controls (§4). Reads are open
+  // to anyone with centremanagement:read (route gated in centreModules).
+  const canManageCentres = isSuperAdmin();
 
   // Fetch the full bundle for the draft being edited; the wizard opens once it lands.
   const startEdit = useCallback(
@@ -174,13 +179,15 @@ const CentreManagement: React.FC = () => {
           All Centres
           {!isLoading && <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--sub)' }}> · {total}</span>}
         </div>
-        <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => setWizardOpen(true)}>
-          <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
-            <line x1="12" x2="12" y1="5" y2="19" />
-            <line x1="5" x2="19" y1="12" y2="12" />
-          </svg>
-          New Centre
-        </button>
+        {canManageCentres && (
+          <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => setWizardOpen(true)}>
+            <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
+              <line x1="12" x2="12" y1="5" y2="19" />
+              <line x1="5" x2="19" y1="12" y2="12" />
+            </svg>
+            New Centre
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -194,7 +201,7 @@ const CentreManagement: React.FC = () => {
               <CentreCard
                 key={c.id || c.code}
                 centre={c}
-                onEdit={summary => startEdit(summary.code)}
+                onEdit={canManageCentres ? summary => startEdit(summary.code) : undefined}
                 onOpen={summary => {
                   // Scope the API + remember the selection, then route to the centre's
                   // Members page (the path now carries the facility code).
@@ -204,25 +211,27 @@ const CentreManagement: React.FC = () => {
               />
             ))}
 
-            {/* Add New Centre dashed card */}
-            <button
-              aria-label="Add new centre"
-              className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"
-              type="button"
-              onClick={() => setWizardOpen(true)}
-            >
-              <svg
-                className="h-7 w-7 text-muted"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                viewBox="0 0 24 24"
+            {/* Add New Centre dashed card — super-admin only */}
+            {canManageCentres && (
+              <button
+                aria-label="Add new centre"
+                className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"
+                type="button"
+                onClick={() => setWizardOpen(true)}
               >
-                <line x1="12" x2="12" y1="5" y2="19" />
-                <line x1="5" x2="19" y1="12" y2="12" />
-              </svg>
-              <span className="text-[13px] font-semibold text-sub">Add New Centre</span>
-            </button>
+                <svg
+                  className="h-7 w-7 text-muted"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  viewBox="0 0 24 24"
+                >
+                  <line x1="12" x2="12" y1="5" y2="19" />
+                  <line x1="5" x2="19" y1="12" y2="12" />
+                </svg>
+                <span className="text-[13px] font-semibold text-sub">Add New Centre</span>
+              </button>
+            )}
           </div>
 
           {/* Pagination (skip + limit) */}

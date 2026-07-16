@@ -6,6 +6,10 @@
 import type { TicketStatus, TicketCategory, TicketPriority, TicketRole } from '../../store/tickets/types';
 
 export const TICKET_STATUSES: TicketStatus[] = ['open', 'noc', 'inprogress', 'verify', 'closed'];
+// Simplified status set surfaced in the filter dropdown and the in-ticket status
+// selector: Open → In Progress → Closed. Legacy 'noc'/'verify' tickets still
+// render via STATUS_META but are no longer offered as manual choices.
+export const SELECTABLE_STATUSES: TicketStatus[] = ['open', 'inprogress', 'closed'];
 export const TICKET_CATEGORIES: TicketCategory[] = ['customer_support', 'maintenance', 'general', 'suggestion'];
 export const TICKET_PRIORITIES: TicketPriority[] = ['high', 'medium', 'low'];
 export const TICKET_ROLES: TicketRole[] = ['noc', 'centre_staff', 'admin', 'others'];
@@ -50,6 +54,14 @@ export const PRIORITY_META: Record<TicketPriority, { label: string; dot: string;
   high: { label: 'High', dot: 'bg-red-500', text: 'text-red-600', accent: '#ef4444' },
   medium: { label: 'Medium', dot: 'bg-amber-500', text: 'text-amber-600', accent: '#f59e0b' },
   low: { label: 'Low', dot: 'bg-emerald-500', text: 'text-emerald-600', accent: '#10b981' },
+};
+
+// Target response/resolution window per priority. Displayed in the ticket detail
+// so operations can see the expected turnaround at a glance.
+export const PRIORITY_SLA: Record<TicketPriority, { label: string; hours: number }> = {
+  high: { label: '4 hours', hours: 4 },
+  medium: { label: '24 hours', hours: 24 },
+  low: { label: '72 hours', hours: 72 },
 };
 
 export const CATEGORY_META: Record<TicketCategory, { label: string; className: string }> = {

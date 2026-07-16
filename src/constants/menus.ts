@@ -24,28 +24,17 @@ export interface MenuGroup {
  */
 export const MENU_GROUPS: MenuGroup[] = [
   {
+    // Facility-role operations pages. All hidden for super admins (who manage these
+    // inside Centre Management), so a superadmin's first visible group is Setup —
+    // matching the approved global mockup. Coach Schedule and Induction are
+    // intentionally centre-only (see centreModules) and are NOT listed here.
     group: 'Operations',
     items: [
-      {
-        path: ROUTES.COACH_SCHEDULE.path,
-        label: ROUTES.COACH_SCHEDULE.label,
-        icon: '/assets/coach-schedule.svg',
-        module: ACCESS_SCOPES.coaches,
-        hideForSuperAdmin: true,
-      },
-      {
-        path: ROUTES.INDUCTION.path,
-        label: ROUTES.INDUCTION.label,
-        icon: '/assets/induction.svg',
-        module: ACCESS_SCOPES.induction,
-        hideForSuperAdmin: true,
-      },
       {
         path: ROUTES.MEMBERS.path,
         label: ROUTES.MEMBERS.label,
         icon: '/assets/subscription.svg',
         module: ACCESS_SCOPES.members,
-        // Super admins manage members inside Centre Management, so hide the top-level item.
         hideForSuperAdmin: true,
       },
       {
@@ -61,6 +50,32 @@ export const MENU_GROUPS: MenuGroup[] = [
         icon: '/assets/tour.svg',
         module: ACCESS_SCOPES.tour,
         hideForSuperAdmin: true,
+      },
+    ],
+  },
+  {
+    group: 'Setup',
+    items: [
+      {
+        path: ROUTES.MEMBERSHIP_PLANS.path,
+        label: ROUTES.MEMBERSHIP_PLANS.label,
+        icon: '/assets/subscription.svg',
+        // Super-admin only — global plan templates are network-wide configuration.
+        module: ACCESS_SCOPES.superAdmin,
+      },
+      {
+        path: ROUTES.CENTRES.path,
+        label: ROUTES.CENTRES.label,
+        icon: '/assets/subscription.svg',
+        // Visible to anyone with centremanagement:read. Mutations (create/edit/
+        // suspend/delete) are further gated to super admins inside the page (§4).
+        module: ACCESS_SCOPES.centreManagement,
+      },
+      {
+        path: ROUTES.STAFF_MANAGEMENT.path,
+        label: ROUTES.STAFF_MANAGEMENT.label,
+        icon: '/assets/user.svg',
+        module: ACCESS_SCOPES.staff,
       },
     ],
   },
@@ -100,31 +115,6 @@ export const MENU_GROUPS: MenuGroup[] = [
         label: 'Maintenance & Tasks',
         icon: '/assets/maintenance.svg',
         module: ACCESS_SCOPES.maintenance,
-      },
-    ],
-  },
-  {
-    group: 'Setup',
-    items: [
-      {
-        path: ROUTES.CENTRES.path,
-        label: ROUTES.CENTRES.label,
-        icon: '/assets/subscription.svg',
-        // Super-admin only for now (the Super Admin Portal owns centre management).
-        module: ACCESS_SCOPES.superAdmin,
-      },
-      {
-        path: ROUTES.MEMBERSHIP_PLANS.path,
-        label: ROUTES.MEMBERSHIP_PLANS.label,
-        icon: '/assets/subscription.svg',
-        // Super-admin only — global plan templates are network-wide configuration.
-        module: ACCESS_SCOPES.superAdmin,
-      },
-      {
-        path: ROUTES.STAFF_MANAGEMENT.path,
-        label: ROUTES.STAFF_MANAGEMENT.label,
-        icon: '/assets/user.svg',
-        module: ACCESS_SCOPES.staff,
       },
     ],
   },

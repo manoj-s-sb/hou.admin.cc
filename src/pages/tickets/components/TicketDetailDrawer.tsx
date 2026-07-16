@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { AppDispatch, RootState } from '../../../store/store';
 import {
-  acknowledgeTicket,
   addTicketAttachment,
   addTicketComment,
   getTicket,
@@ -19,9 +18,10 @@ import {
   ACTION_LABELS,
   CATEGORY_META,
   PRIORITY_META,
+  PRIORITY_SLA,
   ROLE_LABELS,
+  SELECTABLE_STATUSES,
   STATUS_META,
-  STATUS_TRANSITIONS,
   TICKET_ROLES,
 } from '../constants';
 
@@ -32,20 +32,6 @@ interface Props {
   onClose: () => void;
   onChanged: () => void;
 }
-
-const transitionLabel = (current: TicketStatus, target: TicketStatus): string => {
-  if (target === 'noc') return current === 'verify' ? '→ Re-assign to NOC' : '→ Assign to NOC';
-  if (target === 'verify') return '→ Send to Staff for Verification';
-  if (target === 'closed') return 'Close Issue';
-  return STATUS_META[target].label;
-};
-
-// Outlined, colour-coded action buttons (matches the reference design).
-const transitionBtnClass = (target: TicketStatus): string => {
-  if (target === 'closed') return 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
-  if (target === 'verify') return 'border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100';
-  return 'border-orange-300 bg-orange-50 text-orange-600 hover:bg-orange-100';
-};
 
 const laneLabel = (lanes: number[] | null): string => {
   if (!lanes || lanes.length === 0) return 'N/A';
@@ -210,33 +196,20 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
   };
 
   const handleStatus = async (newStatus: TicketStatus) => {
-    // Closing is terminal — require a comment (recorded with the closure) so the
-    // reason is always captured, mirroring the maintenance issue flow.
-    if (newStatus === 'closed' && !comment.trim()) {
-      toast.error('Add a comment before closing.');
-      return;
-    }
+    // A comment is optional on close — if one has been typed it is recorded with
+    // the closure, otherwise the ticket simply closes.
     try {
       await dispatch(
         updateTicketStatus({
           ticketId,
           newStatus,
-          ...(newStatus === 'closed' ? { comment: comment.trim() } : {}),
+          ...(newStatus === 'closed' && comment.trim() ? { comment: comment.trim() } : {}),
         })
       ).unwrap();
       if (newStatus === 'closed') setComment('');
       afterMutation(`Ticket moved to ${STATUS_META[newStatus].label}`);
     } catch (e) {
       toast.error(typeof e === 'string' ? e : 'Could not update status');
-    }
-  };
-
-  const handleAcknowledge = async () => {
-    try {
-      await dispatch(acknowledgeTicket({ ticketId })).unwrap();
-      afterMutation('Ticket acknowledged — now In Progress');
-    } catch (e) {
-      toast.error(typeof e === 'string' ? e : 'Could not acknowledge');
     }
   };
 
@@ -284,7 +257,15 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
   };
 
   const isClosed = ticket?.status === 'closed';
-  const transitions = ticket ? STATUS_TRANSITIONS[ticket.status] : [];
+
+  // Status selector options: the simplified Open → In Progress → Closed set,
+  // plus the ticket's current status if it is a legacy value (noc/verify) so the
+  // dropdown always reflects reality.
+  const statusOptions: TicketStatus[] = ticket
+    ? SELECTABLE_STATUSES.includes(ticket.status)
+      ? SELECTABLE_STATUSES
+      : [ticket.status, ...SELECTABLE_STATUSES]
+    : SELECTABLE_STATUSES;
 
   // Timeline nodes derived from the activity history (comments excluded). Falls
   // back to a single "Raised" node for a ticket that has no activities yet.
@@ -348,33 +329,46 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
             </div>
 
             <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-              {/* Timeline — the actual activity history (comments excluded), each
-                  event a node with its resolved label and the actor + time. */}
-              <div className="flex items-start gap-0 overflow-x-auto pb-1">
-                {timelineSteps.map((step, i) => (
-                  <div key={i} className="flex min-w-[132px] flex-1 flex-col items-center">
-                    <div className="flex w-full items-center">
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 border-[#21295A] bg-[#21295A] text-white">
-                        {stepIcon(step.action)}
+              {/* Activity timeline — the actual activity history (comments
+                  excluded), each event a node with its resolved label and the
+                  actor + time. */}
+              <div>
+                <div className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Activity</div>
+                <div className="flex items-start gap-0 overflow-x-auto pb-1">
+                  {timelineSteps.map((step, i) => (
+                    <div key={i} className="flex min-w-[132px] flex-1 flex-col items-center">
+                      <div className="flex w-full items-center">
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 border-[#21295A] bg-[#21295A] text-white">
+                          {stepIcon(step.action)}
+                        </div>
+                        {i < timelineSteps.length - 1 && <div className="h-0.5 flex-1 bg-[#21295A]/20" />}
                       </div>
-                      {i < timelineSteps.length - 1 && <div className="h-0.5 flex-1 bg-[#21295A]/20" />}
+                      <div className="mt-2 w-full pr-2">
+                        <p className="text-[11px] font-semibold leading-tight text-gray-800">{step.label}</p>
+                        <p className="mt-0.5 text-[10px] text-gray-400">{step.by}</p>
+                      </div>
                     </div>
-                    <div className="mt-2 w-full pr-2">
-                      <p className="text-[11px] font-semibold leading-tight text-gray-800">{step.label}</p>
-                      <p className="mt-0.5 text-[10px] text-gray-400">{step.by}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
               {/* Meta grid */}
               <div className="grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
                 <Row label="Status">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_META[ticket.status].pill}`}
+                  {/* Inline status selector — Open → In Progress → Closed.
+                      A closing note/comment below is optional. */}
+                  <select
+                    className={`rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[12px] font-semibold outline-none focus:border-[#21295A] disabled:cursor-not-allowed disabled:opacity-60 ${STATUS_META[ticket.status].pill}`}
+                    disabled={saving}
+                    value={ticket.status}
+                    onChange={e => handleStatus(e.target.value as TicketStatus)}
                   >
-                    {STATUS_META[ticket.status].label}
-                  </span>
+                    {statusOptions.map(s => (
+                      <option key={s} value={s}>
+                        {STATUS_META[s].label}
+                      </option>
+                    ))}
+                  </select>
                 </Row>
                 <Row label="Assigned To">
                   {ticket.assignedToName ||
@@ -382,16 +376,47 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
                       ? (ROLE_LABELS[ticket.assignedTo as TicketRole] ?? ticket.assignedTo)
                       : 'Unassigned')}
                 </Row>
+                <Row label="Priority SLA">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_META[ticket.priority].dot}`} />
+                    <span className={`font-semibold ${PRIORITY_META[ticket.priority].text}`}>
+                      {PRIORITY_META[ticket.priority].label}
+                    </span>
+                    <span className="text-gray-400">·</span>
+                    <span className="text-gray-500">Resolve within {PRIORITY_SLA[ticket.priority].label}</span>
+                  </span>
+                </Row>
+                {ticket.customerEmail && (
+                  <Row label="Customer Email">
+                    <a className="text-[#21295A] underline" href={`mailto:${ticket.customerEmail}`}>
+                      {ticket.customerEmail}
+                    </a>
+                  </Row>
+                )}
                 {ticket.task && <Row label="Task">{ticket.task}</Row>}
                 {ticket.equipment && ticket.equipment.length > 0 && (
                   <Row label="Equipment">{ticket.equipment.join(', ')}</Row>
                 )}
               </div>
 
-              {/* Description */}
+              {/* Description — highlighted so the incident detail stands out */}
               <div>
-                <div className="text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Description</div>
-                <p className="mt-1 whitespace-pre-wrap text-[13px] text-gray-700">{ticket.description}</p>
+                <div className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">
+                  Description
+                </div>
+                <div className="rounded-xl border border-[#21295A]/15 bg-[#f5f6fb] px-4 py-3">
+                  <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-gray-800">
+                    {ticket.description || 'No description provided.'}
+                  </p>
+                  {ticket.task && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[#21295A]/10 pt-2 text-[12px]">
+                      <span className="font-semibold text-gray-500">Sub-type:</span>
+                      <span className="rounded-md bg-white px-2 py-0.5 font-medium text-[#21295A] shadow-sm">
+                        {ticket.task}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Attachments */}
@@ -407,26 +432,6 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
                   </div>
                 </div>
               )}
-
-              {/* Activity timeline — audit events only (status changes, assignment) */}
-              <div>
-                <div className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Activity</div>
-                <div className="flex max-h-60 flex-col gap-2.5 overflow-y-auto pr-1">
-                  {ticket.activities
-                    .filter(a => a.action !== 'comment')
-                    .map((act, i) => (
-                      <div key={i} className="flex items-start gap-2.5">
-                        <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[#21295A]" />
-                        <div className="min-w-0 text-[12px] text-gray-600">
-                          <span className="font-semibold text-[#21295A]">{resolveActivityLabel(act)}</span>
-                          <div className="text-[10.5px] text-gray-400">
-                            {act.byName || 'System'} · {formatDateTimeChicago(act.at)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
 
               {/* Comments — actual person messages, shown as chat bubbles */}
               <div>
@@ -453,11 +458,11 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
                 <div className="space-y-3">
                   <div>
                     <div className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">
-                      Add comment
+                      Add note / comment
                     </div>
                     <textarea
                       className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] outline-none focus:border-[#21295A] focus:bg-white"
-                      placeholder="Type a comment…"
+                      placeholder="Add an incident note or comment…"
                       rows={2}
                       value={comment}
                       onChange={e => setComment(e.target.value)}
@@ -483,34 +488,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {ticket.status === 'noc' && (
-                      <button
-                        className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-[12px] font-semibold text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
-                        disabled={saving}
-                        type="button"
-                        onClick={handleAcknowledge}
-                      >
-                        ✓ Acknowledge &amp; Start
-                      </button>
-                    )}
-                    {transitions
-                      .filter(target => target !== 'closed')
-                      .map(target => (
-                        <button
-                          key={target}
-                          className={`rounded-lg border px-3 py-2 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${transitionBtnClass(target)}`}
-                          disabled={saving}
-                          type="button"
-                          onClick={() => handleStatus(target)}
-                        >
-                          {transitionLabel(ticket.status, target)}
-                        </button>
-                      ))}
-                  </div>
-
                   <div className="flex flex-wrap items-center gap-2 border-t border-gray-50 pt-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Reassign</span>
                     <select
                       className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[12px] outline-none focus:border-[#21295A]"
                       value={reassignRole}
@@ -544,38 +522,16 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
               )}
             </div>
 
-            {/* Footer — Close Issue action (mirrors the maintenance modal): the
-                button lives here, and fills navy on hover once a comment exists. */}
-            {isClosed ? (
-              <div className="flex items-center justify-between border-t border-gray-100 px-6 py-3.5">
-                <span className="text-[11.5px] text-gray-400">
-                  Raised by {ticket.raisedByName || '—'} · {formatDateTimeChicago(ticket.createdAt)}
-                </span>
-                <button
-                  className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
-                  type="button"
-                  onClick={onClose}
-                >
-                  Close
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between border-t border-gray-100 px-6 py-3.5">
-                <p className="text-[11.5px] text-gray-400">Add a comment above to close this issue.</p>
-                <button
-                  className={`rounded-lg border px-5 py-2 text-[13px] font-semibold transition-colors ${
-                    comment.trim()
-                      ? 'border-[#21295A] text-[#21295A] hover:bg-[#21295A] hover:text-white'
-                      : 'cursor-not-allowed border-gray-200 text-gray-300'
-                  }`}
-                  disabled={!comment.trim() || saving}
-                  type="button"
-                  onClick={() => handleStatus('closed')}
-                >
-                  Close Issue
-                </button>
-              </div>
-            )}
+            {/* Footer — metadata only. Status changes (including Close) happen via
+                the Status selector above, so no action button lives here. */}
+            <div className="flex items-center justify-between border-t border-gray-100 px-6 py-3.5">
+              <span className="text-[11.5px] text-gray-400">
+                Raised by {ticket.raisedByName || '—'} · {formatDateTimeChicago(ticket.createdAt)}
+              </span>
+              {isClosed && ticket.closedByName && (
+                <span className="text-[11.5px] font-semibold text-emerald-600">Closed by {ticket.closedByName}</span>
+              )}
+            </div>
           </>
         )}
       </div>

@@ -8,6 +8,7 @@ import { ROUTES, buildRoute } from '../constants/routes';
 import { useCentreNav } from '../contexts/CentreNavContext';
 import { CENTRE_MODULE_GROUPS } from '../pages/centres/centreModules';
 import { centreColour, countryFlag } from '../pages/centres/constants';
+import { ACCESS_SCOPES } from '../rbac/constants';
 import { canRead, isSuperAdmin } from '../rbac/permissions';
 import api from '../services';
 
@@ -135,10 +136,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const superAdmin = isSuperAdmin();
   // Count badges only apply to the global monitoring/setup nav (not the per-centre menu).
   const badges = useSidebarBadges(superAdmin && !activeCentre);
-  // Filter each group's items by permission + super-admin visibility; drop empty groups.
+  // Centre-managing roles (superadmin + anyone with centremanagement access) reach the
+  // per-centre operational modules (Members, Slot Bookings, Coach Schedule, Induction,
+  // Tours) by opening a centre — so those items are hidden from their GLOBAL nav.
+  // Facility-scoped operational roles (admin/coach/staff), who can't manage centres, keep
+  // seeing those modules at the top level (their single centre is auto-scoped).
+  const managesCentres = superAdmin || canRead(ACCESS_SCOPES.centreManagement);
+  // Filter each group's items by permission + centre-managing visibility; drop empty groups.
   const visibleGroups = MENU_GROUPS.map(g => ({
     group: g.group,
-    items: g.items.filter(item => canRead(item.module) && !(item.hideForSuperAdmin && superAdmin)),
+    items: g.items.filter(item => canRead(item.module) && !(item.hideForSuperAdmin && managesCentres)),
   })).filter(g => g.items.length > 0);
 
   const closeOnMobile = () => {

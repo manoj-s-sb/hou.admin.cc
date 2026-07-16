@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 
 import { Toaster } from 'react-hot-toast';
-import { Provider } from 'react-redux';
+import { Provider, useDispatch } from 'react-redux';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { PersistGate } from 'redux-persist/integration/react';
 
@@ -30,7 +30,8 @@ import {
 } from './pages';
 import { ACCESS_SCOPES, canRead, PermissionRoute } from './rbac';
 import { setSessionExpiredCallback } from './services';
-import store, { persistor } from './store/store';
+import { fetchMe } from './store/auth/api';
+import store, { persistor, AppDispatch } from './store/store';
 
 // Heavy routes split into their own chunks — Dashboard pulls in recharts (~300 KB),
 // Maintenance is a 900+ LOC page. Keeps the initial bundle lean for everyone else.
@@ -45,12 +46,20 @@ const DefaultLanding: React.FC = () => {
 
 const AppRoutes: React.FC = () => {
   const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] = useState(false);
+  const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
     setSessionExpiredCallback(() => {
       setIsSessionExpiredModalOpen(true);
     });
   }, []);
+
+  // On boot, re-hydrate role/permissions/scope from /me (source of truth) so a
+  // changed role takes effect without a full re-login. Only when already authed;
+  // a 401 is handled globally, other failures leave persisted auth intact.
+  useEffect(() => {
+    if (store.getState().auth.isAuthenticated) dispatch(fetchMe());
+  }, [dispatch]);
 
   return (
     <>
@@ -187,7 +196,7 @@ const AppRoutes: React.FC = () => {
           />
           <Route
             element={
-              <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
+              <PermissionRoute module={ACCESS_SCOPES.centreManagement}>
                 <CentreManagement />
               </PermissionRoute>
             }

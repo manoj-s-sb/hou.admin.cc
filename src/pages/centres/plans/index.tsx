@@ -47,8 +47,16 @@ const colValue: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: 'v
  */
 const PlansPricing: React.FC = () => {
   const bundle = useSelector((s: RootState) => s.centres.details);
+  const facilities = useSelector((s: RootState) => s.centres.facilities);
   const memberships = bundle?.memberships ?? [];
   const caps = (bundle?.membershipSalesFlow?.capacity?.plans ?? {}) as Record<string, number>;
+
+  // Per-plan filled counts come from the centre-list rollup (stats.membersByPlan)
+  // for this facility, when that list is loaded. Absent → occupancy is unknown and
+  // we show the allocated total only.
+  const summary = facilities.find(f => f.code === bundle?.facility?.code);
+  const membersByPlan = (summary?.stats?.membersByPlan ?? {}) as Record<string, number>;
+  const hasOccupancy = summary?.stats?.membersByPlan !== undefined;
 
   // Order the plans, resolving each plan's allocated slots from the sales-flow capacity map.
   const plans = [...memberships]
@@ -59,16 +67,21 @@ const PlansPricing: React.FC = () => {
     })
     .map(m => {
       const regular = (m.pricing?.regular ?? {}) as Record<string, unknown>;
-      const meta = PLAN_META[m.code] ?? { name: m.name || m.code, color: '#64748b', access: '—' };
+      const meta = PLAN_META[m.code] ?? { name: m.code, color: '#64748b', access: '—' };
       const slots = num(caps[m.code] ?? caps[m.name]);
+      const filled = num(membersByPlan[m.code] ?? membersByPlan[m.name]);
+      // Name + access hours come from the saved membership doc; the catalogue meta
+      // is only a fallback (legacy centres) + the accent colour (presentation).
+      const accessHours = ((m.access ?? {}) as { hours?: string }).hours;
       return {
         code: m.code,
-        name: meta.name,
+        name: m.name || meta.name,
         color: meta.color,
-        access: meta.access,
+        access: accessHours || meta.access,
         fortnightly: num(regular.fortnightly),
         annual: num(regular.annual),
         slots,
+        filled,
       };
     });
 
@@ -119,9 +132,7 @@ const PlansPricing: React.FC = () => {
           }}
         >
           No plans configured for this centre yet.
-          <div style={{ fontSize: 11, marginTop: 4 }}>
-            Add them from the New Centre wizard or Centre Management → Edit.
-          </div>
+          <div style={{ fontSize: 11, marginTop: 4 }}>Add them from the New Centre wizard or Centre Management → Edit.</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 28 }}>
@@ -149,8 +160,9 @@ const PlansPricing: React.FC = () => {
                       borderRadius: 20,
                       padding: '2px 8px',
                     }}
+                    title={hasOccupancy ? `${p.filled} filled · ${Math.max(0, p.slots - p.filled)} left` : undefined}
                   >
-                    {p.slots} slots
+                    {hasOccupancy ? `${p.filled}/${p.slots} slots` : `${p.slots} slots`}
                   </span>
                 </div>
                 <button

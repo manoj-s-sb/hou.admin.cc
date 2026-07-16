@@ -76,11 +76,14 @@ const Facilities: React.FC = () => {
   const lanes = bundle?.lanes ?? [];
   const laneCount = (type: string): number => lanes.filter(l => l.laneType === type).length;
 
+  // Amenities come from the centre's saved "Facilities Available" selection; the
+  // default list is only a fallback for centres created before it was persisted.
+  const amenities = bundle?.facility?.amenities?.length ? bundle.facility.amenities : DEFAULT_AMENITIES;
+
   const features = (bundle?.facility?.features ?? {}) as Record<string, unknown>;
   const items: { type: string; entry: FeatureEntry }[] = [];
   Object.entries(features).forEach(([type, val]) => {
-    if (Array.isArray(val))
-      val.forEach(v => v && typeof v === 'object' && items.push({ type, entry: v as FeatureEntry }));
+    if (Array.isArray(val)) val.forEach(v => v && typeof v === 'object' && items.push({ type, entry: v as FeatureEntry }));
     else if (val && typeof val === 'object') items.push({ type, entry: val as FeatureEntry });
   });
 
@@ -157,7 +160,7 @@ const Facilities: React.FC = () => {
       {/* General amenities */}
       <div style={sectionLabel}>General Amenities</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-        {DEFAULT_AMENITIES.map(a => (
+        {amenities.map(a => (
           <span
             key={a}
             style={{
@@ -193,9 +196,7 @@ const Facilities: React.FC = () => {
           }}
         >
           No additional facilities configured for this centre yet.
-          <div style={{ fontSize: 11, marginTop: 4 }}>
-            Add them from the New Centre wizard or the Facilities editor.
-          </div>
+          <div style={{ fontSize: 11, marginTop: 4 }}>Add them from the New Centre wizard or the Facilities editor.</div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>

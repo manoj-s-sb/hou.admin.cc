@@ -316,7 +316,9 @@ const Members = () => {
       {/* ── Page Header ─────────────────────────────────────── */}
       <div className="mb-5 border-b border-gray-100 pb-4">
         <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Members</h1>
-        <p className="mt-1 text-[12px] font-medium text-gray-400">Manage subscriptions and member accounts · HOU01</p>
+        <p className="mt-1 text-[12px] font-medium text-gray-400">
+          Manage subscriptions and member accounts{facilityCode ? ` · ${facilityCode}` : ''}
+        </p>
       </div>
 
       {/* ── Stats Row ───────────────────────────────────────── */}
