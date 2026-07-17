@@ -70,6 +70,9 @@ const endpoints = {
     create: '/admin/memberships/create',
     // Create/update a membership (full nested body).
     update: '/admin/memberships/update',
+    // Daily FX rates for the network reference-price currency conversion.
+    // GET → { base: 'USD', rates: { AUD: n, INR: n, … }, asOf?: 'YYYY-MM-DD' }.
+    fxRates: '/admin/fxrates',
   },
   membershipPlans: {
     list: '/admin/membership-plans',

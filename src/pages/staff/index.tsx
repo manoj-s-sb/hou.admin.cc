@@ -128,7 +128,8 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
 
 const mapStaff = (
   row: StaffListRow,
-  resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string
+  resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string,
+  resolveAccessLabel: (code: string | null) => string
 ): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
   const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
@@ -159,7 +160,7 @@ const mapStaff = (
     subtitle: row.email,
     primaryRoles: roles,
     accessLevel: {
-      label: row.accessLevel || '—',
+      label: resolveAccessLabel(row.accessLevel),
       tone: accessTone(row.accessLevel),
     },
     centres,
@@ -183,6 +184,22 @@ const StaffManagement: React.FC = () => {
   );
   const centreLookup = useCentreLookup();
 
+  // Access-level code → human label. Prefers the configured label from staff
+  // config; falls back to a humanized version of the raw code.
+  const accessLabelOf = useCallback(
+    (code: string | null): string => {
+      if (!code) return '—';
+      const match = (staffConfig?.accessLevels ?? []).find(a => a.id.toLowerCase() === code.toLowerCase());
+      if (match?.label) return match.label;
+      return code
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .trim();
+    },
+    [staffConfig]
+  );
+
   const loadStaff = useCallback(() => {
     dispatch(getStaffList({ facilityCode: getLocalUser().facilityCode, limit: 50, offset: 0 }));
   }, [dispatch]);
@@ -194,8 +211,8 @@ const StaffManagement: React.FC = () => {
   }, [dispatch, loadStaff]);
 
   const staff: StaffRow[] = useMemo(
-    () => staffList.map(row => mapStaff(row, centreLookup.text)),
-    [staffList, centreLookup.text]
+    () => staffList.map(row => mapStaff(row, centreLookup.text, accessLabelOf)),
+    [staffList, centreLookup.text, accessLabelOf]
   );
   const isLoading = isListLoading;
   const error = listError;
