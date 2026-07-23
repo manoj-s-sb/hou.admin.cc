@@ -15,7 +15,7 @@ export const inductionList = createAsyncThunk(
   'induction/inductionList',
   async ({ date, page, type, listLimit, email, status }: InductionListRequest, { rejectWithValue }) => {
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         date,
         type,
         page,
@@ -32,7 +32,7 @@ export const inductionList = createAsyncThunk(
 
       const response = await api.post(`${endpoints.induction.list}`, payload);
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch induction list'));
     }
   }
@@ -46,7 +46,7 @@ export const getInductionStepsDetails = createAsyncThunk(
         userId,
       });
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch induction steps details'));
     }
   }
@@ -61,7 +61,7 @@ export const updateInductionSteps = createAsyncThunk(
         subSteps,
       });
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to update induction steps'));
     }
   }
@@ -77,7 +77,7 @@ export const updateTourStatus = createAsyncThunk(
         status,
       });
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to update tour status'));
     }
   }
@@ -93,7 +93,7 @@ export const updateInductionBookingStatus = createAsyncThunk(
         status,
       });
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to update induction booking status'));
     }
   }
@@ -101,11 +101,11 @@ export const updateInductionBookingStatus = createAsyncThunk(
 
 export const userInductionDetails = createAsyncThunk(
   'induction/userInductionDetails',
-  async ({ userId }: any, { rejectWithValue }) => {
+  async ({ userId }: { userId: string }, { rejectWithValue }) => {
     try {
       const response = await api.post(`${endpoints.induction.userInductionDetails}`, { userId });
       return response?.data;
-    } catch (error: any) {
+    } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch user induction details'));
     }
   }

@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/Table/types';
+import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -53,13 +53,13 @@ const Tours = () => {
       headerName: 'S.No',
       width: 60,
       sortable: false,
-      renderCell: (params: any) => {
+      renderCell: params => {
         const currentPage = inductionListData.page || 1;
         const limit = inductionListData.limit || 20;
         const index = (currentPage - 1) * limit + params.index + 1;
         return <span className="text-[13px] font-medium text-gray-400">{index}</span>;
       },
-      valueGetter: (params: any) => {
+      valueGetter: params => {
         const currentPage = inductionListData.page || 1;
         const limit = inductionListData.limit || 20;
         return (currentPage - 1) * limit + params.index + 1;
@@ -70,7 +70,7 @@ const Tours = () => {
       headerName: 'Name',
       flex: 1.2,
       sortable: true,
-      renderCell: (params: any) => {
+      renderCell: params => {
         const fullName = `${params.row?.firstName || ''} ${params.row?.lastName || ''}`.trim();
         return (
           <div>
@@ -86,7 +86,7 @@ const Tours = () => {
       headerName: 'Booking Date',
       flex: 1,
       sortable: false,
-      renderCell: (params: any) => (
+      renderCell: params => (
         <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
       ),
       valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
@@ -96,7 +96,7 @@ const Tours = () => {
       headerName: 'Slot Time',
       flex: 1,
       sortable: true,
-      renderCell: (params: any) => {
+      renderCell: params => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
         if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
@@ -114,7 +114,7 @@ const Tours = () => {
       headerName: 'Status',
       flex: 1,
       sortable: true,
-      renderCell: (params: any) => {
+      renderCell: params => {
         const status = params.row?.status || 'pending';
         const { label, className } = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
         return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
@@ -125,7 +125,7 @@ const Tours = () => {
       headerName: 'Actions',
       width: 210,
       sortable: false,
-      renderCell: (params: any) => {
+      renderCell: params => {
         const handleStatusUpdate = (status: string) => {
           dispatch(
             updateTourStatus({
@@ -304,18 +304,20 @@ const Tours = () => {
       {/* ── Tours Table ─────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <DataTable
-          columns={tourColumns.map(col => ({
-            id: col.field,
-            label: col.headerName,
-            minWidth: col.minWidth,
-            width: col.width,
-            sortable: col.sortable !== false,
-            renderCell: col.renderCell
-              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
-              : col.valueGetter
-                ? (value: any, row: any, index: number) => col.valueGetter?.({ value, row, index }) || ''
-                : undefined,
-          }))}
+          columns={tourColumns.map(
+            (col): TableColumn => ({
+              id: col.field,
+              label: col.headerName,
+              minWidth: col.minWidth,
+              width: col.width,
+              sortable: col.sortable !== false,
+              renderCell: col.renderCell
+                ? (value, row, index) => col.renderCell?.({ value, row, index })
+                : col.valueGetter
+                  ? (value, row, index) => col.valueGetter?.({ value, row, index }) || ''
+                  : undefined,
+            })
+          )}
           data={inductionListData.bookings}
           emptyState={{
             icon: (
@@ -331,7 +333,7 @@ const Tours = () => {
             subtitle: 'Try adjusting your search criteria',
             title: 'No tours found',
           }}
-          getRowId={(row: any) => row.bookingCode || row.userId}
+          getRowId={row => row.bookingCode || row.userId}
           loading={isLoading}
           page={(inductionListData.page || 1) - 1}
           rowsPerPage={inductionListData.limit || 20}

@@ -3,7 +3,7 @@ import { PermissionAction } from '../store/auth/types';
 // Role strings the backend may use to denote a super admin. Compared
 // case-insensitively. Add any new backend variants here.
 export const SUPER_ADMIN_ROLES = ['stancebeamadmin', 'superadmin'] as const;
-export const SUPER_ADMIN_ROLE = SUPER_ADMIN_ROLES[0];
+export const [SUPER_ADMIN_ROLE] = SUPER_ADMIN_ROLES;
 
 export const SUPER_ADMIN_ONLY = '__superadmin__';
 

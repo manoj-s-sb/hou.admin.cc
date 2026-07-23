@@ -5,6 +5,15 @@ import { INPUT_CLASS, LABEL_CLASS, validatePassword } from '../utils';
 
 import PasswordField from './PasswordField';
 
+// Account-status options. 'invited' and 'draft' are onboarding-only states and are
+// hidden in edit mode unless the member is currently in that state (see filter below).
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'invited', label: 'Invited' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'suspended', label: 'Suspended' },
+];
+
 interface AccountStepProps {
   isEditMode: boolean;
   loginEmail: string;
@@ -118,10 +127,16 @@ const AccountStep: React.FC<AccountStepProps> = ({
         <div>
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Account Status</p>
           <select className={INPUT_CLASS} value={editStatus} onChange={e => onEditStatusChange(e.target.value)}>
-            <option value="active">Active</option>
-            <option value="invited">Invited</option>
-            <option value="draft">Draft</option>
-            <option value="suspended">Suspended</option>
+            {STATUS_OPTIONS.filter(
+              // Active/Suspended are the manageable states for an onboarded staff member.
+              // 'Invited'/'Draft' are onboarding-only states — show them solely when the
+              // member is still in that state, so they can't be reverted there once active.
+              opt => opt.value === 'active' || opt.value === 'suspended' || opt.value === editStatus
+            ).map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
           <p className="mt-1 text-[11px] text-gray-500">
             Changing the status will be reflected in the staff list and access controls.

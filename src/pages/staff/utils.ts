@@ -1,4 +1,35 @@
+import { getLocalUser } from '../../constants/user';
+import { scopeType } from '../../rbac';
+import store, { type RootState } from '../../store/store';
+
 import { FORMAT_TO_ACCEPT } from './constants';
+
+import type { AccessLevelConfig } from './types';
+import type { StaffListRequest } from '../../store/staff/types';
+
+/**
+ * Whether an access level scopes to a COUNTRY/REGION (e.g. Country Manager) — it
+ * needs a country picked, not a centre list. Defaults to false when unselected.
+ */
+export const isCountryScopedLevel = (level?: AccessLevelConfig | null): boolean => {
+  if (!level) return false;
+  return /country|region/i.test(`${level.scopeType ?? ''} ${level.scope ?? ''}`);
+};
+
+/**
+ * Whether an access level scopes to specific centres (Facility Only / Admin) and
+ * therefore needs an Assigned Centres selection — as opposed to a global level
+ * ("All centres"), which covers the whole network, or a country/region level
+ * (which needs a country). Defaults to false for an unselected level so we never
+ * demand centre assignment before a level is picked.
+ */
+export const isCentreScopedLevel = (level?: AccessLevelConfig | null): boolean => {
+  if (!level) return false;
+  const s = `${level.scopeType ?? ''} ${level.scope ?? ''}`;
+  if (/global|all|network/i.test(s)) return false;
+  if (/country|region/i.test(s)) return false;
+  return true;
+};
 
 export const buildAcceptString = (formats: string[] = []): string =>
   formats.map(f => FORMAT_TO_ACCEPT[f.toUpperCase()] ?? `.${f.toLowerCase()}`).join(',');
@@ -55,30 +86,24 @@ export const LABEL_CLASS = 'mb-1 block text-[11px] font-semibold uppercase track
 export const INPUT_CLASS =
   'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-800 outline-none transition focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10';
 
-// Map a centre/facility code (e.g. "BLR01") to a human-readable city name.
-const CENTRE_PREFIX_TO_CITY: Record<string, string> = {
-  BLR: 'Bangalore',
-  HYD: 'Hyderabad',
-  MUM: 'Mumbai',
-  DEL: 'Delhi',
-  CHE: 'Chennai',
-  KOL: 'Kolkata',
-  PUN: 'Pune',
-};
+// Centre names are resolved dynamically from Centre Management via useCentreLookup —
+// no hard-coded code→name mapping lives here.
 
-const CENTRE_CODE_OVERRIDES: Record<string, string> = {};
-
-export const formatCentreName = (code: string | null | undefined): string => {
-  if (!code) return '—';
-  const upper = code.toUpperCase();
-  if (CENTRE_CODE_OVERRIDES[upper]) return CENTRE_CODE_OVERRIDES[upper];
-  const prefix = upper.replace(/\d+$/, '');
-  return CENTRE_PREFIX_TO_CITY[prefix] ?? code;
-};
-
-export const formatCentres = (codes: string[] | null | undefined, fallback?: string | null): string => {
-  if (codes && codes.length > 0) {
-    return codes.map(formatCentreName).join(', ');
-  }
-  return formatCentreName(fallback ?? '');
+/**
+ * Scope-aware params for GET /admin/staff/list, shared by the list page and every
+ * post-create/update refetch. A network-wide (global/superadmin) viewer must see
+ * EVERY staff member — including country-scoped ones with facilityCode: null — so no
+ * filter is sent; scoping the request to the viewer's OWN facility/country (the old
+ * behaviour) silently hid any staff member outside that one facility, including a
+ * country manager the viewer had just created. Country/regional-scoped viewers filter
+ * to their country; everyone else (facility-scoped) filters to their own facility.
+ */
+export const buildStaffListParams = (limit = 50, offset = 0): StaffListRequest => {
+  const authState = (store.getState() as RootState).auth;
+  const countryCode = authState.scope?.countryCodes?.[0] || authState.user?.countryCode || undefined;
+  const facilityCode = getLocalUser().facilityCode || '';
+  const level = scopeType();
+  if (level === 'global') return { limit, offset };
+  if (level === 'country' || level === 'regional') return { countryCode, limit, offset };
+  return { facilityCode, limit, offset };
 };

@@ -18,7 +18,7 @@ const membersSlice = createSlice({
     });
     builder.addCase(getMembers.rejected, (state, action) => {
       state.isLoading = false;
-      state.error = action.payload || 'Failed to fetch members list';
+      state.error = (action.payload as string) || 'Failed to fetch members list';
     });
     builder.addCase(getSingleMemberDetails.pending, state => {
       state.isLoading = true;
@@ -30,7 +30,7 @@ const membersSlice = createSlice({
     });
     builder.addCase(getSingleMemberDetails.rejected, (state, action) => {
       state.isLoading = false;
-      state.error = action.payload || 'Failed to fetch single member details';
+      state.error = (action.payload as string) || 'Failed to fetch single member details';
     });
     builder.addCase(activateUserSubscription.pending, state => {
       state.isLoading = true;
@@ -57,7 +57,7 @@ const membersSlice = createSlice({
     });
     builder.addCase(getMembersCount.rejected, (state, action) => {
       state.membersCountLoading = false;
-      state.error = action.payload || 'Failed to fetch members count';
+      state.error = (action.payload as string) || 'Failed to fetch members count';
     });
   },
 });

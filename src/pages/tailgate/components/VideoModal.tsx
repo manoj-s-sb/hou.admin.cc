@@ -36,7 +36,7 @@ const VideoModal = ({ log, onClose }: VideoModalProps) => (
       </div>
       <div className="p-5">
         {log.videoUrl ? (
-          <video controls className="w-full rounded-xl" preload="metadata" src={log.videoUrl}>
+          <video controls className="w-full rounded-xl" controlsList="nodownload" preload="metadata" src={log.videoUrl}>
             <track kind="captions" label="Captions" srcLang="en" />
           </video>
         ) : log.snapshotUrl ? (

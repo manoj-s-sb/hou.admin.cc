@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -6,7 +6,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
-import { ColumnDef } from '../../components/Table/types';
+import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
@@ -84,180 +84,194 @@ const Induction = () => {
   const currentPage = inductionListData?.page ? inductionListData.page - 1 : 0;
   const rowsPerPage = inductionListData?.limit || 20;
 
-  const inductionColumns: ColumnDef[] = [
-    {
-      field: 'S.No',
-      headerName: 'S.No',
-      width: 60,
-      sortable: false,
-      renderCell: (params: any) => {
-        const serialNumber = currentPage * rowsPerPage + (params.index || 0) + 1;
-        return <span className="text-[13px] font-medium text-gray-400">{serialNumber}</span>;
+  const inductionColumns: ColumnDef[] = useMemo(
+    () => [
+      {
+        field: 'S.No',
+        headerName: 'S.No',
+        width: 60,
+        sortable: false,
+        renderCell: params => {
+          const serialNumber = currentPage * rowsPerPage + (params.index || 0) + 1;
+          return <span className="text-[13px] font-medium text-gray-400">{serialNumber}</span>;
+        },
       },
-    },
-    {
-      field: 'firstName',
-      headerName: 'Name',
-      flex: 1.2,
-      sortable: true,
-      renderCell: (params: any) => {
-        const firstName = params.row?.firstName || '';
-        const lastName = params.row?.lastName || '';
-        const fullName = `${firstName} ${lastName}`.trim();
-        return (
-          <div>
-            <p className="text-[13px] font-semibold text-[#21295A]">{fullName}</p>
-            <p className="text-[11px] text-gray-400">{params.row?.email || ''}</p>
-          </div>
-        );
+      {
+        field: 'firstName',
+        headerName: 'Name',
+        flex: 1.2,
+        sortable: true,
+        renderCell: params => {
+          const firstName = params.row?.firstName || '';
+          const lastName = params.row?.lastName || '';
+          const fullName = `${firstName} ${lastName}`.trim();
+          return (
+            <div>
+              <p className="text-[13px] font-semibold text-[#21295A]">{fullName}</p>
+              <p className="text-[11px] text-gray-400">{params.row?.email || ''}</p>
+            </div>
+          );
+        },
+        valueGetter: params => {
+          return `${params.row?.firstName || ''} ${params.row?.lastName || ''}`.trim();
+        },
       },
-      valueGetter: params => {
-        return `${params.row?.firstName || ''} ${params.row?.lastName || ''}`.trim();
+      {
+        field: 'bookingCode',
+        headerName: 'Booking Date',
+        flex: 1,
+        sortable: false,
+        renderCell: params => (
+          <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
+        ),
+        valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
       },
-    },
-    {
-      field: 'bookingCode',
-      headerName: 'Booking Date',
-      flex: 1,
-      sortable: false,
-      renderCell: (params: any) => (
-        <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
-      ),
-      valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
-    },
-    {
-      field: 'Slot Time',
-      headerName: 'Slot Time',
-      flex: 1,
-      sortable: true,
-      renderCell: (params: any) => {
-        const startTime = params.row?.timeSlot?.startTime;
-        const endTime = params.row?.timeSlot?.endTime;
-        if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
-        return <span className="text-[13px] text-gray-700">{formatTimeRangeChicago(startTime, endTime)}</span>;
+      {
+        field: 'Slot Time',
+        headerName: 'Slot Time',
+        flex: 1,
+        sortable: true,
+        renderCell: params => {
+          const startTime = params.row?.timeSlot?.startTime;
+          const endTime = params.row?.timeSlot?.endTime;
+          if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
+          return <span className="text-[13px] text-gray-700">{formatTimeRangeChicago(startTime, endTime)}</span>;
+        },
+        valueGetter: params => {
+          const startTime = params.row?.timeSlot?.startTime;
+          const endTime = params.row?.timeSlot?.endTime;
+          if (!startTime || !endTime) return '';
+          return formatTimeRangeChicago(startTime, endTime);
+        },
       },
-      valueGetter: params => {
-        const startTime = params.row?.timeSlot?.startTime;
-        const endTime = params.row?.timeSlot?.endTime;
-        if (!startTime || !endTime) return '';
-        return formatTimeRangeChicago(startTime, endTime);
+      {
+        field: 'onboardingType',
+        headerName: 'Plan',
+        flex: 0.9,
+        sortable: true,
+        renderCell: params => {
+          const type = params.row?.subscriptionCode || '';
+          const label =
+            type === 'standard' ? 'Standard' : type === 'premium' ? 'Premium' : type === 'family' ? 'Family' : type;
+          return (
+            <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-600">{label}</span>
+          );
+        },
+        valueGetter: params => {
+          const type = params.row?.subscriptionCode || '';
+          if (type === 'standard') return 'Standard';
+          if (type === 'premium') return 'Premium';
+          if (type === 'family') return 'Family';
+          return type;
+        },
       },
-    },
-    {
-      field: 'onboardingType',
-      headerName: 'Plan',
-      flex: 0.9,
-      sortable: true,
-      renderCell: (params: any) => {
-        const type = params.row?.subscriptionCode || '';
-        const label =
-          type === 'standard' ? 'Standard' : type === 'premium' ? 'Premium' : type === 'family' ? 'Family' : type;
-        return (
-          <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[12px] font-medium text-gray-600">{label}</span>
-        );
+      {
+        field: 'status',
+        headerName: 'Status',
+        flex: 1,
+        sortable: true,
+        renderCell: params => {
+          const status = params.row?.status || '';
+          const { label, className } = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
+          return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
+        },
       },
-      valueGetter: params => {
-        const type = params.row?.subscriptionCode || '';
-        if (type === 'standard') return 'Standard';
-        if (type === 'premium') return 'Premium';
-        if (type === 'family') return 'Family';
-        return type;
-      },
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      flex: 1,
-      sortable: true,
-      renderCell: (params: any) => {
-        const status = params.row?.status || '';
-        const { label, className } = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
-        return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
-      },
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 200,
-      sortable: false,
-      renderCell: (params: any) => {
-        const handleStatusUpdate = (status: string) => {
-          dispatch(
-            updateInductionBookingStatus({
-              userId: params.row.userId,
-              bookingCode: params.row.bookingCode,
-              status,
-            })
-          )
-            .unwrap()
-            .then(res => {
-              if (res?.status === 'success') {
-                const applied = parseFiltersFromSearchParams(searchParams);
-                dispatch(
-                  inductionList({
-                    date: applied.date,
-                    page: inductionListData?.page || 1,
-                    type: 'inductionbooking',
-                    listLimit: inductionListData?.limit || 20,
-                    email: applied.email,
-                    status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
-                  })
-                );
-                toast.success('Induction status updated successfully!');
-              } else {
-                toast.error('Failed to update induction status!');
-              }
-            })
-            .catch(err => {
-              console.error('Failed to update induction status:', err);
-              toast.error(err || 'Failed to update induction status!');
-            });
-        };
+      {
+        field: 'actions',
+        headerName: 'Actions',
+        width: 200,
+        sortable: false,
+        renderCell: params => {
+          const handleStatusUpdate = (status: string) => {
+            dispatch(
+              updateInductionBookingStatus({
+                userId: params.row.userId,
+                bookingCode: params.row.bookingCode,
+                status,
+              })
+            )
+              .unwrap()
+              .then(res => {
+                if (res?.status === 'success') {
+                  const applied = parseFiltersFromSearchParams(searchParams);
+                  dispatch(
+                    inductionList({
+                      date: applied.date,
+                      page: inductionListData?.page || 1,
+                      type: 'inductionbooking',
+                      listLimit: inductionListData?.limit || 20,
+                      email: applied.email,
+                      status:
+                        applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+                    })
+                  );
+                  toast.success('Induction status updated successfully!');
+                } else {
+                  toast.error('Failed to update induction status!');
+                }
+              })
+              .catch(err => {
+                console.error('Failed to update induction status:', err);
+                toast.error(err || 'Failed to update induction status!');
+              });
+          };
 
-        const isNoShow = params.row?.status === 'noshow';
-        return (
-          <div className="flex items-center gap-2">
-            {!isNoShow && (
-              <button
-                className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
-                title="View induction details"
-                onClick={e => {
-                  e.stopPropagation();
-                  navigate(buildRoute.viewInduction(params.row.userId), { state: { listSearch: location.search } });
-                }}
-              >
-                View
-              </button>
-            )}
-            {params.row?.status === 'confirmed' && (
-              <button
-                className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-all hover:bg-orange-600 hover:text-white"
-                title="Mark as no show"
-                onClick={e => {
-                  e.stopPropagation();
-                  handleStatusUpdate('noshow');
-                }}
-              >
-                {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'No Show'}
-              </button>
-            )}
-            {isNoShow && (
-              <button
-                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 transition-all hover:bg-blue-600 hover:text-white"
-                title="Undo no show"
-                onClick={e => {
-                  e.stopPropagation();
-                  setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode });
-                }}
-              >
-                Undo
-              </button>
-            )}
-          </div>
-        );
+          const isNoShow = params.row?.status === 'noshow';
+          return (
+            <div className="flex items-center gap-2">
+              {!isNoShow && (
+                <button
+                  className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
+                  title="View induction details"
+                  onClick={e => {
+                    e.stopPropagation();
+                    navigate(buildRoute.viewInduction(params.row.userId), { state: { listSearch: location.search } });
+                  }}
+                >
+                  View
+                </button>
+              )}
+              {params.row?.status === 'confirmed' && (
+                <button
+                  className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-all hover:bg-orange-600 hover:text-white"
+                  title="Mark as no show"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleStatusUpdate('noshow');
+                  }}
+                >
+                  {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'No Show'}
+                </button>
+              )}
+              {isNoShow && (
+                <button
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 transition-all hover:bg-blue-600 hover:text-white"
+                  title="Undo no show"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode });
+                  }}
+                >
+                  Undo
+                </button>
+              )}
+            </div>
+          );
+        },
       },
-    },
-  ];
+    ],
+    [
+      currentPage,
+      rowsPerPage,
+      dispatch,
+      navigate,
+      location.search,
+      searchParams,
+      inductionListData?.page,
+      inductionListData?.limit,
+      isLoading,
+    ]
+  );
 
   return (
     <div className="w-full">
@@ -370,29 +384,31 @@ const Induction = () => {
       {/* ── Induction Table ─────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <DataTable
-          columns={inductionColumns.map(col => ({
-            id: col.field,
-            label: col.headerName,
-            minWidth: col.minWidth,
-            width: col.width,
-            sortable: col.sortable !== false,
-            renderCell: col.renderCell
-              ? (value: any, row: any, index: number) => col.renderCell?.({ value, row, index })
-              : col.valueGetter
-                ? (value: any, row: any) => col.valueGetter?.({ value, row, index: 0 }) || ''
-                : undefined,
-            sortValue: (row: any) => {
-              if (col.field === 'firstName')
-                return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
-              if (col.field === 'email') return (row?.email || '').toLowerCase();
-              if (col.field === 'Slot Time') return row?.timeSlot?.startTime || '';
-              if (col.field === 'onboardingType') return row?.subscriptionCode || '';
-              if (col.field === 'status') return row?.status || '';
-              if (col.field === 'bookingCode') return row?.timeSlot?.startTime || '';
-              if (col.field === 'S.No' || col.field === 'actions') return '';
-              return row?.[col.field] || '';
-            },
-          }))}
+          columns={inductionColumns.map(
+            (col): TableColumn => ({
+              id: col.field,
+              label: col.headerName,
+              minWidth: col.minWidth,
+              width: col.width,
+              sortable: col.sortable !== false,
+              renderCell: col.renderCell
+                ? (value, row, index) => col.renderCell?.({ value, row, index })
+                : col.valueGetter
+                  ? (value, row) => col.valueGetter?.({ value, row, index: 0 }) || ''
+                  : undefined,
+              sortValue: row => {
+                if (col.field === 'firstName')
+                  return `${row?.firstName || ''} ${row?.lastName || ''}`.trim().toLowerCase();
+                if (col.field === 'email') return (row?.email || '').toLowerCase();
+                if (col.field === 'Slot Time') return row?.timeSlot?.startTime || '';
+                if (col.field === 'onboardingType') return row?.subscriptionCode || '';
+                if (col.field === 'status') return row?.status || '';
+                if (col.field === 'bookingCode') return row?.timeSlot?.startTime || '';
+                if (col.field === 'S.No' || col.field === 'actions') return '';
+                return row?.[col.field] || '';
+              },
+            })
+          )}
           data={inductionListData?.bookings || []}
           emptyState={{
             icon: (
@@ -408,7 +424,7 @@ const Induction = () => {
             subtitle: 'Try adjusting your search criteria',
             title: 'No induction bookings found',
           }}
-          getRowId={(row: any) => row.userId || row.bookingCode}
+          getRowId={row => row.userId || row.bookingCode}
           loading={isLoading}
           page={inductionListData?.page ? inductionListData.page - 1 : 0}
           rowsPerPage={inductionListData?.limit || 20}
@@ -427,7 +443,7 @@ const Induction = () => {
               })
             );
           }}
-          onRowClick={(row: any) => {
+          onRowClick={row => {
             navigate(buildRoute.viewInduction(row.userId), { state: { listSearch: location.search } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {

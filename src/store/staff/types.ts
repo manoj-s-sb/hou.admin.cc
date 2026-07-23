@@ -46,7 +46,12 @@ export interface StaffDetails {
   createdAt: string;
   updatedAt?: string;
   lastLoginAt: string | null;
+  countryCode?: string | null;
   staffProfile?: StaffProfile;
+  // Saved per-module permissions, used to pre-fill the edit grid. The backend may
+  // return either a custompermission map or a resolved permissions.modules map.
+  custompermission?: Record<string, string[]>;
+  permissions?: { modules?: Record<string, string[]> };
 }
 
 export interface StaffListRow {
@@ -116,12 +121,33 @@ export interface RequiredDocumentConfig {
   iconColor: string;
 }
 
+/** One module in the master permission list (from the extended staff config). */
+export interface MenuMasterItem {
+  id: string;
+  label: string;
+  order: number;
+}
+
+/** Per-role default permission template: role id → module id → verbs (["read"] | ["read","write"] | []). */
+export type RolePermissionsTemplate = Record<string, Record<string, string[]>>;
+
+/**
+ * GET /admin/staff/role-defaults?roles=<comma-separated> response — module id → verbs,
+ * already unioned across every requested role by the backend (a module is granted if
+ * ANY of the selected roles grants it). Refetched whenever the selected roles change.
+ */
+export type RoleDefaults = Record<string, string[]>;
+
 export interface StaffConfig {
   qualifications: ConfigOption[];
   certifications: ConfigOption[];
   roles: RoleConfig[];
   accessLevels: AccessLevelConfig[];
   requiredDocuments: RequiredDocumentConfig[];
+  // Extended (additive) — present only once the backend returns them; the Module
+  // Permissions grid renders only when both are available.
+  menus?: MenuMasterItem[];
+  rolePermissions?: RolePermissionsTemplate;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -129,7 +155,9 @@ export interface StaffConfig {
 // ─────────────────────────────────────────────────────────────
 
 export interface StaffListRequest {
-  facilityCode: string;
+  // Omit both to list every staff member network-wide (global/superadmin viewers).
+  facilityCode?: string;
+  countryCode?: string;
   limit: number;
   offset: number;
 }
@@ -167,7 +195,13 @@ export interface CreateStaffRequest {
   loginEmail: string;
   defaultPassword: string;
   userType: string[];
-  facilityCode: string;
+  // Country-scoped roles send facilityCode: null + a countryCode (with empty
+  // assignedCentres); centre/facility roles send facilityCode + assignedCentres.
+  facilityCode: string | null;
+  countryCode?: string | null;
+  // Per-module override map: moduleId → verbs (["read"] | ["read","write"]).
+  // A partial map is allowed; the backend backfills from the role default.
+  custompermission?: Record<string, string[]>;
   draftMode: boolean;
   sendWelcomeEmail: boolean;
 }
@@ -182,7 +216,10 @@ export interface UpdateStaffRequest {
   dateOfBirth: string | null;
   gender: string | null;
   userType: string[];
-  facilityCode: string;
+  facilityCode: string | null;
+  countryCode?: string | null;
+  // Per-module override map (same as create): moduleId → verbs.
+  custompermission?: Record<string, string[]>;
   status: string;
   staffProfile: StaffProfilePayload;
   profileImageUrl?: string;
@@ -197,13 +234,18 @@ export interface StaffState {
   staffList: StaffListRow[];
   staffDetails: StaffDetails | null;
   staffConfig: StaffConfig | null;
+  // Last-fetched role-defaults response (module id → verbs), unioned across the
+  // currently-selected roles. Null before the first fetch / when no role is selected.
+  roleDefaults: RoleDefaults | null;
   isListLoading: boolean;
   isDetailsLoading: boolean;
   isConfigLoading: boolean;
+  isRoleDefaultsLoading: boolean;
   isSubmitting: boolean;
   listError: string | null;
   detailsError: string | null;
   configError: string | null;
+  roleDefaultsError: string | null;
   submitError: string | null;
 }
 
@@ -211,12 +253,15 @@ export const initialState: StaffState = {
   staffList: [],
   staffDetails: null,
   staffConfig: null,
+  roleDefaults: null,
   isListLoading: false,
   isDetailsLoading: false,
   isConfigLoading: false,
+  isRoleDefaultsLoading: false,
   isSubmitting: false,
   listError: null,
   detailsError: null,
   configError: null,
+  roleDefaultsError: null,
   submitError: null,
 };

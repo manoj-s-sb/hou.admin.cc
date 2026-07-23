@@ -6,11 +6,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
 import { buildRoute, ROUTES } from '../../constants/routes';
-import { getStaffDetails, updateStaff } from '../../store/staff/api';
+import { getStaffDetails, setStaffStatus } from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
 
 import { StaffDocument } from './types';
-import { formatCentres } from './utils';
+import { useCentreLookup } from './useCentreLookup';
 
 import type { AppDispatch, RootState } from '../../store/store';
 
@@ -61,14 +61,15 @@ const statusToneClass: Record<string, { label: string; className: string }> = {
   active: { label: 'Active', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   invited: { label: 'Invited', className: 'bg-amber-50 text-amber-700 border-amber-200' },
   draft: { label: 'Draft', className: 'bg-red-50 text-red-600 border-red-200' },
-  suspended: { label: 'Suspended', className: 'bg-gray-100 text-gray-700 border-gray-200' },
+  inactive: { label: 'Inactive', className: 'bg-gray-100 text-gray-700 border-gray-200' },
 };
 
 const normalizeStatus = (status: string): keyof typeof statusToneClass => {
   const v = status?.toLowerCase();
   if (v === 'invited') return 'invited';
   if (v === 'draft') return 'draft';
-  if (v === 'suspended') return 'suspended';
+  // Treat legacy 'suspended' the same as 'inactive'.
+  if (v === 'inactive' || v === 'suspended') return 'inactive';
   return 'active';
 };
 
@@ -109,6 +110,7 @@ const ViewStaffMember: React.FC = () => {
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
   const [isSuspending, setIsSuspending] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
+  const centreLookup = useCentreLookup();
 
   const error = !staffId ? 'Missing staff id' : detailsError;
 
@@ -126,49 +128,19 @@ const ViewStaffMember: React.FC = () => {
 
   const handleSuspend = async () => {
     if (!staff || !staffId) return;
-    const isCurrentlySuspended = staff.status?.toLowerCase() === 'suspended';
-    const nextStatus = isCurrentlySuspended ? 'active' : 'suspended';
-    const verb = isCurrentlySuspended ? 'reactivate' : 'suspend';
+    const v = staff.status?.toLowerCase();
+    const isCurrentlyInactive = v === 'inactive' || v === 'suspended';
+    // Backend's deactivated value is 'suspended' (shown as "Inactive" in the UI).
+    const nextStatus: 'active' | 'suspended' = isCurrentlyInactive ? 'active' : 'suspended';
+    const verb = isCurrentlyInactive ? 'reactivate' : 'suspend';
     if (!window.confirm(`Are you sure you want to ${verb} ${staff.firstName} ${staff.lastName}?`)) return;
 
     setIsSuspending(true);
-    const sp = staff.staffProfile ?? {};
-    const documents = (sp.documents ?? [])
-      .filter(d => d.type && d.fileName && d.blobName)
-      .map(d => ({ type: d.type, fileName: d.fileName, blobName: d.blobName }));
+    const action = await dispatch(setStaffStatus({ staffId, status: nextStatus }));
 
-    const action = await dispatch(
-      updateStaff({
-        staffId,
-        firstName: staff.firstName,
-        lastName: staff.lastName,
-        email: staff.email,
-        loginEmail: staff.loginEmail ?? staff.email,
-        phone: staff.phone ?? '',
-        dateOfBirth: staff.dateOfBirth ?? null,
-        gender: staff.gender ?? null,
-        userType: staff.userType,
-        facilityCode: staff.facilityCode,
-        status: nextStatus,
-        staffProfile: {
-          employmentType: sp.employmentType ?? '',
-          startDate: sp.startDate ?? null,
-          highestQualification: sp.highestQualification ?? null,
-          certifications: sp.certifications ?? [],
-          additionalNotes: sp.additionalNotes ?? '',
-          roles: sp.roles ?? staff.userType,
-          accessLevel: sp.accessLevel ?? null,
-          assignedCentres: sp.assignedCentres ?? [],
-          documents,
-          twoFactorAuth: sp.twoFactorAuth ?? true,
-          twoFactorMethod: sp.twoFactorMethod ?? 'email',
-        },
-      })
-    );
-
-    if (updateStaff.fulfilled.match(action)) {
+    if (setStaffStatus.fulfilled.match(action)) {
       await dispatch(getStaffDetails({ staffId }));
-      toast.success(isCurrentlySuspended ? 'Staff member reactivated' : 'Staff member suspended');
+      toast.success(isCurrentlyInactive ? 'Staff member reactivated' : 'Staff member suspended');
     } else {
       toast.error((action.payload as string) ?? `Failed to ${verb} staff member`);
     }
@@ -203,8 +175,8 @@ const ViewStaffMember: React.FC = () => {
   const status = statusToneClass[statusKey];
   const rolesSource = profile.roles && profile.roles.length > 0 ? profile.roles : (staff.userType ?? []);
   const roles = rolesSource.map(formatRoleLabel);
-  const centres = formatCentres(profile.assignedCentres, staff.facilityCode);
-  const facilityName = formatCentres(null, staff.facilityCode);
+  const centres = centreLookup.text(profile.assignedCentres, staff.facilityCode);
+  const facilityName = centreLookup.text(null, staff.facilityCode);
   const documents = profile.documents ?? [];
   const photoUrl = profile.photoSasUrl;
 
@@ -288,7 +260,11 @@ const ViewStaffMember: React.FC = () => {
                 type="button"
                 onClick={handleSuspend}
               >
-                {isSuspending ? 'Updating…' : staff.status?.toLowerCase() === 'suspended' ? 'Reactivate' : 'Suspend'}
+                {isSuspending
+                  ? 'Updating…'
+                  : ['inactive', 'suspended'].includes(staff.status?.toLowerCase())
+                    ? 'Reactivate'
+                    : 'Suspend'}
               </button>
             </div>
           </div>

@@ -6,6 +6,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.6",
+    "@react-pdf/renderer": "^4.5.1",
     "@reduxjs/toolkit": "^2.10.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -19,12 +20,10 @@
     "axios": "^1.13.2",
     "babel-plugin-macros": "^3.1.0",
     "cross-spawn": "^7.0.6",
-    "date-fns": "^2.30.0",
     "detect-port-alt": "^1.1.6",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.553.0",
     "react": "^19.2.0",
-    "react-big-calendar": "^1.8.5",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",
     "react-is": "^19.2.6",
@@ -55,7 +54,8 @@
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run format:check",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf build node_modules"
+    "clean": "rm -rf build node_modules",
+    "prepare": "husky"
   },
   "eslintConfig": {
     "extends": [
@@ -79,8 +79,16 @@
     "babel-plugin-polyfill-corejs3": "0.10.6",
     "core-js-compat": "3.32.2"
   },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{json,css,md}": [
+      "prettier --write"
+    ]
+  },
   "devDependencies": {
-    "@types/react-big-calendar": "^1.8.9",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "autoprefixer": "^10.4.22",
@@ -93,6 +101,8 @@
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^4.6.2",
     "fork-ts-checker-webpack-plugin": "^6.5.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7",
     "postcss": "^8.5.6",
     "prettier": "^3.0.0",
     "prettier-plugin-tailwindcss": "^0.6.9",

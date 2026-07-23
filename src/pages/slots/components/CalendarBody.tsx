@@ -1,6 +1,5 @@
 import { Fragment, useState } from 'react';
 
-import moment from 'moment';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -23,8 +22,10 @@ const formatTimeSlot = (timeSlot: string): string => {
     const [hours, minutes] = timeSlot.split('.');
     return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
   }
-  const parsed = moment(timeSlot);
-  if (parsed.isValid()) return parsed.format('HH:mm');
+  const parsed = new Date(timeSlot);
+  if (!Number.isNaN(parsed.getTime())) {
+    return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+  }
   return timeSlot;
 };
 
@@ -98,8 +99,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         { duration: 4000 }
       );
       setSelectedTimeSlot(null);
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update time slot status.', { duration: 5000 });
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to update time slot status.', { duration: 5000 });
     }
   };
 
@@ -120,8 +121,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           { duration: 4000 }
         );
         setSelectedLane(null);
-      } catch (error: any) {
-        toast.error(error?.message || 'Failed to update lane status.', { duration: 5000 });
+      } catch (error) {
+        toast.error((error as Error)?.message || 'Failed to update lane status.', { duration: 5000 });
       }
     }
   };
@@ -184,8 +185,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
       setSelectedSlotCodes([]);
       setSelectionType(null);
       setIsMultiSelect(false);
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update slots.', { duration: 5000 });
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to update slots.', { duration: 5000 });
     }
   };
 
@@ -212,8 +213,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         await dispatch(getSlots({ date, facilityCode }));
         toast.success('Slot blocked successfully!', { duration: 4000 });
         setSelectedSlot(null);
-      } catch (error: any) {
-        toast.error(error?.message || 'Failed to block slot.', { duration: 5000 });
+      } catch (error) {
+        toast.error((error as Error)?.message || 'Failed to block slot.', { duration: 5000 });
       }
     }
   };
@@ -231,8 +232,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         await dispatch(getSlots({ date, facilityCode }));
         toast.success('Slot unblocked successfully!', { duration: 4000 });
         setSelectedSlot(null);
-      } catch (error: any) {
-        toast.error(error?.message || 'Failed to unblock slot.', { duration: 5000 });
+      } catch (error) {
+        toast.error((error as Error)?.message || 'Failed to unblock slot.', { duration: 5000 });
       }
     }
   };
@@ -323,7 +324,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            handleMenuClick(lane, e as any);
+            handleMenuClick(lane, e as unknown as React.MouseEvent);
           }
         }}
       >
@@ -352,7 +353,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            handleTimeSlotMenuClick(slot, slotIdx, e as any);
+            handleTimeSlotMenuClick(slot, slotIdx, e as unknown as React.MouseEvent);
           }
         }}
       >

@@ -19,7 +19,7 @@ const slotsSlice = createSlice({
     });
     builder.addCase(getSlots.rejected, (state, action) => {
       state.isLoading = false;
-      state.error = action.payload;
+      state.error = (action.payload as string) ?? null;
       state.slots = null;
     });
     builder.addCase(updateLaneStatus.pending, state => {
@@ -32,7 +32,7 @@ const slotsSlice = createSlice({
     });
     builder.addCase(updateLaneStatus.rejected, (state, action) => {
       state.isBlockLaneLoading = false;
-      state.error = action.payload;
+      state.error = (action.payload as string) ?? null;
     });
     builder.addCase(coachSlots.pending, state => {
       state.isLoading = true;
@@ -44,7 +44,7 @@ const slotsSlice = createSlice({
     });
     builder.addCase(coachSlots.rejected, (state, action) => {
       state.isLoading = false;
-      state.error = action.payload;
+      state.error = (action.payload as string) ?? null;
       state.coachSlotsList = null;
     });
   },

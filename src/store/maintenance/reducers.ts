@@ -1,49 +1,77 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { createWork, getWorkList, updateWork } from './api';
-import { initialState } from './types';
+import {
+  archiveTemplate,
+  completeTask,
+  createTemplate,
+  flagIssue,
+  listSchedules,
+  listTemplates,
+  restoreTemplate,
+  scheduleTask,
+  unscheduleTask,
+  updateTemplate,
+} from './api';
+import { initialMaintenanceState } from './types';
 
 const maintenanceSlice = createSlice({
   name: 'maintenance',
-  initialState,
+  initialState: initialMaintenanceState,
   reducers: {},
   extraReducers: builder => {
-    builder.addCase(getWorkList.pending, state => {
-      state.isLoading = true;
-      state.error = '';
+    // Templates list
+    builder.addCase(listTemplates.pending, state => {
+      state.templatesLoading = true;
+      state.error = null;
     });
-    builder.addCase(getWorkList.fulfilled, (state, action) => {
-      state.isLoading = false;
-      const data = action.payload?.data;
-      // Issue returns a raw array; task/log return { items, total, page, limit, totalPages }
-      if (Array.isArray(data)) {
-        state.workList = {
-          items: data,
-          total: data.length,
-          page: 1,
-          limit: 20,
-          totalPages: 1,
-        };
-      } else {
-        state.workList = data || {
-          items: [],
-          total: 0,
-          page: 1,
-          limit: 20,
-          totalPages: 1,
-        };
-      }
+    builder.addCase(listTemplates.fulfilled, (state, action) => {
+      state.templatesLoading = false;
+      state.templates = action.payload.items;
     });
-    builder.addCase(getWorkList.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = (action.payload as string) || 'Failed to fetch work list. Please try again.';
-      state.workList = { items: [], total: 0, page: 1, limit: state.workList.limit || 20, totalPages: 1 };
+    builder.addCase(listTemplates.rejected, (state, action) => {
+      state.templatesLoading = false;
+      state.error = (action.payload as string) || 'Failed to load the task library.';
+      state.templates = [];
     });
-    builder.addCase(createWork.rejected, (state, action) => {
-      state.error = (action.payload as string) || 'Failed to create work item. Please try again.';
+
+    // Schedules list
+    builder.addCase(listSchedules.pending, state => {
+      state.schedulesLoading = true;
+      state.error = null;
     });
-    builder.addCase(updateWork.rejected, (state, action) => {
-      state.error = (action.payload as string) || 'Failed to update work item. Please try again.';
+    builder.addCase(listSchedules.fulfilled, (state, action) => {
+      state.schedulesLoading = false;
+      state.schedules = action.payload.items;
+    });
+    builder.addCase(listSchedules.rejected, (state, action) => {
+      state.schedulesLoading = false;
+      state.error = (action.payload as string) || 'Failed to load the schedule.';
+      state.schedules = [];
+    });
+
+    // Mutations — the page re-fetches the relevant list on success, so these only
+    // track the shared `saving` flag + surface errors.
+    [
+      createTemplate,
+      updateTemplate,
+      archiveTemplate,
+      restoreTemplate,
+      scheduleTask,
+      completeTask,
+      flagIssue,
+      unscheduleTask,
+    ].forEach(thunk => {
+      builder.addCase(thunk.pending, state => {
+        state.saving = true;
+        state.error = null;
+      });
+      builder.addCase(thunk.fulfilled, state => {
+        state.saving = false;
+      });
+      builder.addCase(thunk.rejected, (state, action) => {
+        state.saving = false;
+        state.error = (action.payload as string) || 'Something went wrong.';
+      });
     });
   },
 });

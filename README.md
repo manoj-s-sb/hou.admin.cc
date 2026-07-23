@@ -1,46 +1,99 @@
-# Getting Started with Create React App
+# hou.admin.cc
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Admin console for the Hou platform — manages members, inductions, slots, coaches, maintenance, tailgates, staff, and centres. Bootstrapped with Create React App; written in React 19 + TypeScript + Redux Toolkit + MUI + Tailwind.
 
-## Available Scripts
+> **Branching:** `main` is the production line. Feature work merges into `release/dev-v1.0` and then promotes upward through `uat` and finally `main`.
 
-In the project directory, you can run:
+## Prerequisites
 
-### `npm start`
+- Node 22.x (matches CI — see `.github/workflows/feature-branch-ci.yml`)
+- npm 10+
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Setup
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+```bash
+npm install
+npm run start:dev          # runs against the dev API
+```
 
-### `npm test`
+The app serves on http://localhost:3000.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Environments
 
-### `npm run build`
+Three env files live at the repo root. Each ships only the public API base URL — no secrets.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+| File               | API base URL                           | Used by                    |
+| ------------------ | -------------------------------------- | -------------------------- |
+| `.env.development` | `sbcc-func-auth-dev.azurewebsites.net` | `start:dev`, `build:dev`   |
+| `.env.uat`         | UAT Azure function                     | `start:uat`, `build:uat`   |
+| `.env.production`  | Production Azure function              | `start:prod`, `build:prod` |
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Required vars: `REACT_APP_API_BASE_URL`, `REACT_APP_ENV`. The axios client in `src/services/index.ts` reads `REACT_APP_API_BASE_URL` at boot.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Scripts
 
-### `npm run eject`
+| Command                 | Purpose                                       |
+| ----------------------- | --------------------------------------------- |
+| `npm run start:dev`     | Dev server against the dev API                |
+| `npm run start:uat`     | Dev server against the UAT API                |
+| `npm run start:prod`    | Dev server against production (use sparingly) |
+| `npm run build:dev`     | Production-style build with dev env           |
+| `npm run build:uat`     | UAT build                                     |
+| `npm run build:prod`    | Production build                              |
+| `npm run lint`          | ESLint over `src/`                            |
+| `npm run lint:fix`      | ESLint with `--fix`                           |
+| `npm run format`        | Prettier write                                |
+| `npm run format:check`  | Prettier check (no write)                     |
+| `npm run check`         | Lint + format check                           |
+| `npm run type-check`    | `tsc --noEmit`                                |
+| `npm test`              | Jest watch mode                               |
+| `npm run test:coverage` | One-shot coverage run                         |
+| `npm run clean`         | Remove `build/` and `node_modules/`           |
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## Project layout
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```
+src/
+  App.tsx              # routing + global providers (Redux, Persist, Toaster)
+  index.tsx            # bootstrap, attaches store to axios
+  pages/               # feature pages — each folder owns its UI, sub-components, and helpers
+  components/          # cross-cutting UI (Layout, Sidebar, DataTable, Loader, etc.)
+  store/               # one folder per domain — { api.ts, reducers.ts, types.ts }
+    store.ts           # combineReducers, configureStore, RootState, AppDispatch
+    persistConfig.ts   # redux-persist whitelist
+  services/            # single axios instance + interceptors (auth, session expiry)
+  rbac/                # permission-gated route + component wrappers
+  constants/           # routes, menus, endpoints, RBAC scopes
+  utils/               # date / error / token / logger helpers (pure, no React)
+  helpers/             # JWT decoder
+  types/               # ambient types
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+### Conventions
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+- **Imports:** ordered by `eslint-plugin-import` — builtin → external → internal → parent/sibling/index → type. Run `npm run lint:fix` if you're unsure.
+- **Absolute imports:** `tsconfig.json` sets `baseUrl: "src"` — new code can write `import X from 'components/X'` instead of `../../components/X`. Existing relative imports were left in place.
+- **Redux:** thunks live in `store/<domain>/api.ts`, reducer + slice in `reducers.ts`, types in `types.ts`. Use `useDispatch<AppDispatch>()` — never accept `dispatch` as a prop.
+- **Permissions:** wrap routes with `<PermissionRoute module={ACCESS_SCOPES.x}>` and inline-gate UI with `<PermissionGate>`. Defined in `src/rbac/`.
+- **Code-splitting:** heavy routes (Dashboard, Maintenance) are loaded via `React.lazy()` in `App.tsx`. Do not re-export them from `src/pages/index.tsx` — that would defeat the chunking.
+- **Errors:** thunks throw via `rejectWithValue(handleApiError(err, fallback))`; components surface them via `react-hot-toast`.
 
-## Learn More
+## CI
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+`.github/workflows/feature-branch-ci.yml` runs on every PR:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- `npm ci`
+- ESLint (errors fail the build; warnings are advisory)
+- Prettier check
+- `tsc --noEmit`
+
+## Known caveats
+
+- **Create React App** (`react-scripts 5.0.1`) is in maintenance mode upstream. A migration to Vite is on the roadmap.
+- **JWT + user PII** is currently persisted to `localStorage` via redux-persist. This is an XSS exposure — slated to move to httpOnly cookies or in-memory + silent refresh. See `src/store/persistConfig.ts`.
+- **No tests yet.** `@testing-library/*` is installed but `find src -name "*.test.*"` returns zero results. Start with utility + reducer tests.
+- **No error monitoring** wired up. `src/utils/logger.ts` has a TODO for the sink.
+
+## Engineering notes
+
+See the engineering audit for the full assessment of code quality, performance, type safety, and security. Critical and quick-win items are tracked in the team backlog.

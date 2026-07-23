@@ -50,12 +50,13 @@ module.exports = {
         varsIgnorePattern: '^_',
       },
     ],
-    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-var-requires': 'error',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-member-accessibility': 'off',
     '@typescript-eslint/no-non-null-assertion': 'warn',
     '@typescript-eslint/prefer-optional-chain': 'error',
+    // Tracked for triage — every `any` is a hole in the type system. See engineering audit.
     // Import rules
     'import/order': [
       'error',
@@ -95,6 +96,8 @@ module.exports = {
     'jsx-a11y/aria-unsupported-elements': 'error',
     'jsx-a11y/click-events-have-key-events': 'warn',
     'jsx-a11y/no-static-element-interactions': 'warn',
+    // Treat our shared NumberInput as a form control so <label> wrappers are valid.
+    'jsx-a11y/label-has-associated-control': ['error', { controlComponents: ['NumberInput'] }],
     // General rules
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'prefer-const': 'error',

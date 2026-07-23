@@ -1,24 +1,36 @@
+/**
+ * Maintenance & Tasks — async thunks over the single action-dispatched endpoint
+ * (POST /admin/maintenance with `{ action, payload }`). Each thunk unwraps the
+ * standard `{ data }` envelope. Attachments are uploaded directly to blob storage
+ * via a write SAS minted by the `upload_url` action, then the returned blobName is
+ * sent in complete/flag payloads.
+ */
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
 import endpoints from '../../constants/endpoints';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
-import { CreateWorkRequest, UpdateWorkRequest, WorkListRequest } from './types';
+import type {
+  CompleteTaskPayload,
+  CreateTemplatePayload,
+  FlagIssuePayload,
+  FlagIssueResponse,
+  ListSchedulesPayload,
+  ListSchedulesResponse,
+  ListTemplatesPayload,
+  ListTemplatesResponse,
+  ScheduleTaskPayload,
+  TaskSchedule,
+  TaskTemplate,
+  UnscheduleTaskPayload,
+  UpdateTemplatePayload,
+} from './types';
 
-export const getWorkUploadUrl = async (
-  facilityCode: string,
-  fileName: string
-): Promise<{ uploadUrl: string; blobName: string }> => {
-  const response = await api.post(endpoints.maintenance.uploadUrl, { facilityCode, fileName });
-  const data = response?.data?.data;
-  return { uploadUrl: data?.uploadUrl as string, blobName: data?.blobName as string };
-};
-
-export const deleteWorkMedia = async (blobName: string): Promise<void> => {
-  await api.post(endpoints.maintenance.deleteMedia, { blobName });
-};
-
+/**
+ * Upload raw file bytes to a blob write-SAS URL. Kept as a standalone export —
+ * the Tickets module imports this helper too. Do NOT remove.
+ */
 export const uploadFileToBlob = async (uploadUrl: string, file: File): Promise<void> => {
   await fetch(uploadUrl, {
     method: 'PUT',
@@ -27,54 +39,154 @@ export const uploadFileToBlob = async (uploadUrl: string, file: File): Promise<v
   });
 };
 
-export const getWorkList = createAsyncThunk(
-  'maintenance/getWorkList',
-  async (payload: WorkListRequest, { rejectWithValue }) => {
+// Drop undefined keys so the action body only carries what the caller set.
+const clean = <T extends Record<string, unknown>>(obj: T): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+
+const post = async <T>(action: string, payload: Record<string, unknown> = {}): Promise<T> => {
+  const res = await api.post<{ data: T }>(endpoints.maintenance, { action, payload: clean(payload) });
+  return res.data?.data ?? (res.data as unknown as T);
+};
+
+/** Upload a file for a facility and return its raw blobName (for complete/flag payloads). */
+export const uploadMaintenanceFile = async (facilityCode: string, file: File): Promise<string> => {
+  const { uploadUrl, blobName } = await post<{ uploadUrl: string; blobName: string }>('upload_url', {
+    facilityCode,
+    fileName: file.name,
+    contentType: file.type || undefined,
+  });
+  await uploadFileToBlob(uploadUrl, file);
+  return blobName;
+};
+
+/* ── Templates ── */
+
+export const listTemplates = createAsyncThunk<ListTemplatesResponse, ListTemplatesPayload, { rejectValue: string }>(
+  'maintenance/listTemplates',
+  async (payload, { rejectWithValue }) => {
     try {
-      const body: Record<string, any> = {
-        facilityCode: payload.facilityCode,
-        page: payload.page,
-        limit: payload.limit,
+      const data = await post<ListTemplatesResponse>('list_templates', { ...payload });
+      return { items: Array.isArray(data?.items) ? data.items : [], total: data?.total ?? 0 };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to load the task library'));
+    }
+  }
+);
+
+export const getTemplate = createAsyncThunk<TaskTemplate, string, { rejectValue: string }>(
+  'maintenance/getTemplate',
+  async (id, { rejectWithValue }) => {
+    try {
+      return await post<TaskTemplate>('get_template', { id });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to load the template'));
+    }
+  }
+);
+
+export const createTemplate = createAsyncThunk<TaskTemplate, CreateTemplatePayload, { rejectValue: string }>(
+  'maintenance/createTemplate',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await post<TaskTemplate>('create_template', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not create the task'));
+    }
+  }
+);
+
+export const updateTemplate = createAsyncThunk<TaskTemplate, UpdateTemplatePayload, { rejectValue: string }>(
+  'maintenance/updateTemplate',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await post<TaskTemplate>('update_template', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not update the task'));
+    }
+  }
+);
+
+export const archiveTemplate = createAsyncThunk<TaskTemplate, string, { rejectValue: string }>(
+  'maintenance/archiveTemplate',
+  async (id, { rejectWithValue }) => {
+    try {
+      return await post<TaskTemplate>('archive_template', { id });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not archive the task'));
+    }
+  }
+);
+
+export const restoreTemplate = createAsyncThunk<TaskTemplate, string, { rejectValue: string }>(
+  'maintenance/restoreTemplate',
+  async (id, { rejectWithValue }) => {
+    try {
+      return await post<TaskTemplate>('restore_template', { id });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not restore the task'));
+    }
+  }
+);
+
+/* ── Schedules ── */
+
+export const listSchedules = createAsyncThunk<ListSchedulesResponse, ListSchedulesPayload, { rejectValue: string }>(
+  'maintenance/listSchedules',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await post<ListSchedulesResponse>('list_schedules', { ...payload });
+      return {
+        items: Array.isArray(data?.items) ? data.items : [],
+        total: data?.total ?? 0,
+        facilityCode: data?.facilityCode ?? payload.facilityCode,
       };
-
-      if (payload.type) body.type = payload.type;
-      if (payload.status) body.status = payload.status;
-      if (payload.category) body.category = payload.category;
-      if (payload.frequency) body.frequency = payload.frequency;
-      if (payload.scheduledDate) body.scheduledDate = payload.scheduledDate;
-      if (payload.fromDate) body.fromDate = payload.fromDate;
-      if (payload.toDate) body.toDate = payload.toDate;
-      if (payload.laneNo !== undefined) body.laneNo = payload.laneNo;
-      if (payload.isActive !== undefined) body.isActive = payload.isActive;
-
-      const response = await api.post(`${endpoints.maintenance.workList}`, body);
-      return response?.data;
-    } catch (error: any) {
-      return rejectWithValue(handleApiError(error, 'Failed to fetch work list'));
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to load the schedule'));
     }
   }
 );
 
-export const updateWork = createAsyncThunk(
-  'maintenance/updateWork',
-  async (payload: UpdateWorkRequest, { rejectWithValue }) => {
+export const scheduleTask = createAsyncThunk<TaskSchedule, ScheduleTaskPayload, { rejectValue: string }>(
+  'maintenance/scheduleTask',
+  async (payload, { rejectWithValue }) => {
     try {
-      const response = await api.post(`${endpoints.maintenance.updateWork}`, payload);
-      return response?.data;
-    } catch (error: any) {
-      return rejectWithValue(handleApiError(error, 'Failed to update work item'));
+      return await post<TaskSchedule>('schedule_task', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not schedule the task'));
     }
   }
 );
 
-export const createWork = createAsyncThunk(
-  'maintenance/createWork',
-  async (payload: CreateWorkRequest, { rejectWithValue }) => {
+export const completeTask = createAsyncThunk<TaskSchedule, CompleteTaskPayload, { rejectValue: string }>(
+  'maintenance/completeTask',
+  async (payload, { rejectWithValue }) => {
     try {
-      const response = await api.post(`${endpoints.maintenance.createWork}`, payload);
-      return response?.data;
-    } catch (error: any) {
-      return rejectWithValue(handleApiError(error, 'Failed to create work item'));
+      return await post<TaskSchedule>('complete_task', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not complete the task'));
     }
   }
 );
+
+export const flagIssue = createAsyncThunk<FlagIssueResponse, FlagIssuePayload, { rejectValue: string }>(
+  'maintenance/flagIssue',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await post<FlagIssueResponse>('flag_issue', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not flag the issue'));
+    }
+  }
+);
+
+export const unscheduleTask = createAsyncThunk<
+  { id: string; deleted: boolean },
+  UnscheduleTaskPayload,
+  { rejectValue: string }
+>('maintenance/unscheduleTask', async (payload, { rejectWithValue }) => {
+  try {
+    return await post<{ id: string; deleted: boolean }>('unschedule_task', { ...payload });
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Could not remove the schedule'));
+  }
+});

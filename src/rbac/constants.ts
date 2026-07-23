@@ -6,20 +6,27 @@
 // case-insensitively. Add any new backend variants here.
 export const SUPER_ADMIN_ROLES = ['stancebeamadmin', 'superadmin'] as const;
 // Kept for backwards compatibility; primary role string.
-export const SUPER_ADMIN_ROLE = SUPER_ADMIN_ROLES[0];
+export const [SUPER_ADMIN_ROLE] = SUPER_ADMIN_ROLES;
 export const SUPER_ADMIN_ONLY = '__superadmin__';
 
+// The 10 backend module ids (RBAC spec §1). Values MUST match the keys the
+// backend sends in permissions.modules.
 export const MODULES = {
   MEMBERS: 'members',
   SLOT_BOOKING: 'slotbooking',
-  // Backend uses 'coachshedule' (typo intentional — do not "correct" without backend change)
-  COACH_SCHEDULE: 'coachshedule',
+  COACH_SCHEDULE: 'coachschedule',
   REPORTS: 'reports',
   INDUCTION: 'induction',
   TOUR: 'tour',
   MAINTENANCE: 'maintenance',
   TAILGATE: 'tailgate',
+  CENTRE_MANAGEMENT: 'centremanagement',
   STAFF: 'staffmanagement',
+  TICKETS: 'ticketsincidents',
+  MEMBERSHIP_PLANS: 'membershipplans',
+  WAITLIST_LEADS: 'waitlistleads',
+  FACILITIES: 'facilities',
+  PLANS_PRICING: 'planspricing',
   SUPER_ADMIN: SUPER_ADMIN_ONLY,
 } as const;
 
@@ -34,6 +41,12 @@ export const ACCESS_SCOPES = {
   tour: [MODULES.TOUR],
   maintenance: [MODULES.MAINTENANCE],
   tailgate: [MODULES.TAILGATE],
+  centreManagement: [MODULES.CENTRE_MANAGEMENT],
   staff: [MODULES.STAFF],
+  tickets: [MODULES.TICKETS],
+  membershipPlans: [MODULES.MEMBERSHIP_PLANS],
+  waitlistLeads: [MODULES.WAITLIST_LEADS],
+  facilities: [MODULES.FACILITIES],
+  plansPricing: [MODULES.PLANS_PRICING],
   superAdmin: [MODULES.SUPER_ADMIN],
 } as const;

@@ -6,6 +6,7 @@ const endpoints = {
     updateCoachSlots: 'admin/coach/status/update',
   },
   login: '/admin/auth/login',
+  me: '/admin/auth/me',
   members: {
     list: '/admin/members/list',
     membersDetails: '/admin/member/details',
@@ -14,14 +15,11 @@ const endpoints = {
   tour: {
     updateTourStatus: '/admin/bookings/tour/status/update',
   },
-  maintenance: {
-    workList: '/admin/work/list',
-    createWork: '/admin/work/create',
-    updateWork: '/admin/work/update',
-    workDetail: '/admin/work/detail',
-    uploadUrl: '/admin/work/uploadurl',
-    deleteMedia: '/admin/work/deletemedia',
-  },
+  // Maintenance & Tasks — ONE action-dispatched endpoint. Body always carries an
+  // `action` (list_templates | create_template | update_template | archive_template |
+  // restore_template | get_template | list_schedules | schedule_task | complete_task |
+  // flag_issue | unschedule_task | upload_url) plus that action's `payload`.
+  maintenance: '/admin/maintenance',
   tailgate: {
     createEvent: '/admin/tailgate/events',
     review: '/admin/tailgate/review',
@@ -33,6 +31,12 @@ const endpoints = {
     create: '/admin/staff/create',
     details: '/admin/staff/details',
     update: '/admin/staff/update',
+    // BACKEND TODO: persist a new staff role to the DB and return the created RoleConfig.
+    roleCreate: '/admin/staff/roles/create',
+    // BACKEND TODO: persist a new access level and return the created AccessLevelConfig.
+    accessLevelCreate: '/admin/staff/access-levels/create',
+    // GET ?roles=<comma-separated role ids> → { moduleId: verbs }, unioned across roles.
+    roleDefaults: '/admin/staff/role-defaults',
   },
   induction: {
     list: '/admin/bookings/list',
@@ -43,6 +47,12 @@ const endpoints = {
     userInductionDetails: '/admin/induction/details',
   },
   centres: {
+    // New doc-bundle model (live backend) — all POST.
+    centresList: '/admin/centres/list', // POST { status?, search?, skip, limit, sort, order }
+    centreDetails: '/admin/centres/details', // POST { code }
+    centreCreate: '/admin/centres/create', // POST { facility, lanes[], memberships[], membershipSalesFlow }
+    centreUpdate: '/admin/centres/update', // POST { centreId, facility } — edit facility / activate draft
+    // Legacy model (ops dashboard + update/suspend/delete — not re-wired yet).
     list: '/admin/centres',
     wizardStart: '/admin/centres/wizard/start',
     wizardStep: (id: string, step: number) => `/admin/centres/wizard/${id}/step${step}`,
@@ -51,12 +61,34 @@ const endpoints = {
     saveActivate: (id: string) => `/admin/centres/wizard/${id}/save-activate`,
     members: (id: string) => `/admin/centres/${id}/members`,
     bookings: (id: string) => `/admin/centres/${id}/bookings`,
+    waitlist: '/admin/centres/waitlist', // POST { facilityCode, subscriptionSrc?, registerdVia?, page, limit }
+    leads: '/admin/centres/leads', // POST { facilityCode, action?, subscription_code?, page, limit }
+  },
+  memberships: {
+    // Live backend — returns the facility's memberships (rich nested shape).
+    // Pass the facility code via the `facilityCode` query param.
+    list: '/admin/memberships',
+    // Create a new GLOBAL plan template (flat body). POST.
+    create: '/admin/memberships/create',
+    // Create/update a membership (full nested body).
+    update: '/admin/memberships/update',
+    // Daily FX rates for the network reference-price currency conversion.
+    // GET → { base: 'USD', rates: { AUD: n, INR: n, … }, asOf?: 'YYYY-MM-DD' }.
+    fxRates: '/admin/fxrates',
   },
   membershipPlans: {
     list: '/admin/membership-plans',
     update: (id: string) => `/admin/membership-plans/${id}`,
     archive: (id: string) => `/admin/membership-plans/${id}/archive`,
   },
+  // Tickets / Incidents — ONE action-dispatched endpoint. Body always carries an
+  // `action` (create | list | get | updateStatus | acknowledge | comment |
+  // addAttachment | reassign | counts) plus that action's payload.
+  tickets: '/admin/tickets',
+  // Reports / Analytics — ONE GET endpoint. Filters (tab, view, centreId, country,
+  // period, startDate, endDate) are passed as query params; the `tab` selects the
+  // response shape (overview | membership | utilisation | sessions | capacity).
+  reports: '/admin/reports',
 };
 
 export default endpoints;

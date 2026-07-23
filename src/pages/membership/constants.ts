@@ -6,12 +6,11 @@ export interface CurrencyOption {
   rate: number;
 }
 
+// Only the currencies for the centres we operate in: USA, Australia, India.
 export const CURRENCIES: CurrencyOption[] = [
   { code: 'USD', symbol: '$', rate: 1 },
   { code: 'AUD', symbol: 'A$', rate: 1.52 },
   { code: 'INR', symbol: '₹', rate: 83.2 },
-  { code: 'EUR', symbol: '€', rate: 0.92 },
-  { code: 'GBP', symbol: '£', rate: 0.79 },
 ];
 
 /** Centre/region filters shown above the plan tables. */
