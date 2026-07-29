@@ -389,9 +389,9 @@ const StaffManagement: React.FC = () => {
       minWidth: 120,
       sortable: false,
       renderCell: ({ row }) => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
-            className="text-[12px] font-semibold text-gray-600 transition hover:text-[#21295A]"
+            className="rounded-md border border-gray-200 bg-white px-3 py-1 text-[11.5px] font-semibold text-gray-700 shadow-sm transition hover:border-[#21295A] hover:text-[#21295A]"
             type="button"
             onClick={e => {
               e.stopPropagation();
@@ -405,8 +405,10 @@ const StaffManagement: React.FC = () => {
             const isInactive = r.status === 'inactive';
             return (
               <button
-                className={`text-[12px] font-semibold transition disabled:opacity-50 ${
-                  isInactive ? 'text-emerald-600 hover:text-emerald-700' : 'text-red-500 hover:text-red-700'
+                className={`rounded-md border px-3 py-1 text-[11.5px] font-semibold shadow-sm transition disabled:opacity-50 ${
+                  isInactive
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
                 }`}
                 disabled={togglingId === r.id}
                 type="button"

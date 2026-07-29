@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
 
 import { isGlobalScope } from '../../rbac';
 import { getCentres } from '../../store/centres/api';
@@ -39,6 +40,11 @@ const TAB_TYPE: Record<TailgateTab, 'all' | 'unidentified' | 'violation'> = {
 };
 
 const Tailgate = () => {
+  // Centre context provides :facilityCode (e.g. /centres/BLR01/tailgate); the global
+  // /tailgate route does not. When present, this page must ALWAYS scope to that one
+  // centre — never fall back to the global "All centres" default.
+  const { facilityCode: routeFacility } = useParams<{ facilityCode?: string }>();
+  const isCentreScoped = Boolean(routeFacility);
   const dispatch = useDispatch<AppDispatch>();
   const { logs, isLoading, stats, totalEvents, totalPages, firstDateOffset } = useSelector(
     (state: RootState) => state.tailgate
@@ -56,11 +62,13 @@ const Tailgate = () => {
   const silentRefresh = useRef(false);
 
   // Centre filter — global-scope viewers (superadmin, country/regional managers) see
-  // every centre's tailgate data by default; this narrows to one. Facility-scoped
-  // viewers only ever have their own centre, so the filter is hidden for them.
+  // every centre's tailgate data by default on the GLOBAL page; this narrows to one.
+  // Inside a centre (routeFacility set), scope is forced to that centre and the
+  // picker is hidden entirely — never falls back to "All centres".
   const [centreCode, setCentreCode] = useState('');
   const [centres, setCentres] = useState<FacilitySummary[]>([]);
-  const showCentreFilter = isGlobalScope();
+  const showCentreFilter = isGlobalScope() && !isCentreScoped;
+  const effectiveFacilityCode = isCentreScoped ? routeFacility : centreCode || undefined;
 
   useEffect(() => {
     if (!showCentreFilter) return;
@@ -92,10 +100,10 @@ const Tailgate = () => {
       if (filters.door) payload.laneDoor = filters.door;
       if (filters.type) payload.eventType = filters.type;
       if (filters.status) payload.reviewStatus = filters.status as 'pending' | 'reviewed' | 'violation';
-      if (centreCode) payload.facilityCode = centreCode;
+      if (effectiveFacilityCode) payload.facilityCode = effectiveFacilityCode;
       return payload;
     },
-    [page, rowsPerPage, activeTab, filters, centreCode]
+    [page, rowsPerPage, activeTab, filters, effectiveFacilityCode]
   );
 
   const handleTabChange = (tab: TailgateTab) => {
@@ -116,9 +124,9 @@ const Tailgate = () => {
     if (filters.door) payload.laneDoor = filters.door;
     if (filters.type) payload.eventType = filters.type;
     if (filters.status) payload.reviewStatus = filters.status;
-    if (centreCode) payload.facilityCode = centreCode;
+    if (effectiveFacilityCode) payload.facilityCode = effectiveFacilityCode;
     return payload;
-  }, [filters, centreCode]);
+  }, [filters, effectiveFacilityCode]);
 
   const handleSaveReview = (isViolation: boolean) => {
     setToast(
@@ -132,7 +140,7 @@ const Tailgate = () => {
     if (filters.to) payload.toDate = toApiDate(filters.to);
     if (filters.name) payload.memberName = filters.name;
     if (filters.door) payload.laneDoor = filters.door;
-    if (centreCode) payload.facilityCode = centreCode;
+    if (effectiveFacilityCode) payload.facilityCode = effectiveFacilityCode;
     dispatch(fetchTailgateEvents(payload)).finally(() => {
       silentRefresh.current = false;
     });
@@ -250,35 +258,24 @@ const Tailgate = () => {
       </div>
 
       {/* Centre filter — global-scope viewers only; narrows every tab + the stat tiles
-          to one centre, or "All centres" for the full network-wide view. */}
+          to one centre, or "All centres" for the full network-wide view. A dropdown
+          scales far better than a pill row once the network has more than a handful
+          of centres. */}
       {showCentreFilter && centres.length > 0 && (
-        <div className="mb-5 flex flex-wrap items-center gap-2 rounded-[10px] border border-gray-100 bg-white px-[18px] py-3.5 shadow-sm">
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[10px] border border-gray-100 bg-white px-[18px] py-3.5 shadow-sm">
           <span className="text-xs font-bold uppercase tracking-[0.06em] text-gray-400">Centre:</span>
-          <button
-            className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
-              centreCode === ''
-                ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]'
-                : 'border-gray-200 bg-white text-gray-500'
-            }`}
-            type="button"
-            onClick={() => selectCentre('')}
+          <select
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 outline-none transition focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+            value={centreCode}
+            onChange={e => selectCentre(e.target.value)}
           >
-            All centres
-          </button>
-          {centres.map(c => (
-            <button
-              key={c.code}
-              className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
-                centreCode === c.code
-                  ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]'
-                  : 'border-gray-200 bg-white text-gray-500'
-              }`}
-              type="button"
-              onClick={() => selectCentre(c.code)}
-            >
-              {countryFlag(c.countryCode)} {c.name}
-            </button>
-          ))}
+            <option value="">All centres</option>
+            {centres.map(c => (
+              <option key={c.code} value={c.code}>
+                {countryFlag(c.countryCode)} {c.name}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
