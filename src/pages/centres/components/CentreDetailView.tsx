@@ -68,13 +68,19 @@ const CentreDetailView: React.FC<Props> = ({ code, children }) => {
         </div>
       </div>
 
-      {isLoading && (
-        <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
-          <div className="text-sm font-bold text-navy">Loading centre…</div>
-        </div>
+      {/* This centre-config bundle (lanes, memberships, facility settings) only feeds the
+          header above and the edit/activate wizard — it is NOT required to view an
+          operational module (Members, Slot Bookings, …), which is already correctly
+          permission-gated by CentreModuleRoute on its own scope. Previously the module
+          page only rendered once this unrelated bundle finished loading, so any role
+          that could read a module but not the full admin config (e.g. a facility-scoped
+          coach/staff) saw a permanently blank page while this call loaded or errored —
+          the module's own data never even got a chance to fetch. Render it unconditionally. */}
+      {isLoading && !bundle && (
+        <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 12 }}>Loading centre details…</div>
       )}
 
-      {!isLoading && error && (
+      {!isLoading && error && !bundle && (
         <div
           style={{
             fontSize: 13,
@@ -83,6 +89,7 @@ const CentreDetailView: React.FC<Props> = ({ code, children }) => {
             border: '1px solid #fde68a',
             borderRadius: 8,
             padding: '12px 14px',
+            marginBottom: 12,
           }}
         >
           {error}
@@ -92,7 +99,7 @@ const CentreDetailView: React.FC<Props> = ({ code, children }) => {
       {/* The active module's page (Members, Slot Bookings, …) rendered under the centre
           header. It scopes itself to this centre via facilityScope. Navigation lives in
           the global Sidebar. */}
-      {!isLoading && !error && bundle && children}
+      {children}
     </div>
   );
 };

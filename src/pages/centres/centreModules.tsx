@@ -109,7 +109,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         label: 'Waitlist / Leads',
         slug: 'waitlist',
         component: WaitlistLeads,
-        scope: ACCESS_SCOPES.members,
+        scope: ACCESS_SCOPES.waitlistLeads,
         icon: I(
           <>
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
@@ -147,7 +147,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         label: 'Tickets / Incidents',
         slug: 'tickets',
         component: Tickets,
-        scope: ACCESS_SCOPES.maintenance,
+        scope: ACCESS_SCOPES.tickets,
         icon: I(
           <>
             <path d="M4 5a2 2 0 0 0-2 2v3a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2H4z" />
@@ -182,7 +182,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         label: 'Facilities',
         slug: 'facilities',
         component: Facilities,
-        scope: ACCESS_SCOPES.centreManagement,
+        scope: ACCESS_SCOPES.facilities,
         icon: I(
           <>
             <path d="M3 21h18" />
@@ -196,7 +196,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         label: 'Plans & Pricing',
         slug: 'plans-pricing',
         component: PlansPricing,
-        scope: ACCESS_SCOPES.centreManagement,
+        scope: ACCESS_SCOPES.plansPricing,
         icon: I(
           <>
             <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />

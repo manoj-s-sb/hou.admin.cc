@@ -4,13 +4,17 @@ export {
   allowedFacilities,
   allowedRegions,
   can,
+  canEditModule,
   canRead,
   canWrite,
   getRole,
   hasPermission,
   isGlobalScope,
   isSuperAdmin,
+  isSuperadmin,
   scopeType,
+  sidebarCanEdit,
+  sidebarItems,
 } from './permissions';
 export type { ModuleKey } from './permissions';
 export { default as PermissionGate } from './PermissionGate';

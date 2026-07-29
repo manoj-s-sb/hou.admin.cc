@@ -28,6 +28,8 @@ const authSlice = createSlice({
       state.user = null;
       state.permissions = null;
       state.scope = null;
+      state.sidebar = null;
+      state.assignedCentres = null;
       state.tokenExpirationTime = null;
       state.error = null;
     },
@@ -44,6 +46,8 @@ const authSlice = createSlice({
       state.user = data?.user ?? null;
       state.permissions = data?.permissions ?? null;
       state.scope = data?.scope ?? null;
+      state.sidebar = data?.sidebar ?? null;
+      state.assignedCentres = data?.assignedCentres ?? null;
       state.tokenExpirationTime = data?.tokens?.expires_in ? Date.now() + data.tokens.expires_in * 1000 : null;
       state.loginResponse = action.payload;
       state.isAuthenticated = true;
@@ -64,6 +68,10 @@ const authSlice = createSlice({
       if (data.user) state.user = data.user;
       state.permissions = data.permissions ?? null;
       state.scope = data.scope ?? null;
+      // Only overwrite sidebar/centres when /me actually returns them, so a lean
+      // /me response never wipes what login stored.
+      if (data.sidebar !== undefined) state.sidebar = data.sidebar ?? null;
+      if (data.assignedCentres !== undefined) state.assignedCentres = data.assignedCentres ?? null;
     });
   },
 });

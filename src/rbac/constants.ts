@@ -22,6 +22,11 @@ export const MODULES = {
   TAILGATE: 'tailgate',
   CENTRE_MANAGEMENT: 'centremanagement',
   STAFF: 'staffmanagement',
+  TICKETS: 'ticketsincidents',
+  MEMBERSHIP_PLANS: 'membershipplans',
+  WAITLIST_LEADS: 'waitlistleads',
+  FACILITIES: 'facilities',
+  PLANS_PRICING: 'planspricing',
   SUPER_ADMIN: SUPER_ADMIN_ONLY,
 } as const;
 
@@ -38,5 +43,10 @@ export const ACCESS_SCOPES = {
   tailgate: [MODULES.TAILGATE],
   centreManagement: [MODULES.CENTRE_MANAGEMENT],
   staff: [MODULES.STAFF],
+  tickets: [MODULES.TICKETS],
+  membershipPlans: [MODULES.MEMBERSHIP_PLANS],
+  waitlistLeads: [MODULES.WAITLIST_LEADS],
+  facilities: [MODULES.FACILITIES],
+  plansPricing: [MODULES.PLANS_PRICING],
   superAdmin: [MODULES.SUPER_ADMIN],
 } as const;

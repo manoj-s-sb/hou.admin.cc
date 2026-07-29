@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
+import { canEditModule } from '../../rbac';
+import { MODULES } from '../../rbac/constants';
 import { getFxRates, getMemberships } from '../../store/memberships/api';
 import { upsertPlan as upsertPlanAction } from '../../store/memberships/reducers';
 import { AppDispatch, RootState } from '../../store/store';
@@ -101,6 +103,7 @@ const PlanHead: React.FC<{ plans: MembershipPlan[] }> = ({ plans }) => (
 );
 
 const MembershipPlans: React.FC = () => {
+  const canEdit = canEditModule(MODULES.MEMBERSHIP_PLANS);
   // This page lists the GLOBAL plan templates (no facilityCode → /admin/memberships).
   const dispatch = useDispatch<AppDispatch>();
   const { plans, isLoading } = useSelector((state: RootState) => state.memberships);
@@ -237,17 +240,19 @@ const MembershipPlans: React.FC = () => {
             </button>
           ))}
         </div>
-        <button
-          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:opacity-90"
-          type="button"
-          onClick={openCreate}
-        >
-          <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
-            <line x1="12" x2="12" y1="5" y2="19" />
-            <line x1="5" x2="19" y1="12" y2="12" />
-          </svg>
-          New Plan
-        </button>
+        {canEdit && (
+          <button
+            className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:opacity-90"
+            type="button"
+            onClick={openCreate}
+          >
+            <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
+              <line x1="12" x2="12" y1="5" y2="19" />
+              <line x1="5" x2="19" y1="12" y2="12" />
+            </svg>
+            New Plan
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -256,8 +261,12 @@ const MembershipPlans: React.FC = () => {
         </div>
       ) : (
         <>
-          {tab === 'fortnightly' && <FortnightlyTab currency={currency} plans={visiblePlans} onEdit={openEdit} />}
-          {tab === 'annual' && <AnnualTab currency={currency} plans={visiblePlans} onEdit={openEdit} />}
+          {tab === 'fortnightly' && (
+            <FortnightlyTab currency={currency} plans={visiblePlans} onEdit={canEdit ? openEdit : undefined} />
+          )}
+          {tab === 'annual' && (
+            <AnnualTab currency={currency} plans={visiblePlans} onEdit={canEdit ? openEdit : undefined} />
+          )}
           {tab === 'booking' && <BookingAccessTab plans={visiblePlans} />}
           {tab === 'guests' && <GuestChargesTab currency={currency} plans={visiblePlans} />}
         </>
@@ -271,7 +280,7 @@ const MembershipPlans: React.FC = () => {
 const FortnightlyTab: React.FC<{
   plans: MembershipPlan[];
   currency: CurrencyOption;
-  onEdit: (p: MembershipPlan) => void;
+  onEdit?: (p: MembershipPlan) => void;
 }> = ({ plans, currency, onEdit }) => (
   <div>
     <div
@@ -394,7 +403,7 @@ const FortnightlyTab: React.FC<{
                   className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
                   style={{ fontSize: 11, padding: '4px 9px' }}
                   type="button"
-                  onClick={() => onEdit(p)}
+                  onClick={() => onEdit?.(p)}
                 >
                   Edit
                 </button>
@@ -425,7 +434,7 @@ const FortnightlyTab: React.FC<{
 const AnnualTab: React.FC<{
   plans: MembershipPlan[];
   currency: CurrencyOption;
-  onEdit: (p: MembershipPlan) => void;
+  onEdit?: (p: MembershipPlan) => void;
 }> = ({ plans, currency, onEdit }) => (
   <div>
     <div
@@ -578,7 +587,7 @@ const AnnualTab: React.FC<{
                   className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
                   style={{ fontSize: 11, padding: '4px 9px' }}
                   type="button"
-                  onClick={() => onEdit(p)}
+                  onClick={() => onEdit?.(p)}
                 >
                   Edit
                 </button>
@@ -773,7 +782,10 @@ const GuestChargesTab: React.FC<{ plans: MembershipPlan[]; currency: CurrencyOpt
   const rows: { feature: string; networkDefault: string; configurable: boolean; notes: string }[] = [
     {
       feature: 'First Guest Fee',
-      networkDefault: pricing.firstGuest === null || pricing.firstGuest === undefined ? '—' : money(num(pricing.firstGuest), currency),
+      networkDefault:
+        pricing.firstGuest === null || pricing.firstGuest === undefined
+          ? '—'
+          : money(num(pricing.firstGuest), currency),
       configurable: true,
       notes: "Charged to the member's account when they bring a guest",
     },

@@ -35,6 +35,8 @@ const endpoints = {
     roleCreate: '/admin/staff/roles/create',
     // BACKEND TODO: persist a new access level and return the created AccessLevelConfig.
     accessLevelCreate: '/admin/staff/access-levels/create',
+    // GET ?roles=<comma-separated role ids> → { moduleId: verbs }, unioned across roles.
+    roleDefaults: '/admin/staff/role-defaults',
   },
   induction: {
     list: '/admin/bookings/list',

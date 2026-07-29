@@ -1,13 +1,14 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 
 import { Toaster } from 'react-hot-toast';
-import { Provider, useDispatch } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { PersistGate } from 'redux-persist/integration/react';
 
+import Layout from './components/Layout';
 import { Loader } from './components/Loader';
 import SessionExpiredModal from './components/SessionExpiredModal';
-import menus from './constants/menus';
+import menus, { MENU_ITEM_BY_MODULE } from './constants/menus';
 import { ROUTES } from './constants/routes';
 import {
   Login,
@@ -28,10 +29,10 @@ import {
   MembershipPlans,
   Tickets,
 } from './pages';
-import { ACCESS_SCOPES, canRead, PermissionRoute } from './rbac';
+import { ACCESS_SCOPES, canRead, PermissionRoute, RestrictedAccess, sidebarItems } from './rbac';
 import { setSessionExpiredCallback } from './services';
 import { fetchMe } from './store/auth/api';
-import store, { persistor, AppDispatch } from './store/store';
+import store, { persistor, AppDispatch, RootState } from './store/store';
 
 // Heavy routes split into their own chunks — Reports pulls in recharts (~300 KB),
 // Maintenance is a 900+ LOC page. Keeps the initial bundle lean for everyone else.
@@ -39,8 +40,27 @@ const Reports = lazy(() => import('./pages/reports'));
 const Maintenance = lazy(() => import('./pages/maintenance'));
 
 const DefaultLanding: React.FC = () => {
-  const firstReadable = menus.find(item => canRead(item.module));
-  return <Navigate replace to={firstReadable?.path ?? ROUTES.LOGIN.path} />;
+  const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+
+  // Not signed in → the login page.
+  if (!isAuthenticated) return <Navigate replace to={ROUTES.LOGIN.path} />;
+
+  // Signed in → land on the first backend sidebar item that maps to a global route,
+  // else the first readable hardcoded menu item.
+  const sidebarPath = sidebarItems()
+    .map(entry => MENU_ITEM_BY_MODULE[entry.id]?.path)
+    .find(Boolean);
+  const dest = sidebarPath ?? menus.find(item => canRead(item.module))?.path;
+  if (dest) return <Navigate replace to={dest} />;
+
+  // Authenticated but nothing is accessible (e.g. a role with no granted modules):
+  // show a clear "no access" page — never bounce back to /login (that loops and
+  // spams the login-success toast).
+  return (
+    <Layout>
+      <RestrictedAccess />
+    </Layout>
+  );
 };
 
 const AppRoutes: React.FC = () => {
@@ -205,7 +225,7 @@ const AppRoutes: React.FC = () => {
           />
           <Route
             element={
-              <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
+              <PermissionRoute module={ACCESS_SCOPES.membershipPlans}>
                 <MembershipPlans />
               </PermissionRoute>
             }
@@ -213,7 +233,7 @@ const AppRoutes: React.FC = () => {
           />
           <Route
             element={
-              <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
+              <PermissionRoute module={ACCESS_SCOPES.tickets}>
                 <Tickets />
               </PermissionRoute>
             }

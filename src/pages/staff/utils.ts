@@ -1,6 +1,11 @@
+import { getLocalUser } from '../../constants/user';
+import { scopeType } from '../../rbac';
+import store, { type RootState } from '../../store/store';
+
 import { FORMAT_TO_ACCEPT } from './constants';
 
 import type { AccessLevelConfig } from './types';
+import type { StaffListRequest } from '../../store/staff/types';
 
 /**
  * Whether an access level scopes to a COUNTRY/REGION (e.g. Country Manager) — it
@@ -83,3 +88,22 @@ export const INPUT_CLASS =
 
 // Centre names are resolved dynamically from Centre Management via useCentreLookup —
 // no hard-coded code→name mapping lives here.
+
+/**
+ * Scope-aware params for GET /admin/staff/list, shared by the list page and every
+ * post-create/update refetch. A network-wide (global/superadmin) viewer must see
+ * EVERY staff member — including country-scoped ones with facilityCode: null — so no
+ * filter is sent; scoping the request to the viewer's OWN facility/country (the old
+ * behaviour) silently hid any staff member outside that one facility, including a
+ * country manager the viewer had just created. Country/regional-scoped viewers filter
+ * to their country; everyone else (facility-scoped) filters to their own facility.
+ */
+export const buildStaffListParams = (limit = 50, offset = 0): StaffListRequest => {
+  const authState = (store.getState() as RootState).auth;
+  const countryCode = authState.scope?.countryCodes?.[0] || authState.user?.countryCode || undefined;
+  const facilityCode = getLocalUser().facilityCode || '';
+  const level = scopeType();
+  if (level === 'global') return { limit, offset };
+  if (level === 'country' || level === 'regional') return { countryCode, limit, offset };
+  return { facilityCode, limit, offset };
+};

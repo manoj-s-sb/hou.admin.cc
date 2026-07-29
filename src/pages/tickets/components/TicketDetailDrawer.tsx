@@ -31,6 +31,8 @@ interface Props {
   ticketId: string;
   onClose: () => void;
   onChanged: () => void;
+  /** When false, the drawer is read-only — no status change, comment, attach, or reassign. */
+  canEdit?: boolean;
 }
 
 const laneLabel = (lanes: number[] | null): string => {
@@ -171,7 +173,7 @@ const AttachmentThumb: React.FC<{ src: string; index: number; onOpen: () => void
   );
 };
 
-const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) => {
+const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, canEdit = true }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { current, detailLoading, saving } = useSelector((state: RootState) => state.tickets);
   const [comment, setComment] = useState('');
@@ -356,19 +358,27 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
               <div className="grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
                 <Row label="Status">
                   {/* Inline status selector — Open → In Progress → Closed.
-                      A closing note/comment below is optional. */}
-                  <select
-                    className={`rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[12px] font-semibold outline-none focus:border-[#21295A] disabled:cursor-not-allowed disabled:opacity-60 ${STATUS_META[ticket.status].pill}`}
-                    disabled={saving}
-                    value={ticket.status}
-                    onChange={e => handleStatus(e.target.value as TicketStatus)}
-                  >
-                    {statusOptions.map(s => (
-                      <option key={s} value={s}>
-                        {STATUS_META[s].label}
-                      </option>
-                    ))}
-                  </select>
+                      Read-only users see the status as a static pill instead. */}
+                  {canEdit ? (
+                    <select
+                      className={`rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[12px] font-semibold outline-none focus:border-[#21295A] disabled:cursor-not-allowed disabled:opacity-60 ${STATUS_META[ticket.status].pill}`}
+                      disabled={saving}
+                      value={ticket.status}
+                      onChange={e => handleStatus(e.target.value as TicketStatus)}
+                    >
+                      {statusOptions.map(s => (
+                        <option key={s} value={s}>
+                          {STATUS_META[s].label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_META[ticket.status].pill}`}
+                    >
+                      {STATUS_META[ticket.status].label}
+                    </span>
+                  )}
                 </Row>
                 <Row label="Assigned To">
                   {ticket.assignedToName ||
@@ -453,6 +463,10 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged }) =
               {isClosed ? (
                 <div className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-[12px] font-semibold text-emerald-700">
                   ✓ Ticket closed{ticket.closedByName ? ` by ${ticket.closedByName}` : ''}
+                </div>
+              ) : !canEdit ? (
+                <div className="rounded-lg bg-gray-50 px-3 py-2 text-center text-[12px] font-medium text-gray-500">
+                  You have view-only access to tickets.
                 </div>
               ) : (
                 <div className="space-y-3">

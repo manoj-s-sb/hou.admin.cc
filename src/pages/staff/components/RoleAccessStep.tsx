@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 
 import { countryFlag } from '../../centres/constants';
-import { AccessLevelConfig, RoleConfig } from '../types';
+import { AccessLevelConfig, MenuMasterItem, RoleConfig } from '../types';
 import { INPUT_CLASS } from '../utils';
 
 import AccessLevelCard from './AccessLevelCard';
+import ModulePermissionsSection, { type PermGrid } from './ModulePermissionsSection';
 import RoleCard from './RoleCard';
 
 /** Minimal centre shape needed for the picker (FacilitySummary satisfies this). */
@@ -43,6 +44,16 @@ interface RoleAccessStepProps {
   onCreateAccessLevel?: (label: string, description: string, scopeType: 'facility' | 'global') => Promise<boolean>;
   /** True while a new access level is being persisted. */
   creatingAccessLevel?: boolean;
+  // Module Permissions grid — rendered only when the backend supplies the master
+  // menu list (extended staff config). Absent → section hidden (non-breaking).
+  modulePermissionMenus?: MenuMasterItem[];
+  modulePermissions?: PermGrid;
+  onChangeModulePermissions?: (next: PermGrid) => void;
+  modulePermissionError?: string | null;
+  /** Last-fetched role-defaults grid — drives the "customized" row indicator. */
+  modulePermissionDefaults?: PermGrid;
+  /** True while a role-defaults refetch (role selection just changed) is in flight. */
+  modulePermissionsLoading?: boolean;
 }
 
 // "🇺🇸 Houston, TX" — flag + name + state/city, mirroring the design.
@@ -72,6 +83,12 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   creatingRole = false,
   onCreateAccessLevel,
   creatingAccessLevel = false,
+  modulePermissionMenus,
+  modulePermissions,
+  onChangeModulePermissions,
+  modulePermissionError,
+  modulePermissionDefaults,
+  modulePermissionsLoading,
 }) => {
   const [showOther, setShowOther] = useState(false);
   const [otherInput, setOtherInput] = useState('');
@@ -115,8 +132,15 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   // so the value we send always matches the codes facilities/scope use — no hardcoding.
   // Deduped case-insensitively (data has mixed case, e.g. "USA" vs "usa") and emitted
   // lowercase to match the RBAC scope's country codes.
+  // Normalise country codes before deduping: "us" → "usa" to avoid duplicate entries
+  // when the backend uses mixed codes across centres.
+  const normaliseCountry = (code: string) => {
+    const c = code.toLowerCase();
+    if (c === 'us') return 'usa';
+    return c;
+  };
   const countryOptions = useMemo(
-    () => Array.from(new Set(centres.map(c => (c.countryCode || '').toLowerCase()).filter(Boolean))),
+    () => Array.from(new Set(centres.map(c => normaliseCountry(c.countryCode || '')).filter(Boolean))),
     [centres]
   );
 
@@ -463,6 +487,23 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
             </>
           )}
         </div>
+      )}
+
+      {/* Module Permissions — directly below Assigned Centres. Renders only when the
+          backend supplies the master menu list, so it's invisible (and harmless)
+          until the extended staff config is live. */}
+      {modulePermissionMenus && modulePermissionMenus.length > 0 && modulePermissions && onChangeModulePermissions && (
+        <ModulePermissionsSection
+          // Country/global-scoped levels carry no per-centre assignment — treat as
+          // centreless (0), which shows the "all centres" row same as a multi-centre member.
+          centreCount={showCountry ? 0 : assignedCentres.length}
+          defaults={modulePermissionDefaults}
+          error={modulePermissionError}
+          loadingDefaults={modulePermissionsLoading}
+          menus={modulePermissionMenus}
+          value={modulePermissions}
+          onChange={onChangeModulePermissions}
+        />
       )}
     </div>
   );

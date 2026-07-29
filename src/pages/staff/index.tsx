@@ -7,14 +7,14 @@ import { useNavigate } from 'react-router-dom';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute, ROUTES } from '../../constants/routes';
-import { getLocalUser } from '../../constants/user';
 import { getStaffConfig, getStaffList, setStaffStatus } from '../../store/staff/api';
+import { type AppDispatch, type RootState } from '../../store/store';
 
 import { GENERIC_ROLE_ICON, ROLE_ICON_MAP } from './constants';
 import { useCentreLookup } from './useCentreLookup';
+import { buildStaffListParams } from './utils';
 
 import type { StaffListRow } from '../../store/staff/types';
-import type { AppDispatch, RootState } from '../../store/store';
 
 type TabKey = 'all' | 'designations' | 'access';
 
@@ -201,7 +201,7 @@ const StaffManagement: React.FC = () => {
   );
 
   const loadStaff = useCallback(() => {
-    dispatch(getStaffList({ facilityCode: getLocalUser().facilityCode, limit: 50, offset: 0 }));
+    dispatch(getStaffList(buildStaffListParams()));
   }, [dispatch]);
 
   useEffect(() => {
@@ -487,7 +487,7 @@ const StaffManagement: React.FC = () => {
           className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
           onClick={() => navigate(ROUTES.STAFF_MANAGEMENT_ADD.path)}
         >
-          <span className="text-[14px] leading-none">+</span>
+          <span className="text-[14px] leading-none"></span>
           Add Staff Member
         </button>
       </div>

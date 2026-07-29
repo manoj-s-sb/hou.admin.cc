@@ -3,8 +3,10 @@
 export type {
   AccessLevelConfig,
   ConfigOption,
+  MenuMasterItem,
   RequiredDocumentConfig,
   RoleConfig,
+  RolePermissionsTemplate,
   StaffConfig,
   StaffDetails,
   StaffDocument,

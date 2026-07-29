@@ -60,8 +60,9 @@ export const MENU_GROUPS: MenuGroup[] = [
         path: ROUTES.MEMBERSHIP_PLANS.path,
         label: ROUTES.MEMBERSHIP_PLANS.label,
         icon: '/assets/subscription.svg',
-        // Super-admin only — global plan templates are network-wide configuration.
-        module: ACCESS_SCOPES.superAdmin,
+        // Gated on the real membershipplans module (superadmins still see it via the
+        // superadmin short-circuit in hasPermission).
+        module: ACCESS_SCOPES.membershipPlans,
       },
       {
         path: ROUTES.CENTRES.path,
@@ -90,12 +91,12 @@ export const MENU_GROUPS: MenuGroup[] = [
         module: ACCESS_SCOPES.reports,
       },
       {
-        // Cross-centre tickets view — a superadmin-owned monitoring page (centre
-        // staff use the per-centre Tickets module instead).
+        // Cross-centre tickets view — gated on the real ticketsincidents module so
+        // any role granted it (not just superadmin) sees it.
         path: ROUTES.TICKETS.path,
         label: ROUTES.TICKETS.label,
         icon: '/assets/maintenance.svg',
-        module: ACCESS_SCOPES.superAdmin,
+        module: ACCESS_SCOPES.tickets,
       },
       {
         // Tailgate access logs — visible to super admins and any role with the scope.
@@ -122,5 +123,15 @@ export const MENU_GROUPS: MenuGroup[] = [
 
 /** Flat list (default export) — kept for consumers that don't care about grouping. */
 const menus: MenuItem[] = MENU_GROUPS.flatMap(g => g.items);
+
+/**
+ * moduleId → menu item lookup (id = first entry of a menu item's `module` array).
+ * Lets the backend `sidebar`/permission ids resolve to a global route + visuals.
+ */
+export const MENU_ITEM_BY_MODULE: Record<string, MenuItem> = {};
+menus.forEach(item => {
+  const id = item.module?.[0];
+  if (id) MENU_ITEM_BY_MODULE[id] = item;
+});
 
 export default menus;

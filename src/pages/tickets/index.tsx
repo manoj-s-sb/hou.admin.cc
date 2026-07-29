@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 
 import { getLocalUser } from '../../constants/user';
+import { canEditModule } from '../../rbac';
+import { MODULES } from '../../rbac/constants';
 import { getCentres } from '../../store/centres/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { getTicketCounts, getTickets } from '../../store/tickets/api';
@@ -33,6 +35,10 @@ const Tickets: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { items, total, page, limit, listLoading, listError, counts } = useSelector((s: RootState) => s.tickets);
   const currentUserId = getLocalUser().userId;
+  // Write access for tickets: centre view is governed by the maintenance module
+  // (its read scope), the global view by the ticketsincidents module. When false,
+  // all mutating controls (create/status/comment/reassign) render read-only.
+  const canEdit = canEditModule(isCentreScoped ? MODULES.MAINTENANCE : MODULES.TICKETS);
 
   const [tab, setTab] = useState<Tab>('all');
   const [view, setView] = useState<View>('');
@@ -185,13 +191,15 @@ const Tickets: React.FC = () => {
               : 'Tickets raised by staff and NOC across all centres. You can also view tickets assigned to you.'}
           </p>
         </div>
-        <button
-          className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
-          type="button"
-          onClick={() => setShowCreate(true)}
-        >
-          Create Ticket
-        </button>
+        {canEdit && (
+          <button
+            className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
+            type="button"
+            onClick={() => setShowCreate(true)}
+          >
+            Create Ticket
+          </button>
+        )}
       </div>
 
       {/* Summary bar — every item in one uniform chip format (dot · label · count) */}
@@ -378,7 +386,12 @@ const Tickets: React.FC = () => {
       )}
 
       {selectedId && (
-        <TicketDetailDrawer ticketId={selectedId} onChanged={refresh} onClose={() => setSelectedId(null)} />
+        <TicketDetailDrawer
+          canEdit={canEdit}
+          ticketId={selectedId}
+          onChanged={refresh}
+          onClose={() => setSelectedId(null)}
+        />
       )}
     </div>
   );
