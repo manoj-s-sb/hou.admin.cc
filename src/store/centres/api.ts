@@ -2,7 +2,6 @@
  * Centre Management — async thunks for the doc-bundle endpoints.
  *
  * Thin wrappers over the shared axios instance (`src/services`) that unwrap the
- * standard `{ status, message, data, statusCode }` envelope and return `data`.
  * Each thunk rejects (via `handleApiError`) on failure so the slice/UI can show
  * a message — there is no seed/mock fallback.
  */
