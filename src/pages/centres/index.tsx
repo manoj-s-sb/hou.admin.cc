@@ -1,14 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import { buildRoute } from '../../constants/routes';
 import { useCentreNav } from '../../contexts/CentreNavContext';
+import { ACCESS_SCOPES, canRead, isGlobalScope, isSuperAdmin } from '../../rbac';
 import { getCentres, getCentreDetails } from '../../store/centres/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { facilityScope } from '../../utils/facilityScope';
 
+import { LIVE_CENTRE_MODULES } from './centreModules';
 import CentreCard from './components/CentreCard';
 import { STATUS_FILTERS, PAGE_LIMIT } from './constants';
 import NewCentreWizard from './newCentre/NewCentreWizard';
@@ -50,6 +52,10 @@ const CentreManagement: React.FC = () => {
 
   const dispatch = useDispatch<AppDispatch>();
   const { facilities, total, isLoading, details, detailsLoading } = useSelector((state: RootState) => state.centres);
+  // Centre mutations (create / edit / activate / suspend / delete) are super-admin
+  // only — the backend 403s everyone else, so hide the controls (§4). Reads are open
+  // to anyone with centremanagement:read (route gated in centreModules).
+  const canManageCentres = isSuperAdmin();
 
   // Fetch the full bundle for the draft being edited; the wizard opens once it lands.
   const startEdit = useCallback(
@@ -74,6 +80,26 @@ const CentreManagement: React.FC = () => {
   useEffect(() => {
     refetch();
   }, [refetch]);
+
+  // A facility-scoped user with NO centremanagement access (e.g. a plain coach/staff —
+  // single assigned centre, the backend already filters this list to their scope) has
+  // no other way to reach a centre: skip straight into its operations dashboard instead
+  // of a one-card list they can't otherwise act on. A user who CAN read centremanagement
+  // reaches this page deliberately (it's their tool for browsing/managing centres) and
+  // must always land here, never be auto-redirected away — regardless of centre count.
+  // Also only fires on the unfiltered, first-page view, and at most once per visit.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current) return;
+    if (isLoading || isGlobalScope() || canRead(ACCESS_SCOPES.centreManagement)) return;
+    if (statusFilter || search || skip !== 0) return;
+    if (total !== 1 || facilities.length !== 1) return;
+    autoOpenedRef.current = true;
+    const [centre] = facilities;
+    facilityScope.set(centre.code);
+    const first = LIVE_CENTRE_MODULES.find(m => !m.scope || canRead(m.scope));
+    navigate(buildRoute.centreModule(centre.code, first?.slug ?? 'members'), { replace: true });
+  }, [isLoading, total, facilities, statusFilter, search, skip, navigate]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
   const currentPage = Math.floor(skip / PAGE_LIMIT);
@@ -174,13 +200,15 @@ const CentreManagement: React.FC = () => {
           All Centres
           {!isLoading && <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--sub)' }}> · {total}</span>}
         </div>
-        <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => setWizardOpen(true)}>
-          <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
-            <line x1="12" x2="12" y1="5" y2="19" />
-            <line x1="5" x2="19" y1="12" y2="12" />
-          </svg>
-          New Centre
-        </button>
+        {canManageCentres && (
+          <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => setWizardOpen(true)}>
+            <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
+              <line x1="12" x2="12" y1="5" y2="19" />
+              <line x1="5" x2="19" y1="12" y2="12" />
+            </svg>
+            New Centre
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -194,35 +222,37 @@ const CentreManagement: React.FC = () => {
               <CentreCard
                 key={c.id || c.code}
                 centre={c}
-                onEdit={summary => startEdit(summary.code)}
+                onEdit={canManageCentres ? summary => startEdit(summary.code) : undefined}
                 onOpen={summary => {
-                  // Scope the API + remember the selection, then route to the centre's
-                  // Members page (the path now carries the facility code).
                   facilityScope.set(summary.code);
-                  navigate(buildRoute.centreModule(summary.code, 'members'));
+                  // Land on the first module this user has read access to.
+                  const first = LIVE_CENTRE_MODULES.find(m => !m.scope || canRead(m.scope));
+                  navigate(buildRoute.centreModule(summary.code, first?.slug ?? 'members'));
                 }}
               />
             ))}
 
-            {/* Add New Centre dashed card */}
-            <button
-              aria-label="Add new centre"
-              className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"
-              type="button"
-              onClick={() => setWizardOpen(true)}
-            >
-              <svg
-                className="h-7 w-7 text-muted"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                viewBox="0 0 24 24"
+            {/* Add New Centre dashed card — super-admin only */}
+            {canManageCentres && (
+              <button
+                aria-label="Add new centre"
+                className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"
+                type="button"
+                onClick={() => setWizardOpen(true)}
               >
-                <line x1="12" x2="12" y1="5" y2="19" />
-                <line x1="5" x2="19" y1="12" y2="12" />
-              </svg>
-              <span className="text-[13px] font-semibold text-sub">Add New Centre</span>
-            </button>
+                <svg
+                  className="h-7 w-7 text-muted"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  viewBox="0 0 24 24"
+                >
+                  <line x1="12" x2="12" y1="5" y2="19" />
+                  <line x1="5" x2="19" y1="12" y2="12" />
+                </svg>
+                <span className="text-[13px] font-semibold text-sub">Add New Centre</span>
+              </button>
+            )}
           </div>
 
           {/* Pagination (skip + limit) */}

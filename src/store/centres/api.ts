@@ -57,7 +57,7 @@ export const getCentres = createAsyncThunk<
     const res = await api.post<{ data: CentreListResponse }>(endpoints.centres.centresList, body);
     const data = res.data?.data ?? (res.data as unknown as CentreListResponse);
     // Map the API's `stats` rollup onto the `kpi` shape the card reads. Fields the API
-    // doesn't supply (utilisation, tailgates, open tasks) stay undefined → render as "—".
+    // doesn't supply (utilisation) stay undefined → render as "—".
     const facilities = (data.facilities ?? []).map(f => ({
       ...f,
       kpi: f.kpi ?? {
@@ -65,6 +65,8 @@ export const getCentres = createAsyncThunk<
         bookings30d: f.stats?.totalBookingsLast30Days,
         noShowPct: f.stats?.noShowRatePercent,
         plans: f.stats?.membersByPlan,
+        tailgates: f.stats?.tailgates,
+        openTasks: f.stats?.openTasks,
       },
     }));
     return { facilities, total: data.total ?? facilities.length };
@@ -102,13 +104,15 @@ export const createCentre = createAsyncThunk<CentreBundle, CentreCreateRequest, 
 );
 
 /**
- * POST /admin/centres/update — edit an existing centre (e.g. activate a draft).
+ * POST /admin/centres/update — edit an existing centre (change capacity/plans,
+ * flip status, etc).
  *
- * The update endpoint keys on `centreId` and accepts the `facility` document
- * (which carries `status`, so this is what flips draft → active). It does NOT
- * take the same `lanes[]` / `memberships[]` arrays as /create — those sections
- * use a different request shape that isn't documented yet, so we omit them and
- * send only the facility.
+ * The endpoint keys on `centreId` (accepted as an alias for `code`) and takes the
+ * SAME optional bundle parts as /create — `facility` (partial patch, carries
+ * `status`), plus `lanes[]`, `memberships[]` and `membershipSalesFlow`, all
+ * upserted by deterministic id (matched by code, so nothing duplicates). We send
+ * the full payload so capacity (which lives in the sales-flow doc), plan and lane
+ * edits all persist — not just the facility fields.
  */
 export const updateCentre = createAsyncThunk<
   CentreBundle,
@@ -116,7 +120,7 @@ export const updateCentre = createAsyncThunk<
   { rejectValue: string }
 >('centres/updateCentre', async ({ payload, centreId }, { rejectWithValue }) => {
   try {
-    const body = { centreId, facility: payload.facility };
+    const body = { centreId, ...payload };
     const res = await api.post<{ data: CentreBundle }>(endpoints.centres.centreUpdate, body);
     return res.data?.data ?? (res.data as unknown as CentreBundle);
   } catch (error) {
@@ -181,29 +185,26 @@ export const getCentreLeads = createAsyncThunk<
   { entries: LeadEntry[]; total: number; page: number; limit: number },
   { facilityCode: string; action?: string; subscriptionCode?: string; page: number; limit: number },
   { rejectValue: string }
->(
-  'centres/getCentreLeads',
-  async ({ facilityCode, action, subscriptionCode, page, limit }, { rejectWithValue }) => {
-    try {
-      const res = await api.post<{ data: unknown }>(endpoints.centres.leads, {
-        facilityCode,
-        action,
-        subscription_code: subscriptionCode,
-        page,
-        limit,
-      });
-      const { entries, total } = unwrapList<LeadEntry>(res.data?.data ?? res.data, [
-        'items',
-        'leads',
-        'entries',
-        'results',
-      ]);
-      return { entries, total, page, limit };
-    } catch (error) {
-      return rejectWithValue(handleApiError(error, 'Failed to fetch leads'));
-    }
+>('centres/getCentreLeads', async ({ facilityCode, action, subscriptionCode, page, limit }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: unknown }>(endpoints.centres.leads, {
+      facilityCode,
+      action,
+      subscription_code: subscriptionCode,
+      page,
+      limit,
+    });
+    const { entries, total } = unwrapList<LeadEntry>(res.data?.data ?? res.data, [
+      'items',
+      'leads',
+      'entries',
+      'results',
+    ]);
+    return { entries, total, page, limit };
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to fetch leads'));
   }
-);
+});
 
 /** GET /admin/centres/:id/bookings — ops dashboard booking list. */
 export const getCentreBookings = createAsyncThunk<CentreBooking[], string, { rejectValue: string }>(

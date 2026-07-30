@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
 
+import { isGlobalScope } from '../../rbac';
+import { getCentres } from '../../store/centres/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchTailgateEvents, fetchTailgateStats } from '../../store/tailgate/api';
 import { TailgateLog } from '../../store/tailgate/types';
+import { countryFlag } from '../centres/constants';
 
 import AllLogsTable from './components/AllLogsTable';
 import LogFilters from './components/LogFilters';
@@ -17,6 +21,8 @@ import ViewModal from './components/ViewModal';
 import ViolationsTab from './components/ViolationsTab';
 import { DEFAULT_FILTERS, TailgateFilters } from './constants';
 import { getAvatarData, getLogDate, getLogDateVal } from './utils';
+
+import type { FacilitySummary } from '../../store/centres/types';
 
 type TailgateTab = 'logs' | 'unid' | 'viol';
 
@@ -34,6 +40,11 @@ const TAB_TYPE: Record<TailgateTab, 'all' | 'unidentified' | 'violation'> = {
 };
 
 const Tailgate = () => {
+  // Centre context provides :facilityCode (e.g. /centres/BLR01/tailgate); the global
+  // /tailgate route does not. When present, this page must ALWAYS scope to that one
+  // centre — never fall back to the global "All centres" default.
+  const { facilityCode: routeFacility } = useParams<{ facilityCode?: string }>();
+  const isCentreScoped = Boolean(routeFacility);
   const dispatch = useDispatch<AppDispatch>();
   const { logs, isLoading, stats, totalEvents, totalPages, firstDateOffset } = useSelector(
     (state: RootState) => state.tailgate
@@ -50,6 +61,30 @@ const Tailgate = () => {
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const silentRefresh = useRef(false);
 
+  // Centre filter — global-scope viewers (superadmin, country/regional managers) see
+  // every centre's tailgate data by default on the GLOBAL page; this narrows to one.
+  // Inside a centre (routeFacility set), scope is forced to that centre and the
+  // picker is hidden entirely — never falls back to "All centres".
+  const [centreCode, setCentreCode] = useState('');
+  const [centres, setCentres] = useState<FacilitySummary[]>([]);
+  const showCentreFilter = isGlobalScope() && !isCentreScoped;
+  const effectiveFacilityCode = isCentreScoped ? routeFacility : centreCode || undefined;
+
+  useEffect(() => {
+    if (!showCentreFilter) return;
+    dispatch(getCentres({ skip: 0, limit: 200 }))
+      .unwrap()
+      .then(res => setCentres(res.facilities ?? []))
+      .catch(() => setCentres([]));
+    // Fetched once on mount — the centre list rarely changes within a session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
+
+  const selectCentre = (code: string) => {
+    setCentreCode(code);
+    setPage(0);
+  };
+
   const buildEventsPayload = useCallback(
     (overrides: { page?: number; pageSize?: number; tab?: TailgateTab } = {}) => {
       const uiPage = overrides.page ?? page;
@@ -65,9 +100,10 @@ const Tailgate = () => {
       if (filters.door) payload.laneDoor = filters.door;
       if (filters.type) payload.eventType = filters.type;
       if (filters.status) payload.reviewStatus = filters.status as 'pending' | 'reviewed' | 'violation';
+      if (effectiveFacilityCode) payload.facilityCode = effectiveFacilityCode;
       return payload;
     },
-    [page, rowsPerPage, activeTab, filters]
+    [page, rowsPerPage, activeTab, filters, effectiveFacilityCode]
   );
 
   const handleTabChange = (tab: TailgateTab) => {
@@ -88,8 +124,9 @@ const Tailgate = () => {
     if (filters.door) payload.laneDoor = filters.door;
     if (filters.type) payload.eventType = filters.type;
     if (filters.status) payload.reviewStatus = filters.status;
+    if (effectiveFacilityCode) payload.facilityCode = effectiveFacilityCode;
     return payload;
-  }, [filters]);
+  }, [filters, effectiveFacilityCode]);
 
   const handleSaveReview = (isViolation: boolean) => {
     setToast(
@@ -103,6 +140,7 @@ const Tailgate = () => {
     if (filters.to) payload.toDate = toApiDate(filters.to);
     if (filters.name) payload.memberName = filters.name;
     if (filters.door) payload.laneDoor = filters.door;
+    if (effectiveFacilityCode) payload.facilityCode = effectiveFacilityCode;
     dispatch(fetchTailgateEvents(payload)).finally(() => {
       silentRefresh.current = false;
     });
@@ -218,6 +256,28 @@ const Tailgate = () => {
           </p>
         </div>
       </div>
+
+      {/* Centre filter — global-scope viewers only; narrows every tab + the stat tiles
+          to one centre, or "All centres" for the full network-wide view. A dropdown
+          scales far better than a pill row once the network has more than a handful
+          of centres. */}
+      {showCentreFilter && centres.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[10px] border border-gray-100 bg-white px-[18px] py-3.5 shadow-sm">
+          <span className="text-xs font-bold uppercase tracking-[0.06em] text-gray-400">Centre:</span>
+          <select
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 outline-none transition focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+            value={centreCode}
+            onChange={e => selectCentre(e.target.value)}
+          >
+            <option value="">All centres</option>
+            {centres.map(c => (
+              <option key={c.code} value={c.code}>
+                {countryFlag(c.countryCode)} {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
         {/* Tabs */}

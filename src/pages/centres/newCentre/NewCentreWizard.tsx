@@ -51,9 +51,10 @@ const makePlanRows = (): WizardPlanRow[] =>
     memberCap: p.defaultSlots,
     isFoundationEligible: p.defaultFoundation,
     availableCountries: ['all'],
-    firstGuestFee: 30,
-    additionalGuestDiscountPct: 20,
-    extraSessionCost: 30,
+    // Guest / extra-session pricing is blank until explicitly set (no hardcoded default).
+    firstGuestFee: null,
+    additionalGuestDiscountPct: null,
+    extraSessionCost: null,
   }));
 
 const initialState = (): WizardState => ({
@@ -87,9 +88,9 @@ const initialState = (): WizardState => ({
   advanceBookingWindowDays: 7,
   additionalFacilities: [],
   plans: makePlanRows(),
-  firstGuestFee: 30,
-  additionalGuestDiscountPct: 20,
-  extraSessionCost: 30,
+  firstGuestFee: null,
+  additionalGuestDiscountPct: null,
+  extraSessionCost: null,
   discounts: [],
 });
 
@@ -116,6 +117,18 @@ const STATUS_LABEL: Record<string, string> = {
   staging: 'Staging',
   active: 'Active',
   suspended: 'Suspended',
+};
+
+// Clean read-only cell for the 24/7 operating-hours grid — plain text (no native
+// time-picker chrome), matching the reference.
+const readonlyTimeBox: React.CSSProperties = {
+  width: '100%',
+  padding: '5px 8px',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  fontSize: 12.5,
+  color: 'var(--sub)',
+  background: '#fff',
 };
 
 type SaveStatus = 'draft' | 'active' | 'suspended';
@@ -658,41 +671,43 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 </label>
               </div>
 
-              {!s.is24x7 && (
+              <div
+                style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}
+              >
                 <div
-                  style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '100px 1fr 1fr 60px',
+                    background: '#f9fafb',
+                    padding: '8px 14px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--sub)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '.04em',
+                  }}
                 >
+                  <div>Day</div>
+                  <div>Open</div>
+                  <div>Close</div>
+                  <div>Open?</div>
+                </div>
+                {s.operatingHours.map((h, i) => (
                   <div
+                    key={h.day}
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '100px 1fr 1fr 60px',
-                      background: '#f9fafb',
                       padding: '8px 14px',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: 'var(--sub)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '.04em',
+                      borderTop: '1px solid var(--border)',
+                      alignItems: 'center',
                     }}
                   >
-                    <div>Day</div>
-                    <div>Open</div>
-                    <div>Close</div>
-                    <div>Open?</div>
-                  </div>
-                  {s.operatingHours.map((h, i) => (
-                    <div
-                      key={h.day}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '100px 1fr 1fr 60px',
-                        padding: '8px 14px',
-                        borderTop: '1px solid var(--border)',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)' }}>{DAYS[i]}</div>
-                      <div style={{ paddingRight: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)' }}>{DAYS[i]}</div>
+                    <div style={{ paddingRight: 10 }}>
+                      {s.is24x7 ? (
+                        <div style={readonlyTimeBox}>12:00 AM</div>
+                      ) : (
                         <input
                           aria-disabled={!h.isOpen}
                           disabled={!h.isOpen}
@@ -708,8 +723,12 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                           value={h.openTime}
                           onChange={e => setHour(h.day, { openTime: e.target.value })}
                         />
-                      </div>
-                      <div style={{ paddingRight: 10 }}>
+                      )}
+                    </div>
+                    <div style={{ paddingRight: 10 }}>
+                      {s.is24x7 ? (
+                        <div style={readonlyTimeBox}>11:59 PM</div>
+                      ) : (
                         <input
                           aria-disabled={!h.isOpen}
                           disabled={!h.isOpen}
@@ -725,24 +744,33 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                           value={h.closeTime}
                           onChange={e => setHour(h.day, { closeTime: e.target.value })}
                         />
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
-                          <input
-                            aria-label={`${DAYS[i]} open`}
-                            checked={h.isOpen}
-                            className="peer sr-only"
-                            type="checkbox"
-                            onChange={e => setHour(h.day, { isOpen: e.target.checked })}
-                          />
-                          <span className="absolute inset-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-cmx-green" />
-                          <span className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform peer-checked:translate-x-[18px]" />
-                        </label>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
+                        <input
+                          aria-label={`${DAYS[i]} open`}
+                          checked={s.is24x7 || h.isOpen}
+                          className="peer sr-only"
+                          disabled={s.is24x7}
+                          type="checkbox"
+                          onChange={e => setHour(h.day, { isOpen: e.target.checked })}
+                        />
+                        {/* Track/knob coloured via inline style so the 24/7 (disabled)
+                              toggle stays solid teal instead of the browser's dimmed look. */}
+                        <span
+                          className="absolute inset-0 rounded-full transition-colors"
+                          style={{ background: s.is24x7 || h.isOpen ? '#008482' : '#d1d5db' }}
+                        />
+                        <span
+                          className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform"
+                          style={{ transform: s.is24x7 || h.isOpen ? 'translateX(18px)' : 'none' }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => goStep(2)}>
@@ -1156,34 +1184,54 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                             </div>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">First Guest Fee (USD)</span>
-                              <NumberInput
+                              <input
                                 className="cmx-field"
                                 min={0}
+                                placeholder="Blank = not set"
                                 step={0.01}
-                                value={row.firstGuestFee}
-                                onValueChange={v => setPlan(meta.id, { firstGuestFee: v })}
+                                type="number"
+                                value={row.firstGuestFee ?? ''}
+                                onChange={e =>
+                                  setPlan(meta.id, {
+                                    firstGuestFee: e.target.value === '' ? null : Math.max(0, Number(e.target.value)),
+                                  })
+                                }
                               />
                             </div>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">Add. Guest Discount (%)</span>
-                              <NumberInput
+                              <input
                                 className="cmx-field"
                                 max={100}
                                 min={0}
-                                value={row.additionalGuestDiscountPct}
-                                onValueChange={v => setPlan(meta.id, { additionalGuestDiscountPct: v })}
+                                placeholder="Blank = not set"
+                                type="number"
+                                value={row.additionalGuestDiscountPct ?? ''}
+                                onChange={e =>
+                                  setPlan(meta.id, {
+                                    additionalGuestDiscountPct:
+                                      e.target.value === '' ? null : Math.min(100, Math.max(0, Number(e.target.value))),
+                                  })
+                                }
                               />
                             </div>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">Extra Session Cost (USD)</span>
-                              <NumberInput
+                              <input
                                 className="cmx-field"
                                 min={0}
+                                placeholder="Blank = not set"
                                 step={0.01}
-                                value={row.extraSessionCost}
-                                onValueChange={v => setPlan(meta.id, { extraSessionCost: v })}
+                                type="number"
+                                value={row.extraSessionCost ?? ''}
+                                onChange={e =>
+                                  setPlan(meta.id, {
+                                    extraSessionCost:
+                                      e.target.value === '' ? null : Math.max(0, Number(e.target.value)),
+                                  })
+                                }
                               />
                             </div>
                             <div className="flex flex-col gap-1">
@@ -1552,8 +1600,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   {saveStatusOptions(isEdit, currentStatus).map(opt => {
                     const meta = SAVE_STATUS_META[opt];
                     // A suspended centre going back live reads better as "Reactivate".
-                    const title =
-                      opt === 'active' && currentStatus === 'suspended' ? 'Reactivate Centre' : meta.title;
+                    const title = opt === 'active' && currentStatus === 'suspended' ? 'Reactivate Centre' : meta.title;
                     return (
                       <StatusOption
                         key={opt}

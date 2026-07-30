@@ -5,21 +5,22 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { buildRoute, ROUTES } from '../../constants/routes';
-import { getLocalUser } from '../../constants/user';
 import { getCentres } from '../../store/centres/api';
 import {
   createStaff,
   createStaffAccessLevel,
   createStaffRole,
+  getRoleDefaults,
   getStaffConfig,
   getStaffDetails,
   getStaffList,
   updateStaff,
 } from '../../store/staff/api';
-import { clearStaffDetails } from '../../store/staff/reducers';
+import { clearRoleDefaults, clearStaffDetails } from '../../store/staff/reducers';
 
 import AccountStep from './components/AccountStep';
 import DocumentsStep from './components/DocumentsStep';
+import { DUAL_SCOPE_IDS, globalKey, mergeDualScope, type PermGrid } from './components/ModulePermissionsSection';
 import ProfileStep from './components/ProfileStep';
 import RoleAccessStep from './components/RoleAccessStep';
 import StepFooter from './components/StepFooter';
@@ -28,9 +29,11 @@ import { STEPS } from './constants';
 import { OTHER_QUALIFICATION, ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
 import {
   blankToNull,
+  buildStaffListParams,
   fileToDataUrl,
   getConfigOtherQualificationId,
   isCentreScopedLevel,
+  isCountryScopedLevel,
   sortActiveUnique,
   validatePassword,
 } from './utils';
@@ -49,8 +52,17 @@ const AddStaffMember: React.FC = () => {
   };
 
   const dispatch = useDispatch<AppDispatch>();
-  const { staffConfig, staffDetails, isConfigLoading, isDetailsLoading, isSubmitting, configError, detailsError } =
-    useSelector((state: RootState) => state.staff);
+  const {
+    staffConfig,
+    staffDetails,
+    roleDefaults,
+    isConfigLoading,
+    isDetailsLoading,
+    isRoleDefaultsLoading,
+    isSubmitting,
+    configError,
+    detailsError,
+  } = useSelector((state: RootState) => state.staff);
 
   // Wizard state
   const [activeStep, setActiveStep] = useState<StepKey>('profile');
@@ -76,12 +88,21 @@ const AddStaffMember: React.FC = () => {
   const [editFacilityCode, setEditFacilityCode] = useState<string>('');
   // Centres a centre-scoped staff member is assigned to (codes). Used for both create & edit.
   const [assignedCentres, setAssignedCentres] = useState<string[]>([]);
+  // Country a country-scoped staff member manages (code). Used instead of centres.
+  const [countryCode, setCountryCode] = useState<string>('');
   const [editStatus, setEditStatus] = useState<string>('active');
   const [twoFAEnabled, setTwoFAEnabled] = useState(true);
   // True while a new role is being persisted (drives the create-role button state).
   const [creatingRole, setCreatingRole] = useState(false);
   // True while a new access level is being persisted.
   const [creatingAccessLevel, setCreatingAccessLevel] = useState(false);
+
+  // Module Permissions grid (extended staff config). `touchedModules` records exactly
+  // which module ids the admin has manually checked/unchecked, so a role-defaults
+  // refresh (on role change) only overwrites modules the admin hasn't customized.
+  const [modulePerms, setModulePerms] = useState<PermGrid>({});
+  const [touchedModules, setTouchedModules] = useState<Set<string>>(() => new Set());
+  const [modulePermError, setModulePermError] = useState<string | null>(null);
 
   // Real centre catalogue for the Assigned Centres picker (centre-scoped levels).
   // Sourced live from the same list as Centre Management — NO seed fallback, so the
@@ -100,6 +121,99 @@ const AddStaffMember: React.FC = () => {
     () => getConfigOtherQualificationId(qualifications) ?? OTHER_QUALIFICATION,
     [qualifications]
   );
+
+  // ── Module Permissions (extended staff config) ───────────────────────────
+  // Master menu list — present only once the backend returns it; the whole section
+  // is hidden otherwise.
+  const modulePermMenus = staffConfig?.menus;
+
+  const selectedRoleIds = useMemo(() => Object.keys(selectedRoles).filter(id => selectedRoles[id]), [selectedRoles]);
+  // Primitive dep so the fetch effect below only re-runs when the ROLE SET actually
+  // changes (selectedRoleIds is a fresh array every render otherwise).
+  const selectedRoleIdsKey = selectedRoleIds.join(',');
+
+  // Refetch role-derived defaults from the backend whenever the selected role(s)
+  // change — GET /admin/staff/role-defaults, already unioned across roles server-side
+  // (a module is granted if ANY selected role grants it). Also fires once on the
+  // initial edit-mode load, right after the member's saved roles populate `selectedRoles`.
+  useEffect(() => {
+    if (!modulePermMenus?.length) return;
+    if (selectedRoleIds.length === 0) {
+      dispatch(clearRoleDefaults());
+      return;
+    }
+    dispatch(getRoleDefaults(selectedRoleIds));
+    // selectedRoleIds is re-derived from selectedRoleIdsKey each render — depending on
+    // the key (not the array) avoids refetching on unrelated re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRoleIdsKey, modulePermMenus, dispatch]);
+
+  // The last-fetched defaults, expanded into a full grid over every known module
+  // (missing entries ⇒ not granted) and mirrored into the dual-scope "all centres"
+  // key too, so that row isn't blank the first time it's shown.
+  const defaultsGrid = useMemo((): PermGrid => {
+    const menusList = modulePermMenus ?? [];
+    const template = roleDefaults ?? {};
+    const grid: PermGrid = {};
+    menusList.forEach(m => {
+      const verbs = template[m.id] ?? [];
+      const view = verbs.includes('read') || verbs.includes('write');
+      const edit = verbs.includes('write');
+      grid[m.id] = { view, edit };
+      if (DUAL_SCOPE_IDS.has(m.id)) grid[globalKey(m.id)] = { view, edit };
+    });
+    return grid;
+  }, [modulePermMenus, roleDefaults]);
+
+  // Apply the latest defaults to every module the admin HASN'T manually touched.
+  // Touched modules keep whatever the admin set, regardless of role changes.
+  useEffect(() => {
+    if (!modulePermMenus?.length) return;
+    setModulePerms(prev => {
+      const next: PermGrid = { ...prev };
+      Object.entries(defaultsGrid).forEach(([id, row]) => {
+        if (!touchedModules.has(id)) next[id] = row;
+      });
+      return next;
+    });
+  }, [defaultsGrid, modulePermMenus, touchedModules]);
+
+  const onChangeModulePermissions = (next: PermGrid) => {
+    setModulePerms(prev => {
+      // Mark exactly the grid keys whose view/edit state actually changed as
+      // "touched" — everything else keeps refreshing from role defaults.
+      const changedIds = new Set<string>();
+      new Set([...Object.keys(prev), ...Object.keys(next)]).forEach(id => {
+        const a = prev[id] ?? { view: false, edit: false };
+        const b = next[id] ?? { view: false, edit: false };
+        if (a.view !== b.view || a.edit !== b.edit) changedIds.add(id);
+      });
+      if (changedIds.size > 0) {
+        setTouchedModules(t => {
+          const nt = new Set(t);
+          changedIds.forEach(id => nt.add(id));
+          return nt;
+        });
+      }
+      return next;
+    });
+    setModulePermError(null);
+  };
+
+  // custompermission = { moduleId: verbs } from the grid's final state. Only sent
+  // when the feature is active; modules with neither box checked are omitted.
+  const buildCustomPermission = (): Record<string, string[]> | undefined => {
+    if (!modulePermMenus?.length) return undefined;
+    const out: Record<string, string[]> = {};
+    modulePermMenus.forEach(m => {
+      // Dual-scope modules (Tickets/Tailgate/Maintenance) carry two UI rows — centre
+      // and "all centres" — merged here since the backend has one permission per module.
+      const row = mergeDualScope(modulePerms, m.id);
+      if (row.edit) out[m.id] = ['read', 'write'];
+      else if (row.view) out[m.id] = ['read'];
+    });
+    return out;
+  };
 
   // Load config once on mount (cached in store after first fetch)
   useEffect(() => {
@@ -169,10 +283,42 @@ const AddStaffMember: React.FC = () => {
     setExistingPhotoUrl(sp.photoSasUrl ?? '');
     setEditFacilityCode(data.facilityCode ?? '');
     setAssignedCentres(sp.assignedCentres ?? []);
+    const rawCountry = data.countryCode ?? '';
+    setCountryCode(rawCountry.toLowerCase() === 'us' ? 'usa' : rawCountry.toLowerCase());
     setEditStatus(data.status ?? 'active');
     setLoginEmail(data.loginEmail ?? data.email ?? '');
     loginEmailInitedRef.current = true;
     setTwoFAEnabled(sp.twoFactorAuth ?? true);
+
+    // Pre-fill the Module Permissions grid from this member's saved data. Only
+    // `custompermission` represents actual admin OVERRIDES — those module ids are
+    // marked "touched" so the role-defaults refresh (fired once `selectedRoles` above
+    // populates and the fetch effect runs) never clobbers them. `permissions.modules`
+    // (the fully-resolved defaults+overrides set) is used only as an immediate-paint
+    // fallback when no explicit override exists — left untouched, so it stays in sync
+    // with role changes going forward.
+    const overrides = data.custompermission ?? (sp as { custompermission?: Record<string, string[]> }).custompermission;
+    const seed = overrides ?? data.permissions?.modules;
+    if (seed && Object.keys(seed).length > 0) {
+      const grid: PermGrid = {};
+      Object.entries(seed).forEach(([moduleId, verbs]) => {
+        const v = Array.isArray(verbs) ? verbs : [];
+        const row = { view: v.includes('read') || v.includes('write'), edit: v.includes('write') };
+        grid[moduleId] = row;
+        // The backend only stores one grant per module — mirror it into the "all
+        // centres" row too so re-opening a dual-scope module shows it already set.
+        if (DUAL_SCOPE_IDS.has(moduleId)) grid[globalKey(moduleId)] = row;
+      });
+      setModulePerms(grid);
+      if (overrides) {
+        const touched = new Set<string>();
+        Object.keys(overrides).forEach(id => {
+          touched.add(id);
+          if (DUAL_SCOPE_IDS.has(id)) touched.add(globalKey(id));
+        });
+        setTouchedModules(touched);
+      }
+    }
   }, [isEditMode, staffDetails]);
 
   // Normalise a custom (non-config) qualification into the "Other" option
@@ -227,6 +373,17 @@ const AddStaffMember: React.FC = () => {
     [accessLevels, accessLevel]
   );
   const requiresAssignedCentres = isCentreScopedLevel(selectedAccessLevel);
+  // Country-scoped levels (e.g. Country Manager) pick a country instead of centres.
+  const requiresCountry = isCountryScopedLevel(selectedAccessLevel);
+  // For a country-scoped member, assignedCentres = every centre in the picked country
+  // (matched case-insensitively) so the backend scopes them to those facilities.
+  const countryCentreCodes = useMemo(
+    () =>
+      requiresCountry && countryCode
+        ? centres.filter(c => (c.countryCode || '').toLowerCase() === countryCode.toLowerCase()).map(c => c.code)
+        : [],
+    [requiresCountry, countryCode, centres]
+  );
 
   const handleDocSelect = (key: string, file: File | null, maxSizeMB: number) => {
     if (!file) return;
@@ -327,6 +484,7 @@ const AddStaffMember: React.FC = () => {
     if (!accessLevel) return 'Select an access level';
     if (requiresAssignedCentres && assignedCentres.length === 0)
       return 'Assign at least one centre for centre-scoped access';
+    if (requiresCountry && !countryCode) return 'Select a country for country-scoped access';
     if (!loginEmail.trim()) return 'Login email is required';
     if (isEditMode) return null;
     const pwError = validatePassword(defaultPassword);
@@ -355,6 +513,9 @@ const AddStaffMember: React.FC = () => {
         ? profile.highestQualificationOther.trim()
         : profile.highestQualification;
 
+    const customPermission = buildCustomPermission();
+    setModulePermError(null);
+
     if (isEditMode && staffId) {
       const existingEntries = existingDocs
         .filter(d => d.type && d.fileName && d.blobName)
@@ -371,7 +532,12 @@ const AddStaffMember: React.FC = () => {
           dateOfBirth: blankToNull(profile.dob),
           gender: blankToNull(profile.gender),
           userType: buildSelectedRoleIds(),
-          facilityCode: editFacilityCode || getLocalUser().facilityCode,
+          // Fall back to the member's own Assigned Centres selection (never the EDITING
+          // admin's facility) on the rare chance the loaded record had no facilityCode.
+          facilityCode: requiresCountry ? null : editFacilityCode || assignedCentres[0] || null,
+          countryCode: requiresCountry ? countryCode : null,
+          // Per-module overrides from the grid (only when the feature is active).
+          ...(customPermission ? { custompermission: customPermission } : {}),
           status: editStatus,
           staffProfile: {
             employmentType: profile.employmentType,
@@ -381,7 +547,7 @@ const AddStaffMember: React.FC = () => {
             additionalNotes: profile.notes,
             roles: buildSelectedRoleIds(),
             accessLevel,
-            assignedCentres: requiresAssignedCentres ? assignedCentres : [],
+            assignedCentres: requiresCountry ? countryCentreCodes : requiresAssignedCentres ? assignedCentres : [],
             documents: [...existingEntries, ...newDocEntries],
             twoFactorAuth: twoFAEnabled,
             twoFactorMethod: twoFAEnabled ? 'email' : '',
@@ -391,8 +557,9 @@ const AddStaffMember: React.FC = () => {
       );
 
       if (updateStaff.fulfilled.match(action)) {
-        // Refresh the cached list so the edit shows immediately on return.
-        dispatch(getStaffList({ facilityCode: getLocalUser().facilityCode, limit: 50, offset: 0 }));
+        // Refresh the cached list (scope-aware — see buildStaffListParams) so the edit
+        // shows immediately on return, regardless of the viewer's own facility/country.
+        dispatch(getStaffList(buildStaffListParams()));
         toast.success('Staff member updated');
         navigate(buildRoute.viewStaffMember(staffId), { replace: true });
       } else {
@@ -401,7 +568,12 @@ const AddStaffMember: React.FC = () => {
       return;
     }
 
-    const { facilityCode } = getLocalUser();
+    // The new member's own facility is the centre actually assigned to them in this
+    // wizard — NEVER the creating admin's own facility. The admin (especially a
+    // superadmin) may have an unrelated or even meaningless facilityCode on their own
+    // account; reusing it here silently mis-assigned every new facility-scoped staff
+    // member to the CREATOR's facility instead of the one picked in Assigned Centres.
+    const newMemberFacilityCode = requiresAssignedCentres ? (assignedCentres[0] ?? null) : null;
 
     const action = await dispatch(
       createStaff({
@@ -420,7 +592,7 @@ const AddStaffMember: React.FC = () => {
           additionalNotes: profile.notes,
           roles: buildSelectedRoleIds(),
           accessLevel,
-          assignedCentres: requiresAssignedCentres ? assignedCentres : [],
+          assignedCentres: requiresCountry ? countryCentreCodes : requiresAssignedCentres ? assignedCentres : [],
           documents: newDocEntries,
           twoFactorAuth: twoFAEnabled,
           twoFactorMethod: twoFAEnabled ? 'email' : '',
@@ -428,19 +600,32 @@ const AddStaffMember: React.FC = () => {
         loginEmail: (loginEmail || profile.email).trim(),
         defaultPassword,
         userType: buildSelectedRoleIds(),
-        facilityCode,
+        // Country-scoped → no facility, carry the country instead (empty assignedCentres).
+        facilityCode: requiresCountry ? null : newMemberFacilityCode,
+        countryCode: requiresCountry ? countryCode : null,
+        // Per-module overrides from the grid (only when the feature is active).
+        ...(customPermission ? { custompermission: customPermission } : {}),
         draftMode: draft,
         sendWelcomeEmail: draft ? false : sendWelcomeEmail,
       })
     );
 
     if (createStaff.fulfilled.match(action)) {
-      // Refresh the cached list so the new member shows immediately.
-      await dispatch(getStaffList({ facilityCode, limit: 50, offset: 0 }));
+      // Refresh the cached list (scope-aware — see buildStaffListParams) so the new
+      // member shows immediately, even when they're country-/global-scoped and the
+      // viewer's own facility/country wouldn't otherwise include them.
+      await dispatch(getStaffList(buildStaffListParams()));
       toast.success(draft ? 'Saved as draft' : 'Staff member created');
       navigate(ROUTES.STAFF_MANAGEMENT.path);
     } else {
-      toast.error((action.payload as string) ?? 'Failed to create staff member');
+      const msg = (action.payload as string) ?? 'Failed to create staff member';
+      toast.error(msg);
+      // Surface a module/permission-related 400 next to the grid, and jump to that
+      // step so the admin sees the backend's exact message.
+      if (modulePermMenus?.length && /module|permission/i.test(msg)) {
+        setModulePermError(msg);
+        setActiveStep('roleAccess');
+      }
     }
   };
 
@@ -521,13 +706,22 @@ const AddStaffMember: React.FC = () => {
               centres={centres}
               centresLoading={centresLoading}
               configError={configError}
+              countryCode={countryCode}
               creatingAccessLevel={creatingAccessLevel}
               creatingRole={creatingRole}
               isConfigLoading={isConfigLoading}
+              modulePermissionDefaults={defaultsGrid}
+              modulePermissionError={modulePermError}
+              modulePermissionMenus={modulePermMenus}
+              modulePermissions={modulePerms}
+              modulePermissionsLoading={isRoleDefaultsLoading}
               roles={roles}
               selectedRoles={selectedRoles}
               showAssignedCentres={requiresAssignedCentres}
+              showCountry={requiresCountry}
               onChangeCentres={setAssignedCentres}
+              onChangeCountry={setCountryCode}
+              onChangeModulePermissions={onChangeModulePermissions}
               onCreateAccessLevel={handleCreateAccessLevel}
               onCreateRole={handleCreateRole}
               onSelectAccessLevel={setAccessLevel}

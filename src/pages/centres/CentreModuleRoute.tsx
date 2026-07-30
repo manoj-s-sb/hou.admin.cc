@@ -23,7 +23,12 @@ const CentreModuleRoute: React.FC = () => {
 
   const mod = LIVE_CENTRE_MODULES.find(m => m.slug === moduleSlug);
   if (!mod?.component) return <Navigate replace to={ROUTES.CENTRES.path} />;
-  if (!canRead(mod.scope)) return <RestrictedAccess />;
+  if (!canRead(mod.scope)) {
+    // Redirect to the first module this user can access instead of showing Restricted Access.
+    const first = LIVE_CENTRE_MODULES.find(m => m.slug !== moduleSlug && canRead(m.scope));
+    if (first) return <Navigate replace to={`/centres/${facilityCode}/${first.slug}`} />;
+    return <RestrictedAccess />;
+  }
 
   const Page = mod.component;
   return (

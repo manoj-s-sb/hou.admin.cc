@@ -40,6 +40,31 @@ export const getMemberships = createAsyncThunk<MembershipPlan[], string | undefi
   }
 );
 
+/** Daily FX rates for the network reference-price currency conversion. */
+export interface FxRatesResult {
+  base: string;
+  rates: Record<string, number>;
+  asOf?: string;
+}
+
+/**
+ * Fetches daily market FX rates from `GET /admin/fxrates`, so the plan reference
+ * prices convert at current rates instead of a fixed table. The caller falls back
+ * to the static defaults when this rejects (endpoint absent / offline).
+ */
+export const getFxRates = createAsyncThunk<FxRatesResult, void, { rejectValue: string }>(
+  'memberships/getFxRates',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get<{ data: FxRatesResult }>(endpoints.memberships.fxRates);
+      const payload = res.data?.data ?? (res.data as unknown as FxRatesResult);
+      return { base: payload?.base ?? 'USD', rates: payload?.rates ?? {}, asOf: payload?.asOf };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch exchange rates'));
+    }
+  }
+);
+
 /**
  * Creates a new global plan template via `POST /admin/memberships/create`.
  * Maps the flat drawer model to the create body and classifies the response so

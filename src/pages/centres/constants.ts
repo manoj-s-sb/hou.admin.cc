@@ -155,6 +155,7 @@ const COUNTRY_FLAGS: Record<string, string> = {
   UAE: '🇦🇪',
   AE: '🇦🇪',
   IN: '🇮🇳',
+  IND: '🇮🇳',
   NZ: '🇳🇿',
   ZA: '🇿🇦',
 };

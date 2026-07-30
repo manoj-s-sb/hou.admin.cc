@@ -1,4 +1,5 @@
 import { AxiosError, create, InternalAxiosRequestConfig } from 'axios';
+import { toast } from 'react-hot-toast';
 
 import { isTokenExpired } from '../utils/tokenUtils';
 
@@ -36,6 +37,29 @@ const triggerSessionExpired = () => {
   if (onSessionExpiredCallback) {
     onSessionExpiredCallback();
   }
+};
+
+// Read-only requests: GETs, path-based reads (…/list, …/details, …/config, …),
+// and action-dispatched POSTs whose `action` is a read. A 403 on one of these is a
+// passive page-load fetch (e.g. an out-of-scope centres/list) — we stay silent so
+// navigation never spams "no access" toasts. A 403 on anything else is treated as a
+// blocked user action (create/update/…) and DOES surface the toast.
+const READ_ACTIONS = new Set(['list', 'get', 'counts', 'details', 'search', 'config', 'stats', 'me', 'uploadurl']);
+const isReadRequest = (config: AxiosError['config']): boolean => {
+  const method = (config?.method ?? 'get').toLowerCase();
+  if (method === 'get') return true;
+  const url = (config?.url ?? '').toLowerCase();
+  if (/\/(list|details|config|search|stats|counts)(\?|$)/.test(url)) return true;
+  if (method === 'post' && config?.data) {
+    try {
+      const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      const action = (body?.action ?? '').toString().toLowerCase();
+      if (action && READ_ACTIONS.has(action)) return true;
+    } catch {
+      /* body not JSON — fall through and treat as a mutation */
+    }
+  }
+  return false;
 };
 
 // Request interceptor - Add auth token to requests and check expiration
@@ -97,8 +121,14 @@ api.interceptors.response.use(
         // re-logs in, instead of bubbling up a cryptic per-feature error.
         triggerSessionExpired();
       } else if (status === 403) {
-        // Forbidden - user doesn't have permission
+        // Forbidden — the user is authenticated but lacks access. Only surface a toast
+        // for a blocked user ACTION (create/update/…); stay silent for passive
+        // page-load reads so navigation never spams "no access". Deduped via a fixed
+        // toast id so repeats replace rather than stack.
         console.error('Access forbidden (403)');
+        if (!isReadRequest(error.config)) {
+          toast.error("You don't have edit access to this module.", { id: 'forbidden-403' });
+        }
       } else if (status >= 500) {
         // Server error
         console.error('Server error:', error.response.data);

@@ -2,7 +2,7 @@
 export const ROUTES = {
   ROOT: { path: '/', label: '' },
   LOGIN: { path: '/login', label: 'Login' },
-  DASHBOARD: { path: '/dashboard', label: 'Dashboard' },
+  REPORTS: { path: '/reports', label: 'Reports' },
   USERS: { path: '/users', label: 'Users' },
   MEMBERS: { path: '/members', label: 'Members' },
   VIEW_MEMBERS: { path: '/members/:userId', label: 'View Member' },
@@ -21,6 +21,7 @@ export const ROUTES = {
   // One generic centre-scoped route — :moduleSlug resolves to a module in the registry.
   CENTRE_MODULE: { path: '/centres/:facilityCode/:moduleSlug', label: 'Centre Module' },
   MEMBERSHIP_PLANS: { path: '/membership-plans', label: 'Membership Plans' },
+  TICKETS: { path: '/tickets', label: 'Tickets / Incidents' },
 } as const;
 
 // Dynamic-path builders for routes with URL params

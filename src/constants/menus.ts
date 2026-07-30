@@ -24,28 +24,17 @@ export interface MenuGroup {
  */
 export const MENU_GROUPS: MenuGroup[] = [
   {
+    // Facility-role operations pages. All hidden for super admins (who manage these
+    // inside Centre Management), so a superadmin's first visible group is Setup —
+    // matching the approved global mockup. Coach Schedule and Induction are
+    // intentionally centre-only (see centreModules) and are NOT listed here.
     group: 'Operations',
     items: [
-      {
-        path: ROUTES.COACH_SCHEDULE.path,
-        label: ROUTES.COACH_SCHEDULE.label,
-        icon: '/assets/coach-schedule.svg',
-        module: ACCESS_SCOPES.coaches,
-        hideForSuperAdmin: true,
-      },
-      {
-        path: ROUTES.INDUCTION.path,
-        label: ROUTES.INDUCTION.label,
-        icon: '/assets/induction.svg',
-        module: ACCESS_SCOPES.induction,
-        hideForSuperAdmin: true,
-      },
       {
         path: ROUTES.MEMBERS.path,
         label: ROUTES.MEMBERS.label,
         icon: '/assets/subscription.svg',
         module: ACCESS_SCOPES.members,
-        // Super admins manage members inside Centre Management, so hide the top-level item.
         hideForSuperAdmin: true,
       },
       {
@@ -65,40 +54,23 @@ export const MENU_GROUPS: MenuGroup[] = [
     ],
   },
   {
-    group: 'Monitoring',
-    items: [
-      {
-        path: ROUTES.MAINTENANCE.path,
-        label: ROUTES.MAINTENANCE.label,
-        icon: '/assets/maintenance.svg',
-        module: ACCESS_SCOPES.maintenance,
-        hideForSuperAdmin: true,
-      },
-      {
-        path: ROUTES.TAILGATE.path,
-        label: ROUTES.TAILGATE.label,
-        icon: '/assets/tailgate.svg',
-        module: ACCESS_SCOPES.tailgate,
-        hideForSuperAdmin: true,
-      },
-    ],
-  },
-  {
     group: 'Setup',
     items: [
-      {
-        path: ROUTES.CENTRES.path,
-        label: ROUTES.CENTRES.label,
-        icon: '/assets/subscription.svg',
-        // Super-admin only for now (the Super Admin Portal owns centre management).
-        module: ACCESS_SCOPES.superAdmin,
-      },
       {
         path: ROUTES.MEMBERSHIP_PLANS.path,
         label: ROUTES.MEMBERSHIP_PLANS.label,
         icon: '/assets/subscription.svg',
-        // Super-admin only — global plan templates are network-wide configuration.
-        module: ACCESS_SCOPES.superAdmin,
+        // Gated on the real membershipplans module (superadmins still see it via the
+        // superadmin short-circuit in hasPermission).
+        module: ACCESS_SCOPES.membershipPlans,
+      },
+      {
+        path: ROUTES.CENTRES.path,
+        label: ROUTES.CENTRES.label,
+        icon: '/assets/subscription.svg',
+        // Visible to anyone with centremanagement:read. Mutations (create/edit/
+        // suspend/delete) are further gated to super admins inside the page (§4).
+        module: ACCESS_SCOPES.centreManagement,
       },
       {
         path: ROUTES.STAFF_MANAGEMENT.path,
@@ -108,9 +80,58 @@ export const MENU_GROUPS: MenuGroup[] = [
       },
     ],
   },
+  {
+    group: 'Monitoring',
+    items: [
+      {
+        // Network-wide analytics page (gated by the reports scope).
+        path: ROUTES.REPORTS.path,
+        label: 'Reports',
+        icon: '/assets/reports.svg',
+        module: ACCESS_SCOPES.reports,
+      },
+      {
+        // Cross-centre tickets view — gated on the real ticketsincidents module so
+        // any role granted it (not just superadmin) sees it.
+        path: ROUTES.TICKETS.path,
+        label: ROUTES.TICKETS.label,
+        icon: '/assets/maintenance.svg',
+        module: ACCESS_SCOPES.tickets,
+      },
+      {
+        // Tailgate access logs — visible to super admins and any role with the scope.
+        path: ROUTES.TAILGATE.path,
+        label: 'Tailgate Logs',
+        icon: '/assets/tailgate.svg',
+        module: ACCESS_SCOPES.tailgate,
+      },
+    ],
+  },
+  {
+    group: 'Maintenance',
+    items: [
+      {
+        // Global task library — define tasks once; scheduling/execution happens per centre.
+        path: ROUTES.MAINTENANCE.path,
+        label: 'Maintenance & Tasks',
+        icon: '/assets/maintenance.svg',
+        module: ACCESS_SCOPES.maintenance,
+      },
+    ],
+  },
 ];
 
 /** Flat list (default export) — kept for consumers that don't care about grouping. */
 const menus: MenuItem[] = MENU_GROUPS.flatMap(g => g.items);
+
+/**
+ * moduleId → menu item lookup (id = first entry of a menu item's `module` array).
+ * Lets the backend `sidebar`/permission ids resolve to a global route + visuals.
+ */
+export const MENU_ITEM_BY_MODULE: Record<string, MenuItem> = {};
+menus.forEach(item => {
+  const id = item.module?.[0];
+  if (id) MENU_ITEM_BY_MODULE[id] = item;
+});
 
 export default menus;

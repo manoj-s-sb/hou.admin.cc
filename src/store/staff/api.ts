@@ -9,6 +9,7 @@ import type {
   AccessLevelConfig,
   CreateStaffRequest,
   RoleConfig,
+  RoleDefaults,
   StaffConfig,
   StaffDocumentEntry,
   StaffListRequest,
@@ -83,6 +84,25 @@ export const createStaffAccessLevel = createAsyncThunk<
     return rejectWithValue(handleApiError(error, 'Could not create the access level. Please try again.'));
   }
 });
+
+/**
+ * Role-derived default module permissions, unioned across every given role by the
+ * backend. Refetched whenever the admin changes the selected role(s) in Role & Access
+ * (step 2), and once up front in edit mode after the member's saved roles load.
+ */
+export const getRoleDefaults = createAsyncThunk<RoleDefaults, string[], { rejectValue: string }>(
+  'staff/getRoleDefaults',
+  async (roleIds, { rejectWithValue }) => {
+    try {
+      const response = await api.get<{ data: RoleDefaults }>(endpoints.staff.roleDefaults, {
+        params: { roles: roleIds.join(',') },
+      });
+      return response.data?.data ?? {};
+    } catch (error: unknown) {
+      return rejectWithValue(handleApiError(error, 'Failed to load role default permissions'));
+    }
+  }
+);
 
 export const getStaffDetails = createAsyncThunk(
   'staff/getDetails',

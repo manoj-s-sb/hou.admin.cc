@@ -1,254 +1,272 @@
-import { useRef, useState } from 'react';
+import React, { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
-import { getWorkUploadUrl, updateWork, uploadFileToBlob } from '../../../store/maintenance/api';
-import { Work } from '../../../store/maintenance/types';
+import { completeTask, uploadMaintenanceFile } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
-import { getLocalUser } from '../constants';
+import { freqBadgeCls, freqLabel, priorityMeta, taskTypeMeta } from '../constants';
 
-interface ScheduleCardProps {
-  item: Work;
-  updatedBy: string;
-  onMarkDone: (item: Work) => void;
-  onFlagIssue: (item: Work) => void;
-  onSchedule: (item: Work) => void;
-  onStepsView: (item: Work) => void;
-  onUndo: (item: Work) => void;
-  onSuccess: () => void;
+import type { TaskSchedule } from '../../../store/maintenance/types';
+
+interface Props {
+  schedule: TaskSchedule;
+  canManage: boolean;
+  facilityCode: string;
+  onChanged: () => void;
+  onFlag: (s: TaskSchedule) => void;
+  onViewSteps: (s: TaskSchedule) => void;
+  onReschedule?: (s: TaskSchedule) => void;
+  onUnschedule?: (s: TaskSchedule) => void;
 }
 
-const ScheduleCard = ({
-  item,
-  updatedBy,
-  onMarkDone,
-  onFlagIssue,
-  onSchedule,
-  onStepsView,
-  onUndo,
-  onSuccess,
-}: ScheduleCardProps) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const isIssue = item.status === 'issue';
-  const [attaching, setAttaching] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+const fmtShort = (d: string | null): string =>
+  d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
 
-  const handleAttach = async (files: FileList) => {
-    if (!files.length) return;
-    setAttaching(true);
+const isImage = (url: string) => /\.(png|jpe?g|webp|gif)$/i.test(url.split('?')[0]);
+
+const ScheduleCard: React.FC<Props> = ({
+  schedule,
+  canManage,
+  facilityCode,
+  onChanged,
+  onFlag,
+  onViewSteps,
+  onReschedule,
+  onUnschedule,
+}) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const t = schedule.template;
+  const type = taskTypeMeta(t.taskType);
+  const prio = priorityMeta(t.priority);
+  const isDone = schedule.status === 'done';
+  const isOverdue = schedule.status === 'overdue';
+
+  const [comment, setComment] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null); // in-page image lightbox
+
+  const handleMarkDone = async () => {
+    setSaving(true);
     try {
-      const blobNames = await Promise.all(
-        Array.from(files).map(async file => {
-          const { uploadUrl, blobName } = await getWorkUploadUrl(getLocalUser().facilityCode, file.name);
-          await uploadFileToBlob(uploadUrl, file);
-          return blobName;
-        })
-      );
-      const { name: updatedByName } = getLocalUser();
+      let attachments: string[] = [];
+      if (files.length) attachments = await Promise.all(files.map(f => uploadMaintenanceFile(facilityCode, f)));
       await dispatch(
-        updateWork({
-          itemId: item.itemId,
-          attachments: blobNames,
-          ...(updatedBy ? { updatedBy } : {}),
-          ...(updatedByName ? { updatedByName } : {}),
+        completeTask({
+          id: schedule.id,
+          facilityCode,
+          actionTaken: comment.trim() || undefined,
+          attachments: attachments.length ? attachments : undefined,
         })
       ).unwrap();
-      toast.success(`${blobNames.length} file${blobNames.length > 1 ? 's' : ''} attached.`);
-      onSuccess();
-    } catch {
-      toast.error('Failed to attach files.');
+      toast.success('Task completed');
+      setComment('');
+      setFiles([]);
+      onChanged();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not complete the task');
     } finally {
-      setAttaching(false);
+      setSaving(false);
     }
   };
 
   return (
     <div
-      className={`flex items-start justify-between rounded-xl border bg-white px-5 py-4 shadow-sm ${isIssue ? 'border-red-100' : 'border-blue-100'}`}
+      className={`flex gap-4 rounded-xl border p-4 ${
+        isDone
+          ? 'border-teal-200 bg-teal-50/50'
+          : isOverdue
+            ? 'border-red-200 bg-red-50/40'
+            : 'border-gray-200 bg-white'
+      }`}
     >
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-bold text-gray-900">{item.title}</p>
-          {item.laneNo && (
-            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
-              Lane {item.laneNo}
-            </span>
-          )}
-          {isIssue && (
-            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600">
-              Issue Raised
-            </span>
-          )}
-        </div>
-
+      {/* Left — details */}
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          {item.category && (
-            <span className="flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
-              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-                <path
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
-              {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
+          <span className="text-[14px] font-bold text-[#21295A]">{t.title}</span>
+          {schedule.laneNo ? (
+            <span className="rounded bg-[#f0f4ff] px-1.5 py-0.5 text-[10px] font-semibold text-[#4338ca]">
+              Lane {schedule.laneNo}
             </span>
-          )}
-          {item.frequency && (
-            <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-              {item.frequency.charAt(0).toUpperCase() + item.frequency.slice(1)}
-            </span>
-          )}
-          {item.scheduledDate && (
-            <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-600">
-              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
-              From {new Date(item.scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          ) : (
+            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
+              Facility-wide
             </span>
           )}
         </div>
 
-        {item.notes && <p className="break-all text-xs text-gray-500">{item.notes}</p>}
+        {t.description && <p className="mt-1 text-[12px] text-gray-600">{t.description}</p>}
 
-        {item.steps && item.steps.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className={`rounded px-1.5 py-0.5 font-semibold ${type.badge}`}>
+            {type.icon} {type.label}
+          </span>
+          <span className={`rounded px-1.5 py-0.5 font-semibold ${freqBadgeCls(t.freqN, t.freqUnit)}`}>
+            {freqLabel(t.freqN, t.freqUnit)}
+          </span>
+          <span className={`rounded px-1.5 py-0.5 font-semibold ${prio.pill}`}>{prio.label}</span>
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
-            className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
+            className="text-[11.5px] font-semibold text-indigo-600 hover:text-indigo-700"
             type="button"
-            onClick={() => onStepsView(item)}
+            onClick={() => onViewSteps(schedule)}
           >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-            View steps &amp; video
+            📋 View steps{t.videoUrl ? ' & video' : ''}
+          </button>
+          {isOverdue && (
+            <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10.5px] font-semibold text-red-600">
+              🔴 Overdue
+            </span>
+          )}
+          {isDone && (
+            <span className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10.5px] font-semibold text-teal-700">
+              ✓ Done{schedule.lastCompletedAt ? ` · ${fmtShort(schedule.lastCompletedAt.split('T')[0])}` : ''}
+            </span>
+          )}
+        </div>
+
+        {isDone && schedule.actionTaken && (
+          <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 text-[12px] text-gray-600">✓ {schedule.actionTaken}</p>
+        )}
+
+        {/* Inline comment (before completing) */}
+        {!isDone && (
+          <>
+            <textarea
+              className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[12.5px] text-gray-700 outline-none focus:border-[#21295A] focus:bg-white"
+              placeholder="Add a comment (optional)…"
+              rows={2}
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+            />
+            {(comment.trim() || files.length > 0) && (
+              <p className="mt-1 text-[11px] text-gray-400">
+                Your comment{files.length ? ' & attachment' : ''} is saved when you tap{' '}
+                <span className="font-semibold text-teal-700">Mark Done</span>.
+              </p>
+            )}
+          </>
+        )}
+
+        {/* Attachments — existing + newly picked */}
+        {(schedule.attachments.length > 0 || files.length > 0) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {schedule.attachments.map((a, i) =>
+              isImage(a.blobName) ? (
+                <button
+                  key={`e${i}`}
+                  aria-label="Open attachment"
+                  className="block h-12 w-12 overflow-hidden rounded-lg border border-gray-100"
+                  type="button"
+                  onClick={() => setPreview(a.blobName)}
+                >
+                  <img alt="attachment" className="h-full w-full object-cover" src={a.blobName} />
+                </button>
+              ) : (
+                <a
+                  key={`e${i}`}
+                  className="flex h-12 items-center rounded-lg border border-gray-200 bg-gray-50 px-2 text-[10px] font-semibold text-gray-500 hover:bg-gray-100"
+                  href={a.blobName}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  🎬 File
+                </a>
+              )
+            )}
+            {files.map((f, i) => (
+              <span
+                key={`n${i}`}
+                className="flex h-12 items-center gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 text-[10px] font-semibold text-gray-500"
+              >
+                📎 {f.name.length > 12 ? `${f.name.slice(0, 12)}…` : f.name}
+                <button
+                  className="text-red-400 hover:text-red-600"
+                  type="button"
+                  onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Right — actions (outline style, matching the reference) */}
+      <div className="flex w-32 flex-shrink-0 flex-col gap-2">
+        {!isDone && (
+          <button
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-teal-300 bg-teal-50 px-3 py-2 text-[12px] font-semibold text-teal-700 transition hover:bg-teal-600 hover:text-white disabled:opacity-50"
+            disabled={saving}
+            type="button"
+            onClick={handleMarkDone}
+          >
+            {saving ? 'Saving…' : '✓ Mark Done'}
+          </button>
+        )}
+        <button
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600 transition hover:bg-red-600 hover:text-white"
+          type="button"
+          onClick={() => onFlag(schedule)}
+        >
+          ⚑ Flag Issue
+        </button>
+        {!isDone && (
+          <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-500 transition hover:bg-gray-50">
+            📎 Attach
+            <input
+              multiple
+              accept="image/*,video/*"
+              className="hidden"
+              type="file"
+              onChange={e => {
+                setFiles(prev => [...prev, ...Array.from(e.target.files ?? [])]);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        )}
+        {canManage && onReschedule ? (
+          // Clickable on every card — pending tasks reschedule their own date;
+          // done/recurred tasks reschedule their next occurrence date.
+          <button
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-600 hover:text-white"
+            title={isDone ? 'Change the next scheduled date' : 'Reschedule — change the date'}
+            type="button"
+            onClick={() => onReschedule(schedule)}
+          >
+            📅 {fmtShort(isDone ? schedule.nextDueDate || schedule.scheduledDate : schedule.scheduledDate)}
+          </button>
+        ) : (
+          <span className="flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-2 text-[12px] font-semibold text-emerald-600">
+            📅 {fmtShort(schedule.nextDueDate || schedule.scheduledDate)}
+          </span>
+        )}
+        {canManage && onUnschedule && (
+          <button
+            className="flex items-center justify-center rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-semibold text-gray-400 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-600"
+            type="button"
+            onClick={() => onUnschedule(schedule)}
+          >
+            Remove
           </button>
         )}
       </div>
 
-      <div className="ml-6 flex shrink-0 flex-col gap-2">
-        <button
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
-            isIssue
-              ? 'cursor-not-allowed border border-gray-100 bg-gray-50 text-gray-300'
-              : 'bg-green-500 text-white hover:bg-green-600'
-          }`}
-          disabled={isIssue}
-          type="button"
-          onClick={() => !isIssue && onMarkDone(item)}
+      {/* In-page image preview — click anywhere to close (stays on this page). */}
+      {preview && (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+        <div
+          className="fixed inset-0 z-[700] flex items-center justify-center bg-black/80 p-6"
+          onClick={() => setPreview(null)}
         >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} />
-          </svg>
-          Mark Done
-        </button>
-        <button
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
-            isIssue
-              ? 'cursor-not-allowed border border-gray-100 bg-gray-50 text-gray-300'
-              : 'bg-red-500 text-white hover:bg-red-600'
-          }`}
-          disabled={isIssue}
-          type="button"
-          onClick={() => !isIssue && onFlagIssue(item)}
-        >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11.5l-1-1H5v4m0-4h14"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-          Flag Issue
-        </button>
-        <button
-          className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-xs font-medium transition-colors ${
-            isIssue || attaching
-              ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300'
-              : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
-          }`}
-          disabled={isIssue || attaching}
-          type="button"
-          onClick={() => !isIssue && !attaching && fileInputRef.current?.click()}
-        >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-          {attaching ? 'Uploading...' : 'Attach'}
-        </button>
-        <input
-          ref={fileInputRef}
-          multiple
-          className="hidden"
-          type="file"
-          onChange={e => {
-            if (e.target.files) handleAttach(e.target.files);
-            e.target.value = '';
-          }}
-        />
-
-        {/* Undo — only visible when status is issue */}
-        {isIssue && (
-          <button
-            className="flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-600 transition-colors hover:bg-orange-100"
-            type="button"
-            onClick={() => onUndo(item)}
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-            Undo
-          </button>
-        )}
-
-        <button
-          className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
-            item.scheduledDate
-              ? 'border-green-400 bg-white text-green-600 hover:bg-green-50'
-              : 'border-gray-300 bg-white text-gray-500 hover:bg-gray-50'
-          }`}
-          type="button"
-          onClick={() => onSchedule(item)}
-        >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-          {item.scheduledDate ? 'Scheduled' : 'Schedule'}
-        </button>
-      </div>
+          <img alt="attachment preview" className="max-h-full max-w-full rounded-lg object-contain" src={preview} />
+        </div>
+      )}
     </div>
   );
 };

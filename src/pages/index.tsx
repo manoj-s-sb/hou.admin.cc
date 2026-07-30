@@ -14,6 +14,7 @@ import StaffManagement from './staff';
 import AddStaffMember from './staff/AddStaffMember';
 import ViewStaffMember from './staff/ViewStaffMember';
 import Tailgate from './tailgate';
+import Tickets from './tickets';
 import Tours from './tours';
 import UserList from './users';
 
@@ -34,4 +35,5 @@ export {
   CentreManagement,
   CentreModuleRoute,
   MembershipPlans,
+  Tickets,
 };

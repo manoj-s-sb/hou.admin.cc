@@ -43,13 +43,6 @@ const readableDate = (value?: string): string =>
 const normalizePlan = (s: string): string => s.toLowerCase().replace(/[\s_-]+/g, '');
 const planOf = (e: WaitlistEntry): string => (e.plan || e.details?.subscription_code || '').toString();
 
-// TYPE filter → subscriptionSrc query param ("All" sends nothing).
-const TYPE_FILTERS: { label: string; value: string; src?: string }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Foundation', value: 'foundation', src: 'foundation' },
-  { label: 'Post Launch', value: 'launchWaitlist', src: 'launchWaitlist' },
-];
-
 // PLAN filter is client-side (the waitlist endpoint takes no plan param).
 const PLAN_FILTERS: { label: string; value: string }[] = [
   { label: 'All plans', value: 'all' },
@@ -112,6 +105,122 @@ const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ messag
   </div>
 );
 
+// ── Export preview / download (CSV) ──────────────────────────
+const csvEscape = (v: string): string => {
+  const s = (v ?? '').toString();
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+const downloadCsv = (filename: string, headers: string[], rows: string[][]) => {
+  const rowsCsv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
+  // Leading BOM so Excel opens the UTF-8 file correctly.
+  const bom = String.fromCharCode(0xfeff);
+  const blob = new Blob([bom + rowsCsv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+interface ExportData {
+  title: string;
+  filename: string;
+  headers: string[];
+  rows: string[][];
+}
+
+const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = ({ data, onClose }) => {
+  const preview = data.rows.slice(0, 50);
+  const truncated = data.rows.length > preview.length;
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[600] flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+    >
+      <div className="flex max-h-[88vh] w-full max-w-[760px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#21295A]">Export Preview — {data.title}</h2>
+            <p className="mt-0.5 text-[12px] text-gray-400">
+              {data.rows.length} row{data.rows.length === 1 ? '' : 's'} (current page). Review below, then download.
+            </p>
+          </div>
+          <button
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+            type="button"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto px-6 py-4">
+          {data.rows.length === 0 ? (
+            <p className="py-10 text-center text-[13px] text-gray-400">Nothing to export.</p>
+          ) : (
+            <table className="w-full border-collapse text-left text-[12px]">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  {data.headers.map(h => (
+                    <th key={h} className="whitespace-nowrap px-2 py-1.5 font-semibold text-gray-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.map((r, i) => (
+                  <tr key={i} className="border-b border-gray-50">
+                    {r.map((cell, j) => (
+                      <td key={j} className="whitespace-nowrap px-2 py-1.5 text-gray-700">
+                        {cell || '—'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {truncated && (
+            <p className="mt-3 text-[11px] text-gray-400">
+              Showing first {preview.length} of {data.rows.length} rows — all rows are included in the download.
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
+          <button
+            className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+            type="button"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
+            disabled={data.rows.length === 0}
+            type="button"
+            onClick={() => downloadCsv(data.filename, data.headers, data.rows)}
+          >
+            <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" x2="12" y1="15" y2="3" />
+            </svg>
+            Download CSV
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const WaitlistLeads = () => {
   const dispatch = useDispatch<AppDispatch>();
   const facilityCode = getFacilityCode();
@@ -131,10 +240,8 @@ const WaitlistLeads = () => {
   } = useSelector((state: RootState) => state.centres);
 
   const [tab, setTab] = useState<'waitlist' | 'leads'>('waitlist');
-  const [typeFilter, setTypeFilter] = useState('all');
   const [planFilter, setPlanFilter] = useState('all');
-
-  const currentSrc = TYPE_FILTERS.find(t => t.value === typeFilter)?.src;
+  const [showExport, setShowExport] = useState(false);
 
   const fetchWaitlist = useCallback(
     (page: number, limit: number, src?: string) => {
@@ -160,19 +267,13 @@ const WaitlistLeads = () => {
 
   const switchTab = (next: 'waitlist' | 'leads') => {
     if (next === tab) return;
-    setTypeFilter('all');
     setPlanFilter('all');
     setTab(next);
   };
 
-  const onTypeChange = (value: string, src?: string) => {
-    setTypeFilter(value);
-    fetchWaitlist(1, waitlistLimit || PAGE_SIZE, src);
-  };
-
   const onPlanChange = (value: string) => {
     setPlanFilter(value);
-    fetchWaitlist(1, waitlistLimit || PAGE_SIZE, currentSrc);
+    fetchWaitlist(1, waitlistLimit || PAGE_SIZE);
   };
 
   // Plan filter is applied client-side on the loaded page.
@@ -180,6 +281,48 @@ const WaitlistLeads = () => {
     if (planFilter === 'all') return waitlist;
     return waitlist.filter(e => normalizePlan(planOf(e)) === planFilter);
   }, [waitlist, planFilter]);
+
+  // Export payload for the active tab (the currently loaded page of rows).
+  const exportData: ExportData = useMemo(() => {
+    if (tab === 'waitlist') {
+      const base = ((waitlistPage || 1) - 1) * (waitlistLimit || PAGE_SIZE);
+      return {
+        title: 'Waitlist',
+        filename: `waitlist-${facilityCode || 'centre'}.csv`,
+        headers: ['Name', 'Email', 'Waitlist Type', 'Plan', 'Date Added', 'Position'],
+        rows: waitlistRows.map((e, i) => {
+          const src = (e.subscriptionSrc || '').toLowerCase();
+          const typeLabel = WAITLIST_TYPE_META[src]?.label || (src ? titleCase(src) : '');
+          const plan = planOf(e);
+          const pos = e.position ?? base + i + 1;
+          return [
+            e.name || '',
+            e.email || '',
+            typeLabel,
+            plan ? titleCase(plan) : '',
+            readableDate(e.createdAt),
+            `#${pos}`,
+          ];
+        }),
+      };
+    }
+    return {
+      title: 'Leads',
+      filename: `leads-${facilityCode || 'centre'}.csv`,
+      headers: ['Email', 'Action', 'Plan', 'Billing', 'Date'],
+      rows: leads.map(l => {
+        const code = l.details?.subscription_code ?? '';
+        const cycle = l.details?.billing_cycle ?? '';
+        return [
+          l.details?.email || '',
+          l.action ? titleCase(l.action) : '',
+          code ? titleCase(code) : '',
+          cycle ? titleCase(cycle) : '',
+          readableDate(l.timestamp || l.createdAt),
+        ];
+      }),
+    };
+  }, [tab, waitlistRows, leads, waitlistPage, waitlistLimit, facilityCode]);
 
   const waitlistColumns: ColumnDef[] = [
     {
@@ -375,7 +518,7 @@ const WaitlistLeads = () => {
         <button
           className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
           type="button"
-          onClick={comingSoon}
+          onClick={() => setShowExport(true)}
         >
           <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -408,14 +551,6 @@ const WaitlistLeads = () => {
         <>
           {/* ── Filter Bar ──────────────────────────────────── */}
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
-              {TYPE_FILTERS.map(f => (
-                <Chip key={f.value} active={typeFilter === f.value} onClick={() => onTypeChange(f.value, f.src)}>
-                  {f.label}
-                </Chip>
-              ))}
-            </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Plan</span>
               {PLAN_FILTERS.map(f => (
@@ -433,10 +568,7 @@ const WaitlistLeads = () => {
           </div>
 
           {waitlistError ? (
-            <ErrorState
-              message={waitlistError}
-              onRetry={() => fetchWaitlist(1, waitlistLimit || PAGE_SIZE, currentSrc)}
-            />
+            <ErrorState message={waitlistError} onRetry={() => fetchWaitlist(1, waitlistLimit || PAGE_SIZE)} />
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
               <DataTable
@@ -455,9 +587,9 @@ const WaitlistLeads = () => {
                 onPageChange={(page: number) => {
                   const limit = waitlistLimit || PAGE_SIZE;
                   const newPage = page + 1;
-                  if (newPage !== (waitlistPage || 1)) fetchWaitlist(newPage, limit, currentSrc);
+                  if (newPage !== (waitlistPage || 1)) fetchWaitlist(newPage, limit);
                 }}
-                onRowsPerPageChange={(rowsPerPage: number) => fetchWaitlist(1, rowsPerPage, currentSrc)}
+                onRowsPerPageChange={(rowsPerPage: number) => fetchWaitlist(1, rowsPerPage)}
               />
             </div>
           )}
@@ -498,6 +630,8 @@ const WaitlistLeads = () => {
           )}
         </>
       )}
+
+      {showExport && <ExportPreviewModal data={exportData} onClose={() => setShowExport(false)} />}
     </div>
   );
 };

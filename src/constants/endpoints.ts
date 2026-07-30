@@ -6,6 +6,7 @@ const endpoints = {
     updateCoachSlots: 'admin/coach/status/update',
   },
   login: '/admin/auth/login',
+  me: '/admin/auth/me',
   members: {
     list: '/admin/members/list',
     membersDetails: '/admin/member/details',
@@ -14,14 +15,11 @@ const endpoints = {
   tour: {
     updateTourStatus: '/admin/bookings/tour/status/update',
   },
-  maintenance: {
-    workList: '/admin/work/list',
-    createWork: '/admin/work/create',
-    updateWork: '/admin/work/update',
-    workDetail: '/admin/work/detail',
-    uploadUrl: '/admin/work/uploadurl',
-    deleteMedia: '/admin/work/deletemedia',
-  },
+  // Maintenance & Tasks — ONE action-dispatched endpoint. Body always carries an
+  // `action` (list_templates | create_template | update_template | archive_template |
+  // restore_template | get_template | list_schedules | schedule_task | complete_task |
+  // flag_issue | unschedule_task | upload_url) plus that action's `payload`.
+  maintenance: '/admin/maintenance',
   tailgate: {
     createEvent: '/admin/tailgate/events',
     review: '/admin/tailgate/review',
@@ -37,6 +35,8 @@ const endpoints = {
     roleCreate: '/admin/staff/roles/create',
     // BACKEND TODO: persist a new access level and return the created AccessLevelConfig.
     accessLevelCreate: '/admin/staff/access-levels/create',
+    // GET ?roles=<comma-separated role ids> → { moduleId: verbs }, unioned across roles.
+    roleDefaults: '/admin/staff/role-defaults',
   },
   induction: {
     list: '/admin/bookings/list',
@@ -72,12 +72,23 @@ const endpoints = {
     create: '/admin/memberships/create',
     // Create/update a membership (full nested body).
     update: '/admin/memberships/update',
+    // Daily FX rates for the network reference-price currency conversion.
+    // GET → { base: 'USD', rates: { AUD: n, INR: n, … }, asOf?: 'YYYY-MM-DD' }.
+    fxRates: '/admin/fxrates',
   },
   membershipPlans: {
     list: '/admin/membership-plans',
     update: (id: string) => `/admin/membership-plans/${id}`,
     archive: (id: string) => `/admin/membership-plans/${id}/archive`,
   },
+  // Tickets / Incidents — ONE action-dispatched endpoint. Body always carries an
+  // `action` (create | list | get | updateStatus | acknowledge | comment |
+  // addAttachment | reassign | counts) plus that action's payload.
+  tickets: '/admin/tickets',
+  // Reports / Analytics — ONE GET endpoint. Filters (tab, view, centreId, country,
+  // period, startDate, endDate) are passed as query params; the `tab` selects the
+  // response shape (overview | membership | utilisation | sessions | capacity).
+  reports: '/admin/reports',
 };
 
 export default endpoints;

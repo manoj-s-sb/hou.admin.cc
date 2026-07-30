@@ -60,6 +60,9 @@ export interface CreateTailgateEventRequest {
   skip?: number;
   limit?: number;
   type?: 'all' | 'unidentified' | 'violation';
+  // Narrows the GLOBAL Tailgate Logs page to one centre; omitted entirely = every
+  // centre the viewer's scope covers (network-wide for a superadmin).
+  facilityCode?: string;
 }
 
 export interface TailgateStats {

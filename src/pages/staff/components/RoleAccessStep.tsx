@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 
 import { countryFlag } from '../../centres/constants';
-import { AccessLevelConfig, RoleConfig } from '../types';
+import { AccessLevelConfig, MenuMasterItem, RoleConfig } from '../types';
 import { INPUT_CLASS } from '../utils';
 
 import AccessLevelCard from './AccessLevelCard';
+import ModulePermissionsSection, { type PermGrid } from './ModulePermissionsSection';
 import RoleCard from './RoleCard';
 
 /** Minimal centre shape needed for the picker (FacilitySummary satisfies this). */
@@ -31,6 +32,10 @@ interface RoleAccessStepProps {
   onChangeCentres: (next: string[]) => void;
   centresLoading: boolean;
   showAssignedCentres: boolean;
+  // Country picker (shown for country/region-scoped access levels instead of centres).
+  showCountry: boolean;
+  countryCode: string;
+  onChangeCountry: (code: string) => void;
   /** Create a new role (persisted to the DB) and auto-select it. Resolves to true on success. */
   onCreateRole?: (label: string, description: string) => Promise<boolean>;
   /** True while a new role is being persisted. */
@@ -39,6 +44,16 @@ interface RoleAccessStepProps {
   onCreateAccessLevel?: (label: string, description: string, scopeType: 'facility' | 'global') => Promise<boolean>;
   /** True while a new access level is being persisted. */
   creatingAccessLevel?: boolean;
+  // Module Permissions grid — rendered only when the backend supplies the master
+  // menu list (extended staff config). Absent → section hidden (non-breaking).
+  modulePermissionMenus?: MenuMasterItem[];
+  modulePermissions?: PermGrid;
+  onChangeModulePermissions?: (next: PermGrid) => void;
+  modulePermissionError?: string | null;
+  /** Last-fetched role-defaults grid — drives the "customized" row indicator. */
+  modulePermissionDefaults?: PermGrid;
+  /** True while a role-defaults refetch (role selection just changed) is in flight. */
+  modulePermissionsLoading?: boolean;
 }
 
 // "🇺🇸 Houston, TX" — flag + name + state/city, mirroring the design.
@@ -61,10 +76,19 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   onChangeCentres,
   centresLoading,
   showAssignedCentres,
+  showCountry,
+  countryCode,
+  onChangeCountry,
   onCreateRole,
   creatingRole = false,
   onCreateAccessLevel,
   creatingAccessLevel = false,
+  modulePermissionMenus,
+  modulePermissions,
+  onChangeModulePermissions,
+  modulePermissionError,
+  modulePermissionDefaults,
+  modulePermissionsLoading,
 }) => {
   const [showOther, setShowOther] = useState(false);
   const [otherInput, setOtherInput] = useState('');
@@ -104,6 +128,21 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   const knownCodes = useMemo(() => new Set(centres.map(c => c.code)), [centres]);
   const customEntries = useMemo(() => assignedCentres.filter(c => !knownCodes.has(c)), [assignedCentres, knownCodes]);
   const otherOpen = showOther || customEntries.length > 0;
+  // Country options are the distinct country codes across the (scope-filtered) centres,
+  // so the value we send always matches the codes facilities/scope use — no hardcoding.
+  // Deduped case-insensitively (data has mixed case, e.g. "USA" vs "usa") and emitted
+  // lowercase to match the RBAC scope's country codes.
+  // Normalise country codes before deduping: "us" → "usa" to avoid duplicate entries
+  // when the backend uses mixed codes across centres.
+  const normaliseCountry = (code: string) => {
+    const c = code.toLowerCase();
+    if (c === 'us') return 'usa';
+    return c;
+  };
+  const countryOptions = useMemo(
+    () => Array.from(new Set(centres.map(c => normaliseCountry(c.countryCode || '')).filter(Boolean))),
+    [centres]
+  );
 
   const toggleOne = (code: string) =>
     onChangeCentres(
@@ -320,6 +359,30 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
         )}
       </div>
 
+      {/* Country — only for country/region-scoped access levels (e.g. Country Manager). */}
+      {showCountry && (
+        <div>
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+            Country <span className="text-red-500">*</span>
+          </p>
+          <select
+            className="w-full max-w-sm rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+            value={countryCode}
+            onChange={e => onChangeCountry(e.target.value)}
+          >
+            <option value="">Select a country…</option>
+            {countryOptions.map(code => (
+              <option key={code} value={code}>
+                {countryFlag(code)} {code.toUpperCase()}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-[11.5px] text-gray-400">
+            This role manages every centre in the selected country — no individual centre assignment.
+          </p>
+        </div>
+      )}
+
       {/* Assigned Centres — only for centre-scoped access levels (Facility Only / Admin). */}
       {showAssignedCentres && (
         <div>
@@ -424,6 +487,23 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
             </>
           )}
         </div>
+      )}
+
+      {/* Module Permissions — directly below Assigned Centres. Renders only when the
+          backend supplies the master menu list, so it's invisible (and harmless)
+          until the extended staff config is live. */}
+      {modulePermissionMenus && modulePermissionMenus.length > 0 && modulePermissions && onChangeModulePermissions && (
+        <ModulePermissionsSection
+          // Country/global-scoped levels carry no per-centre assignment — treat as
+          // centreless (0), which shows the "all centres" row same as a multi-centre member.
+          centreCount={showCountry ? 0 : assignedCentres.length}
+          defaults={modulePermissionDefaults}
+          error={modulePermissionError}
+          loadingDefaults={modulePermissionsLoading}
+          menus={modulePermissionMenus}
+          value={modulePermissions}
+          onChange={onChangeModulePermissions}
+        />
       )}
     </div>
   );

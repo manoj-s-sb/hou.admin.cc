@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -16,6 +16,9 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
+  // Guard so the success toast + redirect run exactly once, even if this page is
+  // re-mounted while already authenticated (prevents a redirect/toast loop).
+  const redirectedRef = useRef(false);
 
   const { isLoading: loading, isAuthenticated, error } = useSelector((state: RootState) => state.auth);
 
@@ -25,7 +28,8 @@ const Login: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !redirectedRef.current) {
+      redirectedRef.current = true;
       toast.success('Logged in successfully!', { duration: 4000 });
       // Super admins land on Centre Management; everyone else uses the default landing.
       const destination = isSuperAdmin() ? ROUTES.CENTRES.path : ROUTES.ROOT.path;

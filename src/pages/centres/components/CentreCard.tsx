@@ -82,6 +82,8 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
   const plans = kpi?.plans ?? {};
   const hasPlans = PLAN_META.some(p => (plans[p.key] ?? 0) > 0);
   const tz = getTzAbbr(centre.timezone);
+  const tailgates = kpi?.tailgates ?? 0;
+  const openTasks = kpi?.openTasks ?? 0;
 
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
@@ -141,6 +143,48 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
         <Stat label="Bookings · 30d" value={kpi?.bookings30d} />
         <Stat label="Utilisation" suffix="%" value={kpi?.utilisationPct} />
         <Stat label="No-show Rate" suffix="%" value={kpi?.noShowPct} />
+      </div>
+
+      {/* ── Tailgates + Open Tasks — red / amber pills when non-zero, muted otherwise ── */}
+      <div className="mt-3.5 flex gap-2">
+        <span
+          className={`flex flex-1 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 ${
+            tailgates > 0 ? 'border-red-200 bg-red-50' : 'border-cmx-border bg-cmx-body'
+          }`}
+        >
+          <svg
+            className={`h-3.5 w-3.5 flex-shrink-0 ${tailgates > 0 ? 'text-red-600' : 'text-muted'}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            viewBox="0 0 24 24"
+          >
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+            <path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+          <b className={`text-[13px] font-bold ${tailgates > 0 ? 'text-red-600' : 'text-sub'}`}>{tailgates}</b>
+          <span className="text-[11px] text-sub">Tailgates</span>
+        </span>
+        <span
+          className={`flex flex-1 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 ${
+            openTasks > 0 ? 'border-amber-200 bg-amber-50' : 'border-cmx-border bg-cmx-body'
+          }`}
+        >
+          <svg
+            className={`h-3.5 w-3.5 flex-shrink-0 ${openTasks > 0 ? 'text-amber-600' : 'text-muted'}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            viewBox="0 0 24 24"
+          >
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+          </svg>
+          <b className={`text-[13px] font-bold ${openTasks > 0 ? 'text-amber-600' : 'text-sub'}`}>{openTasks}</b>
+          <span className="text-[11px] text-sub">Open Tasks</span>
+        </span>
       </div>
 
       {/* ── Plan split — clear dot-chips, or a quiet hint when empty ── */}

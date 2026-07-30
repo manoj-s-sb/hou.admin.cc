@@ -7,14 +7,14 @@ import { useNavigate } from 'react-router-dom';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute, ROUTES } from '../../constants/routes';
-import { getLocalUser } from '../../constants/user';
 import { getStaffConfig, getStaffList, setStaffStatus } from '../../store/staff/api';
+import { type AppDispatch, type RootState } from '../../store/store';
 
 import { GENERIC_ROLE_ICON, ROLE_ICON_MAP } from './constants';
 import { useCentreLookup } from './useCentreLookup';
+import { buildStaffListParams } from './utils';
 
 import type { StaffListRow } from '../../store/staff/types';
-import type { AppDispatch, RootState } from '../../store/store';
 
 type TabKey = 'all' | 'designations' | 'access';
 
@@ -128,7 +128,8 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
 
 const mapStaff = (
   row: StaffListRow,
-  resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string
+  resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string,
+  resolveAccessLabel: (code: string | null) => string
 ): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
   const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
@@ -159,7 +160,7 @@ const mapStaff = (
     subtitle: row.email,
     primaryRoles: roles,
     accessLevel: {
-      label: row.accessLevel || '—',
+      label: resolveAccessLabel(row.accessLevel),
       tone: accessTone(row.accessLevel),
     },
     centres,
@@ -183,8 +184,24 @@ const StaffManagement: React.FC = () => {
   );
   const centreLookup = useCentreLookup();
 
+  // Access-level code → human label. Prefers the configured label from staff
+  // config; falls back to a humanized version of the raw code.
+  const accessLabelOf = useCallback(
+    (code: string | null): string => {
+      if (!code) return '—';
+      const match = (staffConfig?.accessLevels ?? []).find(a => a.id.toLowerCase() === code.toLowerCase());
+      if (match?.label) return match.label;
+      return code
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .trim();
+    },
+    [staffConfig]
+  );
+
   const loadStaff = useCallback(() => {
-    dispatch(getStaffList({ facilityCode: getLocalUser().facilityCode, limit: 50, offset: 0 }));
+    dispatch(getStaffList(buildStaffListParams()));
   }, [dispatch]);
 
   useEffect(() => {
@@ -194,8 +211,8 @@ const StaffManagement: React.FC = () => {
   }, [dispatch, loadStaff]);
 
   const staff: StaffRow[] = useMemo(
-    () => staffList.map(row => mapStaff(row, centreLookup.text)),
-    [staffList, centreLookup.text]
+    () => staffList.map(row => mapStaff(row, centreLookup.text, accessLabelOf)),
+    [staffList, centreLookup.text, accessLabelOf]
   );
   const isLoading = isListLoading;
   const error = listError;
@@ -372,9 +389,9 @@ const StaffManagement: React.FC = () => {
       minWidth: 120,
       sortable: false,
       renderCell: ({ row }) => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
-            className="text-[12px] font-semibold text-gray-600 transition hover:text-[#21295A]"
+            className="rounded-md border border-gray-200 bg-white px-3 py-1 text-[11.5px] font-semibold text-gray-700 shadow-sm transition hover:border-[#21295A] hover:text-[#21295A]"
             type="button"
             onClick={e => {
               e.stopPropagation();
@@ -388,8 +405,10 @@ const StaffManagement: React.FC = () => {
             const isInactive = r.status === 'inactive';
             return (
               <button
-                className={`text-[12px] font-semibold transition disabled:opacity-50 ${
-                  isInactive ? 'text-emerald-600 hover:text-emerald-700' : 'text-red-500 hover:text-red-700'
+                className={`rounded-md border px-3 py-1 text-[11.5px] font-semibold shadow-sm transition disabled:opacity-50 ${
+                  isInactive
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
                 }`}
                 disabled={togglingId === r.id}
                 type="button"
@@ -470,7 +489,7 @@ const StaffManagement: React.FC = () => {
           className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
           onClick={() => navigate(ROUTES.STAFF_MANAGEMENT_ADD.path)}
         >
-          <span className="text-[14px] leading-none">+</span>
+          <span className="text-[14px] leading-none"></span>
           Add Staff Member
         </button>
       </div>

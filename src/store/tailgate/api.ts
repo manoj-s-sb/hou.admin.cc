@@ -55,6 +55,7 @@ export const fetchTailgateStats = createAsyncThunk(
       laneDoor?: string;
       eventType?: string;
       reviewStatus?: string;
+      facilityCode?: string;
     } = {},
     { rejectWithValue }
   ) => {
@@ -69,6 +70,9 @@ export const fetchTailgateStats = createAsyncThunk(
       if (filters.laneDoor) payload.laneDoor = filters.laneDoor;
       if (filters.eventType) payload.eventType = filters.eventType;
       if (filters.reviewStatus) payload.reviewStatus = filters.reviewStatus;
+      // Narrows the global page's stat tiles to one centre; omitted = every centre in
+      // the viewer's scope (network-wide for a superadmin).
+      if (filters.facilityCode) payload.facilityCode = filters.facilityCode;
       const response = await api.post(endpoints.tailgate.stats, payload);
       return response?.data?.data as TailgateStats;
     } catch (error) {

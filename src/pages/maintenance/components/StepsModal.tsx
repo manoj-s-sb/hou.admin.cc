@@ -1,87 +1,87 @@
-import { Work, WorkStep } from '../../../store/maintenance/types';
+import React from 'react';
 
-interface StepsModalProps {
-  item: Work;
+import type { TemplateStep } from '../../../store/maintenance/types';
+
+interface Props {
+  title: string;
+  steps: TemplateStep[];
+  videoUrl?: string | null;
   onClose: () => void;
 }
 
-const StepsModal = ({ item, onClose }: StepsModalProps) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-    <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-      <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
-        <div>
-          <p className="text-base font-bold text-gray-900">{item.title}</p>
-          <p className="mt-0.5 text-xs text-gray-400">{item.steps?.length || 0} steps</p>
+/** Read-only step-by-step guide + optional explainer video for a template. */
+const StepsModal: React.FC<Props> = ({ title, steps, videoUrl, onClose }) => {
+  const ordered = [...steps].sort((a, b) => a.order - b.order);
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[650] flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+    >
+      <div className="flex max-h-[90vh] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between bg-[#1a2340] px-6 py-4">
+          <div className="min-w-0">
+            <div className="truncate text-[16px] font-bold text-white">{title}</div>
+            <div className="mt-0.5 text-[12px] text-white/60">
+              {ordered.length} step{ordered.length === 1 ? '' : 's'}
+              {videoUrl ? ' · Video available' : ''}
+            </div>
+          </div>
+          <button
+            aria-label="Close"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            type="button"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
-        <button
-          className="ml-4 rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-          type="button"
-          onClick={onClose}
-        >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-          </svg>
-        </button>
-      </div>
 
-      <div className="overflow-y-auto px-6 py-6">
-        {/* Task-level video */}
-        {item.videoUrl && (
-          <div className="mb-5">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Task Video</p>
-            <video
-              controls
-              className="w-full rounded-xl border border-gray-100 bg-black"
-              src={item.videoUrl}
-              style={{ maxHeight: 200 }}
-            >
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+          {videoUrl && (
+            <video controls className="w-full rounded-xl bg-black" src={videoUrl}>
               <track kind="captions" />
             </video>
-          </div>
-        )}
-
-        {item.steps && item.steps.length > 0 ? (
-          <div className="flex flex-col">
-            {item.steps.map((step: WorkStep, index: number) => (
-              <div key={step.stepId} className="relative flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#21295A] text-xs font-bold text-white">
-                    {step.order}
+          )}
+          {ordered.length === 0 ? (
+            <p className="text-[13px] italic text-gray-400">No steps defined for this task.</p>
+          ) : (
+            ordered.map((step, i) => (
+              <div key={step.stepId || i} className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#21295A] text-[12px] font-bold text-white">
+                    {i + 1}
                   </div>
-                  {index < item.steps.length - 1 && (
-                    <div className="w-px flex-1 bg-gray-200" style={{ minHeight: '28px' }} />
-                  )}
+                  <p className="min-w-0 flex-1 whitespace-pre-wrap pt-1 text-[13px] font-medium leading-relaxed text-gray-800">
+                    {step.title}
+                  </p>
                 </div>
-                <div className="pb-6">
-                  <p className="text-sm font-medium text-gray-800">{step.title}</p>
-                  {step.imageUrl && (
+                {step.imageUrl && (
+                  <a className="mt-2.5 block pl-10" href={step.imageUrl} rel="noreferrer" target="_blank">
                     <img
-                      alt={`Step ${step.order}`}
-                      className="mt-2 w-full rounded-lg object-cover"
+                      alt={`Step ${i + 1}`}
+                      className="max-h-56 w-auto rounded-lg border border-gray-200 object-cover hover:opacity-90"
                       src={step.imageUrl}
-                      style={{ maxHeight: 140 }}
                     />
-                  )}
-                  {step.videoUrl && (
-                    <video
-                      controls
-                      className="mt-2 w-full rounded-lg bg-black"
-                      src={step.videoUrl}
-                      style={{ maxHeight: 140 }}
-                    >
-                      <track kind="captions" />
-                    </video>
-                  )}
-                </div>
+                  </a>
+                )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-center text-sm text-gray-500">No steps available.</p>
-        )}
+            ))
+          )}
+        </div>
+
+        <div className="flex justify-end border-t border-gray-100 px-6 py-3">
+          <button
+            className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+            type="button"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default StepsModal;

@@ -1,15 +1,71 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import { MENU_GROUPS } from '../constants/menus';
+import endpoints from '../constants/endpoints';
+import { MENU_GROUPS, type MenuItem } from '../constants/menus';
 import { ROUTES, buildRoute } from '../constants/routes';
 import { useCentreNav } from '../contexts/CentreNavContext';
 import { CENTRE_MODULE_GROUPS } from '../pages/centres/centreModules';
 import { centreColour, countryFlag } from '../pages/centres/constants';
-import { canRead, isSuperAdmin } from '../rbac/permissions';
+import { ACCESS_SCOPES } from '../rbac/constants';
+import { canRead, isSuperAdmin, sidebarItems } from '../rbac/permissions';
+import api from '../services';
 
-import type { CentreApiStatus } from '../store/centres/types';
+/**
+ * Flat lookup of moduleId → { item, group } built once from MENU_GROUPS — the
+ * existing frontend visual map (icon/route/group/label). The backend `sidebar`
+ * carries module ids; we render each id using this map so the visuals never change.
+ * A MenuItem's module id is the first entry of its `module` array (e.g. 'members').
+ */
+const MODULE_VISUAL: Record<string, { item: MenuItem; group: string }> = {};
+MENU_GROUPS.forEach(g =>
+  g.items.forEach(item => {
+    const id = item.module?.[0];
+    if (id) MODULE_VISUAL[id] = { item, group: g.group };
+  })
+);
+
+/**
+ * Build grouped nav from the backend sidebar (ordered + filtered). Groups appear
+ * in first-seen order; items keep the backend order within each group. Ids with
+ * no visual mapping are skipped. Returns [] when nothing resolves → caller falls
+ * back to the hardcoded menu (never a blank sidebar).
+ */
+// Modules that only make sense inside a centre — never shown in the global sidebar.
+// NB: 'tailgate' is intentionally NOT here — Tailgate Logs is a global Monitoring
+// item (visible to super admins); the in-centre Tailgate view is driven separately
+// by CENTRE_MODULE_GROUPS, so it doesn't rely on this set.
+const CENTRE_ONLY_MODULES = new Set([
+  'members',
+  'slotbooking',
+  'induction',
+  'tour',
+  'waitlistleads',
+  'coachschedule',
+  'facilities',
+  'planspricing',
+]);
+
+const groupsFromBackendSidebar = (): { group: string; items: MenuItem[] }[] => {
+  const order: string[] = [];
+  const byGroup: Record<string, MenuItem[]> = {};
+  sidebarItems().forEach(entry => {
+    if (CENTRE_ONLY_MODULES.has(entry.id)) return; // hide centre-scoped modules from global nav
+    const visual = MODULE_VISUAL[entry.id];
+    if (!visual) return;
+    if (!byGroup[visual.group]) {
+      byGroup[visual.group] = [];
+      order.push(visual.group);
+    }
+    byGroup[visual.group].push(visual.item);
+  });
+  return order.map(group => ({ group, items: byGroup[group] }));
+};
+
+import type { CentreApiStatus, FacilitySummary } from '../store/centres/types';
+import type { TailgateStats } from '../store/tailgate/types';
+import type { TicketCounts } from '../store/tickets/types';
 
 const STATUS_DOT: Record<CentreApiStatus, string> = {
   active: 'bg-emerald-500',
@@ -23,8 +79,13 @@ const itemClass = (active: boolean): string =>
     active ? 'bg-[#21295A]/[0.07] font-semibold text-[#21295A]' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
   }`;
 
-/** Shared inner: active accent bar + icon + label. */
-const NavInner: React.FC<{ active: boolean; icon: React.ReactNode; label: string }> = ({ active, icon, label }) => (
+/** Shared inner: active accent bar + icon + label + optional red count badge. */
+const NavInner: React.FC<{ active: boolean; icon: React.ReactNode; label: string; badge?: number }> = ({
+  active,
+  icon,
+  label,
+  badge,
+}) => (
   <>
     {active && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[#21295A]" />}
     <span
@@ -35,8 +96,71 @@ const NavInner: React.FC<{ active: boolean; icon: React.ReactNode; label: string
       {icon}
     </span>
     <span className="truncate">{label}</span>
+    {typeof badge === 'number' && badge > 0 && (
+      <span className="ml-auto min-w-[18px] rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
+        {badge}
+      </span>
+    )}
   </>
 );
+
+/**
+ * Best-effort count badges for the global monitoring/setup nav. Fetched locally
+ * (never dispatched to Redux) so it can't disturb the Centre Management page's
+ * shared `state.centres`. Each count is independent — a failure leaves the rest.
+ *   • Tickets / Incidents → open (non-closed) tickets network-wide
+ *   • Centre Management   → total open tailgates + tasks across centres
+ *   • Tailgate Logs       → tailgate violations only (all time)
+ */
+const useSidebarBadges = (enabled: boolean): Record<string, number> => {
+  const [badges, setBadges] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let cancelled = false;
+
+    const load = async () => {
+      const next: Record<string, number> = {};
+      try {
+        const res = await api.post<{ data: TicketCounts }>(endpoints.tickets, { action: 'counts' });
+        const c = res.data?.data;
+        if (c) next[ROUTES.TICKETS.path] = Math.max(0, (c.total ?? 0) - (c.closed ?? 0));
+      } catch {
+        /* best-effort — a failed count never blocks the sidebar */
+      }
+      try {
+        const res = await api.post<{ data: { facilities?: FacilitySummary[] } }>(endpoints.centres.centresList, {
+          skip: 0,
+          limit: 200,
+        });
+        const facs = res.data?.data?.facilities ?? [];
+        next[ROUTES.CENTRES.path] = facs.reduce(
+          (sum, f) => sum + (f.stats?.tailgates ?? 0) + (f.stats?.openTasks ?? 0),
+          0
+        );
+      } catch {
+        /* best-effort */
+      }
+      try {
+        const now = new Date();
+        const [y, m, d] = now.toLocaleDateString('en-CA').split('-');
+        const res = await api.post<{ data: TailgateStats }>(endpoints.tailgate.stats, { date: `${d}-${m}-${y}` });
+        const t = res.data?.data;
+        if (t) next[ROUTES.TAILGATE.path] = t.totalViolations ?? 0;
+      } catch {
+        /* best-effort */
+      }
+      if (!cancelled) setBadges(next);
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+
+  return badges;
+};
 
 const GroupLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="px-5 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 first:pt-2">
@@ -61,11 +185,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const { activeCentre, closeCentre } = useCentreNav();
 
   const superAdmin = isSuperAdmin();
-  // Filter each group's items by permission + super-admin visibility; drop empty groups.
-  const visibleGroups = MENU_GROUPS.map(g => ({
+  // Count badges only apply to the global monitoring/setup nav (not the per-centre menu).
+  const badges = useSidebarBadges(superAdmin && !activeCentre);
+  // Centre-managing roles (superadmin + anyone with centremanagement access) reach the
+  // per-centre operational modules (Members, Slot Bookings, Coach Schedule, Induction,
+  // Tours) by opening a centre — so those items are hidden from their GLOBAL nav.
+  // Facility-scoped operational roles (admin/coach/staff), who can't manage centres, keep
+  // seeing those modules at the top level (their single centre is auto-scoped).
+  const managesCentres = superAdmin || canRead(ACCESS_SCOPES.centreManagement);
+  // Today's behaviour: filter each group's items by permission + centre-managing
+  // visibility; drop empty groups. This is also the fallback when the backend sends
+  // no sidebar (e.g. superadmin) — they keep seeing the full menu, unchanged.
+  const fallbackGroups = MENU_GROUPS.map(g => ({
     group: g.group,
-    items: g.items.filter(item => canRead(item.module) && !(item.hideForSuperAdmin && superAdmin)),
+    items: g.items.filter(
+      item =>
+        canRead(item.module) &&
+        !(item.hideForSuperAdmin && managesCentres) &&
+        !(managesCentres && CENTRE_ONLY_MODULES.has((item.module ?? [])[0] ?? ''))
+    ),
   })).filter(g => g.items.length > 0);
+
+  // Prefer the backend-resolved sidebar (ordered + filtered) when it yields any
+  // renderable item; otherwise fall back to the hardcoded menu (never blank).
+  const backendGroups = groupsFromBackendSidebar();
+  const visibleGroups = backendGroups.length > 0 ? backendGroups : fallbackGroups;
 
   const closeOnMobile = () => {
     if (window.innerWidth < 1024 && onClose) onClose();
@@ -158,29 +302,33 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               </div>
             </div>
 
-            {CENTRE_MODULE_GROUPS.map(g => (
-              <React.Fragment key={g.group}>
-                <GroupLabel>{g.group}</GroupLabel>
-                {g.items.map(m => {
-                  const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
-                  const isActive = location.pathname === modulePath;
-                  return (
-                    <button
-                      key={m.key}
-                      aria-current={isActive ? 'page' : undefined}
-                      className={`${itemClass(isActive)} w-[calc(100%-1.25rem)] text-left`}
-                      type="button"
-                      onClick={() => {
-                        navigate(modulePath);
-                        closeOnMobile();
-                      }}
-                    >
-                      <NavInner active={isActive} icon={m.icon} label={m.label} />
-                    </button>
-                  );
-                })}
-              </React.Fragment>
-            ))}
+            {CENTRE_MODULE_GROUPS.map(g => {
+              const visibleItems = g.items.filter(m => !m.scope || canRead(m.scope));
+              if (!visibleItems.length) return null;
+              return (
+                <React.Fragment key={g.group}>
+                  <GroupLabel>{g.group}</GroupLabel>
+                  {visibleItems.map(m => {
+                    const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
+                    const isActive = location.pathname === modulePath;
+                    return (
+                      <button
+                        key={m.key}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={`${itemClass(isActive)} w-[calc(100%-1.25rem)] text-left`}
+                        type="button"
+                        onClick={() => {
+                          navigate(modulePath);
+                          closeOnMobile();
+                        }}
+                      >
+                        <NavInner active={isActive} icon={m.icon} label={m.label} />
+                      </button>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
           </nav>
         ) : (
           <nav className="flex-1 space-y-px overflow-y-auto py-3">
@@ -204,6 +352,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                     >
                       <NavInner
                         active={isActive}
+                        badge={badges[item.path]}
                         icon={
                           item.icon && (
                             <img
