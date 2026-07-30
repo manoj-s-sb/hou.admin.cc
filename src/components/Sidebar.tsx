@@ -16,13 +16,17 @@ import api from '../services';
  * Flat lookup of moduleId → { item, group } built once from MENU_GROUPS — the
  * existing frontend visual map (icon/route/group/label). The backend `sidebar`
  * carries module ids; we render each id using this map so the visuals never change.
- * A MenuItem's module id is the first entry of its `module` array (e.g. 'members').
+ * Keyed by every id in a MenuItem's `module` array (not just the first) so schema
+ * aliases — e.g. `maintenance_centre` / `maintenance_allcentres` alongside plain
+ * `maintenance` — all resolve to the same item; groupsFromBackendSidebar dedupes
+ * below so a centre+allcentres pair still renders as a single nav entry.
  */
 const MODULE_VISUAL: Record<string, { item: MenuItem; group: string }> = {};
 MENU_GROUPS.forEach(g =>
   g.items.forEach(item => {
-    const id = item.module?.[0];
-    if (id) MODULE_VISUAL[id] = { item, group: g.group };
+    (item.module ?? []).forEach(id => {
+      MODULE_VISUAL[id] = { item, group: g.group };
+    });
   })
 );
 
@@ -50,10 +54,13 @@ const CENTRE_ONLY_MODULES = new Set([
 const groupsFromBackendSidebar = (): { group: string; items: MenuItem[] }[] => {
   const order: string[] = [];
   const byGroup: Record<string, MenuItem[]> = {};
+  const seenPaths = new Set<string>(); // dedupe centre/allcentres split ids resolving to one item
   sidebarItems().forEach(entry => {
     if (CENTRE_ONLY_MODULES.has(entry.id)) return; // hide centre-scoped modules from global nav
     const visual = MODULE_VISUAL[entry.id];
     if (!visual) return;
+    if (seenPaths.has(visual.item.path)) return;
+    seenPaths.add(visual.item.path);
     if (!byGroup[visual.group]) {
       byGroup[visual.group] = [];
       order.push(visual.group);
