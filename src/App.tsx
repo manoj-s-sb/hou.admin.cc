@@ -39,11 +39,17 @@ import store, { persistor, AppDispatch, RootState } from './store/store';
 const Reports = lazy(() => import('./pages/reports'));
 const Maintenance = lazy(() => import('./pages/maintenance'));
 
-const DefaultLanding: React.FC = () => {
+const DefaultLanding: React.FC<{ bootChecked: boolean }> = ({ bootChecked }) => {
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
 
   // Not signed in → the login page.
   if (!isAuthenticated) return <Navigate replace to={ROUTES.LOGIN.path} />;
+
+  // A session resumed from persisted storage (page load/refresh) may still hold a
+  // different user's leftover sidebar/permissions until the boot /me refresh below
+  // resolves. Wait for it rather than redirecting off stale data (e.g. landing on
+  // Membership Plans for a user whose real sidebar never included it).
+  if (!bootChecked) return <Loader />;
 
   // Signed in → land on the first backend sidebar item that maps to a global route,
   // else the first readable hardcoded menu item.
@@ -65,6 +71,10 @@ const DefaultLanding: React.FC = () => {
 
 const AppRoutes: React.FC = () => {
   const [isSessionExpiredModalOpen, setIsSessionExpiredModalOpen] = useState(false);
+  // Nothing to refresh if the app booted signed-out; DefaultLanding can act on
+  // the (already-fresh) auth state right away. Only a resumed, already-authed
+  // session needs to wait for the /me refresh below before it's trustworthy.
+  const [bootChecked, setBootChecked] = useState(() => !store.getState().auth.isAuthenticated);
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
@@ -77,7 +87,8 @@ const AppRoutes: React.FC = () => {
   // changed role takes effect without a full re-login. Only when already authed;
   // a 401 is handled globally, other failures leave persisted auth intact.
   useEffect(() => {
-    if (store.getState().auth.isAuthenticated) dispatch(fetchMe());
+    if (!store.getState().auth.isAuthenticated) return;
+    dispatch(fetchMe()).finally(() => setBootChecked(true));
   }, [dispatch]);
 
   return (
@@ -239,7 +250,7 @@ const AppRoutes: React.FC = () => {
             }
             path={ROUTES.TICKETS.path}
           />
-          <Route element={<DefaultLanding />} path={ROUTES.ROOT.path} />
+          <Route element={<DefaultLanding bootChecked={bootChecked} />} path={ROUTES.ROOT.path} />
         </Routes>
       </Suspense>
 
