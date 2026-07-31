@@ -13,28 +13,16 @@ import { canRead, isSuperAdmin, sidebarItems } from '../rbac/permissions';
 import api from '../services';
 
 /**
- * Flat lookup of moduleId → { item, group } built once from MENU_GROUPS — the
- * existing frontend visual map (icon/route/group/label). The backend `sidebar`
- * carries module ids; we render each id using this map so the visuals never change.
- * Keyed by every id in a MenuItem's `module` array (not just the first) so schema
- * aliases — e.g. `maintenance_centre` / `maintenance_allcentres` alongside plain
- * `maintenance` — all resolve to the same item; groupsFromBackendSidebar dedupes
- * below so a centre+allcentres pair still renders as a single nav entry.
- */
-const MODULE_VISUAL: Record<string, { item: MenuItem; group: string }> = {};
-MENU_GROUPS.forEach(g =>
-  g.items.forEach(item => {
-    (item.module ?? []).forEach(id => {
-      MODULE_VISUAL[id] = { item, group: g.group };
-    });
-  })
-);
-
-/**
- * Build grouped nav from the backend sidebar (ordered + filtered). Groups appear
- * in first-seen order; items keep the backend order within each group. Ids with
- * no visual mapping are skipped. Returns [] when nothing resolves → caller falls
- * back to the hardcoded menu (never a blank sidebar).
+ * Build grouped nav for the backend sidebar. The backend `sidebar` array is used
+ * purely as the set of ids the user is allowed to see — NOT as an ordering
+ * source (its array order can vary/shuffle by environment or role). Group and
+ * item order always follow the frontend's own `MENU_GROUPS` layout, so the
+ * visual arrangement (Setup → Monitoring → Maintenance, and each item's
+ * position within its group) never depends on backend array order.
+ * Ids with no matching MenuItem are skipped; duplicate ids resolving to the
+ * same item (e.g. a `maintenance_centre` + `maintenance_allcentres` split
+ * pair) render as a single entry. Returns [] when nothing resolves → caller
+ * falls back to the hardcoded menu (never a blank sidebar).
  */
 // Modules that only make sense inside a centre — never shown in the global sidebar.
 // NB: 'tailgate' is intentionally NOT here — Tailgate Logs is a global Monitoring
@@ -52,22 +40,23 @@ const CENTRE_ONLY_MODULES = new Set([
 ]);
 
 const groupsFromBackendSidebar = (): { group: string; items: MenuItem[] }[] => {
-  const order: string[] = [];
-  const byGroup: Record<string, MenuItem[]> = {};
+  const allowedIds = new Set(
+    sidebarItems()
+      .map(entry => entry.id)
+      .filter(id => !CENTRE_ONLY_MODULES.has(id)) // hide centre-scoped modules from global nav
+  );
+  if (allowedIds.size === 0) return [];
+
   const seenPaths = new Set<string>(); // dedupe centre/allcentres split ids resolving to one item
-  sidebarItems().forEach(entry => {
-    if (CENTRE_ONLY_MODULES.has(entry.id)) return; // hide centre-scoped modules from global nav
-    const visual = MODULE_VISUAL[entry.id];
-    if (!visual) return;
-    if (seenPaths.has(visual.item.path)) return;
-    seenPaths.add(visual.item.path);
-    if (!byGroup[visual.group]) {
-      byGroup[visual.group] = [];
-      order.push(visual.group);
-    }
-    byGroup[visual.group].push(visual.item);
-  });
-  return order.map(group => ({ group, items: byGroup[group] }));
+  return MENU_GROUPS.map(g => ({
+    group: g.group,
+    items: g.items.filter(item => {
+      if (!(item.module ?? []).some(id => allowedIds.has(id))) return false;
+      if (seenPaths.has(item.path)) return false;
+      seenPaths.add(item.path);
+      return true;
+    }),
+  })).filter(g => g.items.length > 0);
 };
 
 import type { CentreApiStatus, FacilitySummary } from '../store/centres/types';
