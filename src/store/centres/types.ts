@@ -32,7 +32,10 @@ export type CentreApiStatus = 'draft' | 'active' | 'suspended';
 export interface FacilityKpi {
   totalMembers?: number;
   bookings30d?: number;
-  utilisationPct?: number;
+  /** Null when the centre isn't configured for utilisation (see `utilisationStatus`). */
+  utilisationPct?: number | null;
+  /** 'insufficient_config' when capacity/operating hours aren't set up yet. */
+  utilisationStatus?: 'ok' | 'insufficient_config';
   noShowPct?: number;
   tailgates?: number;
   openTasks?: number;
@@ -49,6 +52,9 @@ export interface FacilityStats {
   noShowRatePercent?: number;
   tailgates?: number;
   openTasks?: number;
+  /** Real utilisation %, or null when the centre isn't configured for it yet. */
+  utilisationPct?: number | null;
+  utilisationStatus?: 'ok' | 'insufficient_config';
 }
 
 /** One row returned by POST /admin/centres/list. */
@@ -334,6 +340,15 @@ export interface CentreBooking {
   status: 'Confirmed' | 'Completed' | 'No-show' | 'Cancelled' | 'Waitlisted';
 }
 
+/** An admin-authored note attached to a waitlist or lead entry. */
+export interface AdminNote {
+  id: string;
+  text: string;
+  createdByName: string;
+  createdById: string | null;
+  createdAt: string;
+}
+
 /** One row from GET /admin/centres/:facilityCode/waitlist. Fields are optional/defensive. */
 export interface WaitlistEntry {
   id?: string;
@@ -346,6 +361,8 @@ export interface WaitlistEntry {
   createdAt?: string;
   /** Server-supplied queue position; derived from the row index when absent. */
   position?: number;
+  /** Admin notes, oldest first. Defaults to [] server-side — never null. */
+  notes?: AdminNote[];
   details?: {
     subscription_code?: string;
     [key: string]: unknown;
@@ -359,6 +376,8 @@ export interface LeadEntry {
   action?: string;
   timestamp?: string;
   createdAt?: string;
+  /** Admin notes, oldest first. Defaults to [] server-side — never null. */
+  notes?: AdminNote[];
   details?: {
     email?: string;
     subscription_code?: string;

@@ -8,6 +8,7 @@ import {
   getStaffConfig,
   getStaffDetails,
   getStaffList,
+  resendWelcomeEmail,
   updateStaff,
 } from './api';
 import { initialState } from './types';
@@ -94,6 +95,19 @@ const staffSlice = createSlice({
     builder.addCase(updateStaff.rejected, (state, action) => {
       state.isSubmitting = false;
       state.submitError = (action.payload as string) ?? 'Failed to update staff member';
+    });
+
+    // ── Resend welcome email ─────────────────────────────────
+    builder.addCase(resendWelcomeEmail.pending, state => {
+      state.isResendingWelcomeEmail = true;
+      state.resendWelcomeEmailError = null;
+    });
+    builder.addCase(resendWelcomeEmail.fulfilled, state => {
+      state.isResendingWelcomeEmail = false;
+    });
+    builder.addCase(resendWelcomeEmail.rejected, (state, action) => {
+      state.isResendingWelcomeEmail = false;
+      state.resendWelcomeEmailError = (action.payload as string) ?? 'Failed to resend the welcome email';
     });
 
     // ── Role defaults ────────────────────────────────────────

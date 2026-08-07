@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
 import { buildRoute, ROUTES } from '../../constants/routes';
-import { getStaffDetails, setStaffStatus } from '../../store/staff/api';
+import { getStaffDetails, resendWelcomeEmail, setStaffStatus } from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
 
 import { StaffDocument } from './types';
@@ -109,6 +109,7 @@ const ViewStaffMember: React.FC = () => {
   } = useSelector((state: RootState) => state.staff);
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
   const [isSuspending, setIsSuspending] = useState<boolean>(false);
+  const [isResending, setIsResending] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
   const centreLookup = useCentreLookup();
 
@@ -145,6 +146,25 @@ const ViewStaffMember: React.FC = () => {
       toast.error((action.payload as string) ?? `Failed to ${verb} staff member`);
     }
     setIsSuspending(false);
+  };
+
+  const handleResendWelcomeEmail = async () => {
+    if (!staff || !staffId || !staff.email) return;
+    if (
+      !window.confirm(
+        `This will generate a new temporary password and email it to ${staff.email}. The staff member's current password will be reset. Continue?`
+      )
+    )
+      return;
+
+    setIsResending(true);
+    const action = await dispatch(resendWelcomeEmail({ staffId }));
+    if (resendWelcomeEmail.fulfilled.match(action)) {
+      toast.success(`Welcome email resent to ${staff.email}`);
+    } else {
+      toast.error((action.payload as string) ?? 'Failed to resend the welcome email');
+    }
+    setIsResending(false);
   };
 
   if (isLoading) {
@@ -253,6 +273,15 @@ const ViewStaffMember: React.FC = () => {
                 onClick={goEdit}
               >
                 Edit
+              </button>
+              <button
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition hover:border-[#21295A]/30 hover:text-[#21295A] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isResending || !staff.email}
+                title={!staff.email ? 'No email address on file' : undefined}
+                type="button"
+                onClick={handleResendWelcomeEmail}
+              >
+                {isResending ? 'Sending…' : 'Resend Welcome Email'}
               </button>
               <button
                 className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"

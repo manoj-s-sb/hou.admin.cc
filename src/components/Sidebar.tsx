@@ -72,7 +72,7 @@ const STATUS_DOT: Record<CentreApiStatus, string> = {
 /** One source of truth for nav-item styling — used by both the global and centre menus. */
 const itemClass = (active: boolean): string =>
   `group relative mx-2.5 my-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm no-underline transition-colors duration-150 ${
-    active ? 'bg-[#21295A]/[0.07] font-semibold text-[#21295A]' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'
   }`;
 
 /** Shared inner: active accent bar + icon + label + optional red count badge. */
@@ -159,7 +159,7 @@ const useSidebarBadges = (enabled: boolean): Record<string, number> => {
 };
 
 const GroupLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="px-5 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 first:pt-2">
+  <div className="px-5 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#9096be] first:pt-2">
     {children}
   </div>
 );
@@ -251,10 +251,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
         {/* Navigation — swaps to the centre's module nav while a centre is open */}
         {activeCentre ? (
-          <nav className="flex-1 space-y-px overflow-y-auto py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
             {/* Back to Centres */}
             <button
-              className="group mx-2.5 mb-2 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              className="group mx-2.5 mb-2 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-white/50 transition-colors hover:bg-white/10 hover:text-white"
               type="button"
               onClick={() => {
                 closeCentre();
@@ -327,7 +327,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             })}
           </nav>
         ) : (
-          <nav className="flex-1 space-y-px overflow-y-auto py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
             {visibleGroups.map(g => (
               <React.Fragment key={g.group}>
                 <GroupLabel>{g.group}</GroupLabel>
@@ -354,7 +354,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                             <img
                               alt=""
                               aria-hidden="true"
-                              className={`h-5 w-5 ${isActive ? '' : 'opacity-70'}`}
+                              className={`h-5 w-5 ${isActive ? '' : 'brightness-0 invert opacity-70'}`}
                               src={item.icon}
                             />
                           )

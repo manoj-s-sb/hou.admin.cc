@@ -206,6 +206,18 @@ export interface CreateStaffRequest {
   sendWelcomeEmail: boolean;
 }
 
+export type WelcomeEmailStatus = 'sent' | 'failed' | 'skipped_no_email';
+
+/** POST /admin/staff/resend-welcome-email — generates a new temp password and emails it. */
+export interface ResendWelcomeEmailRequest {
+  staffId: string;
+}
+
+export interface ResendWelcomeEmailResponse {
+  success: boolean;
+  welcomeEmailStatus: WelcomeEmailStatus;
+}
+
 export interface UpdateStaffRequest {
   staffId: string;
   firstName: string;
@@ -242,11 +254,13 @@ export interface StaffState {
   isConfigLoading: boolean;
   isRoleDefaultsLoading: boolean;
   isSubmitting: boolean;
+  isResendingWelcomeEmail: boolean;
   listError: string | null;
   detailsError: string | null;
   configError: string | null;
   roleDefaultsError: string | null;
   submitError: string | null;
+  resendWelcomeEmailError: string | null;
 }
 
 export const initialState: StaffState = {
@@ -259,9 +273,11 @@ export const initialState: StaffState = {
   isConfigLoading: false,
   isRoleDefaultsLoading: false,
   isSubmitting: false,
+  isResendingWelcomeEmail: false,
   listError: null,
   detailsError: null,
   configError: null,
   roleDefaultsError: null,
   submitError: null,
+  resendWelcomeEmailError: null,
 };

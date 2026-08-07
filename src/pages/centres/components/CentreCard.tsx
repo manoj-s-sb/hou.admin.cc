@@ -35,18 +35,20 @@ const getLocalTime = (tz: string): string => {
 };
 
 interface StatProps {
-  value?: number;
+  value?: number | null;
   label: string;
   suffix?: string;
   hero?: boolean;
+  /** Shown as a title-attribute tooltip when the value is empty, e.g. why it's unconfigured. */
+  emptyHint?: string;
 }
 
 /** One KPI cell. Missing values render as an intentional muted dash, not "0". */
-const Stat: React.FC<StatProps> = ({ value, label, suffix = '', hero = false }) => {
+const Stat: React.FC<StatProps> = ({ value, label, suffix = '', hero = false, emptyHint }) => {
   const display = value === undefined || value === null ? '—' : `${value.toLocaleString()}${suffix}`;
   const isEmpty = display === '—';
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-0.5" title={isEmpty ? emptyHint : undefined}>
       <span
         className={`tabular-nums leading-none ${hero ? 'text-[22px] font-extrabold' : 'text-lg font-bold'} ${
           isEmpty ? 'text-muted' : 'text-navy'
@@ -141,7 +143,16 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
       <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 rounded-[10px] border border-cmx-border bg-cmx-body/60 p-3">
         <Stat hero label="Total Members" value={kpi?.totalMembers} />
         <Stat label="Bookings · 30d" value={kpi?.bookings30d} />
-        <Stat label="Utilisation" suffix="%" value={kpi?.utilisationPct} />
+        <Stat
+          emptyHint={
+            kpi?.utilisationStatus === 'insufficient_config'
+              ? 'Capacity or operating hours not configured for this centre'
+              : undefined
+          }
+          label="Utilisation"
+          suffix="%"
+          value={kpi?.utilisationPct}
+        />
         <Stat label="No-show Rate" suffix="%" value={kpi?.noShowPct} />
       </div>
 

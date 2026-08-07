@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { getFacilityCode } from '../../constants/user';
-import { getCentreLeads, getCentreWaitlist } from '../../store/centres/api';
-import { LeadEntry, WaitlistEntry } from '../../store/centres/types';
+import { addLeadNote, addWaitlistNote, getCentreLeads, getCentreWaitlist } from '../../store/centres/api';
+import { AdminNote, LeadEntry, WaitlistEntry } from '../../store/centres/types';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDate } from '../../utils/dateUtils';
+
+import MemberDetailDrawer, { DetailField } from './components/MemberDetailDrawer';
 
 const PAGE_SIZE = 20;
 
@@ -57,8 +58,6 @@ const WAITLIST_TYPE_META: Record<string, { label: string; className: string }> =
   foundation: { label: 'Foundation', className: 'bg-amber-100 text-amber-700' },
   launchwaitlist: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
 };
-
-const comingSoon = () => toast('Coming soon');
 
 const mapColumns = (cols: ColumnDef[]): TableColumn[] =>
   cols.map(col => ({
@@ -242,6 +241,67 @@ const WaitlistLeads = () => {
   const [tab, setTab] = useState<'waitlist' | 'leads'>('waitlist');
   const [planFilter, setPlanFilter] = useState('all');
   const [showExport, setShowExport] = useState(false);
+  const [viewEntry, setViewEntry] = useState<{
+    type: 'waitlist' | 'lead';
+    id: string;
+    title: string;
+    name: string;
+    email?: string;
+    fields: DetailField[];
+    notes: AdminNote[];
+  } | null>(null);
+
+  const openWaitlistEntry = (entry: WaitlistEntry, index: number) => {
+    const src = (entry.subscriptionSrc || '').toLowerCase();
+    const typeLabel = WAITLIST_TYPE_META[src]?.label || (src ? titleCase(src) : '—');
+    const plan = planOf(entry);
+    const pos = entry.position ?? ((waitlistPage || 1) - 1) * (waitlistLimit || PAGE_SIZE) + index + 1;
+    setViewEntry({
+      type: 'waitlist',
+      id: entry.id || '',
+      title: 'Waitlist Member',
+      name: entry.name || entry.email || 'Unknown',
+      email: entry.email,
+      fields: [
+        { label: 'Waitlist Type', value: typeLabel },
+        { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
+        { label: 'Date Added', value: readableDate(entry.createdAt) },
+        { label: 'Position', value: `#${pos}` },
+      ],
+      notes: entry.notes || [],
+    });
+  };
+
+  const openLeadEntry = (entry: LeadEntry) => {
+    const code = entry.details?.subscription_code ?? '';
+    const cycle = entry.details?.billing_cycle ?? '';
+    setViewEntry({
+      type: 'lead',
+      id: entry.id || '',
+      title: 'Lead',
+      name: entry.details?.email || 'Unknown',
+      fields: [
+        { label: 'Action', value: entry.action ? titleCase(entry.action) : '—' },
+        { label: 'Requested Plan', value: code ? titleCase(code) : '—' },
+        { label: 'Billing Cycle', value: cycle ? titleCase(cycle) : '—' },
+        { label: 'Date', value: readableDate(entry.timestamp || entry.createdAt) },
+      ],
+      notes: entry.notes || [],
+    });
+  };
+
+  const handleAddNote = async (text: string) => {
+    if (!viewEntry || !facilityCode) return;
+    if (viewEntry.type === 'waitlist') {
+      const updated = await dispatch(
+        addWaitlistNote({ facilityCode, waitlistId: viewEntry.id, text })
+      ).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
+    } else {
+      const updated = await dispatch(addLeadNote({ facilityCode, leadId: viewEntry.id, text })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
+    }
+  };
 
   const fetchWaitlist = useCallback(
     (page: number, limit: number, src?: string) => {
@@ -405,11 +465,11 @@ const WaitlistLeads = () => {
       flex: 0.6,
       minWidth: 80,
       sortable: false,
-      renderCell: () => (
+      renderCell: ({ row, index }) => (
         <button
           className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
           type="button"
-          onClick={comingSoon}
+          onClick={() => openWaitlistEntry(row as WaitlistEntry, index)}
         >
           View
         </button>
@@ -493,11 +553,11 @@ const WaitlistLeads = () => {
       flex: 0.6,
       minWidth: 80,
       sortable: false,
-      renderCell: () => (
+      renderCell: ({ row }) => (
         <button
           className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
           type="button"
-          onClick={comingSoon}
+          onClick={() => openLeadEntry(row as LeadEntry)}
         >
           View
         </button>
@@ -632,6 +692,17 @@ const WaitlistLeads = () => {
       )}
 
       {showExport && <ExportPreviewModal data={exportData} onClose={() => setShowExport(false)} />}
+      {viewEntry && (
+        <MemberDetailDrawer
+          email={viewEntry.email}
+          fields={viewEntry.fields}
+          name={viewEntry.name}
+          notes={viewEntry.notes}
+          title={viewEntry.title}
+          onAddNote={handleAddNote}
+          onClose={() => setViewEntry(null)}
+        />
+      )}
     </div>
   );
 };

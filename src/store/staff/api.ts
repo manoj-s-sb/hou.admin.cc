@@ -8,6 +8,8 @@ import type { RootState } from '../store';
 import type {
   AccessLevelConfig,
   CreateStaffRequest,
+  ResendWelcomeEmailRequest,
+  ResendWelcomeEmailResponse,
   RoleConfig,
   RoleDefaults,
   StaffConfig,
@@ -139,6 +141,26 @@ export const updateStaff = createAsyncThunk(
     }
   }
 );
+
+/**
+ * Resend a staff member's welcome email — the backend mints a NEW temporary
+ * password and emails it, so this is a destructive action (confirmed in the UI
+ * before dispatch).
+ */
+export const resendWelcomeEmail = createAsyncThunk<
+  ResendWelcomeEmailResponse,
+  ResendWelcomeEmailRequest,
+  { rejectValue: string }
+>('staff/resendWelcomeEmail', async ({ staffId }, { rejectWithValue }) => {
+  try {
+    const response = await api.post<{ data: ResendWelcomeEmailResponse }>(endpoints.staff.resendWelcomeEmail, {
+      staffId,
+    });
+    return response.data?.data ?? (response.data as unknown as ResendWelcomeEmailResponse);
+  } catch (error: unknown) {
+    return rejectWithValue(handleApiError(error, 'Failed to resend the welcome email'));
+  }
+});
 
 // Suspend ('suspended') / reactivate ('active') a staff member.
 // 'suspended' is the backend's deactivated status value (the UI labels it "Inactive").
