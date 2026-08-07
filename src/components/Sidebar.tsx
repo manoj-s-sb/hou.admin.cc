@@ -72,7 +72,7 @@ const STATUS_DOT: Record<CentreApiStatus, string> = {
 /** One source of truth for nav-item styling — used by both the global and centre menus. */
 const itemClass = (active: boolean): string =>
   `group relative mx-2.5 my-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm no-underline transition-colors duration-150 ${
-    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'
+    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-[#9096be] hover:bg-white/10 hover:text-white'
   }`;
 
 /** Shared inner: active accent bar + icon + label + optional red count badge. */
@@ -238,11 +238,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 bg-white shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
       >
         {/* Header with close button for mobile */}
-        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-gray-200 px-4">
-          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand.svg" />
+        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 bg-[#21295A] px-4">
+          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-light.svg" />
           <button
             aria-label="Close sidebar"
-            className="absolute right-4 rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 lg:hidden"
+            className="absolute right-4 rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
             onClick={onClose}
           >
             <CloseIcon />
@@ -354,7 +354,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                             <img
                               alt=""
                               aria-hidden="true"
-                              className={`h-5 w-5 ${isActive ? '' : 'brightness-0 invert opacity-70'}`}
+                              className={`h-5 w-5 ${isActive ? '' : 'opacity-70 brightness-0 invert'}`}
                               src={item.icon}
                             />
                           )
