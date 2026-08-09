@@ -2,7 +2,7 @@ import React from 'react';
 
 import NumberInput from '../../../components/NumberInput';
 
-import type { AdditionalFacility, AdditionalFacilityType } from '../../../store/centres/types';
+import type { AdditionalFacility, AdditionalFacilityType, FacilityPhoto } from '../../../store/centres/types';
 
 const PANELS: {
   type: AdditionalFacilityType;
@@ -112,63 +112,170 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
-const PhotoUpload: React.FC<{ photoName?: string; onPick: (name: string | undefined) => void }> = ({
-  photoName,
-  onPick,
-}) => (
-  <label className="flex flex-col gap-1">
-    <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Photo</span>
-    <div
-      style={{
-        border: '1.5px dashed var(--border)',
-        borderRadius: 8,
-        minHeight: 64,
-        padding: '8px 12px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 4,
-        background: '#fff',
-        cursor: 'pointer',
+const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: FacilityPhoto[]) => void }> = ({
+  photos = [],
+  onChange,
+}) => {
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
+
+  // Revoke every object URL still held when this facility card unmounts.
+  React.useEffect(() => {
+    const urls = photos.map(p => p.previewUrl);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pickFiles = (files: File[]) => {
+    const oversized = files.find(f => f.size > MAX_PHOTO_BYTES);
+    if (oversized) {
+      window.alert('Image too large — must be 5 MB or less.');
+      return;
+    }
+    onChange([...photos, ...files.map(f => ({ name: f.name, previewUrl: URL.createObjectURL(f) }))]);
+  };
+
+  const removeAt = (index: number) => {
+    URL.revokeObjectURL(photos[index].previewUrl);
+    onChange(photos.filter((_, i) => i !== index));
+  };
+
+  const inputEl = (
+    <input
+      ref={inputRef}
+      multiple
+      accept="image/png,image/jpeg"
+      style={{ display: 'none' }}
+      type="file"
+      onChange={e => {
+        const files = Array.from(e.target.files ?? []);
+        // Reset immediately so re-picking the same file (e.g. after Remove) still fires onChange.
+        e.target.value = '';
+        if (files.length) pickFiles(files);
       }}
-    >
-      <svg fill="none" height={16} stroke="var(--muted)" strokeWidth={2} viewBox="0 0 24 24" width={16}>
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-        <polyline points="17 8 12 3 7 8" />
-        <line x1="12" x2="12" y1="3" y2="15" />
-      </svg>
-      <span style={{ fontSize: 11, color: 'var(--sub)' }}>{photoName ?? 'Upload image (JPG, PNG · max 5MB)'}</span>
-      <input
-        accept="image/png,image/jpeg"
-        style={{ display: 'none' }}
-        type="file"
-        onChange={e => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          if (file.size > MAX_PHOTO_BYTES) {
-            window.alert('Image too large — must be 5 MB or less.');
-            e.target.value = '';
-            return;
-          }
-          onPick(file.name);
+    />
+  );
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Photo</span>
+      <div
+        style={{
+          border: '1.5px dashed var(--border)',
+          borderRadius: 8,
+          minHeight: 64,
+          padding: '8px 12px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'flex-start',
+          justifyContent: photos.length ? 'flex-start' : 'center',
+          gap: 12,
+          background: '#fff',
         }}
-      />
-      {photoName && (
-        <button
-          style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 11, cursor: 'pointer' }}
-          type="button"
-          onClick={e => {
-            e.preventDefault();
-            onPick(undefined);
+      >
+        {photos.length === 0 && (
+          <label
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+              width: '100%',
+            }}
+          >
+            <svg fill="none" height={16} stroke="var(--muted)" strokeWidth={2} viewBox="0 0 24 24" width={16}>
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" x2="12" y1="3" y2="15" />
+            </svg>
+            <span style={{ fontSize: 11, color: 'var(--sub)' }}>Upload image (JPG, PNG · max 5MB)</span>
+            {inputEl}
+          </label>
+        )}
+        {photos.map((p, i) => (
+          <div
+            key={p.previewUrl}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 84 }}
+          >
+            <button
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'zoom-in' }}
+              title="Click to preview"
+              type="button"
+              onClick={() => setLightboxUrl(p.previewUrl)}
+            >
+              <img alt="Preview" src={p.previewUrl} style={{ height: 40, borderRadius: 4, objectFit: 'cover' }} />
+            </button>
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--sub)',
+                maxWidth: 84,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {p.name}
+            </span>
+            <button
+              style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 11, cursor: 'pointer' }}
+              type="button"
+              onClick={() => removeAt(i)}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        {photos.length > 0 && (
+          <label
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              width: 84,
+              height: 64,
+              border: '1.5px dashed var(--border)',
+              borderRadius: 8,
+              cursor: 'pointer',
+              color: 'var(--blue)',
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            + Add
+            {inputEl}
+          </label>
+        )}
+      </div>
+      {lightboxUrl && (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.8)',
+            padding: 24,
+            cursor: 'zoom-out',
           }}
+          onClick={() => setLightboxUrl(null)}
         >
-          Remove
-        </button>
+          <img
+            alt="Preview"
+            src={lightboxUrl}
+            style={{ maxHeight: '100%', maxWidth: '100%', borderRadius: 8, objectFit: 'contain' }}
+          />
+        </div>
       )}
     </div>
-  </label>
-);
+  );
+};
 
 const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => {
   const patch = (id: string, p: Partial<AdditionalFacility>) =>
@@ -254,7 +361,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
             </div>
           )}
           <OperatingHours f={f} patch={patch} />
-          <PhotoUpload photoName={f.photoName} onPick={name => patch(f.id, { photoName: name })} />
+          <PhotoUpload photos={f.photos} onChange={photos => patch(f.id, { photos })} />
         </>
       );
     }
@@ -366,7 +473,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
 
         <SectionLabel>Operating Hours</SectionLabel>
         <OperatingHours f={f} patch={patch} />
-        <PhotoUpload photoName={f.photoName} onPick={name => patch(f.id, { photoName: name })} />
+        <PhotoUpload photos={f.photos} onChange={photos => patch(f.id, { photos })} />
       </>
     );
   };

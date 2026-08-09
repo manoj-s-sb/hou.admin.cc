@@ -452,6 +452,11 @@ export interface WizardState {
 
 export type AdditionalFacilityType = 'gym' | 'podcast' | 'meeting' | 'gaming';
 
+export interface FacilityPhoto {
+  name: string;
+  previewUrl: string;
+}
+
 export interface AdditionalFacility {
   id: string;
   type: AdditionalFacilityType;
@@ -471,7 +476,7 @@ export interface AdditionalFacility {
   // Operating hours
   openTime: string;
   closeTime: string;
-  photoName?: string;
+  photos?: FacilityPhoto[];
   // Gaming-specific
   psUnits?: number;
   chargePerHour?: number;
