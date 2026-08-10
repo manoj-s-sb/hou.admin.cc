@@ -67,6 +67,7 @@ export const initialState = (): WizardState => ({
   additionalGuestDiscountPct: null,
   extraSessionCost: null,
   discounts: [],
+  keyDates: {},
 });
 
 // Auto-generate short code: first 3 letters of city + 001 (e.g. DAL001).

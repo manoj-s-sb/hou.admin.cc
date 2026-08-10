@@ -29,7 +29,8 @@ export interface ReportMeta {
 export interface OverviewStats {
   totalMembers: number;
   totalBookingsHrs: number;
-  utilisationPct: number;
+  /** Network-wide average; null when no centre in scope is configured for it yet. */
+  utilisationPct: number | null;
   noshowPct: number;
   // Period-over-period trend %: new sign-ups this window vs the previous equal window.
   membersTrendPct: number;
@@ -55,7 +56,8 @@ export interface CentreSummaryRow {
   members: number;
   active: number;
   bookingHrs: number;
-  utilisationPct: number;
+  /** Null when this centre isn't configured for utilisation yet. */
+  utilisationPct: number | null;
   noshowPct: number;
   status: string;
 }
@@ -101,7 +103,8 @@ export interface MembershipData {
 
 // ─── utilisation ───────────────────────────────────────────────────────
 export interface UtilisationStats {
-  avgUtilisation: number;
+  /** Network-wide average; null when no centre in scope is configured for it yet. */
+  avgUtilisation: number | null;
   peakHour: string;
   offPeakAvg: number;
   totalCapacityHrs: number;
@@ -114,7 +117,8 @@ export interface Heatmap {
 export interface CentreProgressRow {
   centreId: string;
   centreName: string;
-  utilPct: number;
+  /** Null when this centre isn't configured for utilisation yet. */
+  utilPct: number | null;
   color: string;
 }
 export interface CapacityUsageRow {

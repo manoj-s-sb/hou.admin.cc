@@ -6,10 +6,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { getFacilityCode } from '../../constants/user';
-import { getCentreLeads, getCentreWaitlist } from '../../store/centres/api';
-import { LeadEntry, WaitlistEntry } from '../../store/centres/types';
+import { addLeadNote, addWaitlistNote, createLead, getCentreLeads, getCentreWaitlist } from '../../store/centres/api';
+import { AdminNote, LeadEntry, WaitlistEntry } from '../../store/centres/types';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDate } from '../../utils/dateUtils';
+
+import MemberDetailDrawer, { DetailField } from './components/MemberDetailDrawer';
 
 const PAGE_SIZE = 20;
 
@@ -57,8 +59,6 @@ const WAITLIST_TYPE_META: Record<string, { label: string; className: string }> =
   foundation: { label: 'Foundation', className: 'bg-amber-100 text-amber-700' },
   launchwaitlist: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
 };
-
-const comingSoon = () => toast('Coming soon');
 
 const mapColumns = (cols: ColumnDef[]): TableColumn[] =>
   cols.map(col => ({
@@ -221,6 +221,143 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
   );
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdded: () => void }> = ({
+  facilityCode,
+  onClose,
+  onAdded,
+}) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [plan, setPlan] = useState('all');
+  const [saving, setSaving] = useState(false);
+  const [tried, setTried] = useState(false);
+  const emailValid = Boolean(email.trim()) && EMAIL_RE.test(email.trim());
+
+  const handleSubmit = async () => {
+    setTried(true);
+    if (!emailValid) return;
+    setSaving(true);
+    try {
+      await dispatch(
+        createLead({
+          facilityCode,
+          name: name.trim() || undefined,
+          email: email.trim(),
+          phone: phone.trim() || undefined,
+          subscriptionCode: plan === 'all' ? undefined : plan,
+        })
+      ).unwrap();
+      toast.success('Lead added');
+      onAdded();
+      onClose();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not add the lead');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[600] flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+    >
+      <div className="flex max-h-[88vh] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#21295A]">Add Lead</h2>
+            <p className="mt-0.5 text-[12px] text-gray-400">Manually add someone who toured but hasn&apos;t joined.</p>
+          </div>
+          <button
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+            type="button"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+          <div>
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Name</span>
+            <input
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+              placeholder="e.g. Jordan Smith"
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email *</span>
+            <input
+              className={`w-full rounded-lg border bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:bg-white ${
+                tried && !emailValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
+              }`}
+              placeholder="jordan@example.com"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+            {tried && !emailValid && <p className="mt-1 text-[11px] text-red-500">Enter a valid email address.</p>}
+          </div>
+          <div>
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</span>
+            <input
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+              placeholder="+1 555 000 0000"
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+            />
+          </div>
+          <div>
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              Plan interest
+            </span>
+            <select
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+              value={plan}
+              onChange={e => setPlan(e.target.value)}
+            >
+              {PLAN_FILTERS.map(f => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
+          <button
+            className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+            disabled={saving}
+            type="button"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-[#21295A] px-5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
+            disabled={saving}
+            type="button"
+            onClick={handleSubmit}
+          >
+            {saving ? 'Adding…' : 'Add Lead'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const WaitlistLeads = () => {
   const dispatch = useDispatch<AppDispatch>();
   const facilityCode = getFacilityCode();
@@ -242,6 +379,66 @@ const WaitlistLeads = () => {
   const [tab, setTab] = useState<'waitlist' | 'leads'>('waitlist');
   const [planFilter, setPlanFilter] = useState('all');
   const [showExport, setShowExport] = useState(false);
+  const [showAddLead, setShowAddLead] = useState(false);
+  const [viewEntry, setViewEntry] = useState<{
+    type: 'waitlist' | 'lead';
+    id: string;
+    title: string;
+    name: string;
+    email?: string;
+    fields: DetailField[];
+    notes: AdminNote[];
+  } | null>(null);
+
+  const openWaitlistEntry = (entry: WaitlistEntry, index: number) => {
+    const src = (entry.subscriptionSrc || '').toLowerCase();
+    const typeLabel = WAITLIST_TYPE_META[src]?.label || (src ? titleCase(src) : '—');
+    const plan = planOf(entry);
+    const pos = entry.position ?? ((waitlistPage || 1) - 1) * (waitlistLimit || PAGE_SIZE) + index + 1;
+    setViewEntry({
+      type: 'waitlist',
+      id: entry.id || '',
+      title: 'Waitlist Member',
+      name: entry.name || entry.email || 'Unknown',
+      email: entry.email,
+      fields: [
+        { label: 'Waitlist Type', value: typeLabel },
+        { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
+        { label: 'Date Added', value: readableDate(entry.createdAt) },
+        { label: 'Position', value: `#${pos}` },
+      ],
+      notes: entry.notes || [],
+    });
+  };
+
+  const openLeadEntry = (entry: LeadEntry) => {
+    const code = entry.details?.subscription_code ?? '';
+    const cycle = entry.details?.billing_cycle ?? '';
+    setViewEntry({
+      type: 'lead',
+      id: entry.id || '',
+      title: 'Lead',
+      name: entry.details?.email || 'Unknown',
+      fields: [
+        { label: 'Action', value: entry.action ? titleCase(entry.action) : '—' },
+        { label: 'Requested Plan', value: code ? titleCase(code) : '—' },
+        { label: 'Billing Cycle', value: cycle ? titleCase(cycle) : '—' },
+        { label: 'Date', value: readableDate(entry.timestamp || entry.createdAt) },
+      ],
+      notes: entry.notes || [],
+    });
+  };
+
+  const handleAddNote = async (text: string) => {
+    if (!viewEntry || !facilityCode) return;
+    if (viewEntry.type === 'waitlist') {
+      const updated = await dispatch(addWaitlistNote({ facilityCode, waitlistId: viewEntry.id, text })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
+    } else {
+      const updated = await dispatch(addLeadNote({ facilityCode, leadId: viewEntry.id, text })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
+    }
+  };
 
   const fetchWaitlist = useCallback(
     (page: number, limit: number, src?: string) => {
@@ -405,11 +602,11 @@ const WaitlistLeads = () => {
       flex: 0.6,
       minWidth: 80,
       sortable: false,
-      renderCell: () => (
+      renderCell: ({ row, index }) => (
         <button
           className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
           type="button"
-          onClick={comingSoon}
+          onClick={() => openWaitlistEntry(row as WaitlistEntry, index)}
         >
           View
         </button>
@@ -493,11 +690,11 @@ const WaitlistLeads = () => {
       flex: 0.6,
       minWidth: 80,
       sortable: false,
-      renderCell: () => (
+      renderCell: ({ row }) => (
         <button
           className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
           type="button"
-          onClick={comingSoon}
+          onClick={() => openLeadEntry(row as LeadEntry)}
         >
           View
         </button>
@@ -515,18 +712,33 @@ const WaitlistLeads = () => {
             Members waiting for a spot · Leads who toured but haven&apos;t joined
           </p>
         </div>
-        <button
-          className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
-          type="button"
-          onClick={() => setShowExport(true)}
-        >
-          <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" x2="12" y1="15" y2="3" />
-          </svg>
-          Export
-        </button>
+        <div className="flex items-center gap-2">
+          {tab === 'leads' && (
+            <button
+              className="flex items-center gap-1.5 rounded-lg border border-[#21295A]/20 bg-white px-4 py-2 text-[12px] font-semibold text-[#21295A] shadow-sm transition hover:bg-[#21295A]/5"
+              type="button"
+              onClick={() => setShowAddLead(true)}
+            >
+              <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
+                <line x1="12" x2="12" y1="5" y2="19" />
+                <line x1="5" x2="19" y1="12" y2="12" />
+              </svg>
+              Add Lead
+            </button>
+          )}
+          <button
+            className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
+            type="button"
+            onClick={() => setShowExport(true)}
+          >
+            <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" x2="12" y1="15" y2="3" />
+            </svg>
+            Export
+          </button>
+        </div>
       </div>
 
       {/* ── Tab switch ──────────────────────────────────────── */}
@@ -632,6 +844,24 @@ const WaitlistLeads = () => {
       )}
 
       {showExport && <ExportPreviewModal data={exportData} onClose={() => setShowExport(false)} />}
+      {showAddLead && facilityCode && (
+        <AddLeadModal
+          facilityCode={facilityCode}
+          onAdded={() => fetchLeads(1, leadsLimit || PAGE_SIZE)}
+          onClose={() => setShowAddLead(false)}
+        />
+      )}
+      {viewEntry && (
+        <MemberDetailDrawer
+          email={viewEntry.email}
+          fields={viewEntry.fields}
+          name={viewEntry.name}
+          notes={viewEntry.notes}
+          title={viewEntry.title}
+          onAddNote={handleAddNote}
+          onClose={() => setViewEntry(null)}
+        />
+      )}
     </div>
   );
 };

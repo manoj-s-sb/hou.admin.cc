@@ -8,6 +8,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
 import endpoints from '../../constants/endpoints';
+import { getLocalUser } from '../../constants/user';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
@@ -23,6 +24,8 @@ import type {
   LeadEntry,
   WaitlistEntry,
 } from './types';
+
+const actorName = (): string | undefined => getLocalUser().name || undefined;
 
 /**
  * The waitlist/leads endpoints return the standard envelope, but `data` may be
@@ -55,8 +58,7 @@ export const getCentres = createAsyncThunk<
     };
     const res = await api.post<{ data: CentreListResponse }>(endpoints.centres.centresList, body);
     const data = res.data?.data ?? (res.data as unknown as CentreListResponse);
-    // Map the API's `stats` rollup onto the `kpi` shape the card reads. Fields the API
-    // doesn't supply (utilisation) stay undefined → render as "—".
+    // Map the API's `stats` rollup onto the `kpi` shape the card reads.
     const facilities = (data.facilities ?? []).map(f => ({
       ...f,
       kpi: f.kpi ?? {
@@ -66,6 +68,9 @@ export const getCentres = createAsyncThunk<
         plans: f.stats?.membersByPlan,
         tailgates: f.stats?.tailgates,
         openTasks: f.stats?.openTasks,
+        // null (not yet configured) is left as-is → card renders "—", not "0%".
+        utilisationPct: f.stats?.utilisationPct,
+        utilisationStatus: f.stats?.utilisationStatus,
       },
     }));
     return { facilities, total: data.total ?? facilities.length };
@@ -202,6 +207,68 @@ export const getCentreLeads = createAsyncThunk<
     return { entries, total, page, limit };
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to fetch leads'));
+  }
+});
+
+/** POST /admin/centres/waitlist/notes/add — append an admin note, returns the updated entry. */
+export const addWaitlistNote = createAsyncThunk<
+  WaitlistEntry,
+  { facilityCode: string; waitlistId: string; text: string },
+  { rejectValue: string }
+>('centres/addWaitlistNote', async ({ facilityCode, waitlistId, text }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: WaitlistEntry }>(endpoints.centres.waitlistNotesAdd, {
+      facilityCode,
+      waitlistId,
+      text,
+      createdByName: actorName(),
+    });
+    return res.data?.data ?? (res.data as unknown as WaitlistEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to add note'));
+  }
+});
+
+/**
+ * POST /admin/centres/leads/create — manually add a lead (not backed by the funnel
+ * tracker). NOT YET IMPLEMENTED SERVER-SIDE — see endpoints.centres.leadsCreate.
+ */
+export const createLead = createAsyncThunk<
+  LeadEntry,
+  { facilityCode: string; name?: string; email: string; phone?: string; subscriptionCode?: string },
+  { rejectValue: string }
+>('centres/createLead', async ({ facilityCode, name, email, phone, subscriptionCode }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: LeadEntry }>(endpoints.centres.leadsCreate, {
+      facilityCode,
+      name,
+      email,
+      phone,
+      subscription_code: subscriptionCode,
+      createdByName: actorName(),
+    });
+    return res.data?.data ?? (res.data as unknown as LeadEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to add lead'));
+  }
+});
+
+/** POST /admin/centres/leads/notes/add — append an admin note, returns the updated entry. */
+export const addLeadNote = createAsyncThunk<
+  LeadEntry,
+  { facilityCode: string; leadId: string; text: string },
+  { rejectValue: string }
+>('centres/addLeadNote', async ({ facilityCode, leadId, text }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: LeadEntry }>(endpoints.centres.leadsNotesAdd, {
+      facilityCode,
+      leadId,
+      text,
+      createdByName: actorName(),
+    });
+    return res.data?.data ?? (res.data as unknown as LeadEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to add note'));
   }
 });
 

@@ -27,18 +27,20 @@ const statusPill = (status: string) => {
   );
 };
 
-// Utilisation: healthy (green) → mid (amber) → low/idle (neutral).
-const utilPill = (v: number) =>
-  chip(
-    `${v}%`,
-    v >= 75
-      ? 'bg-emerald-50 text-emerald-600'
-      : v >= 55
-        ? 'bg-amber-50 text-amber-600'
-        : v > 0
-          ? 'bg-slate-100 text-slate-500'
-          : 'bg-slate-100 text-slate-400'
-  );
+// Utilisation: healthy (green) → mid (amber) → low/idle (neutral). Null (not configured) → dash.
+const utilPill = (v: number | null) =>
+  v === null
+    ? chip('—', 'bg-slate-100 text-slate-400')
+    : chip(
+        `${v}%`,
+        v >= 75
+          ? 'bg-emerald-50 text-emerald-600'
+          : v >= 55
+            ? 'bg-amber-50 text-amber-600'
+            : v > 0
+              ? 'bg-slate-100 text-slate-500'
+              : 'bg-slate-100 text-slate-400'
+      );
 
 // No-show: lower is better — good (green) → watch (amber) → high (red).
 const noshowPill = (v: number) =>
@@ -82,7 +84,13 @@ const columns: TableColumn<CentreSummaryRow>[] = [
     sortable: true,
     renderCell: v => `${Number(v).toLocaleString()} hrs`,
   },
-  { id: 'utilisationPct', label: 'Utilisation', align: 'right', sortable: true, renderCell: v => utilPill(Number(v)) },
+  {
+    id: 'utilisationPct',
+    label: 'Utilisation',
+    align: 'right',
+    sortable: true,
+    renderCell: v => utilPill(v === null || v === undefined ? null : Number(v)),
+  },
   { id: 'noshowPct', label: 'No-show', align: 'right', sortable: true, renderCell: v => noshowPill(Number(v)) },
   { id: 'status', label: 'Status', renderCell: v => statusPill(String(v)) },
 ];
@@ -110,7 +118,7 @@ const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
           accent="from-emerald-500 to-teal-500"
           subtitle="slots filled"
           title="Utilisation"
-          value={`${stats.utilisationPct}%`}
+          value={stats.utilisationPct === null ? '—' : `${stats.utilisationPct}%`}
         />
         <StatCard
           accent="from-rose-500 to-red-500"

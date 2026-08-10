@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
@@ -78,6 +78,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tried, setTried] = useState(false);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
 
   const isCustomEquip = equipment === EQUIPMENT_CUSTOM_SENTINEL;
   const isCustomCat = category === 'other';
@@ -409,17 +410,31 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
               <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-1.5 text-[11.5px] font-semibold text-gray-500 hover:bg-gray-100">
                 🎬 {uploadingVideo ? 'Uploading…' : 'Upload video'}
                 <input
+                  ref={videoInputRef}
                   accept="video/*"
                   className="hidden"
                   disabled={uploadingVideo}
                   type="file"
-                  onChange={e => handleVideo(e.target.files?.[0] ?? null)}
+                  onChange={e => {
+                    const file = e.target.files?.[0] ?? null;
+                    // Reset immediately so re-picking the same file (e.g. after Remove) still fires onChange.
+                    e.target.value = '';
+                    handleVideo(file);
+                  }}
                 />
               </label>
               {videoUrl && (
                 <span className="flex items-center gap-2 text-[11.5px] text-gray-500">
                   ✓ {videoName || 'Video attached'}
-                  <button className="text-red-400 hover:text-red-600" type="button" onClick={() => setVideoUrl(null)}>
+                  <button
+                    className="text-red-400 hover:text-red-600"
+                    type="button"
+                    onClick={() => {
+                      setVideoUrl(null);
+                      setVideoName('');
+                      if (videoInputRef.current) videoInputRef.current.value = '';
+                    }}
+                  >
                     Remove
                   </button>
                 </span>

@@ -40,6 +40,12 @@ export interface TicketActivity {
   attachmentUrl?: string | null;
 }
 
+/** Result of the backend's assignment-notification emails, present after create/reassign. */
+export interface TicketEmailNotifications {
+  assigneeNotified: boolean;
+  ccNotified: string[];
+}
+
 export interface Ticket {
   id: string;
   facilityCode: string;
@@ -81,6 +87,10 @@ export interface Ticket {
   updatedAt: string;
   updatedBy: string;
   updatedByName: string;
+  /** Extra emails CC'd on assignment notifications (vendors, clients, …). */
+  additionalRecipients?: string[];
+  /** Outcome of the assignment-notification emails for this create/reassign. */
+  emailNotifications?: TicketEmailNotifications;
 }
 
 export interface TicketCounts {
@@ -118,6 +128,8 @@ export interface CreateTicketRequest {
   customerEmail?: string | null;
   /** Pre-uploaded blob names (uploaded via the work upload util first). */
   attachments?: string[];
+  /** Extra emails to CC on the assignment notification (vendors, clients, …). */
+  additionalRecipients?: string[];
 }
 
 export interface ListTicketsRequest {
@@ -171,6 +183,8 @@ export interface ReassignTicketRequest {
   assignedToId?: string | null;
   assignedToName?: string;
   comment?: string;
+  /** Extra emails to CC on the reassignment notification (vendors, clients, …). */
+  additionalRecipients?: string[];
 }
 
 export interface TicketCountsRequest {

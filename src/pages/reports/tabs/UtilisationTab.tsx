@@ -16,7 +16,7 @@ const UtilisationTab: React.FC<{ data: UtilisationData }> = ({ data }) => {
           accent="from-indigo-500 to-blue-500"
           subtitle="slots filled"
           title="Avg Utilisation"
-          value={`${stats.avgUtilisation}%`}
+          value={stats.avgUtilisation === null ? '—' : `${stats.avgUtilisation}%`}
         />
         <StatCard
           accent="from-violet-500 to-purple-500"
@@ -47,9 +47,10 @@ const UtilisationTab: React.FC<{ data: UtilisationData }> = ({ data }) => {
           <ProgressList
             items={data.centreProgress.map(c => ({
               label: c.centreName,
-              value: c.utilPct,
+              // Null (not configured) renders as an empty bar with a "—" label, not "0%".
+              value: c.utilPct ?? 0,
               color: c.color,
-              valueLabel: `${c.utilPct}%`,
+              valueLabel: c.utilPct === null ? '—' : `${c.utilPct}%`,
             }))}
           />
         </ChartCard>
