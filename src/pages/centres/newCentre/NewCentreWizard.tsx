@@ -818,13 +818,16 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     </select>
                     <input
                       className="cmx-field"
+                      inputMode="tel"
                       placeholder="555 000 0000"
                       style={{ flex: 1, ...(err(!s.phone.trim()) || {}) }}
                       type="tel"
                       value={stripDialCode(s.phone)}
                       onChange={e => {
+                        // Digits + spaces/hyphens/parens for formatting — no letters.
+                        const digitsOnly = e.target.value.replace(/[^\d\s\-().]/g, '');
                         const code = dialCodeOf(s.phone) || COUNTRY_DIAL_CODES[s.country] || '';
-                        set({ phone: code ? `${code} ${e.target.value}`.trim() : e.target.value });
+                        set({ phone: code ? `${code} ${digitsOnly}`.trim() : digitsOnly });
                       }}
                     />
                   </div>

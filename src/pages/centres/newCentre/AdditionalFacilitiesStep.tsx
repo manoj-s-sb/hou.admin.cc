@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import NumberInput from '../../../components/NumberInput';
 
@@ -116,11 +116,11 @@ const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: Facil
   photos = [],
   onChange,
 }) => {
-  const inputRef = React.useRef<HTMLInputElement | null>(null);
-  const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // Revoke every object URL still held when this facility card unmounts.
-  React.useEffect(() => {
+  useEffect(() => {
     const urls = photos.map(p => p.previewUrl);
     return () => urls.forEach(url => URL.revokeObjectURL(url));
     // eslint-disable-next-line react-hooks/exhaustive-deps
