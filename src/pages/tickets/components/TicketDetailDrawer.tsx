@@ -25,7 +25,28 @@ import {
   TICKET_ROLES,
 } from '../constants';
 
+import EmailTagInput from './EmailTagInput';
+
 import type { Ticket, TicketActivity, TicketRole, TicketStatus } from '../../../store/tickets/types';
+
+const compactFieldClass =
+  'rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[12px] outline-none focus:border-[#21295A]';
+const compactLabelClass = 'mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-gray-400';
+
+// Surfaces the backend's assignment-notification outcome as brief, non-intrusive
+// toasts. `assigneeNotified: false` is a warning (no email on file), not a failure.
+const notifyEmailOutcome = (ticket: Ticket) => {
+  const { emailNotifications } = ticket;
+  if (!emailNotifications) return;
+  if (emailNotifications.assigneeNotified) {
+    toast.success('Email notification sent to assignee');
+  } else {
+    toast('Assignee could not be notified (no email on file)', { icon: '⚠️' });
+  }
+  if (emailNotifications.ccNotified && emailNotifications.ccNotified.length > 0) {
+    toast.success(`CC notification sent to: ${emailNotifications.ccNotified.join(', ')}`);
+  }
+};
 
 interface Props {
   ticketId: string;
@@ -179,6 +200,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
   const [comment, setComment] = useState('');
   const [reassignRole, setReassignRole] = useState<TicketRole>('noc');
   const [reassignName, setReassignName] = useState('');
+  const [reassignRecipients, setReassignRecipients] = useState<string[]>([]);
   // In-page image preview (lightbox) — clicking an attachment shows it here
   // instead of navigating away to a new browser tab.
   const [preview, setPreview] = useState<string | null>(null);
@@ -232,16 +254,18 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
       return;
     }
     try {
-      await dispatch(
+      const updated = await dispatch(
         reassignTicket({
           ticketId,
           assignedTo: reassignRole,
           assignedToName: reassignRole === 'others' && reassignName.trim() ? reassignName.trim() : undefined,
+          additionalRecipients: reassignRecipients.length ? reassignRecipients : undefined,
         })
       ).unwrap();
       afterMutation(
         `Reassigned to ${reassignRole === 'others' && reassignName.trim() ? reassignName.trim() : ROLE_LABELS[reassignRole]}`
       );
+      notifyEmailOutcome(updated);
     } catch (e) {
       toast.error(typeof e === 'string' ? e : 'Could not reassign');
     }
@@ -386,6 +410,16 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                       ? (ROLE_LABELS[ticket.assignedTo as TicketRole] ?? ticket.assignedTo)
                       : 'Unassigned')}
                 </Row>
+                {ticket.additionalRecipients && ticket.additionalRecipients.length > 0 && (
+                  <div className="col-span-2">
+                    <div className="text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">
+                      Additional Recipients
+                    </div>
+                    <div className="mt-0.5 text-[12px] font-medium text-gray-600">
+                      {ticket.additionalRecipients.join(', ')}
+                    </div>
+                  </div>
+                )}
                 <Row label="Priority SLA">
                   <span className="inline-flex items-center gap-1.5">
                     <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_META[ticket.priority].dot}`} />
@@ -532,6 +566,14 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                       Reassign
                     </button>
                   </div>
+
+                  <EmailTagInput
+                    emails={reassignRecipients}
+                    fieldClass={compactFieldClass}
+                    label="CC emails (optional)"
+                    labelClass={compactLabelClass}
+                    onChange={setReassignRecipients}
+                  />
                 </div>
               )}
             </div>

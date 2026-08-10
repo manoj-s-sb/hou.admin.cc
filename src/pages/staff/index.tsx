@@ -217,13 +217,16 @@ const StaffManagement: React.FC = () => {
   const isLoading = isListLoading;
   const error = listError;
 
-  // Suspend → 'inactive' (deactivated in DB); Reactivate → 'active'. Reuses the
-  // shared thunk so the full record is preserved and login can be blocked server-side.
+  // Suspend → 'inactive' (deactivated in DB); Reactivate/Activate → 'active'. An
+  // invited-but-not-yet-active member can't be suspended, so they get an Activate
+  // action instead. Reuses the shared thunk so the full record is preserved and
+  // login can be blocked server-side.
   const handleToggleStatus = async (row: StaffRow) => {
     const isInactive = row.status === 'inactive';
+    const isInvited = row.status === 'invited';
     // Backend's deactivated value is 'suspended' (shown as "Inactive" in the UI).
-    const nextStatus: 'active' | 'suspended' = isInactive ? 'active' : 'suspended';
-    const verb = isInactive ? 'reactivate' : 'suspend';
+    const nextStatus: 'active' | 'suspended' = isInactive || isInvited ? 'active' : 'suspended';
+    const verb = isInactive ? 'reactivate' : isInvited ? 'activate' : 'suspend';
     if (!window.confirm(`Are you sure you want to ${verb} ${row.name}?`)) return;
 
     setTogglingId(row.id);
@@ -231,7 +234,9 @@ const StaffManagement: React.FC = () => {
     setTogglingId(null);
 
     if (setStaffStatus.fulfilled.match(action)) {
-      toast.success(isInactive ? 'Staff member reactivated' : 'Staff member suspended');
+      toast.success(
+        isInactive ? 'Staff member reactivated' : isInvited ? 'Staff member activated' : 'Staff member suspended'
+      );
       loadStaff();
     } else {
       toast.error((action.payload as string) ?? `Failed to ${verb} staff member`);
@@ -403,10 +408,12 @@ const StaffManagement: React.FC = () => {
           {(() => {
             const r = row as StaffRow;
             const isInactive = r.status === 'inactive';
+            const isInvited = r.status === 'invited';
+            const isActivateAction = isInactive || isInvited;
             return (
               <button
                 className={`rounded-md border px-3 py-1 text-[11.5px] font-semibold shadow-sm transition disabled:opacity-50 ${
-                  isInactive
+                  isActivateAction
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                     : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
                 }`}
@@ -417,7 +424,7 @@ const StaffManagement: React.FC = () => {
                   handleToggleStatus(r);
                 }}
               >
-                {togglingId === r.id ? 'Updating…' : isInactive ? 'Reactivate' : 'Suspend'}
+                {togglingId === r.id ? 'Updating…' : isInactive ? 'Reactivate' : isInvited ? 'Activate' : 'Suspend'}
               </button>
             );
           })()}

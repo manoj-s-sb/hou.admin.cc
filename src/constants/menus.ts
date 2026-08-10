@@ -125,13 +125,17 @@ export const MENU_GROUPS: MenuGroup[] = [
 const menus: MenuItem[] = MENU_GROUPS.flatMap(g => g.items);
 
 /**
- * moduleId → menu item lookup (id = first entry of a menu item's `module` array).
- * Lets the backend `sidebar`/permission ids resolve to a global route + visuals.
+ * moduleId → menu item lookup, keyed by every id in a menu item's `module` array
+ * (not just the first) so schema aliases — e.g. `maintenance_centre` /
+ * `maintenance_allcentres` alongside plain `maintenance` — all resolve to the
+ * same item. Lets the backend `sidebar`/permission ids resolve to a global
+ * route + visuals regardless of which naming scheme the backend is on.
  */
 export const MENU_ITEM_BY_MODULE: Record<string, MenuItem> = {};
 menus.forEach(item => {
-  const id = item.module?.[0];
-  if (id) MENU_ITEM_BY_MODULE[id] = item;
+  (item.module ?? []).forEach(id => {
+    MENU_ITEM_BY_MODULE[id] = item;
+  });
 });
 
 export default menus;

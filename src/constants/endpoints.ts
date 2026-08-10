@@ -31,6 +31,9 @@ const endpoints = {
     create: '/admin/staff/create',
     details: '/admin/staff/details',
     update: '/admin/staff/update',
+    // Generates a new temp password and emails it — body-based { staffId }, matching
+    // the rest of these mutation routes.
+    resendWelcomeEmail: '/admin/staff/resend-welcome-email',
     // BACKEND TODO: persist a new staff role to the DB and return the created RoleConfig.
     roleCreate: '/admin/staff/roles/create',
     // BACKEND TODO: persist a new access level and return the created AccessLevelConfig.
@@ -63,6 +66,11 @@ const endpoints = {
     bookings: (id: string) => `/admin/centres/${id}/bookings`,
     waitlist: '/admin/centres/waitlist', // POST { facilityCode, subscriptionSrc?, registerdVia?, page, limit }
     leads: '/admin/centres/leads', // POST { facilityCode, action?, subscription_code?, page, limit }
+    waitlistNotesAdd: '/admin/centres/waitlist/notes/add', // POST { facilityCode, waitlistId, text, createdByName }
+    leadsNotesAdd: '/admin/centres/leads/notes/add', // POST { facilityCode, leadId, text, createdByName }
+    // NOT YET IMPLEMENTED SERVER-SIDE — see createLead in store/centres/api.ts.
+    // POST { facilityCode, name?, email, phone?, subscription_code?, createdByName }
+    leadsCreate: '/admin/centres/leads/create',
   },
   memberships: {
     // Live backend — returns the facility's memberships (rich nested shape).

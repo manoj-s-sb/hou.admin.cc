@@ -16,7 +16,15 @@ import {
   TICKET_ROLES,
 } from '../constants';
 
-import type { CreateTicketRequest, TicketCategory, TicketPriority, TicketRole } from '../../../store/tickets/types';
+import EmailTagInput from './EmailTagInput';
+
+import type {
+  CreateTicketRequest,
+  Ticket,
+  TicketCategory,
+  TicketPriority,
+  TicketRole,
+} from '../../../store/tickets/types';
 
 interface CentreOption {
   code: string;
@@ -53,6 +61,21 @@ const Chip: React.FC<{ active: boolean; onClick: () => void; children: React.Rea
   </button>
 );
 
+// Surfaces the backend's assignment-notification outcome as brief, non-intrusive
+// toasts. `assigneeNotified: false` is a warning (no email on file), not a failure.
+const notifyEmailOutcome = (ticket: Ticket) => {
+  const { emailNotifications } = ticket;
+  if (!emailNotifications) return;
+  if (emailNotifications.assigneeNotified) {
+    toast.success('Email notification sent to assignee');
+  } else {
+    toast('Assignee could not be notified (no email on file)', { icon: '⚠️' });
+  }
+  if (emailNotifications.ccNotified && emailNotifications.ccNotified.length > 0) {
+    toast.success(`CC notification sent to: ${emailNotifications.ccNotified.join(', ')}`);
+  }
+};
+
 const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, onCreated }) => {
   const dispatch = useDispatch<AppDispatch>();
   const lockedCentre = Boolean(facilityCode);
@@ -66,6 +89,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
   const [assigneeName, setAssigneeName] = useState('');
+  const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([]);
   const [lanes, setLanes] = useState<number[]>([]);
   const [equipment, setEquipment] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
@@ -135,9 +159,11 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         laneNo: lanes.length ? lanes : null,
         equipment: equipment.length ? equipment : null,
         attachments: blobNames.length ? blobNames : undefined,
+        additionalRecipients: additionalRecipients.length ? additionalRecipients : undefined,
       };
-      await dispatch(createTicket(payload)).unwrap();
+      const created = await dispatch(createTicket(payload)).unwrap();
       toast.success('Ticket created');
+      notifyEmailOutcome(created);
       onCreated();
     } catch (e) {
       toast.error(typeof e === 'string' ? e : 'Could not create the ticket');
@@ -318,6 +344,8 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
             </div>
           )}
 
+          <EmailTagInput emails={additionalRecipients} onChange={setAdditionalRecipients} />
+
           <div>
             <span className={labelClass}>Lanes</span>
             <div className="flex flex-wrap gap-1.5">
@@ -356,9 +384,31 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
               accept="image/*,video/*"
               className="block w-full text-[12px] text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-gray-700"
               type="file"
-              onChange={e => setFiles(Array.from(e.target.files ?? []))}
+              onChange={e => {
+                setFiles(prev => [...prev, ...Array.from(e.target.files ?? [])]);
+                // Reset so the input fires again next time, instead of just extending this selection.
+                e.target.value = '';
+              }}
             />
-            {files.length > 0 && <p className="mt-1 text-[11px] text-gray-400">{files.length} file(s) selected</p>}
+            {files.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {files.map((f, i) => (
+                  <span
+                    key={`${f.name}-${i}`}
+                    className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600"
+                  >
+                    📎 {f.name.length > 20 ? `${f.name.slice(0, 20)}…` : f.name}
+                    <button
+                      className="text-red-400 hover:text-red-600"
+                      type="button"
+                      onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

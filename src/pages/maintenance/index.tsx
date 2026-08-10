@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -75,6 +75,7 @@ const Maintenance: React.FC = () => {
   const [globalTab, setGlobalTab] = useState<GlobalBucket>('weekly');
   const [centreTab, setCentreTab] = useState<CentreBucket>('weekly');
   const [scheduleDay, setScheduleDay] = useState<string>(toISODate(new Date())); // ISO date | 'overdue'
+  const scheduleDateInputRef = useRef<HTMLInputElement>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [libLane, setLibLane] = useState<number>(1); // Task Library lane (centre)
 
@@ -387,26 +388,37 @@ const Maintenance: React.FC = () => {
           <span className="text-[10px] font-medium text-gray-400">Past &amp; future</span>
         </button>
 
-        {/* Calendar — jump to any specific date (past or future). */}
-        <label
+        {/* Calendar — jump to any specific date (past or future). A visually-hidden
+            input can't reliably be opened via an implicit <label> click forward
+            (browser-dependent for a near-zero-size element), so the button opens
+            it explicitly via showPicker(). */}
+        <button
           className={`ml-auto flex cursor-pointer items-center gap-1.5 self-center rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition ${
             isCustomDay
               ? 'border-[#21295A] bg-[#ecedf4] text-[#21295A]'
               : 'border-gray-200 text-gray-600 hover:bg-gray-50'
           }`}
           title="Pick a date"
+          type="button"
+          onClick={() => {
+            const input = scheduleDateInputRef.current;
+            if (!input) return;
+            if (typeof input.showPicker === 'function') input.showPicker();
+            else input.click();
+          }}
         >
           📅{' '}
           {isCustomDay
             ? new Date(`${scheduleDay}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : 'Calendar'}
           <input
+            ref={scheduleDateInputRef}
             className="sr-only"
             type="date"
             value={isCustomDay ? scheduleDay : ''}
             onChange={e => e.target.value && setScheduleDay(e.target.value)}
           />
-        </label>
+        </button>
       </div>
 
       {schedulesLoading ? (

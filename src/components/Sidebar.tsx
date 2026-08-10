@@ -13,24 +13,16 @@ import { canRead, isSuperAdmin, sidebarItems } from '../rbac/permissions';
 import api from '../services';
 
 /**
- * Flat lookup of moduleId → { item, group } built once from MENU_GROUPS — the
- * existing frontend visual map (icon/route/group/label). The backend `sidebar`
- * carries module ids; we render each id using this map so the visuals never change.
- * A MenuItem's module id is the first entry of its `module` array (e.g. 'members').
- */
-const MODULE_VISUAL: Record<string, { item: MenuItem; group: string }> = {};
-MENU_GROUPS.forEach(g =>
-  g.items.forEach(item => {
-    const id = item.module?.[0];
-    if (id) MODULE_VISUAL[id] = { item, group: g.group };
-  })
-);
-
-/**
- * Build grouped nav from the backend sidebar (ordered + filtered). Groups appear
- * in first-seen order; items keep the backend order within each group. Ids with
- * no visual mapping are skipped. Returns [] when nothing resolves → caller falls
- * back to the hardcoded menu (never a blank sidebar).
+ * Build grouped nav for the backend sidebar. The backend `sidebar` array is used
+ * purely as the set of ids the user is allowed to see — NOT as an ordering
+ * source (its array order can vary/shuffle by environment or role). Group and
+ * item order always follow the frontend's own `MENU_GROUPS` layout, so the
+ * visual arrangement (Setup → Monitoring → Maintenance, and each item's
+ * position within its group) never depends on backend array order.
+ * Ids with no matching MenuItem are skipped; duplicate ids resolving to the
+ * same item (e.g. a `maintenance_centre` + `maintenance_allcentres` split
+ * pair) render as a single entry. Returns [] when nothing resolves → caller
+ * falls back to the hardcoded menu (never a blank sidebar).
  */
 // Modules that only make sense inside a centre — never shown in the global sidebar.
 // NB: 'tailgate' is intentionally NOT here — Tailgate Logs is a global Monitoring
@@ -48,19 +40,23 @@ const CENTRE_ONLY_MODULES = new Set([
 ]);
 
 const groupsFromBackendSidebar = (): { group: string; items: MenuItem[] }[] => {
-  const order: string[] = [];
-  const byGroup: Record<string, MenuItem[]> = {};
-  sidebarItems().forEach(entry => {
-    if (CENTRE_ONLY_MODULES.has(entry.id)) return; // hide centre-scoped modules from global nav
-    const visual = MODULE_VISUAL[entry.id];
-    if (!visual) return;
-    if (!byGroup[visual.group]) {
-      byGroup[visual.group] = [];
-      order.push(visual.group);
-    }
-    byGroup[visual.group].push(visual.item);
-  });
-  return order.map(group => ({ group, items: byGroup[group] }));
+  const allowedIds = new Set(
+    sidebarItems()
+      .map(entry => entry.id)
+      .filter(id => !CENTRE_ONLY_MODULES.has(id)) // hide centre-scoped modules from global nav
+  );
+  if (allowedIds.size === 0) return [];
+
+  const seenPaths = new Set<string>(); // dedupe centre/allcentres split ids resolving to one item
+  return MENU_GROUPS.map(g => ({
+    group: g.group,
+    items: g.items.filter(item => {
+      if (!(item.module ?? []).some(id => allowedIds.has(id))) return false;
+      if (seenPaths.has(item.path)) return false;
+      seenPaths.add(item.path);
+      return true;
+    }),
+  })).filter(g => g.items.length > 0);
 };
 
 import type { CentreApiStatus, FacilitySummary } from '../store/centres/types';
@@ -70,13 +66,14 @@ import type { TicketCounts } from '../store/tickets/types';
 const STATUS_DOT: Record<CentreApiStatus, string> = {
   active: 'bg-emerald-500',
   draft: 'bg-amber-500',
+  staging: 'bg-blue-500',
   suspended: 'bg-red-500',
 };
 
 /** One source of truth for nav-item styling — used by both the global and centre menus. */
 const itemClass = (active: boolean): string =>
   `group relative mx-2.5 my-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm no-underline transition-colors duration-150 ${
-    active ? 'bg-[#21295A]/[0.07] font-semibold text-[#21295A]' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-[#9096be] hover:bg-white/10 hover:text-white'
   }`;
 
 /** Shared inner: active accent bar + icon + label + optional red count badge. */
@@ -163,7 +160,7 @@ const useSidebarBadges = (enabled: boolean): Record<string, number> => {
 };
 
 const GroupLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="px-5 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 first:pt-2">
+  <div className="px-5 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#9096be] first:pt-2">
     {children}
   </div>
 );
@@ -242,11 +239,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 bg-white shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
       >
         {/* Header with close button for mobile */}
-        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-gray-200 px-4">
-          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand.svg" />
+        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 bg-[#21295A] px-4">
+          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-light.svg" />
           <button
             aria-label="Close sidebar"
-            className="absolute right-4 rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 lg:hidden"
+            className="absolute right-4 rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
             onClick={onClose}
           >
             <CloseIcon />
@@ -255,10 +252,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
         {/* Navigation — swaps to the centre's module nav while a centre is open */}
         {activeCentre ? (
-          <nav className="flex-1 space-y-px overflow-y-auto py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
             {/* Back to Centres */}
             <button
-              className="group mx-2.5 mb-2 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              className="group mx-2.5 mb-2 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-white/50 transition-colors hover:bg-white/10 hover:text-white"
               type="button"
               onClick={() => {
                 closeCentre();
@@ -331,7 +328,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             })}
           </nav>
         ) : (
-          <nav className="flex-1 space-y-px overflow-y-auto py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
             {visibleGroups.map(g => (
               <React.Fragment key={g.group}>
                 <GroupLabel>{g.group}</GroupLabel>
@@ -358,7 +355,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                             <img
                               alt=""
                               aria-hidden="true"
-                              className={`h-5 w-5 ${isActive ? '' : 'opacity-70'}`}
+                              className={`h-5 w-5 ${isActive ? '' : 'opacity-70 brightness-0 invert'}`}
                               src={item.icon}
                             />
                           )

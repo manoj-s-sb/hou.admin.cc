@@ -9,8 +9,12 @@ export const SUPER_ADMIN_ROLES = ['stancebeamadmin', 'superadmin'] as const;
 export const [SUPER_ADMIN_ROLE] = SUPER_ADMIN_ROLES;
 export const SUPER_ADMIN_ONLY = '__superadmin__';
 
-// The 10 backend module ids (RBAC spec §1). Values MUST match the keys the
+// The backend module ids (RBAC spec §1). Values MUST match the keys the
 // backend sends in permissions.modules.
+// Maintenance / Tailgate / Tickets now arrive from some environments (e.g. UAT)
+// split into "_centre" and "_allcentres" scoped variants instead of the plain
+// id — both forms are kept here as aliases of the same page (see ACCESS_SCOPES
+// below) until every backend environment is on the same schema.
 export const MODULES = {
   MEMBERS: 'members',
   SLOT_BOOKING: 'slotbooking',
@@ -19,10 +23,16 @@ export const MODULES = {
   INDUCTION: 'induction',
   TOUR: 'tour',
   MAINTENANCE: 'maintenance',
+  MAINTENANCE_CENTRE: 'maintenance_centre',
+  MAINTENANCE_ALLCENTRES: 'maintenance_allcentres',
   TAILGATE: 'tailgate',
+  TAILGATE_CENTRE: 'tailgate_centre',
+  TAILGATE_ALLCENTRES: 'tailgate_allcentres',
   CENTRE_MANAGEMENT: 'centremanagement',
   STAFF: 'staffmanagement',
   TICKETS: 'ticketsincidents',
+  TICKETS_CENTRE: 'ticketsincidents_centre',
+  TICKETS_ALLCENTRES: 'ticketsincidents_allcentres',
   MEMBERSHIP_PLANS: 'membershipplans',
   WAITLIST_LEADS: 'waitlistleads',
   FACILITIES: 'facilities',
@@ -39,11 +49,11 @@ export const ACCESS_SCOPES = {
   reports: [MODULES.REPORTS],
   induction: [MODULES.INDUCTION],
   tour: [MODULES.TOUR],
-  maintenance: [MODULES.MAINTENANCE],
-  tailgate: [MODULES.TAILGATE],
+  maintenance: [MODULES.MAINTENANCE, MODULES.MAINTENANCE_CENTRE, MODULES.MAINTENANCE_ALLCENTRES],
+  tailgate: [MODULES.TAILGATE, MODULES.TAILGATE_CENTRE, MODULES.TAILGATE_ALLCENTRES],
   centreManagement: [MODULES.CENTRE_MANAGEMENT],
   staff: [MODULES.STAFF],
-  tickets: [MODULES.TICKETS],
+  tickets: [MODULES.TICKETS, MODULES.TICKETS_CENTRE, MODULES.TICKETS_ALLCENTRES],
   membershipPlans: [MODULES.MEMBERSHIP_PLANS],
   waitlistLeads: [MODULES.WAITLIST_LEADS],
   facilities: [MODULES.FACILITIES],

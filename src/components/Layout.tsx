@@ -81,11 +81,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex min-h-screen">
         <Sidebar isOpen={isSidebarOpen || isDesktop} onClose={() => setIsSidebarOpen(false)} />
         <div className="flex h-screen w-full flex-col overflow-hidden lg:ml-64">
-          <header className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
+          <header className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-[#21295A] bg-[#21295A] px-4 sm:px-6 lg:px-8">
             {/* Mobile Menu Button */}
             <button
               aria-label="Open sidebar"
-              className="rounded-xl border border-gray-200 p-2.5 text-gray-600 transition-all duration-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 lg:hidden"
+              className="rounded-xl border border-white/20 p-2.5 text-white/80 transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:text-white lg:hidden"
               onClick={() => setIsSidebarOpen(true)}
             >
               <svg
@@ -102,20 +102,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex-1"></div>
             <div ref={profileMenuRef} className="relative">
               <button
-                className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 hover:shadow-md"
+                className="flex items-center gap-3 rounded-xl border border-white/20 px-4 py-2.5 transition-all duration-200 hover:border-white/40 hover:bg-white/10"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-md ring-2 ring-indigo-100">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-md ring-2 ring-white/20">
                   {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'U'}
                 </div>
                 <div className="hidden flex-col items-start sm:flex">
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="text-sm font-semibold text-white">
                     {user ? `${user.firstName} ${user.lastName}` : 'User'}
                   </span>
-                  <span className="text-xs font-medium text-gray-600">{user?.userType?.[0] || 'Admin'}</span>
+                  <span className="text-xs font-medium text-white/60">{user?.userType?.[0] || 'Admin'}</span>
                 </div>
                 <svg
-                  className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                  className={`h-4 w-4 text-white/60 transition-transform duration-200 ${
                     showProfileMenu ? 'rotate-180' : ''
                   }`}
                   fill="none"

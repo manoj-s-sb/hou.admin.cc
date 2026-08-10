@@ -224,6 +224,9 @@ const buildFacility = (state: WizardState): ApiFacility => ({
     slotDurationMinutes: state.slotDurationMinutes,
     advanceBookingWindowDays: state.advanceBookingWindowDays,
   },
+  // No backend lifecycle endpoint consumes this yet — carried through so it round-trips
+  // (edit re-opens with whatever was set) once that lands. Unset fields serialize away.
+  keyDates: state.keyDates,
 });
 
 export function buildCreatePayload(state: WizardState, original?: CentreBundle): CentreCreateRequest {

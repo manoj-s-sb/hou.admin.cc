@@ -615,7 +615,27 @@ const AddStaffMember: React.FC = () => {
       // member shows immediately, even when they're country-/global-scoped and the
       // viewer's own facility/country wouldn't otherwise include them.
       await dispatch(getStaffList(buildStaffListParams()));
-      toast.success(draft ? 'Saved as draft' : 'Staff member created');
+      // Response shape isn't strictly typed here (see staff/api.ts) — check both the
+      // nested `data` envelope and the top level so an older cached response (with
+      // neither) degrades to the plain success toast instead of crashing.
+      const payload = action.payload as
+        | { data?: { welcomeEmailStatus?: string }; welcomeEmailStatus?: string }
+        | undefined;
+      const welcomeEmailStatus = payload?.data?.welcomeEmailStatus ?? payload?.welcomeEmailStatus;
+      const targetEmail = (loginEmail || profile.email).trim();
+      if (draft) {
+        toast.success('Saved as draft');
+      } else if (welcomeEmailStatus === 'sent') {
+        toast.success(`Staff member created. Welcome email with login credentials sent to ${targetEmail}`);
+      } else if (welcomeEmailStatus === 'skipped_no_email') {
+        toast('Staff member created. Welcome email could not be sent — no email address on file', { icon: '⚠️' });
+      } else if (welcomeEmailStatus === 'failed') {
+        toast('Staff member created, but welcome email failed to send. You can resend from the staff profile.', {
+          icon: '⚠️',
+        });
+      } else {
+        toast.success('Staff member created');
+      }
       navigate(ROUTES.STAFF_MANAGEMENT.path);
     } else {
       const msg = (action.payload as string) ?? 'Failed to create staff member';
