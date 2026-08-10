@@ -68,6 +68,9 @@ const endpoints = {
     leads: '/admin/centres/leads', // POST { facilityCode, action?, subscription_code?, page, limit }
     waitlistNotesAdd: '/admin/centres/waitlist/notes/add', // POST { facilityCode, waitlistId, text, createdByName }
     leadsNotesAdd: '/admin/centres/leads/notes/add', // POST { facilityCode, leadId, text, createdByName }
+    // NOT YET IMPLEMENTED SERVER-SIDE — see createLead in store/centres/api.ts.
+    // POST { facilityCode, name?, email, phone?, subscription_code?, createdByName }
+    leadsCreate: '/admin/centres/leads/create',
   },
   memberships: {
     // Live backend — returns the facility's memberships (rich nested shape).

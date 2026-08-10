@@ -229,6 +229,30 @@ export const addWaitlistNote = createAsyncThunk<
   }
 });
 
+/**
+ * POST /admin/centres/leads/create — manually add a lead (not backed by the funnel
+ * tracker). NOT YET IMPLEMENTED SERVER-SIDE — see endpoints.centres.leadsCreate.
+ */
+export const createLead = createAsyncThunk<
+  LeadEntry,
+  { facilityCode: string; name?: string; email: string; phone?: string; subscriptionCode?: string },
+  { rejectValue: string }
+>('centres/createLead', async ({ facilityCode, name, email, phone, subscriptionCode }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: LeadEntry }>(endpoints.centres.leadsCreate, {
+      facilityCode,
+      name,
+      email,
+      phone,
+      subscription_code: subscriptionCode,
+      createdByName: actorName(),
+    });
+    return res.data?.data ?? (res.data as unknown as LeadEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to add lead'));
+  }
+});
+
 /** POST /admin/centres/leads/notes/add — append an admin note, returns the updated entry. */
 export const addLeadNote = createAsyncThunk<
   LeadEntry,

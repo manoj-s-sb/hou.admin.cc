@@ -384,9 +384,31 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
               accept="image/*,video/*"
               className="block w-full text-[12px] text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-gray-700"
               type="file"
-              onChange={e => setFiles(Array.from(e.target.files ?? []))}
+              onChange={e => {
+                setFiles(prev => [...prev, ...Array.from(e.target.files ?? [])]);
+                // Reset so the input fires again next time, instead of just extending this selection.
+                e.target.value = '';
+              }}
             />
-            {files.length > 0 && <p className="mt-1 text-[11px] text-gray-400">{files.length} file(s) selected</p>}
+            {files.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {files.map((f, i) => (
+                  <span
+                    key={`${f.name}-${i}`}
+                    className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600"
+                  >
+                    📎 {f.name.length > 20 ? `${f.name.slice(0, 20)}…` : f.name}
+                    <button
+                      className="text-red-400 hover:text-red-600"
+                      type="button"
+                      onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -94,6 +94,14 @@ const ScheduleCard: React.FC<Props> = ({
               Facility-wide
             </span>
           )}
+          {isDone && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-teal-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Completed{schedule.lastCompletedAt ? ` · ${fmtShort(schedule.lastCompletedAt.split('T')[0])}` : ''}
+            </span>
+          )}
         </div>
 
         {t.description && <p className="mt-1 text-[12px] text-gray-600">{t.description}</p>}
@@ -119,11 +127,6 @@ const ScheduleCard: React.FC<Props> = ({
           {isOverdue && (
             <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10.5px] font-semibold text-red-600">
               🔴 Overdue
-            </span>
-          )}
-          {isDone && (
-            <span className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10.5px] font-semibold text-teal-700">
-              ✓ Done{schedule.lastCompletedAt ? ` · ${fmtShort(schedule.lastCompletedAt.split('T')[0])}` : ''}
             </span>
           )}
         </div>

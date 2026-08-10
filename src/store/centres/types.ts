@@ -378,6 +378,9 @@ export interface LeadEntry {
   createdAt?: string;
   /** Admin notes, oldest first. Defaults to [] server-side — never null. */
   notes?: AdminNote[];
+  /** Set on leads added manually via "+ Add Lead" — not present on funnel-tracked leads. */
+  name?: string;
+  phone?: string;
   details?: {
     email?: string;
     subscription_code?: string;

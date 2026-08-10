@@ -110,6 +110,30 @@ export const COUNTRIES = [
   { code: 'ZA', label: 'South Africa' },
 ];
 
+// Phone dial code for each supported country — keyed on the same (non-ISO) `code`
+// values as COUNTRIES/COUNTRY_FLAGS above.
+export const COUNTRY_DIAL_CODES: Record<string, string> = {
+  AU: '+61',
+  US: '+1',
+  UK: '+44',
+  UAE: '+971',
+  IN: '+91',
+  NZ: '+64',
+  ZA: '+27',
+};
+
+// ISO-3166 alpha-2 codes for the postcode-lookup API (zippopotam.us), which needs
+// real ISO codes — our own COUNTRIES.code values aren't all standard (UK/UAE).
+export const COUNTRY_ISO_CODES: Record<string, string> = {
+  AU: 'au',
+  US: 'us',
+  UK: 'gb',
+  UAE: 'ae',
+  IN: 'in',
+  NZ: 'nz',
+  ZA: 'za',
+};
+
 export const TIMEZONES: { value: string; label: string }[] = [
   { value: 'America/Chicago', label: 'America/Chicago (CT)' },
   { value: 'America/New_York', label: 'America/New_York (ET)' },

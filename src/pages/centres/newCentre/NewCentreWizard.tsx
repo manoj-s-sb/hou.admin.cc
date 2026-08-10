@@ -8,6 +8,8 @@ import { createCentre, updateCentre } from '../../../store/centres/api';
 import { AppDispatch } from '../../../store/store';
 import {
   COUNTRIES,
+  COUNTRY_DIAL_CODES,
+  COUNTRY_ISO_CODES,
   DAYS,
   DEMOGRAPHICS,
   FACILITY_OPTIONS,
@@ -101,6 +103,77 @@ const genShortCode = (city: string): string => {
   return `${letters.substring(0, 3)}001`;
 };
 
+// ── Draft autosave (new-centre flow only; editing an existing centre never
+// touches this — it has its own persisted record) ──
+const DRAFT_KEY = 'newCentreWizardDraft';
+
+const loadDraft = (): WizardState | null => {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as WizardState) : null;
+  } catch {
+    return null; // corrupt/old-shape draft — fall back to a blank wizard rather than crash
+  }
+};
+
+const saveDraft = (state: WizardState) => {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(state));
+  } catch {
+    // localStorage unavailable/full — autosave is best-effort only
+  }
+};
+
+const clearDraft = () => {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+};
+
+// ── Postcode → City/State/Country lookup (zippopotam.us, free & keyless) ──
+interface ZippopotamPlace {
+  'place name'?: string;
+  state?: string;
+  'state abbreviation'?: string;
+}
+interface ZippopotamResponse {
+  places?: ZippopotamPlace[];
+}
+
+// Tries the already-selected country first (fast path + avoids surprising a
+// deliberate choice), then the rest of our supported countries as a fallback —
+// there's no country-less reverse lookup on this API, so this is how we can still
+// fill Country from just a postcode.
+const lookupPostcode = async (postcode: string, preferredCountryCode: string) => {
+  const entries = Object.entries(COUNTRY_ISO_CODES);
+  const ordered = preferredCountryCode
+    ? [...entries.filter(([c]) => c === preferredCountryCode), ...entries.filter(([c]) => c !== preferredCountryCode)]
+    : entries;
+  for (const [code, iso] of ordered) {
+    try {
+      const res = await fetch(`https://api.zippopotam.us/${iso}/${encodeURIComponent(postcode)}`);
+      if (!res.ok) continue;
+      const data = (await res.json()) as ZippopotamResponse;
+      const place = data.places?.[0];
+      if (!place) continue;
+      return {
+        countryCode: code,
+        city: place['place name'] ?? '',
+        state: place['state abbreviation'] || place.state || '',
+      };
+    } catch {
+      // network error / CORS for this one country — try the next
+    }
+  }
+  return null;
+};
+
+// Dial code prefix already on a phone string (e.g. "+1" from "+1 555 000 0000").
+const dialCodeOf = (phone: string): string => /^\+\d{1,3}/.exec(phone.trim())?.[0] ?? '';
+const stripDialCode = (phone: string): string => phone.trim().replace(/^\+\d{1,3}\s*/, '');
+
 const SHORT_CODE_RE = /^[A-Z0-9]{3,6}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const toNum = (v: number | '') => (v === '' ? 0 : Number(v));
@@ -172,9 +245,20 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   const [step, setStep] = useState(isEdit ? 5 : 1);
   const [maxStepReached, setMaxStepReached] = useState(isEdit ? 5 : 1);
   const [demo, setDemo] = useState('all');
-  const [s, setS] = useState<WizardState>(() => (initialBundle ? bundleToWizardState(initialBundle) : initialState()));
+  // Restored a saved draft from an earlier, not-yet-created session? (new-centre flow only)
+  const restoredDraftRef = useRef(false);
+  const [s, setS] = useState<WizardState>(() => {
+    if (initialBundle) return bundleToWizardState(initialBundle);
+    const draft = loadDraft();
+    if (draft) {
+      restoredDraftRef.current = true;
+      return draft;
+    }
+    return initialState();
+  });
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [postcodeLooking, setPostcodeLooking] = useState(false);
   // Current persisted status of the centre being edited (undefined when creating).
   const currentStatus = initialBundle?.facility?.status;
   // Status the "Create Centre" / "Save Changes" button will persist (Review step radio).
@@ -188,17 +272,34 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
 
   const set = (patch: Partial<WizardState>) => {
     dirtyRef.current = true;
-    setS(prev => ({ ...prev, ...patch }));
+    setS(prev => {
+      const next = { ...prev, ...patch };
+      if (!isEdit) saveDraft(next);
+      return next;
+    });
   };
 
   const requestClose = useCallback(() => {
-    if (dirtyRef.current && !window.confirm('Discard unsaved changes and close the wizard?')) return;
+    if (
+      dirtyRef.current &&
+      !window.confirm(
+        isEdit
+          ? 'Discard unsaved changes and close the wizard?'
+          : 'Close for now? Your progress is saved automatically — you can pick up where you left off next time.'
+      )
+    )
+      return;
     onClose();
-  }, [onClose]);
+  }, [onClose, isEdit]);
 
   // Autofocus the first field on open.
   useEffect(() => {
     firstFieldRef.current?.focus();
+  }, []);
+
+  // Let the user know their earlier progress came back, once, on open.
+  useEffect(() => {
+    if (restoredDraftRef.current) toast('Restored your saved draft', { icon: '📝' });
   }, []);
 
   // Esc to close (with the same confirm flow as the overlay).
@@ -329,6 +430,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     try {
       if (isEdit) await dispatch(updateCentre({ payload, centreId })).unwrap();
       else await dispatch(createCentre(payload)).unwrap();
+      if (!isEdit) clearDraft(); // centre now exists for real — stop offering this draft to resume
       setSavedAs(saveStatus); // success modal → grid on dismiss
     } catch (e) {
       // 401 is handled globally (session-expired modal); the thunk rejects with a
@@ -567,8 +669,23 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     style={err(!s.postcode.trim())}
                     type="text"
                     value={s.postcode}
+                    onBlur={async e => {
+                      const postcode = e.target.value.trim();
+                      if (!postcode) return;
+                      setPostcodeLooking(true);
+                      const found = await lookupPostcode(postcode, s.country);
+                      setPostcodeLooking(false);
+                      if (found) {
+                        set({
+                          city: s.city.trim() ? s.city : found.city || s.city,
+                          state: found.state || s.state,
+                          country: found.countryCode || s.country,
+                        });
+                      }
+                    }}
                     onChange={e => set({ postcode: e.target.value })}
                   />
+                  {postcodeLooking && <div className="cmx-hint">Looking up city/state/country…</div>}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
@@ -612,14 +729,33 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Phone *</span>
-                  <input
-                    className="cmx-field"
-                    placeholder="+1 555 000 0000"
-                    style={err(!s.phone.trim())}
-                    type="tel"
-                    value={s.phone}
-                    onChange={e => set({ phone: e.target.value })}
-                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select
+                      aria-label="Country code"
+                      className="cmx-field"
+                      style={{ flex: '0 0 92px', paddingLeft: 8, paddingRight: 4 }}
+                      value={dialCodeOf(s.phone) || COUNTRY_DIAL_CODES[s.country] || ''}
+                      onChange={e => set({ phone: `${e.target.value} ${stripDialCode(s.phone)}`.trim() })}
+                    >
+                      <option value="">Code</option>
+                      {COUNTRIES.map(c => (
+                        <option key={c.code} value={COUNTRY_DIAL_CODES[c.code]}>
+                          {COUNTRY_DIAL_CODES[c.code]} {c.code}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className="cmx-field"
+                      placeholder="555 000 0000"
+                      style={{ flex: 1, ...(err(!s.phone.trim()) || {}) }}
+                      type="tel"
+                      value={stripDialCode(s.phone)}
+                      onChange={e => {
+                        const code = dialCodeOf(s.phone) || COUNTRY_DIAL_CODES[s.country] || '';
+                        set({ phone: code ? `${code} ${e.target.value}`.trim() : e.target.value });
+                      }}
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Email *</span>
