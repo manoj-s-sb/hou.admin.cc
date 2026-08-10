@@ -14,6 +14,7 @@ const PILL_BASE = 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px]
 const STATUS_PILL: Record<CentreApiStatus, { label: string; tone: string }> = {
   active: { label: 'Active', tone: 'bg-cmx-green-bg text-cmx-green' },
   draft: { label: 'Draft', tone: 'bg-cmx-amber-bg text-cmx-amber' },
+  staging: { label: 'Staging', tone: 'bg-cmx-blue-light text-cmx-blue' },
   suspended: { label: 'Suspended', tone: 'bg-red-100 text-red-600' },
 };
 

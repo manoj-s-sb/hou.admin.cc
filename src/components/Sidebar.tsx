@@ -66,6 +66,7 @@ import type { TicketCounts } from '../store/tickets/types';
 const STATUS_DOT: Record<CentreApiStatus, string> = {
   active: 'bg-emerald-500',
   draft: 'bg-amber-500',
+  staging: 'bg-blue-500',
   suspended: 'bg-red-500',
 };
 

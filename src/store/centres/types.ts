@@ -19,7 +19,7 @@
  *    - POST /admin/centres/create   → CentreBundle
  * ════════════════════════════════════════════════════════════════════════════ */
 
-export type CentreApiStatus = 'draft' | 'active' | 'suspended';
+export type CentreApiStatus = 'draft' | 'staging' | 'active' | 'suspended';
 
 /* ── List ────────────────────────────────────────────────────────────────── */
 
@@ -140,7 +140,7 @@ export interface ApiFacility {
   countryCode: string;
   stateCode: string;
   timezone: string;
-  status: 'draft' | 'active' | 'suspended';
+  status: CentreApiStatus;
   latitude: number;
   longitude: number;
   freeSolts: number; // sic
@@ -163,6 +163,9 @@ export interface ApiFacility {
   induction?: Record<string, unknown>;
   tour?: Record<string, unknown>;
   slotScheduleConfig?: Record<string, unknown>;
+  // Not yet backed by a real lifecycle/scheduling endpoint — see CentreKeyDates. Sent
+  // additively so it round-trips once the backend adopts it; safe to ignore until then.
+  keyDates?: CentreKeyDates;
   // Server-generated (present on read only).
   id?: string;
   createdAt?: string;
@@ -422,7 +425,7 @@ export interface WizardState {
   // Step 1
   name: string;
   shortCode: string;
-  status: 'draft' | 'active' | 'suspended';
+  status: CentreApiStatus;
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -451,6 +454,20 @@ export interface WizardState {
   additionalGuestDiscountPct: number | null;
   extraSessionCost: number | null;
   discounts: CentreDiscount[];
+  // Review — optional scheduling metadata, all UTC ISO 8601. Not yet consumed by any
+  // backend action (no lifecycle endpoint exists) — carried through as a facility
+  // field for whenever that lands. Empty/absent = not scheduled for that behavior.
+  keyDates: CentreKeyDates;
+}
+
+export interface CentreKeyDates {
+  goLiveAt?: string;
+  waitlistOpenAt?: string;
+  waitlistCloseAt?: string;
+  salesStartAt?: string;
+  salesEndAt?: string;
+  promoStartAt?: string;
+  promoEndAt?: string;
 }
 
 export type AdditionalFacilityType = 'gym' | 'podcast' | 'meeting' | 'gaming';

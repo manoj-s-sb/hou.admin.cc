@@ -94,6 +94,7 @@ const initialState = (): WizardState => ({
   additionalGuestDiscountPct: null,
   extraSessionCost: null,
   discounts: [],
+  keyDates: {},
 });
 
 // Auto-generate short code: first 3 letters of city + 001 (e.g. DAL001).
@@ -185,6 +186,67 @@ const minutesOf = (hhmm: string): number => {
   return Number(m[1]) * 60 + Number(m[2]);
 };
 
+// ── Key Dates: local wall-clock (in the centre's own timezone) ↔ UTC ISO 8601 ──
+// No timezone library in this codebase yet — done by hand via Intl.DateTimeFormat.
+const tzPartsOf = (date: Date, timezone: string, withSeconds: boolean): Record<string, string> => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(withSeconds ? { second: '2-digit' } : {}),
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  return Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+};
+
+// "YYYY-MM-DDTHH:mm" (as typed into a <input type="datetime-local">), interpreted as
+// wall-clock time IN `timezone` → UTC ISO string. '' → undefined (not scheduled).
+const localToUtcIso = (local: string, timezone: string): string | undefined => {
+  if (!local) return undefined;
+  const guessAsUtc = new Date(`${local}:00Z`);
+  if (Number.isNaN(guessAsUtc.getTime()) || !timezone) return undefined;
+  const p = tzPartsOf(guessAsUtc, timezone, true);
+  const guessDisplayedAsUtc = Date.UTC(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    Number(p.hour),
+    Number(p.minute),
+    Number(p.second)
+  );
+  // guessAsUtc is off from the true instant by exactly `timezone`'s offset at that
+  // moment; that offset is (guessDisplayedAsUtc - guessAsUtc), so subtract it back out.
+  return new Date(guessAsUtc.getTime() - (guessDisplayedAsUtc - guessAsUtc.getTime())).toISOString();
+};
+
+// UTC ISO string → "YYYY-MM-DDTHH:mm" for a <input type="datetime-local">, displayed
+// in `timezone`. undefined/invalid → '' (not scheduled).
+const utcIsoToLocal = (iso: string | undefined, timezone: string): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime()) || !timezone) return '';
+  const p = tzPartsOf(d, timezone, false);
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+};
+
+// Read-only display for the Review step — "Not scheduled" when unset.
+const displayKeyDate = (iso: string | undefined, timezone: string): string => {
+  if (!iso) return 'Not scheduled';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'Not scheduled';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone || undefined,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(d);
+};
+
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Draft',
   staging: 'Staging',
@@ -204,7 +266,7 @@ const readonlyTimeBox: React.CSSProperties = {
   background: '#fff',
 };
 
-type SaveStatus = 'draft' | 'active' | 'suspended';
+type SaveStatus = 'draft' | 'staging' | 'active' | 'suspended';
 
 // Copy for each selectable "Set Centre Status on Save" radio. The `active`
 // title flips to "Reactivate" when the centre is currently suspended.
@@ -212,6 +274,10 @@ const SAVE_STATUS_META: Record<SaveStatus, { title: string; desc: string }> = {
   draft: {
     title: 'Save as Draft',
     desc: 'Centre is saved but invisible to all users including centre staff. Complete setup before going live.',
+  },
+  staging: {
+    title: 'Send to Staging',
+    desc: 'Centre is saved and ready for internal review/verification before going live — still invisible to members.',
   },
   active: {
     title: 'Save & Activate',
@@ -224,11 +290,11 @@ const SAVE_STATUS_META: Record<SaveStatus, { title: string; desc: string }> = {
 };
 
 // Which status radios to offer, given the wizard mode + the centre's current status:
-//  • New / draft centre  → Draft, Active (Draft is only ever offered here).
-//  • Active / suspended  → Active, Suspend (toggle live ↔ offline).
+//  • New / draft / staging centre → Draft, Staging, Active.
+//  • Active / suspended           → Active, Suspend (toggle live ↔ offline).
 const saveStatusOptions = (isEdit: boolean, current?: CentreApiStatus): SaveStatus[] => {
   if (isEdit && (current === 'active' || current === 'suspended')) return ['active', 'suspended'];
-  return ['draft', 'active'];
+  return ['draft', 'staging', 'active'];
 };
 
 interface Props {
@@ -241,9 +307,9 @@ interface Props {
 const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) => {
   const dispatch = useDispatch<AppDispatch>();
   const isEdit = Boolean(initialBundle);
-  // Edit mode jumps straight to Review (step 5) with all steps already unlocked.
-  const [step, setStep] = useState(isEdit ? 5 : 1);
-  const [maxStepReached, setMaxStepReached] = useState(isEdit ? 5 : 1);
+  // Edit mode jumps straight to Review (step 6) with all steps already unlocked.
+  const [step, setStep] = useState(isEdit ? 6 : 1);
+  const [maxStepReached, setMaxStepReached] = useState(isEdit ? 6 : 1);
   const [demo, setDemo] = useState('all');
   // Restored a saved draft from an earlier, not-yet-created session? (new-centre flow only)
   const restoredDraftRef = useRef(false);
@@ -262,11 +328,17 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   // Current persisted status of the centre being edited (undefined when creating).
   const currentStatus = initialBundle?.facility?.status;
   // Status the "Create Centre" / "Save Changes" button will persist (Review step radio).
-  const [saveStatus, setSaveStatus] = useState<'draft' | 'active' | 'suspended'>(() =>
-    currentStatus === 'active' ? 'active' : currentStatus === 'suspended' ? 'suspended' : 'draft'
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>(() =>
+    currentStatus === 'active'
+      ? 'active'
+      : currentStatus === 'suspended'
+        ? 'suspended'
+        : currentStatus === 'staging'
+          ? 'staging'
+          : 'draft'
   );
   // After a successful save we show a success modal before returning to the grid.
-  const [savedAs, setSavedAs] = useState<null | 'draft' | 'active' | 'suspended'>(null);
+  const [savedAs, setSavedAs] = useState<SaveStatus | null>(null);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
   const dirtyRef = useRef(false);
 
@@ -1568,7 +1640,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   ← Back
                 </button>
                 <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => goStep(5)}>
-                  Next: Review →
+                  Next: Key Dates →
                 </button>
               </div>
             </div>
@@ -1576,6 +1648,70 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
 
           {/* ══ STEP 5 ══ */}
           {step === 5 && (
+            <div>
+              <div className="cmx-eyebrow" style={{ marginBottom: 14 }}>
+                Key Dates
+              </div>
+              <div
+                className="rounded-lg border border-[#b3b7d4] bg-[#ecedf4] px-3.5 py-3 text-xs text-[#21295a]"
+                style={{ marginBottom: 16 }}
+              >
+                All optional — leave any date blank to leave that behavior unscheduled. Times are in this centre&apos;s
+                own timezone ({s.timezone || 'not set yet'}).
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <KeyDateField
+                  label="Centre go-live date"
+                  timezone={s.timezone}
+                  value={s.keyDates.goLiveAt}
+                  onChange={v => set({ keyDates: { ...s.keyDates, goLiveAt: v } })}
+                />
+              </div>
+
+              <KeyDateRange
+                endLabel="Waitlist close date"
+                endValue={s.keyDates.waitlistCloseAt}
+                startLabel="Waitlist open date"
+                startValue={s.keyDates.waitlistOpenAt}
+                timezone={s.timezone}
+                onChangeEnd={v => set({ keyDates: { ...s.keyDates, waitlistCloseAt: v } })}
+                onChangeStart={v => set({ keyDates: { ...s.keyDates, waitlistOpenAt: v } })}
+              />
+
+              <KeyDateRange
+                endLabel="Membership sales end date"
+                endValue={s.keyDates.salesEndAt}
+                startLabel="Membership sales start date"
+                startValue={s.keyDates.salesStartAt}
+                timezone={s.timezone}
+                onChangeEnd={v => set({ keyDates: { ...s.keyDates, salesEndAt: v } })}
+                onChangeStart={v => set({ keyDates: { ...s.keyDates, salesStartAt: v } })}
+              />
+
+              <KeyDateRange
+                endLabel="Promotional sale end date"
+                endValue={s.keyDates.promoEndAt}
+                startLabel="Promotional sale start date"
+                startValue={s.keyDates.promoStartAt}
+                timezone={s.timezone}
+                onChangeEnd={v => set({ keyDates: { ...s.keyDates, promoEndAt: v } })}
+                onChangeStart={v => set({ keyDates: { ...s.keyDates, promoStartAt: v } })}
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+                <button className="cmx-btn cmx-btn-outline" type="button" onClick={() => goStep(4)}>
+                  ← Back
+                </button>
+                <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => goStep(6)}>
+                  Next: Review →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ══ STEP 6 ══ */}
+          {step === 6 && (
             <div>
               <div className="cmx-eyebrow" style={{ marginBottom: 14 }}>
                 Review Centre Configuration
@@ -1720,6 +1856,20 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 </table>
               </ReviewCard>
 
+              <ReviewCard title="Key Dates" onEdit={() => setStep(5)}>
+                <ReviewGrid
+                  rows={[
+                    ['Centre go-live date', displayKeyDate(s.keyDates.goLiveAt, s.timezone)],
+                    ['Waitlist open date', displayKeyDate(s.keyDates.waitlistOpenAt, s.timezone)],
+                    ['Waitlist close date', displayKeyDate(s.keyDates.waitlistCloseAt, s.timezone)],
+                    ['Membership sales start date', displayKeyDate(s.keyDates.salesStartAt, s.timezone)],
+                    ['Membership sales end date', displayKeyDate(s.keyDates.salesEndAt, s.timezone)],
+                    ['Promotional sale start date', displayKeyDate(s.keyDates.promoStartAt, s.timezone)],
+                    ['Promotional sale end date', displayKeyDate(s.keyDates.promoEndAt, s.timezone)],
+                  ]}
+                />
+              </ReviewCard>
+
               {/* Set Centre Status on Save */}
               <div
                 style={{
@@ -1841,8 +1991,22 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: savedAs === 'active' ? '#d0f0f0' : savedAs === 'suspended' ? '#fee2e2' : '#fef3c7',
-                color: savedAs === 'active' ? '#008482' : savedAs === 'suspended' ? '#dc2626' : '#d97706',
+                background:
+                  savedAs === 'active'
+                    ? '#d0f0f0'
+                    : savedAs === 'suspended'
+                      ? '#fee2e2'
+                      : savedAs === 'staging'
+                        ? '#ecedf4'
+                        : '#fef3c7',
+                color:
+                  savedAs === 'active'
+                    ? '#008482'
+                    : savedAs === 'suspended'
+                      ? '#dc2626'
+                      : savedAs === 'staging'
+                        ? '#21295a'
+                        : '#d97706',
               }}
             >
               <svg fill="none" height={28} stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" width={28}>
@@ -1872,16 +2036,20 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   : 'Centre Created!'
                 : savedAs === 'suspended'
                   ? 'Centre Suspended'
-                  : isEdit
-                    ? 'Changes Saved'
-                    : 'Centre Saved as Draft'}
+                  : savedAs === 'staging'
+                    ? 'Centre Sent to Staging'
+                    : isEdit
+                      ? 'Changes Saved'
+                      : 'Centre Saved as Draft'}
             </p>
             <p style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>
               {savedAs === 'active'
                 ? 'The centre is live and visible to assigned staff.'
                 : savedAs === 'suspended'
                   ? 'The centre is suspended and hidden from members. You can re-activate it anytime.'
-                  : 'The centre is saved as a draft. Complete setup and activate it when ready.'}
+                  : savedAs === 'staging'
+                    ? 'The centre is staged for review — still invisible to members until activated.'
+                    : 'The centre is saved as a draft. Complete setup and activate it when ready.'}
             </p>
             <button
               className="cmx-btn cmx-btn-navy"
@@ -1942,7 +2110,7 @@ const StatusOption: React.FC<{ checked: boolean; title: string; desc: string; on
   </div>
 );
 
-const ReviewCard: React.FC<{ title: string; onEdit: () => void; children: React.ReactNode }> = ({
+const ReviewCard: React.FC<{ title: string; onEdit?: () => void; children: React.ReactNode }> = ({
   title,
   onEdit,
   children,
@@ -1977,13 +2145,15 @@ const ReviewCard: React.FC<{ title: string; onEdit: () => void; children: React.
           <span style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>›</span>
           {title}
         </button>
-        <button
-          style={{ fontSize: 11, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}
-          type="button"
-          onClick={onEdit}
-        >
-          Edit
-        </button>
+        {onEdit && (
+          <button
+            style={{ fontSize: 11, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}
+            type="button"
+            onClick={onEdit}
+          >
+            Edit
+          </button>
+        )}
       </div>
       {open && <div style={{ padding: '14px 16px', fontSize: 12.5 }}>{children}</div>}
     </div>
@@ -2002,5 +2172,49 @@ const ReviewGrid: React.FC<{ rows: [string, string][] }> = ({ rows }) => (
     ))}
   </div>
 );
+
+const KeyDateField: React.FC<{
+  label: string;
+  timezone: string;
+  value: string | undefined;
+  onChange: (isoOrUndefined: string | undefined) => void;
+}> = ({ label, timezone, value, onChange }) => (
+  <label className="flex flex-col gap-1">
+    <span className="cmx-field-label">{label}</span>
+    <input
+      className="cmx-field"
+      type="datetime-local"
+      value={utcIsoToLocal(value, timezone)}
+      onChange={e => onChange(localToUtcIso(e.target.value, timezone))}
+    />
+  </label>
+);
+
+const KeyDateRange: React.FC<{
+  startLabel: string;
+  endLabel: string;
+  timezone: string;
+  startValue: string | undefined;
+  endValue: string | undefined;
+  onChangeStart: (isoOrUndefined: string | undefined) => void;
+  onChangeEnd: (isoOrUndefined: string | undefined) => void;
+}> = ({ startLabel, endLabel, timezone, startValue, endValue, onChangeStart, onChangeEnd }) => {
+  // ISO 8601 strings sort lexicographically in chronological order — plain string
+  // comparison is safe here, no Date parsing needed.
+  const rangeInvalid = Boolean(startValue && endValue && endValue <= startValue);
+  return (
+    <div style={{ marginBottom: rangeInvalid ? 4 : 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <KeyDateField label={startLabel} timezone={timezone} value={startValue} onChange={onChangeStart} />
+        <KeyDateField label={endLabel} timezone={timezone} value={endValue} onChange={onChangeEnd} />
+      </div>
+      {rangeInvalid && (
+        <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>
+          &quot;{endLabel}&quot; must be after &quot;{startLabel}&quot;.
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default NewCentreWizard;

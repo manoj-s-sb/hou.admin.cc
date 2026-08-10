@@ -7,6 +7,7 @@ import type { CentreApiStatus, FacilitySummary } from '../../../store/centres/ty
 const STATUS_META: Record<CentreApiStatus, { label: string; pill: string; dot: string }> = {
   active: { label: 'Active', pill: 'bg-cmx-green-bg text-cmx-green', dot: 'bg-cmx-green' },
   draft: { label: 'Draft', pill: 'bg-cmx-amber-bg text-cmx-amber', dot: 'bg-cmx-amber' },
+  staging: { label: 'Staging', pill: 'bg-cmx-blue-light text-cmx-blue', dot: 'bg-cmx-blue' },
   suspended: { label: 'Suspended', pill: 'bg-red-100 text-red-600', dot: 'bg-red-500' },
 };
 

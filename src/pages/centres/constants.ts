@@ -204,6 +204,7 @@ export const STATUS_FILTERS: { key: '' | CentreApiStatus; label: string }[] = [
   { key: '', label: 'All' },
   { key: 'active', label: 'Active' },
   { key: 'draft', label: 'Draft' },
+  { key: 'staging', label: 'Staging' },
   { key: 'suspended', label: 'Suspended' },
 ];
 
@@ -211,6 +212,7 @@ export const STATUS_FILTERS: { key: '' | CentreApiStatus; label: string }[] = [
 export const CENTRE_STATUS: Record<CentreApiStatus, { label: string; tone: string }> = {
   active: { label: 'Active', tone: 'green' },
   draft: { label: 'Draft', tone: 'amber' },
+  staging: { label: 'Staging', tone: 'blue' },
   suspended: { label: 'Suspended', tone: 'red' },
 };
 export const MEMBER_STATUS_TONE: Record<CentreMember['status'], string> = {
@@ -291,7 +293,7 @@ export const DAY_KEYS: (keyof OperatingHoursMap)[] = [
 ];
 
 /* ── New Centre wizard ── */
-export const WIZARD_STEPS = ['Details', 'Facilities', 'Add. Facilities', 'Plans & Pricing', 'Review'];
+export const WIZARD_STEPS = ['Details', 'Facilities', 'Add. Facilities', 'Plans & Pricing', 'Key Dates', 'Review'];
 export const PLAN_COUNTRY_CHIPS = [
   { code: 'all', label: '🌐 All countries' },
   { code: 'US', label: '🇺🇸 USA' },

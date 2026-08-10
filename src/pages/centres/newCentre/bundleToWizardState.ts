@@ -209,5 +209,6 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     additionalGuestDiscountPct: hasVal(reg.additionalGuestDiscountPct) ? num(reg.additionalGuestDiscountPct) : null,
     extraSessionCost: hasVal(reg.extraSessionCost) ? num(reg.extraSessionCost) : null,
     discounts: [],
+    keyDates: facility.keyDates ?? {},
   };
 }
