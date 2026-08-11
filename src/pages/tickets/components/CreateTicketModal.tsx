@@ -17,7 +17,7 @@ import {
 } from '../constants';
 
 import EmailTagInput from './EmailTagInput';
-import StaffAssigneeSelect from './StaffAssigneeSelect';
+import StaffAssigneeSelect, { SelectedStaff } from './StaffAssigneeSelect';
 
 import type {
   CreateTicketRequest,
@@ -89,8 +89,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [task, setTask] = useState('');
   const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
-  const [assigneeId, setAssigneeId] = useState('');
-  const [assigneeName, setAssigneeName] = useState('');
+  const [assignees, setAssignees] = useState<SelectedStaff[]>([]);
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([]);
   const [lanes, setLanes] = useState<number[]>([]);
   const [equipment, setEquipment] = useState<string[]>([]);
@@ -107,7 +106,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
     centre: !centre ? 'Select a centre' : '',
     title: !title.trim() ? 'Title is required' : '',
     description: !description.trim() ? 'Description is required' : '',
-    assigneeName: assignedTo === 'others' && !assigneeId ? 'Select an assignee' : '',
+    assigneeName: assignedTo === 'others' && assignees.length === 0 ? 'Select at least one assignee' : '',
     customerEmail: isCustomerSupport
       ? !customerEmail.trim()
         ? 'Customer email is required'
@@ -148,6 +147,12 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
     }
 
     try {
+      // The backend only has one official assignee (assignedToId/assignedToName) — the
+      // first person picked becomes that; anyone picked after that has no formal
+      // "assignee" slot yet, so they're CC'd via additionalRecipients so they're still
+      // notified. See StaffAssigneeSelect's doc comment.
+      const [primaryAssignee, ...extraAssignees] = assignees;
+      const recipients = [...additionalRecipients, ...extraAssignees.map(a => a.email)];
       const payload: CreateTicketRequest = {
         facilityCode: centre,
         title: title.trim(),
@@ -157,12 +162,12 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         task: task.trim() || null,
         priority,
         assignedTo,
-        assignedToId: assignedTo === 'others' && assigneeId ? assigneeId : undefined,
-        assignedToName: assignedTo === 'others' && assigneeName.trim() ? assigneeName.trim() : undefined,
+        assignedToId: assignedTo === 'others' && primaryAssignee ? primaryAssignee.staffId : undefined,
+        assignedToName: assignedTo === 'others' && primaryAssignee ? primaryAssignee.name : undefined,
         laneNo: lanes.length ? lanes : null,
         equipment: equipment.length ? equipment : null,
         attachments: blobNames.length ? blobNames : undefined,
-        additionalRecipients: additionalRecipients.length ? additionalRecipients : undefined,
+        additionalRecipients: recipients.length ? recipients : undefined,
       };
       const created = await dispatch(createTicket(payload)).unwrap();
       toast.success('Ticket created');
@@ -333,16 +338,18 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
 
           {assignedTo === 'others' && (
             <div>
-              <span className={labelClass}>Assignee *</span>
+              <span className={labelClass}>Assignee(s) *</span>
               <StaffAssigneeSelect
                 className={`${fieldClass}${errClass(errors.assigneeName)}`}
                 facilityCode={centre || undefined}
-                value={assigneeId}
-                onChange={(id, name) => {
-                  setAssigneeId(id);
-                  setAssigneeName(name);
-                }}
+                value={assignees}
+                onChange={setAssignees}
               />
+              {assignees.length > 1 && (
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
+                </p>
+              )}
               {triedSubmit && errors.assigneeName && (
                 <p className="mt-1 text-[11px] text-red-500">{errors.assigneeName}</p>
               )}

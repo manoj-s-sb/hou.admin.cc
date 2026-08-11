@@ -26,7 +26,7 @@ import {
 } from '../constants';
 
 import EmailTagInput from './EmailTagInput';
-import StaffAssigneeSelect from './StaffAssigneeSelect';
+import StaffAssigneeSelect, { SelectedStaff } from './StaffAssigneeSelect';
 
 import type { Ticket, TicketActivity, TicketRole, TicketStatus } from '../../../store/tickets/types';
 
@@ -200,8 +200,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
   const { current, detailLoading, saving } = useSelector((state: RootState) => state.tickets);
   const [comment, setComment] = useState('');
   const [reassignRole, setReassignRole] = useState<TicketRole>('noc');
-  const [reassignId, setReassignId] = useState('');
-  const [reassignName, setReassignName] = useState('');
+  const [reassignees, setReassignees] = useState<SelectedStaff[]>([]);
   const [reassignRecipients, setReassignRecipients] = useState<string[]>([]);
   // In-page image preview (lightbox) — clicking an attachment shows it here
   // instead of navigating away to a new browser tab.
@@ -251,22 +250,27 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
   };
 
   const handleReassign = async () => {
-    if (reassignRole === 'others' && !reassignId) {
-      toast.error('Select an assignee');
+    if (reassignRole === 'others' && reassignees.length === 0) {
+      toast.error('Select at least one assignee');
       return;
     }
+    // The backend only has one official assignee (assignedToId/assignedToName) — the
+    // first person picked becomes that; anyone picked after that is CC'd via
+    // additionalRecipients so they're still notified. See StaffAssigneeSelect.
+    const [primaryAssignee, ...extraAssignees] = reassignees;
+    const recipients = [...reassignRecipients, ...extraAssignees.map(a => a.email)];
     try {
       const updated = await dispatch(
         reassignTicket({
           ticketId,
           assignedTo: reassignRole,
-          assignedToId: reassignRole === 'others' && reassignId ? reassignId : undefined,
-          assignedToName: reassignRole === 'others' && reassignName.trim() ? reassignName.trim() : undefined,
-          additionalRecipients: reassignRecipients.length ? reassignRecipients : undefined,
+          assignedToId: reassignRole === 'others' && primaryAssignee ? primaryAssignee.staffId : undefined,
+          assignedToName: reassignRole === 'others' && primaryAssignee ? primaryAssignee.name : undefined,
+          additionalRecipients: recipients.length ? recipients : undefined,
         })
       ).unwrap();
       afterMutation(
-        `Reassigned to ${reassignRole === 'others' && reassignName.trim() ? reassignName.trim() : ROLE_LABELS[reassignRole]}`
+        `Reassigned to ${reassignRole === 'others' && primaryAssignee ? primaryAssignee.name : ROLE_LABELS[reassignRole]}`
       );
       notifyEmailOutcome(updated);
     } catch (e) {
@@ -555,11 +559,8 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                       <StaffAssigneeSelect
                         className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[12px] outline-none focus:border-[#21295A]"
                         facilityCode={ticket?.facilityCode}
-                        value={reassignId}
-                        onChange={(id, name) => {
-                          setReassignId(id);
-                          setReassignName(name);
-                        }}
+                        value={reassignees}
+                        onChange={setReassignees}
                       />
                     )}
                     <button

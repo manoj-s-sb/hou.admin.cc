@@ -6,7 +6,7 @@ import { useDispatch } from 'react-redux';
 import { flagIssue } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
 import { reassignTicket, uploadTicketFile } from '../../../store/tickets/api';
-import StaffAssigneeSelect from '../../tickets/components/StaffAssigneeSelect';
+import StaffAssigneeSelect, { SelectedStaff } from '../../tickets/components/StaffAssigneeSelect';
 import { ROLE_LABELS, TICKET_ROLES } from '../../tickets/constants';
 import { ALL_LANES, PRIORITIES, inputCls, labelCls } from '../constants';
 
@@ -30,8 +30,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
   // has a lane; require a choice for facility-wide schedules (laneNo === null).
   const [lane, setLane] = useState<string>(schedule.laneNo ? String(schedule.laneNo) : '');
   const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
-  const [assigneeId, setAssigneeId] = useState('');
-  const [assigneeName, setAssigneeName] = useState('');
+  const [assignees, setAssignees] = useState<SelectedStaff[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [tried, setTried] = useState(false);
@@ -46,8 +45,8 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
       toast.error('Select the lane this issue is on');
       return;
     }
-    if (assignedTo === 'others' && !assigneeId) {
-      toast.error('Select an assignee');
+    if (assignedTo === 'others' && assignees.length === 0) {
+      toast.error('Select at least one assignee');
       return;
     }
     setSaving(true);
@@ -73,13 +72,18 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
       // Kept in its own try/catch: the ticket already exists at this point, so a failure here
       // shouldn't be reported as "could not flag the issue".
       if (res.ticket?.id) {
+        // The backend only has one official assignee (assignedToId/assignedToName) — the
+        // first person picked becomes that; anyone picked after that is CC'd via
+        // additionalRecipients so they're still notified. See StaffAssigneeSelect.
+        const [primaryAssignee, ...extraAssignees] = assignees;
         try {
           await dispatch(
             reassignTicket({
               ticketId: res.ticket.id,
               assignedTo,
-              assignedToId: assignedTo === 'others' && assigneeId ? assigneeId : undefined,
-              assignedToName: assignedTo === 'others' ? assigneeName.trim() : undefined,
+              assignedToId: assignedTo === 'others' && primaryAssignee ? primaryAssignee.staffId : undefined,
+              assignedToName: assignedTo === 'others' && primaryAssignee ? primaryAssignee.name : undefined,
+              additionalRecipients: extraAssignees.length ? extraAssignees.map(a => a.email) : undefined,
             })
           ).unwrap();
         } catch {
@@ -187,16 +191,18 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
           </div>
           {assignedTo === 'others' && (
             <div>
-              <span className={labelCls}>Assignee *</span>
+              <span className={labelCls}>Assignee(s) *</span>
               <StaffAssigneeSelect
-                className={`${inputCls}${tried && !assigneeId ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                className={`${inputCls}${tried && assignees.length === 0 ? 'border-red-400 ring-1 ring-red-300' : ''}`}
                 facilityCode={facilityCode}
-                value={assigneeId}
-                onChange={(id, name) => {
-                  setAssigneeId(id);
-                  setAssigneeName(name);
-                }}
+                value={assignees}
+                onChange={setAssignees}
               />
+              {assignees.length > 1 && (
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
+                </p>
+              )}
             </div>
           )}
           <div>
