@@ -12,7 +12,7 @@ import { type AppDispatch, type RootState } from '../../store/store';
 
 import { GENERIC_ROLE_ICON, ROLE_ICON_MAP } from './constants';
 import { useCentreLookup } from './useCentreLookup';
-import { buildStaffListParams } from './utils';
+import { buildStaffListParams, formatRoleLabel } from './utils';
 
 import type { StaffListRow } from '../../store/staff/types';
 
@@ -83,14 +83,6 @@ const matrixGrant = (scopeType: string, levelId: string, rowIndex: number): Gran
   return 'none';
 };
 
-const ROLE_LABEL: Record<string, string> = {
-  superadmin: 'Super Admin',
-  admin: 'Admin',
-  coach: 'Coach',
-  staff: 'Staff',
-  manager: 'Manager',
-};
-
 const INITIALS_PALETTE = [
   'bg-indigo-100 text-indigo-700',
   'bg-emerald-100 text-emerald-700',
@@ -105,9 +97,6 @@ const pickInitialsBg = (seed: string): string => {
   for (let i = 0; i < seed.length; i += 1) hash = (hash + seed.charCodeAt(i)) % INITIALS_PALETTE.length;
   return INITIALS_PALETTE[hash];
 };
-
-const formatRoleLabel = (role: string): string =>
-  ROLE_LABEL[role.toLowerCase()] ?? role.charAt(0).toUpperCase() + role.slice(1);
 
 const accessTone = (level: string | null): StaffRow['accessLevel']['tone'] => {
   if (!level) return 'admin';

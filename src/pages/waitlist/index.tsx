@@ -56,11 +56,16 @@ const PLAN_FILTERS: { label: string; value: string }[] = [
 
 const WAITLIST_TYPE_META: Record<string, { label: string; className: string }> = {
   foundation: { label: 'Foundation', className: 'bg-amber-100 text-amber-700' },
-  launchwaitlist: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
-  // Alternate raw-key spellings accepted too, since the exact backend string for
-  // these two wasn't confirmed — harmless if only one variant is ever actually sent.
+  // The real, currently-used raw value for pre-launch waitlist signups — was
+  // mislabeled "Post Launch" here; confirmed backwards against real data (every
+  // entry tagged 'launchwaitlist' was actually a pre-launch signup).
+  launchwaitlist: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
   prelaunch: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
   prelaunchwaitlist: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
+  // Speculative raw-key spellings for genuine post-launch waitlist signups — no
+  // confirmed real value yet, kept ready for whenever the backend sends one.
+  postlaunch: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
+  postlaunchwaitlist: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
   event: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
   eventwaitlist: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
 };
@@ -69,9 +74,11 @@ const WAITLIST_TYPE_META: Record<string, { label: string; className: string }> =
 // alternate-spelling duplicates in WAITLIST_TYPE_META down to one filter option each.
 const TYPE_FILTER_KEY: Record<string, string> = {
   foundation: 'foundation',
-  launchwaitlist: 'launchwaitlist',
+  launchwaitlist: 'prelaunch',
   prelaunch: 'prelaunch',
   prelaunchwaitlist: 'prelaunch',
+  postlaunch: 'postlaunch',
+  postlaunchwaitlist: 'postlaunch',
   event: 'event',
   eventwaitlist: 'event',
 };
@@ -82,8 +89,8 @@ const typeKeyOf = (entry: WaitlistEntry): string =>
 const TYPE_FILTERS: { label: string; value: string }[] = [
   { label: 'All types', value: 'all' },
   { label: 'Foundation', value: 'foundation' },
-  { label: 'Post Launch', value: 'launchwaitlist' },
   { label: 'Pre Launch', value: 'prelaunch' },
+  { label: 'Post Launch', value: 'postlaunch' },
   { label: 'Event', value: 'event' },
 ];
 
@@ -263,16 +270,17 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
   const [saving, setSaving] = useState(false);
   const [tried, setTried] = useState(false);
   const emailValid = Boolean(email.trim()) && EMAIL_RE.test(email.trim());
+  const nameValid = Boolean(name.trim());
 
   const handleSubmit = async () => {
     setTried(true);
-    if (!emailValid) return;
+    if (!emailValid || !nameValid) return;
     setSaving(true);
     try {
       await dispatch(
         createLead({
           facilityCode,
-          name: name.trim() || undefined,
+          name: name.trim(),
           email: email.trim(),
           phone: phone.trim() || undefined,
           subscriptionCode: plan === 'all' ? undefined : plan,
@@ -312,14 +320,17 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <div>
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Name</span>
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Name *</span>
             <input
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+              className={`w-full rounded-lg border bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:bg-white ${
+                tried && !nameValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
+              }`}
               placeholder="e.g. Jordan Smith"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
             />
+            {tried && !nameValid && <p className="mt-1 text-[11px] text-red-500">Name is required.</p>}
           </div>
           <div>
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email *</span>

@@ -68,8 +68,8 @@ const endpoints = {
     leads: '/admin/centres/leads', // POST { facilityCode, action?, subscription_code?, page, limit }
     waitlistNotesAdd: '/admin/centres/waitlist/notes/add', // POST { facilityCode, waitlistId, text, createdByName }
     leadsNotesAdd: '/admin/centres/leads/notes/add', // POST { facilityCode, leadId, text, createdByName }
-    // NOT YET IMPLEMENTED SERVER-SIDE — see createLead in store/centres/api.ts.
-    // POST { facilityCode, name?, email, phone?, subscription_code?, createdByName }
+    // POST { facilityCode, name, email, phone?, planInterest? } — extra="forbid" on
+    // the backend, so no other fields (e.g. createdByName) may be sent.
     leadsCreate: '/admin/centres/leads/create',
   },
   memberships: {

@@ -4,6 +4,12 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { getStaffList } from '../../../store/staff/api';
 import { AppDispatch, RootState } from '../../../store/store';
+import { formatRoleLabel } from '../../staff/utils';
+
+// Designation shown in the picker — e.g. "NOC Team" — instead of email, which
+// isn't useful for picking the right person to assign.
+const designationOf = (userType: string[] | undefined): string =>
+  userType?.length ? userType.map(formatRoleLabel).join(', ') : 'Staff';
 
 export interface SelectedStaff {
   staffId: string;
@@ -88,7 +94,7 @@ const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, c
         </option>
         {selectable.map(s => (
           <option key={s.staffId} value={s.staffId}>
-            {`${s.firstName} ${s.lastName}`.trim() || s.email} — {s.email}
+            {`${s.firstName} ${s.lastName}`.trim() || s.email} — {designationOf(s.userType)}
           </option>
         ))}
       </select>
