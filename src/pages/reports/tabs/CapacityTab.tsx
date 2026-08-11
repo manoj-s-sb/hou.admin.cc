@@ -43,24 +43,30 @@ const CapacityTab: React.FC<{ data: CapacityData }> = ({ data }) => {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.centreCapacity.map(c => {
+              // Display-only clamp — the source pct can exceed 100% when the backend's
+              // capacity figure for a centre is wrong (tracked separately); never show
+              // a "fill" percentage above what's physically possible.
+              const displayPct = Math.min(100, Math.max(0, c.pct));
               const pill =
-                c.pct > 85
+                displayPct > 85
                   ? 'bg-red-100 text-red-600'
-                  : c.pct > 65
+                  : displayPct > 65
                     ? 'bg-amber-100 text-amber-600'
                     : 'bg-emerald-100 text-emerald-600';
               return (
                 <div key={c.centreId} className="rounded-xl border border-gray-200 p-4 shadow-sm">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <p className="text-[13px] font-bold text-[#21295A]">{c.centreName}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill}`}>{c.pct}%</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill}`}>
+                      {Math.round(displayPct)}%
+                    </span>
                   </div>
                   <div className="flex items-center gap-3.5">
                     <CapacityRing
                       centerLabel={`/ ${c.totalCapacity}`}
                       centerValue={c.members}
                       color={c.color}
-                      pct={c.pct}
+                      pct={displayPct}
                       size={60}
                       strokeWidth={7}
                     />

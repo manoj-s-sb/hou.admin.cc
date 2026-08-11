@@ -75,8 +75,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data, centerLabel, centerValue,
               />
             </div>
             <span className="w-16 text-right text-sm font-bold text-gray-900">
-              {d.value.toLocaleString()}
-              {typeof d.pct === 'number' && <span className="ml-1 text-xs font-medium text-gray-400">{d.pct}%</span>}
+              {typeof d.pct === 'number' ? `${d.pct}%` : d.value.toLocaleString()}
             </span>
           </div>
         ))}

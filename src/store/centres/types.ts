@@ -470,7 +470,7 @@ export interface CentreKeyDates {
   promoEndAt?: string;
 }
 
-export type AdditionalFacilityType = 'gym' | 'podcast' | 'meeting' | 'gaming';
+export type AdditionalFacilityType = 'gym' | 'podcast' | 'meeting' | 'gaming' | 'custom';
 
 export interface FacilityPhoto {
   name: string;

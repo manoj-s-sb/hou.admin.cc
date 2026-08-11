@@ -42,7 +42,6 @@ const titleCase = (raw: string): string =>
 const readableDate = (value?: string): string =>
   value ? formatDate(value, { day: 'numeric', month: 'short', year: 'numeric' }, 'en-GB') : '—';
 
-const normalizePlan = (s: string): string => s.toLowerCase().replace(/[\s_-]+/g, '');
 const planOf = (e: WaitlistEntry): string => (e.plan || e.details?.subscription_code || '').toString();
 
 // PLAN filter is client-side (the waitlist endpoint takes no plan param).
@@ -58,7 +57,35 @@ const PLAN_FILTERS: { label: string; value: string }[] = [
 const WAITLIST_TYPE_META: Record<string, { label: string; className: string }> = {
   foundation: { label: 'Foundation', className: 'bg-amber-100 text-amber-700' },
   launchwaitlist: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
+  // Alternate raw-key spellings accepted too, since the exact backend string for
+  // these two wasn't confirmed — harmless if only one variant is ever actually sent.
+  prelaunch: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
+  prelaunchwaitlist: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
+  event: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
+  eventwaitlist: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
 };
+
+// Canonical filter bucket for each raw subscriptionSrc spelling — collapses the
+// alternate-spelling duplicates in WAITLIST_TYPE_META down to one filter option each.
+const TYPE_FILTER_KEY: Record<string, string> = {
+  foundation: 'foundation',
+  launchwaitlist: 'launchwaitlist',
+  prelaunch: 'prelaunch',
+  prelaunchwaitlist: 'prelaunch',
+  event: 'event',
+  eventwaitlist: 'event',
+};
+const typeKeyOf = (entry: WaitlistEntry): string =>
+  TYPE_FILTER_KEY[(entry.subscriptionSrc || '').toLowerCase()] || 'other';
+
+// TYPE filter is client-side (the waitlist endpoint takes no type param).
+const TYPE_FILTERS: { label: string; value: string }[] = [
+  { label: 'All types', value: 'all' },
+  { label: 'Foundation', value: 'foundation' },
+  { label: 'Post Launch', value: 'launchwaitlist' },
+  { label: 'Pre Launch', value: 'prelaunch' },
+  { label: 'Event', value: 'event' },
+];
 
 const mapColumns = (cols: ColumnDef[]): TableColumn[] =>
   cols.map(col => ({
@@ -377,7 +404,7 @@ const WaitlistLeads = () => {
   } = useSelector((state: RootState) => state.centres);
 
   const [tab, setTab] = useState<'waitlist' | 'leads'>('waitlist');
-  const [planFilter, setPlanFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [showExport, setShowExport] = useState(false);
   const [showAddLead, setShowAddLead] = useState(false);
   const [viewEntry, setViewEntry] = useState<{
@@ -464,20 +491,20 @@ const WaitlistLeads = () => {
 
   const switchTab = (next: 'waitlist' | 'leads') => {
     if (next === tab) return;
-    setPlanFilter('all');
+    setTypeFilter('all');
     setTab(next);
   };
 
-  const onPlanChange = (value: string) => {
-    setPlanFilter(value);
+  const onTypeChange = (value: string) => {
+    setTypeFilter(value);
     fetchWaitlist(1, waitlistLimit || PAGE_SIZE);
   };
 
-  // Plan filter is applied client-side on the loaded page.
+  // Type filter is applied client-side on the loaded page.
   const waitlistRows = useMemo(() => {
-    if (planFilter === 'all') return waitlist;
-    return waitlist.filter(e => normalizePlan(planOf(e)) === planFilter);
-  }, [waitlist, planFilter]);
+    if (typeFilter === 'all') return waitlist;
+    return waitlist.filter(e => typeKeyOf(e) === typeFilter);
+  }, [waitlist, typeFilter]);
 
   // Export payload for the active tab (the currently loaded page of rows).
   const exportData: ExportData = useMemo(() => {
@@ -764,9 +791,9 @@ const WaitlistLeads = () => {
           {/* ── Filter Bar ──────────────────────────────────── */}
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Plan</span>
-              {PLAN_FILTERS.map(f => (
-                <Chip key={f.value} active={planFilter === f.value} onClick={() => onPlanChange(f.value)}>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
+              {TYPE_FILTERS.map(f => (
+                <Chip key={f.value} active={typeFilter === f.value} onClick={() => onTypeChange(f.value)}>
                   {f.label}
                 </Chip>
               ))}

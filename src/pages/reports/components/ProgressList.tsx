@@ -24,9 +24,7 @@ const ProgressList: React.FC<ProgressListProps> = ({ items }) => {
           <div key={item.label}>
             <div className="mb-1 flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">{item.label}</span>
-              <span className="text-sm font-bold text-gray-900">
-                {item.valueLabel ?? (item.max ? `${item.value}/${item.max}` : `${item.value}%`)}
-              </span>
+              <span className="text-sm font-bold text-gray-900">{item.valueLabel ?? `${Math.round(pct)}%`}</span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
               <div
