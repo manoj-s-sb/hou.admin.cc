@@ -81,6 +81,19 @@ export const getConfigOtherQualificationId = (quals: { id: string; label: string
   return match ? match.id : null;
 };
 
+// Designation/role labels — shared by Staff Management's own list and anywhere
+// else that needs to show a staff member's role (e.g. the ticket assignee picker).
+const ROLE_LABEL: Record<string, string> = {
+  superadmin: 'Super Admin',
+  admin: 'Admin',
+  coach: 'Coach',
+  staff: 'Staff',
+  manager: 'Manager',
+};
+
+export const formatRoleLabel = (role: string): string =>
+  ROLE_LABEL[role.toLowerCase()] ?? role.charAt(0).toUpperCase() + role.slice(1);
+
 // Shared field styling tokens — used across step components
 export const LABEL_CLASS = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500';
 export const INPUT_CLASS =

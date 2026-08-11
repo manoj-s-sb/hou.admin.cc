@@ -231,11 +231,12 @@ export const addWaitlistNote = createAsyncThunk<
 
 /**
  * POST /admin/centres/leads/create — manually add a lead (not backed by the funnel
- * tracker). NOT YET IMPLEMENTED SERVER-SIDE — see endpoints.centres.leadsCreate.
+ * tracker). Backend's CreateLeadRequest (extra="forbid") only accepts exactly:
+ * facilityCode, name (required), email (required), phone, planInterest.
  */
 export const createLead = createAsyncThunk<
   LeadEntry,
-  { facilityCode: string; name?: string; email: string; phone?: string; subscriptionCode?: string },
+  { facilityCode: string; name: string; email: string; phone?: string; subscriptionCode?: string },
   { rejectValue: string }
 >('centres/createLead', async ({ facilityCode, name, email, phone, subscriptionCode }, { rejectWithValue }) => {
   try {
@@ -244,8 +245,7 @@ export const createLead = createAsyncThunk<
       name,
       email,
       phone,
-      subscription_code: subscriptionCode,
-      createdByName: actorName(),
+      planInterest: subscriptionCode,
     });
     return res.data?.data ?? (res.data as unknown as LeadEntry);
   } catch (error) {
