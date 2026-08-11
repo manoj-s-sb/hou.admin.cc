@@ -26,6 +26,7 @@ import {
 } from '../constants';
 
 import EmailTagInput from './EmailTagInput';
+import StaffAssigneeSelect from './StaffAssigneeSelect';
 
 import type { Ticket, TicketActivity, TicketRole, TicketStatus } from '../../../store/tickets/types';
 
@@ -199,6 +200,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
   const { current, detailLoading, saving } = useSelector((state: RootState) => state.tickets);
   const [comment, setComment] = useState('');
   const [reassignRole, setReassignRole] = useState<TicketRole>('noc');
+  const [reassignId, setReassignId] = useState('');
   const [reassignName, setReassignName] = useState('');
   const [reassignRecipients, setReassignRecipients] = useState<string[]>([]);
   // In-page image preview (lightbox) — clicking an attachment shows it here
@@ -249,8 +251,8 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
   };
 
   const handleReassign = async () => {
-    if (reassignRole === 'others' && !reassignName.trim()) {
-      toast.error('Enter the assignee name');
+    if (reassignRole === 'others' && !reassignId) {
+      toast.error('Select an assignee');
       return;
     }
     try {
@@ -258,6 +260,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
         reassignTicket({
           ticketId,
           assignedTo: reassignRole,
+          assignedToId: reassignRole === 'others' && reassignId ? reassignId : undefined,
           assignedToName: reassignRole === 'others' && reassignName.trim() ? reassignName.trim() : undefined,
           additionalRecipients: reassignRecipients.length ? reassignRecipients : undefined,
         })
@@ -549,12 +552,14 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                       ))}
                     </select>
                     {reassignRole === 'others' && (
-                      <input
+                      <StaffAssigneeSelect
                         className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[12px] outline-none focus:border-[#21295A]"
-                        placeholder="Assignee name"
-                        type="text"
-                        value={reassignName}
-                        onChange={e => setReassignName(e.target.value)}
+                        facilityCode={ticket?.facilityCode}
+                        value={reassignId}
+                        onChange={(id, name) => {
+                          setReassignId(id);
+                          setReassignName(name);
+                        }}
                       />
                     )}
                     <button

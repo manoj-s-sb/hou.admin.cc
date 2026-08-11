@@ -17,6 +17,7 @@ import {
 } from '../constants';
 
 import EmailTagInput from './EmailTagInput';
+import StaffAssigneeSelect from './StaffAssigneeSelect';
 
 import type {
   CreateTicketRequest,
@@ -88,6 +89,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [task, setTask] = useState('');
   const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
+  const [assigneeId, setAssigneeId] = useState('');
   const [assigneeName, setAssigneeName] = useState('');
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([]);
   const [lanes, setLanes] = useState<number[]>([]);
@@ -105,7 +107,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
     centre: !centre ? 'Select a centre' : '',
     title: !title.trim() ? 'Title is required' : '',
     description: !description.trim() ? 'Description is required' : '',
-    assigneeName: assignedTo === 'others' && !assigneeName.trim() ? 'Enter the assignee name' : '',
+    assigneeName: assignedTo === 'others' && !assigneeId ? 'Select an assignee' : '',
     customerEmail: isCustomerSupport
       ? !customerEmail.trim()
         ? 'Customer email is required'
@@ -155,6 +157,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         task: task.trim() || null,
         priority,
         assignedTo,
+        assignedToId: assignedTo === 'others' && assigneeId ? assigneeId : undefined,
         assignedToName: assignedTo === 'others' && assigneeName.trim() ? assigneeName.trim() : undefined,
         laneNo: lanes.length ? lanes : null,
         equipment: equipment.length ? equipment : null,
@@ -330,13 +333,15 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
 
           {assignedTo === 'others' && (
             <div>
-              <span className={labelClass}>Assignee Name *</span>
-              <input
+              <span className={labelClass}>Assignee *</span>
+              <StaffAssigneeSelect
                 className={`${fieldClass}${errClass(errors.assigneeName)}`}
-                placeholder="Enter the person's name"
-                type="text"
-                value={assigneeName}
-                onChange={e => setAssigneeName(e.target.value)}
+                facilityCode={centre || undefined}
+                value={assigneeId}
+                onChange={(id, name) => {
+                  setAssigneeId(id);
+                  setAssigneeName(name);
+                }}
               />
               {triedSubmit && errors.assigneeName && (
                 <p className="mt-1 text-[11px] text-red-500">{errors.assigneeName}</p>

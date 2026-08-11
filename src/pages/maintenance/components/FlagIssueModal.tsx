@@ -6,6 +6,7 @@ import { useDispatch } from 'react-redux';
 import { flagIssue } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
 import { reassignTicket, uploadTicketFile } from '../../../store/tickets/api';
+import StaffAssigneeSelect from '../../tickets/components/StaffAssigneeSelect';
 import { ROLE_LABELS, TICKET_ROLES } from '../../tickets/constants';
 import { ALL_LANES, PRIORITIES, inputCls, labelCls } from '../constants';
 
@@ -29,6 +30,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
   // has a lane; require a choice for facility-wide schedules (laneNo === null).
   const [lane, setLane] = useState<string>(schedule.laneNo ? String(schedule.laneNo) : '');
   const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
+  const [assigneeId, setAssigneeId] = useState('');
   const [assigneeName, setAssigneeName] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
@@ -44,8 +46,8 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
       toast.error('Select the lane this issue is on');
       return;
     }
-    if (assignedTo === 'others' && !assigneeName.trim()) {
-      toast.error("Enter the assignee's name");
+    if (assignedTo === 'others' && !assigneeId) {
+      toast.error('Select an assignee');
       return;
     }
     setSaving(true);
@@ -76,6 +78,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
             reassignTicket({
               ticketId: res.ticket.id,
               assignedTo,
+              assignedToId: assignedTo === 'others' && assigneeId ? assigneeId : undefined,
               assignedToName: assignedTo === 'others' ? assigneeName.trim() : undefined,
             })
           ).unwrap();
@@ -184,12 +187,15 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
           </div>
           {assignedTo === 'others' && (
             <div>
-              <span className={labelCls}>Assignee Name *</span>
-              <input
-                className={`${inputCls}${tried && !assigneeName.trim() ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                placeholder="Enter the person's name"
-                value={assigneeName}
-                onChange={e => setAssigneeName(e.target.value)}
+              <span className={labelCls}>Assignee *</span>
+              <StaffAssigneeSelect
+                className={`${inputCls}${tried && !assigneeId ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+                facilityCode={facilityCode}
+                value={assigneeId}
+                onChange={(id, name) => {
+                  setAssigneeId(id);
+                  setAssigneeName(name);
+                }}
               />
             </div>
           )}
