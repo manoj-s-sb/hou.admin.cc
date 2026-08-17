@@ -1,4 +1,5 @@
 import { PermissionAction } from '../store/auth/types';
+import store from '../store/store';
 
 // Role strings the backend may use to denote a super admin. Compared
 // case-insensitively. Add any new backend variants here.
@@ -11,61 +12,41 @@ export type ModuleKey = string | readonly string[];
 
 type ModulesMap = Record<string, PermissionAction[]>;
 
-interface StoredPermissions {
-  role?: string;
-  facilityCode?: string;
-  modules?: ModulesMap;
-  [moduleKey: string]: unknown;
-}
-
-const META_KEYS = new Set(['role', 'facilityCode', 'modules']);
-
-const readStoredPermissions = (): StoredPermissions | null => {
-  try {
-    const raw = localStorage.getItem('permissions');
-    return raw ? (JSON.parse(raw) as StoredPermissions) : null;
-  } catch {
-    return null;
-  }
-};
-
 const getModules = (): ModulesMap | null => {
-  const stored = readStoredPermissions();
-  if (!stored) return null;
-  if (stored.modules && typeof stored.modules === 'object') return stored.modules;
+  const { permissions } = store.getState().auth;
+  if (!permissions) return null;
+  if (permissions.modules && typeof permissions.modules === 'object') return permissions.modules;
   const flat: ModulesMap = {};
-  Object.entries(stored).forEach(([key, value]) => {
-    if (META_KEYS.has(key)) return;
+  Object.entries(permissions as unknown as Record<string, unknown>).forEach(([key, value]) => {
     if (Array.isArray(value)) flat[key] = value as PermissionAction[];
   });
   return Object.keys(flat).length ? flat : null;
 };
 
-const getRoleFromUser = (): string => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    return user?.userType?.[0] ?? '';
-  } catch {
-    return '';
-  }
+export const getRole = (): string => {
+  const { permissions, user } = store.getState().auth;
+  return permissions?.role || user?.userType?.[0] || '';
 };
 
-export const getRole = (): string => readStoredPermissions()?.role || getRoleFromUser();
-
-export const isSuperAdmin = (): boolean =>
-  SUPER_ADMIN_ROLES.includes(getRole().toLowerCase() as (typeof SUPER_ADMIN_ROLES)[number]);
+export const isSuperAdmin = (): boolean => {
+  if (SUPER_ADMIN_ROLES.includes(getRole().toLowerCase() as (typeof SUPER_ADMIN_ROLES)[number])) return true;
+  // Also honour the userType-based definition, so a superadmin is never denied
+  // because their role string differs from their userType.
+  const userTypes = (store.getState().auth.user?.userType ?? []).map(t => t.toLowerCase());
+  return SUPER_ADMIN_ROLES.some(r => userTypes.includes(r));
+};
 
 const toList = (key: ModuleKey): readonly string[] => (Array.isArray(key) ? key : [key as string]);
 
 export const hasPermission = (modules: ModuleKey | undefined, action: PermissionAction): boolean => {
   if (!modules) return true;
-  const list = toList(modules);
-  if (list.includes(SUPER_ADMIN_ONLY)) return isSuperAdmin();
   if (isSuperAdmin()) return true;
+  const list = toList(modules);
+  if (list.includes(SUPER_ADMIN_ONLY)) return false;
 
   const storedModules = getModules();
-  // Backend hasn't deployed RBAC yet — preserve legacy allow-all behavior.
-  if (!storedModules) return true;
+  // Permissions missing for a non-superadmin: deny-by-default, not allow-all.
+  if (!storedModules) return false;
 
   return list.some(m => storedModules[m]?.includes(action));
 };
