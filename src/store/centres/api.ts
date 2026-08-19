@@ -23,6 +23,8 @@ import type {
   FacilitySummary,
   LeadEntry,
   WaitlistEntry,
+  WaitlistImportResult,
+  WaitlistImportRow,
 } from './types';
 
 const actorName = (): string | undefined => getLocalUser().name || undefined;
@@ -154,15 +156,19 @@ export const getCentreMembers = createAsyncThunk<
  *
  * Body keys are validated server-side with `extra="forbid"`, so we send only the
  * documented fields; axios drops `undefined` ones (so "All" omits subscriptionSrc).
- * `registerdVia` keeps the backend's source-data spelling verbatim.
+ * `registerdVia` keeps the backend's source-data spelling verbatim. `all: true`
+ * bypasses pagination and returns every matching row — used by both CSV export
+ * and the Waitlist tab's Type filter (whose buckets group several raw
+ * subscriptionSrc spellings together, see TYPE_FILTER_KEY, so it filters
+ * client-side over the full set rather than one exact server-side value).
  */
 export const getCentreWaitlist = createAsyncThunk<
   { entries: WaitlistEntry[]; total: number; page: number; limit: number },
-  { facilityCode: string; subscriptionSrc?: string; registerdVia?: string; page: number; limit: number },
+  { facilityCode: string; subscriptionSrc?: string; registerdVia?: string; page: number; limit: number; all?: boolean },
   { rejectValue: string }
 >(
   'centres/getCentreWaitlist',
-  async ({ facilityCode, subscriptionSrc, registerdVia, page, limit }, { rejectWithValue }) => {
+  async ({ facilityCode, subscriptionSrc, registerdVia, page, limit, all }, { rejectWithValue }) => {
     try {
       const res = await api.post<{ data: unknown }>(endpoints.centres.waitlist, {
         facilityCode,
@@ -170,6 +176,7 @@ export const getCentreWaitlist = createAsyncThunk<
         registerdVia,
         page,
         limit,
+        all,
       });
       const { entries, total } = unwrapList<WaitlistEntry>(res.data?.data ?? res.data, [
         'items',
@@ -250,6 +257,29 @@ export const createLead = createAsyncThunk<
     return res.data?.data ?? (res.data as unknown as LeadEntry);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to add lead'));
+  }
+});
+
+/**
+ * POST /admin/centres/waitlist/import — admin bulk-imports waitlist signups from
+ * an external sheet (Waitlist tab "Import from Excel"). Rows whose email already
+ * exists (on this centre, or earlier in the same upload) are skipped, not
+ * rejected — the response reports what was created vs skipped.
+ */
+export const bulkImportWaitlist = createAsyncThunk<
+  WaitlistImportResult,
+  { facilityCode: string; subscriptionSrc: string; entries: WaitlistImportRow[] },
+  { rejectValue: string }
+>('centres/bulkImportWaitlist', async ({ facilityCode, subscriptionSrc, entries }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: WaitlistImportResult }>(endpoints.centres.waitlistImport, {
+      facilityCode,
+      subscriptionSrc,
+      entries,
+    });
+    return res.data?.data ?? (res.data as unknown as WaitlistImportResult);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to import waitlist entries'));
   }
 });
 

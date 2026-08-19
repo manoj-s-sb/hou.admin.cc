@@ -372,6 +372,23 @@ export interface WaitlistEntry {
   };
 }
 
+/** One row of a "Import from Excel" upload, sent to POST /admin/centres/waitlist/import. */
+export interface WaitlistImportRow {
+  name: string;
+  email: string;
+  phone?: string;
+  countryCode?: string;
+  registerdVia?: string; // sic — backend spelling
+  timestamp?: string;
+}
+
+/** Response from POST /admin/centres/waitlist/import. */
+export interface WaitlistImportResult {
+  createdCount: number;
+  skippedCount: number;
+  skipped?: { email: string; reason: string }[];
+}
+
 /** One row from GET /admin/centres/:facilityCode/leads. Fields are optional/defensive. */
 export interface LeadEntry {
   id?: string;
