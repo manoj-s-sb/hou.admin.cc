@@ -11,7 +11,7 @@ import { ActivateSubscriptionRequest, MemberRequest } from './types';
 export const getMembers = createAsyncThunk(
   'members/getMembers',
   async (
-    { skip, limit, facilityCode, email, billingCycle, subscriptionCode, subscriptionStatus }: MemberRequest,
+    { skip, limit, facilityCode, search, billingCycle, subscriptionCode, subscriptionStatus }: MemberRequest,
     { rejectWithValue }
   ) => {
     try {
@@ -19,7 +19,7 @@ export const getMembers = createAsyncThunk(
         skip,
         limit,
         facilityCode,
-        email,
+        search,
         billingCycle,
         subscriptionCode,
         subscriptionStatus,

@@ -2,7 +2,8 @@ export interface MemberRequest {
   skip: number;
   limit: number;
   facilityCode: string;
-  email?: string;
+  /** Free-text filter — matches name, email, or phone (partial, case-insensitive). */
+  search?: string;
   billingCycle?: 'annual' | 'fortnightly';
   subscriptionCode?: 'standard' | 'premium' | 'family';
   subscriptionStatus?: 'active' | 'pendingactivation' | 'paused' | 'canceled' | 'resumed' | 'inactive';
