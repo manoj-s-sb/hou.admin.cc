@@ -65,9 +65,11 @@ export const getCentres = createAsyncThunk<
       ...f,
       kpi: f.kpi ?? {
         totalMembers: f.stats?.totalMembers,
+        activeMembers: f.stats?.activeMembers,
         bookings30d: f.stats?.totalBookingsLast30Days,
         noShowPct: f.stats?.noShowRatePercent,
         plans: f.stats?.membersByPlan,
+        activePlans: f.stats?.activeMembersByPlan,
         tailgates: f.stats?.tailgates,
         openTasks: f.stats?.openTasks,
         // null (not yet configured) is left as-is → card renders "—", not "0%".
