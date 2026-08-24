@@ -34,6 +34,11 @@ const menus = [
     label: 'Coach Schedule',
     icon: '/assets/coach-schedule.svg',
   },
+  {
+    path: '/waitlist',
+    label: 'Waitlist / Leads',
+    icon: '/assets/waitlist.svg',
+  },
 ];
 
 export default menus;

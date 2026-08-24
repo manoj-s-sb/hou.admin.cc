@@ -18,6 +18,7 @@ import {
   ViewMembers,
   SlotBookings,
   CoachSchedule,
+  WaitlistLeads,
 } from './pages';
 import { setSessionExpiredCallback } from './services';
 import store from './store/store';
@@ -75,6 +76,16 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
           path="/view-induction/:userId"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <WaitlistLeads />
+              </Layout>
+            </ProtectedRoute>
+          }
+          path="/waitlist"
         />
         <Route
           element={

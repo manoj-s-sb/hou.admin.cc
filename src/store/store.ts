@@ -4,6 +4,7 @@ import authReducer from './auth/reducers';
 import inductionReducer from './induction/reducers';
 import membersReducer from './members/reducers';
 import slotsReducer from './slots/reducers';
+import waitlistReducer from './waitlist/reducers';
 
 const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ const store = configureStore({
     induction: inductionReducer,
     members: membersReducer,
     slots: slotsReducer,
+    waitlist: waitlistReducer,
   },
 });
 

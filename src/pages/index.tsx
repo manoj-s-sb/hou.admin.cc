@@ -8,6 +8,7 @@ import ViewMembers from './members/viewMembers';
 import SlotBookings from './slots';
 import Tours from './tours';
 import UserList from './users';
+import WaitlistLeads from './waitlist';
 
 export {
   Induction,
@@ -20,4 +21,5 @@ export {
   ViewMembers,
   SlotBookings,
   CoachSchedule,
+  WaitlistLeads,
 };
