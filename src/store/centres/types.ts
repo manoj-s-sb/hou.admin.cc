@@ -364,6 +364,8 @@ export interface WaitlistEntry {
   id?: string;
   name?: string;
   email?: string;
+  /** Backend field is spelled "phoneNo". */
+  phoneNo?: string;
   /** Backend source flag — 'foundation' | 'launchWaitlist'. */
   subscriptionSrc?: string;
   registerdVia?: string; // sic — backend spelling
@@ -409,8 +411,15 @@ export interface LeadEntry {
   name?: string;
   phone?: string;
   details?: {
+    /** Only present on manually-added leads — funnel-tracked leads have no name of their own here. */
+    name?: string;
     email?: string;
+    /** Only present on manually-added leads (backend field is spelled "phoneNo") — funnel-tracked leads have no phone. */
+    phoneNo?: string;
+    /** Funnel-derived leads' plan — the checkout-session subscription code. */
     subscription_code?: string;
+    /** Manually-added leads' plan — free-text "Plan interest" chosen on the Add Lead form. */
+    planInterest?: string;
     billing_cycle?: string;
     [key: string]: unknown;
   };

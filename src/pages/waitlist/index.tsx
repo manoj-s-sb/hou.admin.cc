@@ -45,6 +45,13 @@ const readableDate = (value?: string): string =>
 
 const planOf = (e: WaitlistEntry): string => (e.plan || e.details?.subscription_code || '').toString();
 
+// Funnel-derived leads carry the plan under `subscription_code`; manually-added
+// leads (the "+ Add Lead" form) carry it under `planInterest` instead.
+const leadPlanOf = (e: LeadEntry): string => (e.details?.subscription_code || e.details?.planInterest || '').toString();
+
+// Manually-added leads have a `name`; funnel-derived leads don't, so fall back to email.
+const leadDisplayNameOf = (e: LeadEntry): string => e.details?.name || e.details?.email || 'Unknown';
+
 // PLAN filter is client-side (the waitlist endpoint takes no plan param).
 const PLAN_FILTERS: { label: string; value: string }[] = [
   { label: 'All plans', value: 'all' },
@@ -270,28 +277,30 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
   const [plan, setPlan] = useState('all');
   const [saving, setSaving] = useState(false);
   const [tried, setTried] = useState(false);
-  const emailValid = Boolean(email.trim()) && EMAIL_RE.test(email.trim());
+  // Email is optional, but the backend rejects a lead with neither email nor phone.
+  const emailFormatValid = !email.trim() || EMAIL_RE.test(email.trim());
   const nameValid = Boolean(name.trim());
+  const contactValid = Boolean(email.trim()) || Boolean(phone.trim());
 
   const handleSubmit = async () => {
     setTried(true);
-    if (!emailValid || !nameValid) return;
+    if (!emailFormatValid || !nameValid || !contactValid) return;
     setSaving(true);
     try {
       await dispatch(
         createLead({
           facilityCode,
           name: name.trim(),
-          email: email.trim(),
+          email: email.trim() || undefined,
           phone: phone.trim() || undefined,
           subscriptionCode: plan === 'all' ? undefined : plan,
         })
       ).unwrap();
-      toast.success('Lead added');
+      toast.success('Enquiry added');
       onAdded();
       onClose();
     } catch (e) {
-      toast.error(typeof e === 'string' ? e : 'Could not add the lead');
+      toast.error(typeof e === 'string' ? e : 'Could not add the enquiry');
     } finally {
       setSaving(false);
     }
@@ -306,7 +315,7 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
       <div className="flex max-h-[88vh] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[#21295A]">Add Lead</h2>
+            <h2 className="text-[16px] font-bold text-[#21295A]">Add Enquiry</h2>
             <p className="mt-0.5 text-[12px] text-gray-400">Manually add someone who toured but hasn&apos;t joined.</p>
           </div>
           <button
@@ -334,27 +343,32 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
             {tried && !nameValid && <p className="mt-1 text-[11px] text-red-500">Name is required.</p>}
           </div>
           <div>
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email *</span>
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email</span>
             <input
               className={`w-full rounded-lg border bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:bg-white ${
-                tried && !emailValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
+                tried && !emailFormatValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
               }`}
               placeholder="jordan@example.com"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
             />
-            {tried && !emailValid && <p className="mt-1 text-[11px] text-red-500">Enter a valid email address.</p>}
+            {tried && !emailFormatValid && <p className="mt-1 text-[11px] text-red-500">Enter a valid email address.</p>}
           </div>
           <div>
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</span>
             <input
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+              className={`w-full rounded-lg border bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:bg-white ${
+                tried && !contactValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
+              }`}
               placeholder="+1 555 000 0000"
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
             />
+            {tried && !contactValid && (
+              <p className="mt-1 text-[11px] text-red-500">Provide at least an email or a phone number.</p>
+            )}
           </div>
           <div>
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">
@@ -389,7 +403,7 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
             type="button"
             onClick={handleSubmit}
           >
-            {saving ? 'Adding…' : 'Add Lead'}
+            {saving ? 'Adding…' : 'Add Enquiry'}
           </button>
         </div>
       </div>
@@ -447,6 +461,7 @@ const WaitlistLeads = () => {
       fields: [
         { label: 'Waitlist Type', value: typeLabel },
         { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
+        { label: 'Phone', value: entry.phoneNo || '—' },
         { label: 'Date Added', value: readableDate(entry.createdAt) },
         { label: 'Position', value: `#${pos}` },
       ],
@@ -455,16 +470,20 @@ const WaitlistLeads = () => {
   };
 
   const openLeadEntry = (entry: LeadEntry) => {
-    const code = entry.details?.subscription_code ?? '';
+    const plan = leadPlanOf(entry);
     const cycle = entry.details?.billing_cycle ?? '';
     setViewEntry({
       type: 'lead',
       id: entry.id || '',
-      title: 'Lead',
-      name: entry.details?.email || 'Unknown',
+      title: 'Enquiry',
+      name: leadDisplayNameOf(entry),
+      // Only show a separate email line when the name isn't already the email
+      // (funnel-derived leads have no name, so name already IS the email).
+      email: entry.details?.name ? entry.details?.email : undefined,
       fields: [
         { label: 'Action', value: entry.action ? titleCase(entry.action) : '—' },
-        { label: 'Requested Plan', value: code ? titleCase(code) : '—' },
+        { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
+        { label: 'Phone', value: entry.details?.phoneNo || '—' },
         { label: 'Billing Cycle', value: cycle ? titleCase(cycle) : '—' },
         { label: 'Date', value: readableDate(entry.timestamp || entry.createdAt) },
       ],
@@ -567,16 +586,18 @@ const WaitlistLeads = () => {
       };
     }
     return {
-      title: 'Leads',
-      filename: `leads-${facilityCode || 'centre'}.csv`,
-      headers: ['Email', 'Action', 'Plan', 'Billing', 'Date'],
+      title: 'Enquires',
+      filename: `enquires-${facilityCode || 'centre'}.csv`,
+      headers: ['Name', 'Email', 'Phone', 'Action', 'Plan', 'Billing', 'Date'],
       rows: leads.map(l => {
-        const code = l.details?.subscription_code ?? '';
+        const plan = leadPlanOf(l);
         const cycle = l.details?.billing_cycle ?? '';
         return [
+          l.details?.name || '',
           l.details?.email || '',
+          l.details?.phoneNo || '',
           l.action ? titleCase(l.action) : '',
-          code ? titleCase(code) : '',
+          plan ? titleCase(plan) : '',
           cycle ? titleCase(cycle) : '',
           readableDate(l.timestamp || l.createdAt),
         ];
@@ -683,16 +704,21 @@ const WaitlistLeads = () => {
       minWidth: 220,
       sortable: false,
       renderCell: ({ row }) => {
-        const email = (row as LeadEntry).details?.email || 'Unknown';
+        const entry = row as LeadEntry;
+        const name = leadDisplayNameOf(entry);
+        const email = entry.details?.email;
         return (
           <div className="flex items-center gap-3">
             <span
               className="inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-              style={{ background: avatarColor(email) }}
+              style={{ background: avatarColor(name) }}
             >
-              {initials(email)}
+              {initials(name)}
             </span>
-            <p className="text-[13px] font-semibold text-[#21295A]">{email}</p>
+            <div>
+              <p className="text-[13px] font-semibold text-[#21295A]">{name}</p>
+              {email && email !== name && <p className="text-[11px] text-gray-400">{email}</p>}
+            </div>
           </div>
         );
       },
@@ -715,8 +741,8 @@ const WaitlistLeads = () => {
       minWidth: 120,
       sortable: false,
       renderCell: ({ row }) => {
-        const code = (row as LeadEntry).details?.subscription_code;
-        return <span className="text-[13px] text-gray-700">{code ? titleCase(code) : '—'}</span>;
+        const plan = leadPlanOf(row as LeadEntry);
+        return <span className="text-[13px] text-gray-700">{plan ? titleCase(plan) : '—'}</span>;
       },
     },
     {
@@ -768,9 +794,9 @@ const WaitlistLeads = () => {
       {/* ── Page Header ─────────────────────────────────────── */}
       <div className="mb-5 flex items-start justify-between gap-3 border-b border-gray-100 pb-4">
         <div>
-          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Waitlist / Leads</h1>
+          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Waitlist / Enquires</h1>
           <p className="mt-1 text-[12px] font-medium text-gray-400">
-            Members waiting for a spot · Leads who toured but haven&apos;t joined
+            Members waiting for a spot · Enquires who toured but haven&apos;t joined
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -784,7 +810,7 @@ const WaitlistLeads = () => {
                 <line x1="12" x2="12" y1="5" y2="19" />
                 <line x1="5" x2="19" y1="12" y2="12" />
               </svg>
-              Add Lead
+              Add Enquiry
             </button>
           )}
           {tab === 'waitlist' && (
@@ -829,7 +855,7 @@ const WaitlistLeads = () => {
             type="button"
             onClick={() => switchTab(t)}
           >
-            {t === 'waitlist' ? 'Waitlist' : 'Leads'}
+            {t === 'waitlist' ? 'Waitlist' : 'Enquires'}
           </button>
         ))}
       </div>
@@ -894,8 +920,8 @@ const WaitlistLeads = () => {
                 columns={mapColumns(leadsColumns)}
                 data={leads}
                 emptyState={{
-                  subtitle: 'Leads appear here once prospects tour the centre',
-                  title: 'No leads for this centre',
+                  subtitle: 'Enquires appear here once prospects tour the centre',
+                  title: 'No enquires for this centre',
                 }}
                 getRowId={row => row.id || row.details?.email || `${row.action ?? ''}-${row.timestamp ?? ''}`}
                 loading={leadsLoading}
