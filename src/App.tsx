@@ -127,10 +127,14 @@ const AppRoutes: React.FC = () => {
             }
             path={ROUTES.INDUCTION.path}
           />
+          {/* Not a standalone global menu — it's the "View" drill-down reached from
+              the per-centre Induction module, which IS live (e.g. Houston). Gating
+              this behind Coming Soon breaks that live flow, so it keeps its real
+              component regardless of the placeholders above/below. */}
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.induction}>
-                <ComingSoon moduleLabel="Induction" />
+                <ViewInduction />
               </PermissionRoute>
             }
             path={ROUTES.VIEW_INDUCTION.path}
@@ -151,10 +155,12 @@ const AppRoutes: React.FC = () => {
             }
             path={ROUTES.MEMBERS.path}
           />
+          {/* Same reasoning as VIEW_INDUCTION above — the "View" drill-down from the
+              live per-centre Members module, not a standalone global menu. */}
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.members}>
-                <ComingSoon moduleLabel="Members" />
+                <ViewMembers />
               </PermissionRoute>
             }
             path={ROUTES.VIEW_MEMBERS.path}

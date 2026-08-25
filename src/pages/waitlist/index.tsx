@@ -15,7 +15,7 @@ import {
   updateLeadStatus,
   updateWaitlistStatus,
 } from '../../store/centres/api';
-import { AdminNote, ContactStatus, LeadEntry, WaitlistEntry } from '../../store/centres/types';
+import { AdminNote, ContactStatus, LeadEntry, StatusHistoryEntry, WaitlistEntry } from '../../store/centres/types';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDate } from '../../utils/dateUtils';
 
@@ -57,6 +57,14 @@ const StatusBadge: React.FC<{ status?: ContactStatus }> = ({ status }) => {
   return (
     <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${meta.className}`}>{meta.label}</span>
   );
+};
+
+// Prefixes the country code (e.g. "+1"), when the signup/import captured one.
+const waitlistPhoneOf = (e: WaitlistEntry): string => {
+  if (!e.phoneNo) return '—';
+  const cc = (e.countryCode || '').trim();
+  if (!cc) return e.phoneNo;
+  return `${cc.startsWith('+') ? cc : `+${cc}`} ${e.phoneNo}`;
 };
 
 // Funnel-derived leads carry the plan under `subscription_code`; manually-added
@@ -458,6 +466,7 @@ const WaitlistLeads = () => {
     name: string;
     email?: string;
     status: ContactStatus;
+    statusHistory: StatusHistoryEntry[];
     fields: DetailField[];
     notes: AdminNote[];
   } | null>(null);
@@ -472,9 +481,11 @@ const WaitlistLeads = () => {
       name: entry.name || entry.email || 'Unknown',
       email: entry.email,
       status: entry.status || 'not_contacted',
+      statusHistory: entry.statusHistory || [],
       fields: [
         { label: 'Waitlist Type', value: typeLabel },
-        { label: 'Phone', value: entry.phoneNo || '—' },
+        { label: 'Email', value: entry.email || '—' },
+        { label: 'Phone', value: waitlistPhoneOf(entry) },
         { label: 'Date Added', value: readableDate(entry.createdAt) },
         { label: 'Position', value: `#${pos}` },
       ],
@@ -494,6 +505,7 @@ const WaitlistLeads = () => {
       // (funnel-derived leads have no name, so name already IS the email).
       email: entry.details?.name ? entry.details?.email : undefined,
       status: entry.status || 'not_contacted',
+      statusHistory: entry.statusHistory || [],
       fields: [
         { label: 'Action', value: entry.action ? titleCase(entry.action) : '—' },
         { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
@@ -520,10 +532,14 @@ const WaitlistLeads = () => {
     if (!viewEntry || !facilityCode) return;
     if (viewEntry.type === 'waitlist') {
       const updated = await dispatch(updateWaitlistStatus({ facilityCode, waitlistId: viewEntry.id, status })).unwrap();
-      setViewEntry(prev => (prev ? { ...prev, status: updated.status || status } : prev));
+      setViewEntry(prev =>
+        prev ? { ...prev, status: updated.status || status, statusHistory: updated.statusHistory || prev.statusHistory } : prev
+      );
     } else {
       const updated = await dispatch(updateLeadStatus({ facilityCode, leadId: viewEntry.id, status })).unwrap();
-      setViewEntry(prev => (prev ? { ...prev, status: updated.status || status } : prev));
+      setViewEntry(prev =>
+        prev ? { ...prev, status: updated.status || status, statusHistory: updated.statusHistory || prev.statusHistory } : prev
+      );
     }
   };
 
@@ -579,7 +595,7 @@ const WaitlistLeads = () => {
   }, [waitlist]);
 
   // Applied client-side over the full loaded dataset (see fetchAllWaitlist) —
-  // Type chip first, then a partial match on name, email or phone number.
+  // Type chip first, then a partial match on name, email, phone or contact status.
   const waitlistRows = useMemo(() => {
     let rows = typeFilter === 'all' ? waitlist : waitlist.filter(e => typeKeyOf(e) === typeFilter);
     const q = waitlistSearch.trim().toLowerCase();
@@ -588,7 +604,8 @@ const WaitlistLeads = () => {
         const name = (e.name || '').toLowerCase();
         const email = (e.email || '').toLowerCase();
         const phone = (e.phoneNo || '').toLowerCase();
-        return name.includes(q) || email.includes(q) || phone.includes(q);
+        const statusLabel = STATUS_META[e.status || 'not_contacted'].label.toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q) || statusLabel.includes(q);
       });
     }
     return rows;
@@ -601,7 +618,7 @@ const WaitlistLeads = () => {
   }, [waitlistRows.length]);
 
   // Applied client-side over the full loaded dataset (see fetchAllLeads) —
-  // matches a partial name, email or phone number, same idiom as waitlistRows.
+  // matches a partial name, email, phone number or contact status, same idiom as waitlistRows.
   const leadsRows = useMemo(() => {
     const q = leadsSearch.trim().toLowerCase();
     if (!q) return leads;
@@ -609,7 +626,8 @@ const WaitlistLeads = () => {
       const name = leadDisplayNameOf(l).toLowerCase();
       const email = (l.details?.email || '').toLowerCase();
       const phone = (l.details?.phoneNo || '').toLowerCase();
-      return name.includes(q) || email.includes(q) || phone.includes(q);
+      const statusLabel = STATUS_META[l.status || 'not_contacted'].label.toLowerCase();
+      return name.includes(q) || email.includes(q) || phone.includes(q) || statusLabel.includes(q);
     });
   }, [leads, leadsSearch]);
 
@@ -632,7 +650,7 @@ const WaitlistLeads = () => {
           return [
             e.name || '',
             e.email || '',
-            e.phoneNo || '',
+            e.phoneNo ? waitlistPhoneOf(e) : '',
             typeLabel,
             STATUS_META[e.status || 'not_contacted'].label,
             readableDate(e.createdAt),
@@ -709,7 +727,7 @@ const WaitlistLeads = () => {
       minWidth: 120,
       sortable: false,
       renderCell: ({ row }) => (
-        <span className="text-[13px] text-gray-700">{(row as WaitlistEntry).phoneNo || '—'}</span>
+        <span className="text-[13px] text-gray-700">{waitlistPhoneOf(row as WaitlistEntry)}</span>
       ),
     },
     {
@@ -946,7 +964,7 @@ const WaitlistLeads = () => {
             </div>
             <input
               className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
-              placeholder="Search by name, phone or email…"
+              placeholder="Search by name, phone, email or status…"
               type="text"
               value={waitlistSearch}
               onChange={e => setWaitlistSearch(e.target.value)}
@@ -989,7 +1007,7 @@ const WaitlistLeads = () => {
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
             <input
               className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
-              placeholder="Search by name, phone or email…"
+              placeholder="Search by name, phone, email or status…"
               type="text"
               value={leadsSearch}
               onChange={e => setLeadsSearch(e.target.value)}
@@ -1048,6 +1066,7 @@ const WaitlistLeads = () => {
           name={viewEntry.name}
           notes={viewEntry.notes}
           status={viewEntry.status}
+          statusHistory={viewEntry.statusHistory}
           title={viewEntry.title}
           onAddNote={handleAddNote}
           onClose={() => setViewEntry(null)}

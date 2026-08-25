@@ -360,7 +360,16 @@ export interface AdminNote {
 }
 
 /** Contact-status pipeline for a waitlist/lead entry — tracks admin follow-up, independent of the free-text admin notes. */
-export type ContactStatus = 'not_contacted' | 'contacted' | 'converted' | 'not_interested';
+export type ContactStatus = 'not_contacted' | 'contacted' | 'no_response' | 'converted' | 'not_interested';
+
+/** One entry in a waitlist/lead entry's `statusHistory` — who changed the contact status, and when. */
+export interface StatusHistoryEntry {
+  id: string;
+  status: ContactStatus;
+  changedByName: string;
+  changedById: string | null;
+  changedAt: string;
+}
 
 /** One row from GET /admin/centres/:facilityCode/waitlist. Fields are optional/defensive. */
 export interface WaitlistEntry {
@@ -369,6 +378,8 @@ export interface WaitlistEntry {
   email?: string;
   /** Backend field is spelled "phoneNo". */
   phoneNo?: string;
+  /** Phone country code, e.g. "+1" — only present when the signup/import captured one. */
+  countryCode?: string;
   /** Backend source flag — 'foundation' | 'launchWaitlist'. */
   subscriptionSrc?: string;
   registerdVia?: string; // sic — backend spelling
@@ -380,6 +391,8 @@ export interface WaitlistEntry {
   notes?: AdminNote[];
   /** Defaults to 'not_contacted' server-side on older docs — never absent on a real response. */
   status?: ContactStatus;
+  /** Contact-status change log, oldest first. Defaults to [] server-side — never null. */
+  statusHistory?: StatusHistoryEntry[];
   details?: {
     subscription_code?: string;
     [key: string]: unknown;
@@ -414,6 +427,8 @@ export interface LeadEntry {
   notes?: AdminNote[];
   /** Defaults to 'not_contacted' server-side on older docs — never absent on a real response. */
   status?: ContactStatus;
+  /** Contact-status change log, oldest first. Defaults to [] server-side — never null. */
+  statusHistory?: StatusHistoryEntry[];
   /** Set on leads added manually via "+ Add Lead" — not present on funnel-tracked leads. */
   name?: string;
   phone?: string;

@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import { AdminNote, ContactStatus } from '../../../store/centres/types';
+import { AdminNote, ContactStatus, StatusHistoryEntry } from '../../../store/centres/types';
 import { formatDate } from '../../../utils/dateUtils';
 
 const AVATAR_COLORS = ['#21295A', '#008482', '#d97706', '#7c3aed', '#0891b2', '#d42b2b'];
@@ -32,11 +32,12 @@ export interface DetailField {
 export const STATUS_META: Record<ContactStatus, { label: string; className: string }> = {
   not_contacted: { label: 'Not Contacted', className: 'border-gray-200 bg-gray-50 text-gray-500' },
   contacted: { label: 'Contacted', className: 'border-blue-200 bg-blue-50 text-blue-700' },
+  no_response: { label: 'No Response', className: 'border-amber-200 bg-amber-50 text-amber-700' },
   converted: { label: 'Converted', className: 'border-green-200 bg-green-50 text-green-700' },
   not_interested: { label: 'Not Interested', className: 'border-red-200 bg-red-50 text-red-700' },
 };
 
-const STATUS_ORDER: ContactStatus[] = ['not_contacted', 'contacted', 'converted', 'not_interested'];
+const STATUS_ORDER: ContactStatus[] = ['not_contacted', 'contacted', 'no_response', 'converted', 'not_interested'];
 
 interface MemberDetailDrawerProps {
   title: string;
@@ -45,6 +46,7 @@ interface MemberDetailDrawerProps {
   fields: DetailField[];
   notes: AdminNote[];
   status?: ContactStatus;
+  statusHistory?: StatusHistoryEntry[];
   onStatusChange?: (status: ContactStatus) => Promise<void>;
   onAddNote: (text: string) => Promise<void>;
   onClose: () => void;
@@ -57,6 +59,7 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
   fields,
   notes,
   status,
+  statusHistory,
   onStatusChange,
   onAddNote,
   onClose,
@@ -64,6 +67,7 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleAddNote = async () => {
     const text = note.trim();
@@ -163,6 +167,41 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
                   );
                 })}
               </div>
+
+              {statusHistory && statusHistory.length > 0 && (
+                <div className="mt-3">
+                  <button
+                    className="flex w-full items-center justify-between rounded-lg py-1 text-left"
+                    type="button"
+                    onClick={() => setShowHistory(v => !v)}
+                  >
+                    <span className="text-[12px] font-semibold text-gray-500">History ({statusHistory.length})</span>
+                    <svg
+                      className={`h-3.5 w-3.5 text-gray-400 transition-transform ${showHistory ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      viewBox="0 0 24 24"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  {showHistory && (
+                    <div className="mt-2 flex max-h-40 flex-col gap-2 overflow-y-auto pr-1">
+                      {[...statusHistory].reverse().map(h => (
+                        <div key={h.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-2.5">
+                          <p className="text-[13px] text-gray-700">
+                            Marked <span className="font-semibold">{STATUS_META[h.status].label}</span>
+                          </p>
+                          <p className="mt-1 text-[11px] text-gray-400">
+                            {h.changedByName || 'Admin'} · {noteTimestamp(h.changedAt)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

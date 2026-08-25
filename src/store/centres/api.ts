@@ -251,6 +251,7 @@ export const updateWaitlistStatus = createAsyncThunk<
       facilityCode,
       waitlistId,
       status,
+      changedByName: actorName(),
     });
     return res.data?.data ?? (res.data as unknown as WaitlistEntry);
   } catch (error) {
@@ -336,6 +337,7 @@ export const updateLeadStatus = createAsyncThunk<
       facilityCode,
       leadId,
       status,
+      changedByName: actorName(),
     });
     return res.data?.data ?? (res.data as unknown as LeadEntry);
   } catch (error) {
