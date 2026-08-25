@@ -7,6 +7,8 @@ import { canRead, RestrictedAccess } from '../../rbac';
 
 import { LIVE_CENTRE_MODULES } from './centreModules';
 import CentreDetailView from './components/CentreDetailView';
+import ComingSoon from './components/ComingSoon';
+import { PRE_LAUNCH_FACILITY_CODES } from './constants';
 import { useCentreScope } from './useCentreScope';
 
 /**
@@ -30,10 +32,21 @@ const CentreModuleRoute: React.FC = () => {
     return <RestrictedAccess />;
   }
 
+  // Pre-launch centres (e.g. New York) have no real data yet outside Waitlist/Leads —
+  // every other module shows a "Coming Soon" placeholder instead of an empty/broken page.
+  const isPreLaunch = PRE_LAUNCH_FACILITY_CODES.has(facilityCode.toUpperCase());
   const Page = mod.component;
+
   return (
     <CentreDetailView code={facilityCode}>
-      <Page />
+      {isPreLaunch && mod.slug !== 'waitlist' ? (
+        <ComingSoon
+          description={`This centre hasn't opened yet, so ${mod.label.toLowerCase()} isn't available here yet. Check back once the centre goes live.`}
+          moduleLabel={mod.label}
+        />
+      ) : (
+        <Page />
+      )}
     </CentreDetailView>
   );
 };

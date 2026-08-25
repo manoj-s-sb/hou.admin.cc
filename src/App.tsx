@@ -29,6 +29,7 @@ import {
   MembershipPlans,
   Tickets,
 } from './pages';
+import ComingSoon from './pages/centres/components/ComingSoon';
 import { ACCESS_SCOPES, canRead, PermissionRoute, RestrictedAccess, sidebarItems } from './rbac';
 import { setSessionExpiredCallback } from './services';
 import { fetchMe } from './store/auth/api';
@@ -96,10 +97,16 @@ const AppRoutes: React.FC = () => {
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route element={<Login />} path={ROUTES.LOGIN.path} />
+          {/* Pre-launch: Centre Management is the only functional area of the app right
+              now (see the New York rollout plan). Every other module below keeps its real
+              route/permission gate — so it still appears in the sidebar and stays
+              reachable — but renders a "Coming Soon" placeholder instead of its real page.
+              Re-enabling one later is just swapping its <ComingSoon .../> back for the
+              real component (still imported above, untouched). */}
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.reports}>
-                <Reports />
+                <ComingSoon moduleLabel="Reports" />
               </PermissionRoute>
             }
             path={ROUTES.REPORTS.path}
@@ -107,7 +114,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
-                <UserList />
+                <ComingSoon moduleLabel="User List" />
               </PermissionRoute>
             }
             path={ROUTES.USERS.path}
@@ -115,7 +122,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.induction}>
-                <Induction />
+                <ComingSoon moduleLabel="Induction" />
               </PermissionRoute>
             }
             path={ROUTES.INDUCTION.path}
@@ -123,7 +130,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.induction}>
-                <ViewInduction />
+                <ComingSoon moduleLabel="Induction" />
               </PermissionRoute>
             }
             path={ROUTES.VIEW_INDUCTION.path}
@@ -131,7 +138,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.tour}>
-                <Tours />
+                <ComingSoon moduleLabel="Tour Details" />
               </PermissionRoute>
             }
             path={ROUTES.TOUR.path}
@@ -139,7 +146,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.members}>
-                <Members />
+                <ComingSoon moduleLabel="Members" />
               </PermissionRoute>
             }
             path={ROUTES.MEMBERS.path}
@@ -147,7 +154,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.members}>
-                <ViewMembers />
+                <ComingSoon moduleLabel="Members" />
               </PermissionRoute>
             }
             path={ROUTES.VIEW_MEMBERS.path}
@@ -155,7 +162,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.slots}>
-                <SlotBookings />
+                <ComingSoon moduleLabel="Slot Bookings" />
               </PermissionRoute>
             }
             path={ROUTES.SLOT_BOOKINGS.path}
@@ -163,7 +170,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.coaches}>
-                <CoachSchedule />
+                <ComingSoon moduleLabel="Coach Schedule" />
               </PermissionRoute>
             }
             path={ROUTES.COACH_SCHEDULE.path}
@@ -171,7 +178,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.maintenance}>
-                <Maintenance />
+                <ComingSoon moduleLabel="Maintenance & Tasks" />
               </PermissionRoute>
             }
             path={ROUTES.MAINTENANCE.path}
@@ -179,7 +186,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.tailgate}>
-                <Tailgate />
+                <ComingSoon moduleLabel="Tailgate Logs" />
               </PermissionRoute>
             }
             path={ROUTES.TAILGATE.path}
@@ -187,7 +194,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.staff}>
-                <StaffManagement />
+                <ComingSoon moduleLabel="Staff Management" />
               </PermissionRoute>
             }
             path={ROUTES.STAFF_MANAGEMENT.path}
@@ -195,7 +202,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.staff}>
-                <AddStaffMember />
+                <ComingSoon moduleLabel="Staff Management" />
               </PermissionRoute>
             }
             path={ROUTES.STAFF_MANAGEMENT_ADD.path}
@@ -203,7 +210,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.staff}>
-                <AddStaffMember />
+                <ComingSoon moduleLabel="Staff Management" />
               </PermissionRoute>
             }
             path={ROUTES.STAFF_MANAGEMENT_EDIT.path}
@@ -211,7 +218,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.staff}>
-                <ViewStaffMember />
+                <ComingSoon moduleLabel="Staff Management" />
               </PermissionRoute>
             }
             path={ROUTES.STAFF_MANAGEMENT_VIEW.path}
@@ -225,7 +232,9 @@ const AppRoutes: React.FC = () => {
             path={ROUTES.CENTRES.path}
           />
           {/* One generic centre-scoped route — the module is resolved from :moduleSlug and
-              permission-gated inside CentreModuleRoute (so no fixed module here). */}
+              permission-gated inside CentreModuleRoute (so no fixed module here). Centre
+              Management stays fully live — CentreModuleRoute has its own separate
+              "Coming Soon" gate for New York's non-waitlist modules only. */}
           <Route
             element={
               <PermissionRoute>
@@ -237,7 +246,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.membershipPlans}>
-                <MembershipPlans />
+                <ComingSoon moduleLabel="Membership Plans" />
               </PermissionRoute>
             }
             path={ROUTES.MEMBERSHIP_PLANS.path}
@@ -245,7 +254,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.tickets}>
-                <Tickets />
+                <ComingSoon moduleLabel="Tickets / Incidents" />
               </PermissionRoute>
             }
             path={ROUTES.TICKETS.path}

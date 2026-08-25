@@ -198,6 +198,13 @@ export const centreColour = (code: string): string => {
 /* ── Shared layout ── */
 export const GRID_3: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 };
 
+/* ── Multi-centre rollout: New York is pre-launch (waitlist-only) — every other
+   centre in Centre Management (whatever the database actually has, e.g. Houston)
+   is live/normal. PRE_LAUNCH_FACILITY_CODES drives the "Coming Soon" gate in
+   CentreModuleRoute for every module except Waitlist/Leads, for this one centre. ── */
+export const NEW_YORK_FACILITY_CODE = 'NYC01';
+export const PRE_LAUNCH_FACILITY_CODES = new Set([NEW_YORK_FACILITY_CODE]);
+
 /* ── Centre list page ── */
 export const PAGE_LIMIT = 20;
 export const STATUS_FILTERS: { key: '' | CentreApiStatus; label: string }[] = [
