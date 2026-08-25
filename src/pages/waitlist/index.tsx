@@ -924,7 +924,11 @@ const WaitlistLeads = () => {
         />
       )}
       {showImport && facilityCode && (
-        <ImportWaitlistModal facilityCode={facilityCode} onClose={() => setShowImport(false)} onImported={fetchAllWaitlist} />
+        <ImportWaitlistModal
+          facilityCode={facilityCode}
+          onClose={() => setShowImport(false)}
+          onImported={fetchAllWaitlist}
+        />
       )}
       {viewEntry && (
         <MemberDetailDrawer

@@ -412,17 +412,17 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
       case 1:
         return Boolean(
           s.name.trim() &&
-          s.shortCode.trim() &&
-          shortCodeValid &&
-          s.addressLine1.trim() &&
-          s.city.trim() &&
-          s.postcode.trim() &&
-          s.country &&
-          s.timezone &&
-          s.phone.trim() &&
-          s.email.trim() &&
-          emailValid &&
-          hoursValid
+            s.shortCode.trim() &&
+            shortCodeValid &&
+            s.addressLine1.trim() &&
+            s.city.trim() &&
+            s.postcode.trim() &&
+            s.country &&
+            s.timezone &&
+            s.phone.trim() &&
+            s.email.trim() &&
+            emailValid &&
+            hoursValid
         );
       case 2:
         return capacity > 0 && !foundationOverflow && toNum(s.battingLanes) >= 0 && toNum(s.bowlingLanes) >= 0;

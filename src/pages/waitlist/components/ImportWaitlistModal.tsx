@@ -56,11 +56,18 @@ const IMPORT_TYPE_OPTIONS: { label: string; value: string }[] = [
 
 const PREVIEW_LIMIT = 50;
 
-const emptyRawRow = (): RawRow => ({ name: '', email: '', phone: '', countryCode: '', timestamp: '', registerdVia: '' });
+const emptyRawRow = (): RawRow => ({
+  name: '',
+  email: '',
+  phone: '',
+  countryCode: '',
+  timestamp: '',
+  registerdVia: '',
+});
 
 const parseWorkbook = (buffer: ArrayBuffer): RawRow[] => {
   const workbook = XLSX.read(buffer, { type: 'array' });
-  const sheetName = workbook.SheetNames[0];
+  const [sheetName] = workbook.SheetNames;
   if (!sheetName) return [];
   const sheet = workbook.Sheets[sheetName];
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
@@ -147,8 +154,9 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
       const result = await dispatch(bulkImportWaitlist({ facilityCode, subscriptionSrc, entries })).unwrap();
       const skippedTotal = result.skippedCount + duplicateCount + invalidCount;
       toast.success(
-        `Imported ${result.createdCount} entr${result.createdCount === 1 ? 'y' : 'ies'}` +
-          (skippedTotal ? `, skipped ${skippedTotal}` : '')
+        `Imported ${result.createdCount} entr${result.createdCount === 1 ? 'y' : 'ies'}${
+          skippedTotal ? `, skipped ${skippedTotal}` : ''
+        }`
       );
       onImported();
       onClose();
