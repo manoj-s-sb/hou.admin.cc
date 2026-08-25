@@ -11,6 +11,8 @@ import {
   getCentres,
   getCentreWaitlist,
   updateCentre,
+  updateLeadStatus,
+  updateWaitlistStatus,
 } from './api';
 import { initialState } from './types';
 
@@ -147,6 +149,16 @@ const centresSlice = createSlice({
       if (idx !== -1) state.waitlist[idx] = updated;
     });
     builder.addCase(addLeadNote.fulfilled, (state, action) => {
+      const updated = action.payload;
+      const idx = state.leads.findIndex(e => e.id === updated.id);
+      if (idx !== -1) state.leads[idx] = updated;
+    });
+    builder.addCase(updateWaitlistStatus.fulfilled, (state, action) => {
+      const updated = action.payload;
+      const idx = state.waitlist.findIndex(e => e.id === updated.id);
+      if (idx !== -1) state.waitlist[idx] = updated;
+    });
+    builder.addCase(updateLeadStatus.fulfilled, (state, action) => {
       const updated = action.payload;
       const idx = state.leads.findIndex(e => e.id === updated.id);
       if (idx !== -1) state.leads[idx] = updated;

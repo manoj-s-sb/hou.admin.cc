@@ -359,6 +359,9 @@ export interface AdminNote {
   createdAt: string;
 }
 
+/** Contact-status pipeline for a waitlist/lead entry — tracks admin follow-up, independent of the free-text admin notes. */
+export type ContactStatus = 'not_contacted' | 'contacted' | 'converted' | 'not_interested';
+
 /** One row from GET /admin/centres/:facilityCode/waitlist. Fields are optional/defensive. */
 export interface WaitlistEntry {
   id?: string;
@@ -375,6 +378,8 @@ export interface WaitlistEntry {
   position?: number;
   /** Admin notes, oldest first. Defaults to [] server-side — never null. */
   notes?: AdminNote[];
+  /** Defaults to 'not_contacted' server-side on older docs — never absent on a real response. */
+  status?: ContactStatus;
   details?: {
     subscription_code?: string;
     [key: string]: unknown;
@@ -407,6 +412,8 @@ export interface LeadEntry {
   createdAt?: string;
   /** Admin notes, oldest first. Defaults to [] server-side — never null. */
   notes?: AdminNote[];
+  /** Defaults to 'not_contacted' server-side on older docs — never absent on a real response. */
+  status?: ContactStatus;
   /** Set on leads added manually via "+ Add Lead" — not present on funnel-tracked leads. */
   name?: string;
   phone?: string;

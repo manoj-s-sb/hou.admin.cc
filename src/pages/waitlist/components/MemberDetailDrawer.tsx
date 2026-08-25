@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import { AdminNote } from '../../../store/centres/types';
+import { AdminNote, ContactStatus } from '../../../store/centres/types';
 import { formatDate } from '../../../utils/dateUtils';
 
 const AVATAR_COLORS = ['#21295A', '#008482', '#d97706', '#7c3aed', '#0891b2', '#d42b2b'];
@@ -29,12 +29,23 @@ export interface DetailField {
   value: string;
 }
 
+export const STATUS_META: Record<ContactStatus, { label: string; className: string }> = {
+  not_contacted: { label: 'Not Contacted', className: 'border-gray-200 bg-gray-50 text-gray-500' },
+  contacted: { label: 'Contacted', className: 'border-blue-200 bg-blue-50 text-blue-700' },
+  converted: { label: 'Converted', className: 'border-green-200 bg-green-50 text-green-700' },
+  not_interested: { label: 'Not Interested', className: 'border-red-200 bg-red-50 text-red-700' },
+};
+
+const STATUS_ORDER: ContactStatus[] = ['not_contacted', 'contacted', 'converted', 'not_interested'];
+
 interface MemberDetailDrawerProps {
   title: string;
   name: string;
   email?: string;
   fields: DetailField[];
   notes: AdminNote[];
+  status?: ContactStatus;
+  onStatusChange?: (status: ContactStatus) => Promise<void>;
   onAddNote: (text: string) => Promise<void>;
   onClose: () => void;
 }
@@ -45,11 +56,14 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
   email,
   fields,
   notes,
+  status,
+  onStatusChange,
   onAddNote,
   onClose,
 }) => {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
 
   const handleAddNote = async () => {
     const text = note.trim();
@@ -63,6 +77,19 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
       toast.error(message || 'Failed to add note');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleStatusClick = async (next: ContactStatus) => {
+    if (!onStatusChange || next === status || statusSaving) return;
+    setStatusSaving(true);
+    try {
+      await onStatusChange(next);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
+      toast.error(message || 'Failed to update status');
+    } finally {
+      setStatusSaving(false);
     }
   };
 
@@ -113,6 +140,31 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
               </div>
             ))}
           </div>
+
+          {status && onStatusChange && (
+            <div className="mb-5">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Contact Status</p>
+              <div className="flex flex-wrap gap-2">
+                {STATUS_ORDER.map(s => {
+                  const meta = STATUS_META[s];
+                  const active = s === status;
+                  return (
+                    <button
+                      key={s}
+                      className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition disabled:opacity-50 ${
+                        active ? meta.className : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50'
+                      }`}
+                      disabled={statusSaving}
+                      type="button"
+                      onClick={() => handleStatusClick(s)}
+                    >
+                      {meta.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="mb-4 border-t border-gray-100 pt-4">
             <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Admin Notes</p>

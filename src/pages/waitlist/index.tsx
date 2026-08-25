@@ -6,13 +6,21 @@ import { useDispatch, useSelector } from 'react-redux';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { getFacilityCode } from '../../constants/user';
-import { addLeadNote, addWaitlistNote, createLead, getCentreLeads, getCentreWaitlist } from '../../store/centres/api';
-import { AdminNote, LeadEntry, WaitlistEntry } from '../../store/centres/types';
+import {
+  addLeadNote,
+  addWaitlistNote,
+  createLead,
+  getCentreLeads,
+  getCentreWaitlist,
+  updateLeadStatus,
+  updateWaitlistStatus,
+} from '../../store/centres/api';
+import { AdminNote, ContactStatus, LeadEntry, WaitlistEntry } from '../../store/centres/types';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDate } from '../../utils/dateUtils';
 
 import ImportWaitlistModal from './components/ImportWaitlistModal';
-import MemberDetailDrawer, { DetailField } from './components/MemberDetailDrawer';
+import MemberDetailDrawer, { DetailField, STATUS_META } from './components/MemberDetailDrawer';
 
 const PAGE_SIZE = 20;
 
@@ -43,7 +51,13 @@ const titleCase = (raw: string): string =>
 const readableDate = (value?: string): string =>
   value ? formatDate(value, { day: 'numeric', month: 'short', year: 'numeric' }, 'en-GB') : '—';
 
-const planOf = (e: WaitlistEntry): string => (e.plan || e.details?.subscription_code || '').toString();
+// Older docs predate the `status` field — treat a missing status as 'not_contacted'.
+const StatusBadge: React.FC<{ status?: ContactStatus }> = ({ status }) => {
+  const meta = STATUS_META[status || 'not_contacted'];
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${meta.className}`}>{meta.label}</span>
+  );
+};
 
 // Funnel-derived leads carry the plan under `subscription_code`; manually-added
 // leads (the "+ Add Lead" form) carry it under `planInterest` instead.
@@ -414,20 +428,13 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
 const WaitlistLeads = () => {
   const dispatch = useDispatch<AppDispatch>();
   const facilityCode = getFacilityCode();
-  const {
-    waitlist,
-    waitlistLoading,
-    waitlistError,
-    leads,
-    leadsLoading,
-    leadsError,
-    leadsTotal,
-    leadsPage,
-    leadsLimit,
-  } = useSelector((state: RootState) => state.centres);
+  const { waitlist, waitlistLoading, waitlistError, leads, leadsLoading, leadsError } = useSelector(
+    (state: RootState) => state.centres
+  );
 
   const [tab, setTab] = useState<'waitlist' | 'leads'>('waitlist');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [waitlistSearch, setWaitlistSearch] = useState('');
   // The Waitlist tab always loads the FULL dataset (see fetchAllWaitlist) — both
   // to let the Type filter search everything, not just one page, and to build
   // its filter chips/labels dynamically from whatever types actually exist.
@@ -435,6 +442,12 @@ const WaitlistLeads = () => {
   // "Position" column can still show a correct absolute number on later pages.
   const [waitlistUiPage, setWaitlistUiPage] = useState(0);
   const [waitlistUiRowsPerPage, setWaitlistUiRowsPerPage] = useState(PAGE_SIZE);
+  // The Enquires (Leads) tab also loads the FULL dataset (see fetchAllLeads) so
+  // the search box below can match against every entry, not just one page —
+  // same reasoning and pagination approach as the Waitlist tab above.
+  const [leadsSearch, setLeadsSearch] = useState('');
+  const [leadsUiPage, setLeadsUiPage] = useState(0);
+  const [leadsUiRowsPerPage, setLeadsUiRowsPerPage] = useState(PAGE_SIZE);
   const [showExport, setShowExport] = useState(false);
   const [showAddLead, setShowAddLead] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -444,13 +457,13 @@ const WaitlistLeads = () => {
     title: string;
     name: string;
     email?: string;
+    status: ContactStatus;
     fields: DetailField[];
     notes: AdminNote[];
   } | null>(null);
 
   const openWaitlistEntry = (entry: WaitlistEntry, index: number) => {
     const typeLabel = entry.subscriptionSrc ? typeMetaFor(typeKeyOf(entry)).label : '—';
-    const plan = planOf(entry);
     const pos = entry.position ?? waitlistUiPage * waitlistUiRowsPerPage + index + 1;
     setViewEntry({
       type: 'waitlist',
@@ -458,9 +471,9 @@ const WaitlistLeads = () => {
       title: 'Waitlist Member',
       name: entry.name || entry.email || 'Unknown',
       email: entry.email,
+      status: entry.status || 'not_contacted',
       fields: [
         { label: 'Waitlist Type', value: typeLabel },
-        { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
         { label: 'Phone', value: entry.phoneNo || '—' },
         { label: 'Date Added', value: readableDate(entry.createdAt) },
         { label: 'Position', value: `#${pos}` },
@@ -480,6 +493,7 @@ const WaitlistLeads = () => {
       // Only show a separate email line when the name isn't already the email
       // (funnel-derived leads have no name, so name already IS the email).
       email: entry.details?.name ? entry.details?.email : undefined,
+      status: entry.status || 'not_contacted',
       fields: [
         { label: 'Action', value: entry.action ? titleCase(entry.action) : '—' },
         { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
@@ -502,6 +516,17 @@ const WaitlistLeads = () => {
     }
   };
 
+  const handleStatusChange = async (status: ContactStatus) => {
+    if (!viewEntry || !facilityCode) return;
+    if (viewEntry.type === 'waitlist') {
+      const updated = await dispatch(updateWaitlistStatus({ facilityCode, waitlistId: viewEntry.id, status })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, status: updated.status || status } : prev));
+    } else {
+      const updated = await dispatch(updateLeadStatus({ facilityCode, leadId: viewEntry.id, status })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, status: updated.status || status } : prev));
+    }
+  };
+
   // Fetches EVERY waitlist row (bypasses pagination) — the Waitlist tab always
   // loads the full set, both so the Type filter searches everything (not just
   // one page) and so its chips can be built from the real distinct types below.
@@ -510,23 +535,25 @@ const WaitlistLeads = () => {
     dispatch(getCentreWaitlist({ facilityCode, page: 1, limit: PAGE_SIZE, all: true }));
   }, [dispatch, facilityCode]);
 
-  const fetchLeads = useCallback(
-    (page: number, limit: number) => {
-      if (!facilityCode) return;
-      dispatch(getCentreLeads({ facilityCode, page, limit }));
-    },
-    [dispatch, facilityCode]
-  );
+  // Fetches EVERY lead row (bypasses pagination) — the Enquires tab always
+  // loads the full set, so the search box below can match every entry, not
+  // just the current page (mirrors fetchAllWaitlist above).
+  const fetchAllLeads = useCallback(() => {
+    if (!facilityCode) return;
+    dispatch(getCentreLeads({ facilityCode, page: 1, limit: PAGE_SIZE, all: true }));
+  }, [dispatch, facilityCode]);
 
   // Initial load + tab switch: always fetch the active tab fresh, filters already reset.
   useEffect(() => {
     if (tab === 'waitlist') fetchAllWaitlist();
-    else fetchLeads(1, PAGE_SIZE);
-  }, [tab, fetchAllWaitlist, fetchLeads]);
+    else fetchAllLeads();
+  }, [tab, fetchAllWaitlist, fetchAllLeads]);
 
   const switchTab = (next: 'waitlist' | 'leads') => {
     if (next === tab) return;
     setTypeFilter('all');
+    setWaitlistSearch('');
+    setLeadsSearch('');
     setTab(next);
   };
 
@@ -551,11 +578,21 @@ const WaitlistLeads = () => {
     return [{ label: 'All types', value: 'all' }, ...dynamic];
   }, [waitlist]);
 
-  // Applied client-side over the full loaded dataset (see fetchAllWaitlist).
+  // Applied client-side over the full loaded dataset (see fetchAllWaitlist) —
+  // Type chip first, then a partial match on name, email or phone number.
   const waitlistRows = useMemo(() => {
-    if (typeFilter === 'all') return waitlist;
-    return waitlist.filter(e => typeKeyOf(e) === typeFilter);
-  }, [waitlist, typeFilter]);
+    let rows = typeFilter === 'all' ? waitlist : waitlist.filter(e => typeKeyOf(e) === typeFilter);
+    const q = waitlistSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(e => {
+        const name = (e.name || '').toLowerCase();
+        const email = (e.email || '').toLowerCase();
+        const phone = (e.phoneNo || '').toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q);
+      });
+    }
+    return rows;
+  }, [waitlist, typeFilter, waitlistSearch]);
 
   // Reset to page 1 whenever the filtered set changes size, so switching
   // filters (or a fresh import) never leaves the table on an out-of-range page.
@@ -563,22 +600,41 @@ const WaitlistLeads = () => {
     setWaitlistUiPage(0);
   }, [waitlistRows.length]);
 
+  // Applied client-side over the full loaded dataset (see fetchAllLeads) —
+  // matches a partial name, email or phone number, same idiom as waitlistRows.
+  const leadsRows = useMemo(() => {
+    const q = leadsSearch.trim().toLowerCase();
+    if (!q) return leads;
+    return leads.filter(l => {
+      const name = leadDisplayNameOf(l).toLowerCase();
+      const email = (l.details?.email || '').toLowerCase();
+      const phone = (l.details?.phoneNo || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || phone.includes(q);
+    });
+  }, [leads, leadsSearch]);
+
+  // Reset to page 1 whenever the filtered set changes size, so a new search
+  // (or a fresh add) never leaves the table on an out-of-range page.
+  useEffect(() => {
+    setLeadsUiPage(0);
+  }, [leadsRows.length]);
+
   // Export payload for the active tab — the full filtered set (see waitlistRows).
   const exportData: ExportData = useMemo(() => {
     if (tab === 'waitlist') {
       return {
         title: 'Waitlist',
         filename: `waitlist-${facilityCode || 'centre'}.csv`,
-        headers: ['Name', 'Email', 'Waitlist Type', 'Plan', 'Date Added', 'Position'],
+        headers: ['Name', 'Email', 'Phone', 'Waitlist Type', 'Status', 'Date Added', 'Position'],
         rows: waitlistRows.map((e, i) => {
           const typeLabel = e.subscriptionSrc ? typeMetaFor(typeKeyOf(e)).label : '';
-          const plan = planOf(e);
           const pos = e.position ?? i + 1;
           return [
             e.name || '',
             e.email || '',
+            e.phoneNo || '',
             typeLabel,
-            plan ? titleCase(plan) : '',
+            STATUS_META[e.status || 'not_contacted'].label,
             readableDate(e.createdAt),
             `#${pos}`,
           ];
@@ -588,8 +644,8 @@ const WaitlistLeads = () => {
     return {
       title: 'Enquires',
       filename: `enquires-${facilityCode || 'centre'}.csv`,
-      headers: ['Name', 'Email', 'Phone', 'Action', 'Plan', 'Billing', 'Date'],
-      rows: leads.map(l => {
+      headers: ['Name', 'Email', 'Phone', 'Action', 'Plan', 'Billing', 'Status', 'Date'],
+      rows: leadsRows.map(l => {
         const plan = leadPlanOf(l);
         const cycle = l.details?.billing_cycle ?? '';
         return [
@@ -599,11 +655,12 @@ const WaitlistLeads = () => {
           l.action ? titleCase(l.action) : '',
           plan ? titleCase(plan) : '',
           cycle ? titleCase(cycle) : '',
+          STATUS_META[l.status || 'not_contacted'].label,
           readableDate(l.timestamp || l.createdAt),
         ];
       }),
     };
-  }, [tab, waitlistRows, leads, facilityCode]);
+  }, [tab, waitlistRows, leadsRows, facilityCode]);
 
   const waitlistColumns: ColumnDef[] = [
     {
@@ -646,15 +703,22 @@ const WaitlistLeads = () => {
       },
     },
     {
-      field: 'plan',
-      headerName: 'Plan',
+      field: 'phoneNo',
+      headerName: 'Phone',
       flex: 1,
       minWidth: 120,
       sortable: false,
-      renderCell: ({ row }) => {
-        const plan = planOf(row as WaitlistEntry);
-        return <span className="text-[13px] text-gray-700">{plan ? titleCase(plan) : '—'}</span>;
-      },
+      renderCell: ({ row }) => (
+        <span className="text-[13px] text-gray-700">{(row as WaitlistEntry).phoneNo || '—'}</span>
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      flex: 1,
+      minWidth: 130,
+      sortable: false,
+      renderCell: ({ row }) => <StatusBadge status={(row as WaitlistEntry).status} />,
     },
     {
       field: 'createdAt',
@@ -772,6 +836,14 @@ const WaitlistLeads = () => {
       },
     },
     {
+      field: 'status',
+      headerName: 'Status',
+      flex: 1,
+      minWidth: 130,
+      sortable: false,
+      renderCell: ({ row }) => <StatusBadge status={(row as LeadEntry).status} />,
+    },
+    {
       field: 'actions',
       headerName: '',
       flex: 0.6,
@@ -863,7 +935,7 @@ const WaitlistLeads = () => {
       {tab === 'waitlist' ? (
         <>
           {/* ── Filter Bar ──────────────────────────────────── */}
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
               {typeFilterOptions.map(f => (
@@ -872,6 +944,13 @@ const WaitlistLeads = () => {
                 </Chip>
               ))}
             </div>
+            <input
+              className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+              placeholder="Search by name, phone or email…"
+              type="text"
+              value={waitlistSearch}
+              onChange={e => setWaitlistSearch(e.target.value)}
+            />
           </div>
 
           <div className="mb-2 flex justify-end">
@@ -906,35 +985,45 @@ const WaitlistLeads = () => {
         </>
       ) : (
         <>
+          {/* ── Filter Bar ──────────────────────────────────── */}
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+            <input
+              className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+              placeholder="Search by name, phone or email…"
+              type="text"
+              value={leadsSearch}
+              onChange={e => setLeadsSearch(e.target.value)}
+            />
+          </div>
+
           <div className="mb-2 flex justify-end">
             <span className="text-[11px] text-gray-400">
-              {leads.length} of {leadsTotal} entries
+              {leadsRows.length} of {leads.length} entries
             </span>
           </div>
 
           {leadsError ? (
-            <ErrorState message={leadsError} onRetry={() => fetchLeads(1, leadsLimit || PAGE_SIZE)} />
+            <ErrorState message={leadsError} onRetry={fetchAllLeads} />
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
               <DataTable
                 columns={mapColumns(leadsColumns)}
-                data={leads}
+                data={leadsRows}
                 emptyState={{
-                  subtitle: 'Enquires appear here once prospects tour the centre',
-                  title: 'No enquires for this centre',
+                  subtitle: leadsSearch
+                    ? 'Try a different name, phone or email'
+                    : 'Enquires appear here once prospects tour the centre',
+                  title: leadsSearch ? 'No matching enquires' : 'No enquires for this centre',
                 }}
                 getRowId={row => row.id || row.details?.email || `${row.action ?? ''}-${row.timestamp ?? ''}`}
                 loading={leadsLoading}
-                page={(leadsPage || 1) - 1}
-                rowsPerPage={leadsLimit || PAGE_SIZE}
-                serverSide={true}
-                totalRows={leadsTotal}
-                onPageChange={(page: number) => {
-                  const limit = leadsLimit || PAGE_SIZE;
-                  const newPage = page + 1;
-                  if (newPage !== (leadsPage || 1)) fetchLeads(newPage, limit);
+                page={leadsUiPage}
+                rowsPerPage={leadsUiRowsPerPage}
+                onPageChange={setLeadsUiPage}
+                onRowsPerPageChange={rowsPerPage => {
+                  setLeadsUiRowsPerPage(rowsPerPage);
+                  setLeadsUiPage(0);
                 }}
-                onRowsPerPageChange={(rowsPerPage: number) => fetchLeads(1, rowsPerPage)}
               />
             </div>
           )}
@@ -943,11 +1032,7 @@ const WaitlistLeads = () => {
 
       {showExport && <ExportPreviewModal data={exportData} onClose={() => setShowExport(false)} />}
       {showAddLead && facilityCode && (
-        <AddLeadModal
-          facilityCode={facilityCode}
-          onAdded={() => fetchLeads(1, leadsLimit || PAGE_SIZE)}
-          onClose={() => setShowAddLead(false)}
-        />
+        <AddLeadModal facilityCode={facilityCode} onAdded={fetchAllLeads} onClose={() => setShowAddLead(false)} />
       )}
       {showImport && facilityCode && (
         <ImportWaitlistModal
@@ -962,9 +1047,11 @@ const WaitlistLeads = () => {
           fields={viewEntry.fields}
           name={viewEntry.name}
           notes={viewEntry.notes}
+          status={viewEntry.status}
           title={viewEntry.title}
           onAddNote={handleAddNote}
           onClose={() => setViewEntry(null)}
+          onStatusChange={handleStatusChange}
         />
       )}
     </div>

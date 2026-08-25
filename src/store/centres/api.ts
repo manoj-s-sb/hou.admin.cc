@@ -20,6 +20,7 @@ import type {
   CentreListRequest,
   CentreListResponse,
   CentreMember,
+  ContactStatus,
   FacilitySummary,
   LeadEntry,
   WaitlistEntry,
@@ -196,9 +197,9 @@ export const getCentreWaitlist = createAsyncThunk<
 /** POST /admin/centres/leads — paginated lead-activity logs for a centre. */
 export const getCentreLeads = createAsyncThunk<
   { entries: LeadEntry[]; total: number; page: number; limit: number },
-  { facilityCode: string; action?: string; subscriptionCode?: string; page: number; limit: number },
+  { facilityCode: string; action?: string; subscriptionCode?: string; page: number; limit: number; all?: boolean },
   { rejectValue: string }
->('centres/getCentreLeads', async ({ facilityCode, action, subscriptionCode, page, limit }, { rejectWithValue }) => {
+>('centres/getCentreLeads', async ({ facilityCode, action, subscriptionCode, page, limit, all }, { rejectWithValue }) => {
   try {
     const res = await api.post<{ data: unknown }>(endpoints.centres.leads, {
       facilityCode,
@@ -206,6 +207,7 @@ export const getCentreLeads = createAsyncThunk<
       subscription_code: subscriptionCode,
       page,
       limit,
+      all,
     });
     const { entries, total } = unwrapList<LeadEntry>(res.data?.data ?? res.data, [
       'items',
@@ -235,6 +237,24 @@ export const addWaitlistNote = createAsyncThunk<
     return res.data?.data ?? (res.data as unknown as WaitlistEntry);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to add note'));
+  }
+});
+
+/** POST /admin/centres/waitlist/status/update — set the contact status, returns the updated entry. */
+export const updateWaitlistStatus = createAsyncThunk<
+  WaitlistEntry,
+  { facilityCode: string; waitlistId: string; status: ContactStatus },
+  { rejectValue: string }
+>('centres/updateWaitlistStatus', async ({ facilityCode, waitlistId, status }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: WaitlistEntry }>(endpoints.centres.waitlistStatusUpdate, {
+      facilityCode,
+      waitlistId,
+      status,
+    });
+    return res.data?.data ?? (res.data as unknown as WaitlistEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to update status'));
   }
 });
 
@@ -302,6 +322,24 @@ export const addLeadNote = createAsyncThunk<
     return res.data?.data ?? (res.data as unknown as LeadEntry);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to add note'));
+  }
+});
+
+/** POST /admin/centres/leads/status/update — set the contact status, returns the updated entry. */
+export const updateLeadStatus = createAsyncThunk<
+  LeadEntry,
+  { facilityCode: string; leadId: string; status: ContactStatus },
+  { rejectValue: string }
+>('centres/updateLeadStatus', async ({ facilityCode, leadId, status }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: LeadEntry }>(endpoints.centres.leadsStatusUpdate, {
+      facilityCode,
+      leadId,
+      status,
+    });
+    return res.data?.data ?? (res.data as unknown as LeadEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to update status'));
   }
 });
 
