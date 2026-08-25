@@ -67,6 +67,10 @@ const endpoints = {
     waitlist: '/admin/centres/waitlist', // POST { facilityCode, subscriptionSrc?, registerdVia?, page, limit }
     leads: '/admin/centres/leads', // POST { facilityCode, action?, subscription_code?, page, limit }
     waitlistNotesAdd: '/admin/centres/waitlist/notes/add', // POST { facilityCode, waitlistId, text, createdByName }
+    // POST { facilityCode, subscriptionSrc, entries: [{name,email,phone?,countryCode?,registerdVia?,timestamp?}] }
+    // — "Import from Excel". Rows with an email that already exists (on this centre, or earlier in
+    // the same upload) are skipped, not rejected — response reports createdCount/skippedCount/skipped.
+    waitlistImport: '/admin/centres/waitlist/import',
     leadsNotesAdd: '/admin/centres/leads/notes/add', // POST { facilityCode, leadId, text, createdByName }
     // POST { facilityCode, name, email, phone?, planInterest? } — extra="forbid" on
     // the backend, so no other fields (e.g. createdByName) may be sent.

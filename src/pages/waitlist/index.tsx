@@ -11,6 +11,7 @@ import { AdminNote, LeadEntry, WaitlistEntry } from '../../store/centres/types';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDate } from '../../utils/dateUtils';
 
+import ImportWaitlistModal from './components/ImportWaitlistModal';
 import MemberDetailDrawer, { DetailField } from './components/MemberDetailDrawer';
 
 const PAGE_SIZE = 20;
@@ -54,25 +55,15 @@ const PLAN_FILTERS: { label: string; value: string }[] = [
   { label: 'Night Owl', value: 'nightowl' },
 ];
 
-const WAITLIST_TYPE_META: Record<string, { label: string; className: string }> = {
-  foundation: { label: 'Foundation', className: 'bg-amber-100 text-amber-700' },
-  // The real, currently-used raw value for pre-launch waitlist signups — was
-  // mislabeled "Post Launch" here; confirmed backwards against real data (every
-  // entry tagged 'launchwaitlist' was actually a pre-launch signup).
-  launchwaitlist: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
-  prelaunch: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
-  prelaunchwaitlist: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
-  // Speculative raw-key spellings for genuine post-launch waitlist signups — no
-  // confirmed real value yet, kept ready for whenever the backend sends one.
-  postlaunch: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
-  postlaunchwaitlist: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
-  event: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
-  eventwaitlist: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
-};
-
-// Canonical filter bucket for each raw subscriptionSrc spelling — collapses the
-// alternate-spelling duplicates in WAITLIST_TYPE_META down to one filter option each.
-const TYPE_FILTER_KEY: Record<string, string> = {
+// Known/legacy raw subscriptionSrc spellings → one canonical filter bucket +
+// label each (collapses alternate spellings of the same real-world type, e.g.
+// every 'launchwaitlist' entry is actually a pre-launch signup — confirmed
+// against real data). Marketing keeps launching new campaigns/events with new
+// raw source values (see e.g. a "qrcampaign" doc's `source` field) that can't
+// be hardcoded ahead of time, so any raw value NOT listed here becomes its own
+// bucket automatically (see typeKeyOf/typeMetaFor below) — new types just show
+// up, title-cased, no code change needed. See [[project-waitlist-registrationsource]].
+const LEGACY_TYPE_BUCKET: Record<string, string> = {
   foundation: 'foundation',
   launchwaitlist: 'prelaunch',
   prelaunch: 'prelaunch',
@@ -82,17 +73,27 @@ const TYPE_FILTER_KEY: Record<string, string> = {
   event: 'event',
   eventwaitlist: 'event',
 };
-const typeKeyOf = (entry: WaitlistEntry): string =>
-  TYPE_FILTER_KEY[(entry.subscriptionSrc || '').toLowerCase()] || 'other';
 
-// TYPE filter is client-side (the waitlist endpoint takes no type param).
-const TYPE_FILTERS: { label: string; value: string }[] = [
-  { label: 'All types', value: 'all' },
-  { label: 'Foundation', value: 'foundation' },
-  { label: 'Pre Launch', value: 'prelaunch' },
-  { label: 'Post Launch', value: 'postlaunch' },
-  { label: 'Event', value: 'event' },
-];
+const TYPE_BUCKET_META: Record<string, { label: string; className: string }> = {
+  foundation: { label: 'Foundation', className: 'bg-amber-100 text-amber-700' },
+  prelaunch: { label: 'Pre Launch', className: 'bg-blue-100 text-blue-700' },
+  postlaunch: { label: 'Post Launch', className: 'bg-gray-100 text-gray-600' },
+  event: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
+};
+
+// Filter bucket for an entry's raw subscriptionSrc — a known legacy spelling's
+// bucket, or (for anything new) the raw value itself, so it filters correctly
+// even before anyone's added a label for it.
+const typeKeyOf = (entry: WaitlistEntry): string => {
+  const src = (entry.subscriptionSrc || '').toLowerCase();
+  if (!src) return 'other';
+  return LEGACY_TYPE_BUCKET[src] ?? src;
+};
+
+// Display label + badge colour for a bucket key. Unknown buckets (new
+// campaign sources) fall back to a title-cased label with a neutral badge.
+const typeMetaFor = (bucket: string): { label: string; className: string } =>
+  TYPE_BUCKET_META[bucket] || { label: titleCase(bucket), className: 'bg-gray-100 text-gray-600' };
 
 const mapColumns = (cols: ColumnDef[]): TableColumn[] =>
   cols.map(col => ({
@@ -403,9 +404,6 @@ const WaitlistLeads = () => {
     waitlist,
     waitlistLoading,
     waitlistError,
-    waitlistTotal,
-    waitlistPage,
-    waitlistLimit,
     leads,
     leadsLoading,
     leadsError,
@@ -416,8 +414,16 @@ const WaitlistLeads = () => {
 
   const [tab, setTab] = useState<'waitlist' | 'leads'>('waitlist');
   const [typeFilter, setTypeFilter] = useState('all');
+  // The Waitlist tab always loads the FULL dataset (see fetchAllWaitlist) — both
+  // to let the Type filter search everything, not just one page, and to build
+  // its filter chips/labels dynamically from whatever types actually exist.
+  // Pagination over that full set is therefore client-side, tracked here so the
+  // "Position" column can still show a correct absolute number on later pages.
+  const [waitlistUiPage, setWaitlistUiPage] = useState(0);
+  const [waitlistUiRowsPerPage, setWaitlistUiRowsPerPage] = useState(PAGE_SIZE);
   const [showExport, setShowExport] = useState(false);
   const [showAddLead, setShowAddLead] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [viewEntry, setViewEntry] = useState<{
     type: 'waitlist' | 'lead';
     id: string;
@@ -429,10 +435,9 @@ const WaitlistLeads = () => {
   } | null>(null);
 
   const openWaitlistEntry = (entry: WaitlistEntry, index: number) => {
-    const src = (entry.subscriptionSrc || '').toLowerCase();
-    const typeLabel = WAITLIST_TYPE_META[src]?.label || (src ? titleCase(src) : '—');
+    const typeLabel = entry.subscriptionSrc ? typeMetaFor(typeKeyOf(entry)).label : '—';
     const plan = planOf(entry);
-    const pos = entry.position ?? ((waitlistPage || 1) - 1) * (waitlistLimit || PAGE_SIZE) + index + 1;
+    const pos = entry.position ?? waitlistUiPage * waitlistUiRowsPerPage + index + 1;
     setViewEntry({
       type: 'waitlist',
       id: entry.id || '',
@@ -478,13 +483,13 @@ const WaitlistLeads = () => {
     }
   };
 
-  const fetchWaitlist = useCallback(
-    (page: number, limit: number, src?: string) => {
-      if (!facilityCode) return;
-      dispatch(getCentreWaitlist({ facilityCode, subscriptionSrc: src, page, limit }));
-    },
-    [dispatch, facilityCode]
-  );
+  // Fetches EVERY waitlist row (bypasses pagination) — the Waitlist tab always
+  // loads the full set, both so the Type filter searches everything (not just
+  // one page) and so its chips can be built from the real distinct types below.
+  const fetchAllWaitlist = useCallback(() => {
+    if (!facilityCode) return;
+    dispatch(getCentreWaitlist({ facilityCode, page: 1, limit: PAGE_SIZE, all: true }));
+  }, [dispatch, facilityCode]);
 
   const fetchLeads = useCallback(
     (page: number, limit: number) => {
@@ -496,9 +501,9 @@ const WaitlistLeads = () => {
 
   // Initial load + tab switch: always fetch the active tab fresh, filters already reset.
   useEffect(() => {
-    if (tab === 'waitlist') fetchWaitlist(1, PAGE_SIZE, undefined);
+    if (tab === 'waitlist') fetchAllWaitlist();
     else fetchLeads(1, PAGE_SIZE);
-  }, [tab, fetchWaitlist, fetchLeads]);
+  }, [tab, fetchAllWaitlist, fetchLeads]);
 
   const switchTab = (next: 'waitlist' | 'leads') => {
     if (next === tab) return;
@@ -508,28 +513,48 @@ const WaitlistLeads = () => {
 
   const onTypeChange = (value: string) => {
     setTypeFilter(value);
-    fetchWaitlist(1, waitlistLimit || PAGE_SIZE);
+    setWaitlistUiPage(0);
   };
 
-  // Type filter is applied client-side on the loaded page.
+  // Every distinct type actually present in the loaded waitlist, built fresh
+  // each time it changes — so a brand new campaign source shows up as its own
+  // chip automatically (see typeKeyOf/typeMetaFor above), with no code change.
+  const typeFilterOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    waitlist.forEach(e => {
+      if (!e.subscriptionSrc) return;
+      const bucket = typeKeyOf(e);
+      if (!seen.has(bucket)) seen.set(bucket, typeMetaFor(bucket).label);
+    });
+    const dynamic = Array.from(seen, ([value, label]) => ({ value, label })).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
+    return [{ label: 'All types', value: 'all' }, ...dynamic];
+  }, [waitlist]);
+
+  // Applied client-side over the full loaded dataset (see fetchAllWaitlist).
   const waitlistRows = useMemo(() => {
     if (typeFilter === 'all') return waitlist;
     return waitlist.filter(e => typeKeyOf(e) === typeFilter);
   }, [waitlist, typeFilter]);
 
-  // Export payload for the active tab (the currently loaded page of rows).
+  // Reset to page 1 whenever the filtered set changes size, so switching
+  // filters (or a fresh import) never leaves the table on an out-of-range page.
+  useEffect(() => {
+    setWaitlistUiPage(0);
+  }, [waitlistRows.length]);
+
+  // Export payload for the active tab — the full filtered set (see waitlistRows).
   const exportData: ExportData = useMemo(() => {
     if (tab === 'waitlist') {
-      const base = ((waitlistPage || 1) - 1) * (waitlistLimit || PAGE_SIZE);
       return {
         title: 'Waitlist',
         filename: `waitlist-${facilityCode || 'centre'}.csv`,
         headers: ['Name', 'Email', 'Waitlist Type', 'Plan', 'Date Added', 'Position'],
         rows: waitlistRows.map((e, i) => {
-          const src = (e.subscriptionSrc || '').toLowerCase();
-          const typeLabel = WAITLIST_TYPE_META[src]?.label || (src ? titleCase(src) : '');
+          const typeLabel = e.subscriptionSrc ? typeMetaFor(typeKeyOf(e)).label : '';
           const plan = planOf(e);
-          const pos = e.position ?? base + i + 1;
+          const pos = e.position ?? i + 1;
           return [
             e.name || '',
             e.email || '',
@@ -557,7 +582,7 @@ const WaitlistLeads = () => {
         ];
       }),
     };
-  }, [tab, waitlistRows, leads, waitlistPage, waitlistLimit, facilityCode]);
+  }, [tab, waitlistRows, leads, facilityCode]);
 
   const waitlistColumns: ColumnDef[] = [
     {
@@ -591,11 +616,9 @@ const WaitlistLeads = () => {
       minWidth: 130,
       sortable: false,
       renderCell: ({ row }) => {
-        const src = ((row as WaitlistEntry).subscriptionSrc || '').toLowerCase();
-        const meta = WAITLIST_TYPE_META[src] || {
-          label: src ? titleCase(src) : '—',
-          className: 'bg-gray-100 text-gray-600',
-        };
+        const entry = row as WaitlistEntry;
+        if (!entry.subscriptionSrc) return <span className="text-[13px] text-gray-400">—</span>;
+        const meta = typeMetaFor(typeKeyOf(entry));
         return (
           <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.className}`}>{meta.label}</span>
         );
@@ -630,7 +653,7 @@ const WaitlistLeads = () => {
       sortable: false,
       renderCell: ({ row, index }) => {
         const entry = row as WaitlistEntry;
-        const pos = entry.position ?? ((waitlistPage || 1) - 1) * (waitlistLimit || PAGE_SIZE) + index + 1;
+        const pos = entry.position ?? waitlistUiPage * waitlistUiRowsPerPage + index + 1;
         return <span className="text-[13px] font-bold text-[#21295A]">#{pos}</span>;
       },
     },
@@ -764,6 +787,20 @@ const WaitlistLeads = () => {
               Add Lead
             </button>
           )}
+          {tab === 'waitlist' && (
+            <button
+              className="flex items-center gap-1.5 rounded-lg border border-[#21295A]/20 bg-white px-4 py-2 text-[12px] font-semibold text-[#21295A] shadow-sm transition hover:bg-[#21295A]/5"
+              type="button"
+              onClick={() => setShowImport(true)}
+            >
+              <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" x2="12" y1="3" y2="15" />
+              </svg>
+              Import from Excel
+            </button>
+          )}
           <button
             className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
             type="button"
@@ -803,7 +840,7 @@ const WaitlistLeads = () => {
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
-              {TYPE_FILTERS.map(f => (
+              {typeFilterOptions.map(f => (
                 <Chip key={f.value} active={typeFilter === f.value} onClick={() => onTypeChange(f.value)}>
                   {f.label}
                 </Chip>
@@ -813,12 +850,12 @@ const WaitlistLeads = () => {
 
           <div className="mb-2 flex justify-end">
             <span className="text-[11px] text-gray-400">
-              {waitlistRows.length} of {waitlistTotal} entries
+              {waitlistRows.length} of {waitlist.length} entries
             </span>
           </div>
 
           {waitlistError ? (
-            <ErrorState message={waitlistError} onRetry={() => fetchWaitlist(1, waitlistLimit || PAGE_SIZE)} />
+            <ErrorState message={waitlistError} onRetry={fetchAllWaitlist} />
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
               <DataTable
@@ -830,16 +867,13 @@ const WaitlistLeads = () => {
                 }}
                 getRowId={row => row.id || `${row.email ?? ''}-${row.position ?? ''}`}
                 loading={waitlistLoading}
-                page={(waitlistPage || 1) - 1}
-                rowsPerPage={waitlistLimit || PAGE_SIZE}
-                serverSide={true}
-                totalRows={waitlistTotal}
-                onPageChange={(page: number) => {
-                  const limit = waitlistLimit || PAGE_SIZE;
-                  const newPage = page + 1;
-                  if (newPage !== (waitlistPage || 1)) fetchWaitlist(newPage, limit);
+                page={waitlistUiPage}
+                rowsPerPage={waitlistUiRowsPerPage}
+                onPageChange={setWaitlistUiPage}
+                onRowsPerPageChange={rowsPerPage => {
+                  setWaitlistUiRowsPerPage(rowsPerPage);
+                  setWaitlistUiPage(0);
                 }}
-                onRowsPerPageChange={(rowsPerPage: number) => fetchWaitlist(1, rowsPerPage)}
               />
             </div>
           )}
@@ -888,6 +922,9 @@ const WaitlistLeads = () => {
           onAdded={() => fetchLeads(1, leadsLimit || PAGE_SIZE)}
           onClose={() => setShowAddLead(false)}
         />
+      )}
+      {showImport && facilityCode && (
+        <ImportWaitlistModal facilityCode={facilityCode} onClose={() => setShowImport(false)} onImported={fetchAllWaitlist} />
       )}
       {viewEntry && (
         <MemberDetailDrawer

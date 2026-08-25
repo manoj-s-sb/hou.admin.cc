@@ -3,7 +3,8 @@ export interface InductionListRequest {
   page: number;
   type: string;
   listLimit: number;
-  email?: string;
+  /** Free-text filter — matches name, email, or phone (partial, case-insensitive). */
+  search?: string;
   status?: string;
 }
 

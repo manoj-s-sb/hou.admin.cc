@@ -31,6 +31,8 @@ export type CentreApiStatus = 'draft' | 'staging' | 'active' | 'suspended';
  */
 export interface FacilityKpi {
   totalMembers?: number;
+  /** Subset of totalMembers with an active (not paused/cancelled/pending) subscription. */
+  activeMembers?: number;
   bookings30d?: number;
   /** Null when the centre isn't configured for utilisation (see `utilisationStatus`). */
   utilisationPct?: number | null;
@@ -41,12 +43,17 @@ export interface FacilityKpi {
   openTasks?: number;
   /** Member count per plan code (premium / standard / family / …). */
   plans?: Record<string, number>;
+  /** Active-only member count per plan code — what the card's plan chips show. */
+  activePlans?: Record<string, number>;
 }
 
 /** Per-facility rollup exactly as POST /admin/centres/list returns it. */
 export interface FacilityStats {
   totalMembers?: number;
   membersByPlan?: Record<string, number>;
+  /** Subset of totalMembers with an active (not paused/cancelled/pending) subscription. */
+  activeMembers?: number;
+  activeMembersByPlan?: Record<string, number>;
   totalBookingsLast30Days?: number;
   totalInductions?: number;
   noShowRatePercent?: number;
@@ -370,6 +377,23 @@ export interface WaitlistEntry {
     subscription_code?: string;
     [key: string]: unknown;
   };
+}
+
+/** One row of a "Import from Excel" upload, sent to POST /admin/centres/waitlist/import. */
+export interface WaitlistImportRow {
+  name: string;
+  email: string;
+  phone?: string;
+  countryCode?: string;
+  registerdVia?: string; // sic — backend spelling
+  timestamp?: string;
+}
+
+/** Response from POST /admin/centres/waitlist/import. */
+export interface WaitlistImportResult {
+  createdCount: number;
+  skippedCount: number;
+  skipped?: { email: string; reason: string }[];
 }
 
 /** One row from GET /admin/centres/:facilityCode/leads. Fields are optional/defensive. */

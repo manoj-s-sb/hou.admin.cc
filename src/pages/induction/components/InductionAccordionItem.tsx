@@ -187,6 +187,16 @@ const InductionAccordionItem = ({
   // Save button: disabled when no check selected, no local changes, or while saving
   const isSaveDisabled = isSaving || completedCount === 0 || !hasLocalChanges;
 
+  // The primary member's "Save Induction"/"Activate Subscription" actions only make
+  // sense while their membership is still awaiting activation — i.e. subscriptionStatus
+  // is 'pendingactivation' (payment confirmed, induction not yet done) or 'inactive',
+  // or the field is missing/null entirely. Once it's active, cancelled, paused, or
+  // past_due there's nothing left to activate, so the buttons must stay hidden —
+  // checking only `!== 'active'` let 'paused'/'canceled'/'past_due' through too.
+  const PENDING_MEMBERSHIP_STATUSES = new Set(['pendingactivation', 'inactive']);
+  const showPrimaryActions =
+    isPrimary && (!data?.subscriptionStatus || PENDING_MEMBERSHIP_STATUSES.has(data.subscriptionStatus));
+
   return (
     <div className="mb-3 overflow-hidden rounded-lg border border-gray-200">
       {/* Accordion Header */}
@@ -367,7 +377,7 @@ const InductionAccordionItem = ({
 
           <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
             {/* Save Induction Button */}
-            {isPrimary && data?.subscriptionStatus !== 'active' && (
+            {showPrimaryActions && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   isSaveDisabled ? 'cursor-not-allowed bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
@@ -391,8 +401,8 @@ const InductionAccordionItem = ({
                 <span>{isSaving ? 'Saving...' : 'Save Induction'}</span>
               </button>
             )}
-            {/* Activate Subscription Button - Hide when status is completed and subscriptionStatus is active */}
-            {isPrimary && data?.subscriptionStatus !== 'active' && (
+            {/* Activate Subscription Button - only while membership is still pending activation */}
+            {showPrimaryActions && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader
