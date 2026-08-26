@@ -239,7 +239,9 @@ const Induction = () => {
                   title="View induction details"
                   onClick={e => {
                     e.stopPropagation();
-                    navigate(buildRoute.viewInduction(params.row.userId), { state: { listSearch: location.search } });
+                    navigate(buildRoute.viewInduction(params.row.userId), {
+                      state: { listSearch: location.search, facilityCode },
+                    });
                   }}
                 >
                   View
@@ -460,7 +462,7 @@ const Induction = () => {
             );
           }}
           onRowClick={row => {
-            navigate(buildRoute.viewInduction(row.userId), { state: { listSearch: location.search } });
+            navigate(buildRoute.viewInduction(row.userId), { state: { listSearch: location.search, facilityCode } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
             dispatch(

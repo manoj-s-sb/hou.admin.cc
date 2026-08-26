@@ -232,8 +232,10 @@ const CentreManagement: React.FC = () => {
               />
             ))}
 
-            {/* Add New Centre dashed card — super-admin only */}
-            {canManageCentres && (
+            {/* Add New Centre dashed card — super-admin only, and only alongside the
+                unfiltered/live view (All or Active); it doesn't make sense to invite
+                adding a new centre while browsing Draft/Staging/Suspended ones. */}
+            {canManageCentres && (statusFilter === '' || statusFilter === 'active') && (
               <button
                 aria-label="Add new centre"
                 className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"

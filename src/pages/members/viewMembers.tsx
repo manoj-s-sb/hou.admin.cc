@@ -24,7 +24,8 @@ import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import countries from '../../constants/countries.json';
 import { getRelationshipLabel } from '../../constants/relationship';
-import { ROUTES } from '../../constants/routes';
+import { buildRoute, ROUTES } from '../../constants/routes';
+import { getFacilityCode } from '../../constants/user';
 import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -44,6 +45,14 @@ const ViewMembers = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? '';
+  // The centre this member was viewed from — passed via navigation state (the row-click
+  // navigate() in members/index.tsx), falling back to the current facility scope so a
+  // direct/refreshed visit still resolves. Without this, "Back" would fall through to
+  // the global (non-centre-scoped) /members route, which is gated behind Coming Soon.
+  const backFacilityCode = (location.state as { facilityCode?: string } | null)?.facilityCode || getFacilityCode();
+  const backPath = backFacilityCode
+    ? `${buildRoute.centreModule(backFacilityCode, 'members')}${listSearch}`
+    : `${ROUTES.MEMBERS.path}${listSearch}`;
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [expandedCycles, setExpandedCycles] = useState<number[]>([]);
   const [showAllCycles, setShowAllCycles] = useState(false);
@@ -109,7 +118,7 @@ const ViewMembers = () => {
           <p className="text-lg text-gray-500">No member details found</p>
           <button
             className="mt-4 font-medium text-blue-600 hover:text-blue-700"
-            onClick={() => navigate(`${ROUTES.MEMBERS.path}${listSearch}`)}
+            onClick={() => navigate(backPath)}
           >
             Go back to members list
           </button>
@@ -144,7 +153,7 @@ const ViewMembers = () => {
           search={false}
           title="Member Details"
           value=""
-          onBackClick={() => navigate(`${ROUTES.MEMBERS.path}${listSearch}`)}
+          onBackClick={() => navigate(backPath)}
           onSearch={() => undefined}
         />
 

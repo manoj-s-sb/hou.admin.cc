@@ -22,16 +22,22 @@ const centresSlice = createSlice({
   reducers: {},
   extraReducers: builder => {
     // ── List ──
-    builder.addCase(getCentres.pending, state => {
+    builder.addCase(getCentres.pending, (state, action) => {
       state.isLoading = true;
       state.error = null;
+      // Mark this as the latest in-flight request — see field doc in types.ts.
+      state.centresRequestId = action.meta.requestId;
     });
     builder.addCase(getCentres.fulfilled, (state, action) => {
+      // A newer search/filter was dispatched after this one — an older, slower
+      // request resolving now would overwrite the current (correct) results.
+      if (action.meta.requestId !== state.centresRequestId) return;
       state.isLoading = false;
       state.facilities = action.payload.facilities;
       state.total = action.payload.total;
     });
     builder.addCase(getCentres.rejected, (state, action) => {
+      if (action.meta.requestId !== state.centresRequestId) return;
       state.isLoading = false;
       state.facilities = [];
       state.total = 0;

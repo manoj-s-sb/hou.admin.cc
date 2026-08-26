@@ -580,6 +580,11 @@ export interface CentresInitialState {
   total: number;
   isLoading: boolean;
   error: string | null;
+  /** requestId of the most recently dispatched getCentres call — lets the reducer
+   * discard an older, slower request's response that resolves after a newer one
+   * (e.g. typing "h" then "hh" quickly), which would otherwise silently overwrite
+   * the correct results with a stale/broader list. */
+  centresRequestId: string | null;
 
   // ── Single centre (details bundle) ──
   details: CentreBundle | null;
@@ -615,6 +620,7 @@ export const initialState: CentresInitialState = {
   total: 0,
   isLoading: true,
   error: null,
+  centresRequestId: null,
 
   details: null,
   detailsLoading: false,
