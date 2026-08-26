@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
+import { getFacilityCode } from '../../constants/user';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -26,6 +27,7 @@ const Tours = () => {
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
   const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
+  const facilityCode = getFacilityCode();
 
   const currentLimit = inductionListData.limit || 20;
 
@@ -38,6 +40,7 @@ const Tours = () => {
         listLimit: limit,
         search: searchFilter,
         status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
+        facilityCode,
       })
     );
   };
@@ -45,7 +48,7 @@ const Tours = () => {
   useEffect(() => {
     applyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch]);
+  }, [dispatch, facilityCode]);
 
   // Live search: apply the Search box on its own, debounced, as the user types
   // — Date/Status still need "Apply Filters".
@@ -294,6 +297,7 @@ const Tours = () => {
                     listLimit: currentLimit,
                     search: '',
                     status: 'all',
+                    facilityCode,
                   })
                 );
               }}

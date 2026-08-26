@@ -50,7 +50,7 @@
     "test:watch": "react-scripts test --watch",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "lint": "node scripts/lint-formatter.js",
-    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
+    "lint:fix": "node scripts/eslint-legacy.js src --ext .js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run format:check",
@@ -82,7 +82,7 @@
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
+      "node scripts/eslint-legacy.js --fix",
       "prettier --write"
     ],
     "src/**/*.{json,css,md}": [
