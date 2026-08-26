@@ -49,6 +49,10 @@ interface MemberDetailDrawerProps {
   statusHistory?: StatusHistoryEntry[];
   onStatusChange?: (status: ContactStatus) => Promise<void>;
   onAddNote: (text: string) => Promise<void>;
+  onDeleteNote?: (noteId: string) => Promise<void>;
+  /** When set, shows a delete icon for the whole entry (only offered where that's
+   * actually supported, e.g. a manually-added lead — not a funnel-derived one). */
+  onDeleteEntry?: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -62,12 +66,16 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
   statusHistory,
   onStatusChange,
   onAddNote,
+  onDeleteNote,
+  onDeleteEntry,
   onClose,
 }) => {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState(false);
 
   const handleAddNote = async () => {
     const text = note.trim();
@@ -81,6 +89,33 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
       toast.error(message || 'Failed to add note');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!onDeleteNote || deletingNoteId) return;
+    if (!window.confirm('Delete this note?')) return;
+    setDeletingNoteId(noteId);
+    try {
+      await onDeleteNote(noteId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
+      toast.error(message || 'Failed to delete note');
+    } finally {
+      setDeletingNoteId(null);
+    }
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!onDeleteEntry || deletingEntry) return;
+    if (!window.confirm(`Delete ${name}? This can't be undone.`)) return;
+    setDeletingEntry(true);
+    try {
+      await onDeleteEntry();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
+      toast.error(message || 'Failed to delete');
+      setDeletingEntry(false);
     }
   };
 
@@ -112,14 +147,31 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-[17px] font-bold text-[#21295A]">{title}</h2>
-          <button
-            aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
-            type="button"
-            onClick={onClose}
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-2">
+            {onDeleteEntry && (
+              <button
+                aria-label="Delete"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+                disabled={deletingEntry}
+                title="Delete this entry"
+                type="button"
+                onClick={handleDeleteEntry}
+              >
+                <svg fill="none" height={15} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={15}>
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+              </button>
+            )}
+            <button
+              aria-label="Close"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+              type="button"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="max-h-[80vh] overflow-y-auto px-6 py-5">
@@ -214,11 +266,31 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
             ) : (
               <div className="flex max-h-48 flex-col gap-2 overflow-y-auto pr-1">
                 {notes.map(n => (
-                  <div key={n.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-2.5">
-                    <p className="whitespace-pre-wrap text-[13px] text-gray-700">{n.text}</p>
-                    <p className="mt-1 text-[11px] text-gray-400">
-                      {n.createdByName || 'Admin'} · {noteTimestamp(n.createdAt)}
-                    </p>
+                  <div
+                    key={n.id}
+                    className="flex items-start justify-between gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-2.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="whitespace-pre-wrap text-[13px] text-gray-700">{n.text}</p>
+                      <p className="mt-1 text-[11px] text-gray-400">
+                        {n.createdByName || 'Admin'} · {noteTimestamp(n.createdAt)}
+                      </p>
+                    </div>
+                    {onDeleteNote && (
+                      <button
+                        aria-label="Delete note"
+                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                        disabled={deletingNoteId === n.id}
+                        title="Delete note"
+                        type="button"
+                        onClick={() => handleDeleteNote(n.id)}
+                      >
+                        <svg fill="none" height={13} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={13}>
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

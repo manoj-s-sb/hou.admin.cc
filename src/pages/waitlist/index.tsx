@@ -10,6 +10,9 @@ import {
   addLeadNote,
   addWaitlistNote,
   createLead,
+  deleteLead,
+  deleteLeadNote,
+  deleteWaitlistNote,
   getCentreLeads,
   getCentreWaitlist,
   updateLeadStatus,
@@ -352,7 +355,6 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
             <h2 className="text-[16px] font-bold text-[#21295A]">Add Enquiry</h2>
-            <p className="mt-0.5 text-[12px] text-gray-400">Manually add someone who toured but hasn&apos;t joined.</p>
           </div>
           <button
             aria-label="Close"
@@ -487,6 +489,8 @@ const WaitlistLeads = () => {
     statusHistory: StatusHistoryEntry[];
     fields: DetailField[];
     notes: AdminNote[];
+    /** Only manually-added leads ("+ Add Enquiry") are deletable — funnel-derived ones aren't. */
+    isManualLead: boolean;
   } | null>(null);
 
   const openWaitlistEntry = (entry: WaitlistEntry, index: number) => {
@@ -508,6 +512,7 @@ const WaitlistLeads = () => {
         { label: 'Position', value: `#${pos}` },
       ],
       notes: entry.notes || [],
+      isManualLead: false,
     });
   };
 
@@ -532,6 +537,7 @@ const WaitlistLeads = () => {
         { label: 'Date', value: readableDate(entry.timestamp || entry.createdAt) },
       ],
       notes: entry.notes || [],
+      isManualLead: entry.action === 'manual_lead_created',
     });
   };
 
@@ -544,6 +550,24 @@ const WaitlistLeads = () => {
       const updated = await dispatch(addLeadNote({ facilityCode, leadId: viewEntry.id, text })).unwrap();
       setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
     }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!viewEntry || !facilityCode) return;
+    if (viewEntry.type === 'waitlist') {
+      const updated = await dispatch(deleteWaitlistNote({ facilityCode, waitlistId: viewEntry.id, noteId })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
+    } else {
+      const updated = await dispatch(deleteLeadNote({ facilityCode, leadId: viewEntry.id, noteId })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
+    }
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!viewEntry || !facilityCode || viewEntry.type !== 'lead') return;
+    await dispatch(deleteLead({ facilityCode, leadId: viewEntry.id })).unwrap();
+    toast.success('Enquiry deleted');
+    setViewEntry(null);
   };
 
   const handleStatusChange = async (status: ContactStatus) => {
@@ -728,6 +752,26 @@ const WaitlistLeads = () => {
       },
     },
     {
+      field: 'phoneNo',
+      headerName: 'Phone',
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <span className="text-[13px] text-gray-700">{waitlistPhoneOf(row as WaitlistEntry)}</span>
+      ),
+    },
+    {
+      field: 'createdAt',
+      headerName: 'Date Added',
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <span className="text-[13px] text-gray-500">{readableDate((row as WaitlistEntry).createdAt)}</span>
+      ),
+    },
+    {
       field: 'subscriptionSrc',
       headerName: 'Waitlist Type',
       flex: 1,
@@ -743,32 +787,12 @@ const WaitlistLeads = () => {
       },
     },
     {
-      field: 'phoneNo',
-      headerName: 'Phone',
-      flex: 1,
-      minWidth: 120,
-      sortable: false,
-      renderCell: ({ row }) => (
-        <span className="text-[13px] text-gray-700">{waitlistPhoneOf(row as WaitlistEntry)}</span>
-      ),
-    },
-    {
       field: 'status',
       headerName: 'Status',
       flex: 1,
       minWidth: 130,
       sortable: false,
       renderCell: ({ row }) => <StatusBadge status={(row as WaitlistEntry).status} />,
-    },
-    {
-      field: 'createdAt',
-      headerName: 'Date Added',
-      flex: 1,
-      minWidth: 120,
-      sortable: false,
-      renderCell: ({ row }) => (
-        <span className="text-[13px] text-gray-500">{readableDate((row as WaitlistEntry).createdAt)}</span>
-      ),
     },
     {
       field: 'position',
@@ -1092,6 +1116,8 @@ const WaitlistLeads = () => {
           title={viewEntry.title}
           onAddNote={handleAddNote}
           onClose={() => setViewEntry(null)}
+          onDeleteEntry={viewEntry.isManualLead ? handleDeleteEntry : undefined}
+          onDeleteNote={handleDeleteNote}
           onStatusChange={handleStatusChange}
         />
       )}

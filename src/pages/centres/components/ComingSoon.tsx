@@ -20,9 +20,7 @@ const ComingSoon: React.FC<ComingSoonProps> = ({ moduleLabel, description }) => 
         </svg>
       </div>
       <h2 className="mb-2 text-xl font-semibold text-navy">{moduleLabel} — Coming Soon</h2>
-      <p className="text-sm text-sub">
-        {description || `${moduleLabel} isn't available yet. Check back soon.`}
-      </p>
+      <p className="text-sm text-sub">{description || `We're still working on ${moduleLabel.toLowerCase()}.`}</p>
     </div>
   </div>
 );

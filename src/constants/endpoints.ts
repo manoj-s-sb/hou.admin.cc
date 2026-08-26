@@ -67,6 +67,7 @@ const endpoints = {
     waitlist: '/admin/centres/waitlist', // POST { facilityCode, subscriptionSrc?, registerdVia?, page, limit }
     leads: '/admin/centres/leads', // POST { facilityCode, action?, subscription_code?, page, limit }
     waitlistNotesAdd: '/admin/centres/waitlist/notes/add', // POST { facilityCode, waitlistId, text, createdByName }
+    waitlistNotesDelete: '/admin/centres/waitlist/notes/delete', // POST { facilityCode, waitlistId, noteId }
     // POST { facilityCode, waitlistId, status, changedByName } — status is one of
     // not_contacted/contacted/no_response/converted/not_interested
     waitlistStatusUpdate: '/admin/centres/waitlist/status/update',
@@ -75,6 +76,9 @@ const endpoints = {
     // the same upload) are skipped, not rejected — response reports createdCount/skippedCount/skipped.
     waitlistImport: '/admin/centres/waitlist/import',
     leadsNotesAdd: '/admin/centres/leads/notes/add', // POST { facilityCode, leadId, text, createdByName }
+    leadsNotesDelete: '/admin/centres/leads/notes/delete', // POST { facilityCode, leadId, noteId }
+    // POST { facilityCode, leadId } — only manually-added leads are deletable; 404 for funnel-derived ones.
+    leadsDelete: '/admin/centres/leads/delete',
     // POST { facilityCode, leadId, status, changedByName } — status is one of
     // not_contacted/contacted/no_response/converted/not_interested
     leadsStatusUpdate: '/admin/centres/leads/status/update',

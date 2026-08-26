@@ -164,6 +164,8 @@ export interface MembersSubscription {
   currentPeriodStart: string;
   currentPeriodEnd: string;
   paymentProcessedAt: string;
+  /** e.g. active, paused, canceled/cancelled, past_due, pendingactivation, resumed, or '' */
+  subscriptionStatus?: string;
 }
 
 export interface Pricing {

@@ -240,6 +240,24 @@ export const addWaitlistNote = createAsyncThunk<
   }
 });
 
+/** POST /admin/centres/waitlist/notes/delete — remove an admin note, returns the updated entry. */
+export const deleteWaitlistNote = createAsyncThunk<
+  WaitlistEntry,
+  { facilityCode: string; waitlistId: string; noteId: string },
+  { rejectValue: string }
+>('centres/deleteWaitlistNote', async ({ facilityCode, waitlistId, noteId }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: WaitlistEntry }>(endpoints.centres.waitlistNotesDelete, {
+      facilityCode,
+      waitlistId,
+      noteId,
+    });
+    return res.data?.data ?? (res.data as unknown as WaitlistEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to delete note'));
+  }
+});
+
 /** POST /admin/centres/waitlist/status/update — set the contact status, returns the updated entry. */
 export const updateWaitlistStatus = createAsyncThunk<
   WaitlistEntry,
@@ -323,6 +341,41 @@ export const addLeadNote = createAsyncThunk<
     return res.data?.data ?? (res.data as unknown as LeadEntry);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to add note'));
+  }
+});
+
+/** POST /admin/centres/leads/notes/delete — remove an admin note, returns the updated entry. */
+export const deleteLeadNote = createAsyncThunk<
+  LeadEntry,
+  { facilityCode: string; leadId: string; noteId: string },
+  { rejectValue: string }
+>('centres/deleteLeadNote', async ({ facilityCode, leadId, noteId }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: LeadEntry }>(endpoints.centres.leadsNotesDelete, {
+      facilityCode,
+      leadId,
+      noteId,
+    });
+    return res.data?.data ?? (res.data as unknown as LeadEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to delete note'));
+  }
+});
+
+/**
+ * POST /admin/centres/leads/delete — permanently remove a manually-added lead.
+ * Only manual leads are deletable; funnel-derived ones 404.
+ */
+export const deleteLead = createAsyncThunk<
+  { leadId: string },
+  { facilityCode: string; leadId: string },
+  { rejectValue: string }
+>('centres/deleteLead', async ({ facilityCode, leadId }, { rejectWithValue }) => {
+  try {
+    await api.post(endpoints.centres.leadsDelete, { facilityCode, leadId });
+    return { leadId };
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to delete lead'));
   }
 });
 

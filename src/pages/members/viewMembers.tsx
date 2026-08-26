@@ -36,6 +36,19 @@ interface HealthDeclarationItem {
   selectedOptions?: string;
 }
 
+const SUBSCRIPTION_STATUS_META: Record<string, { label: string; cls: string }> = {
+  active: { label: 'Active', cls: 'bg-green-100 text-green-700' },
+  resumed: { label: 'Resumed', cls: 'bg-green-100 text-green-700' },
+  pendingactivation: { label: 'Pending Activation', cls: 'bg-amber-100 text-amber-700' },
+  paused: { label: 'Paused', cls: 'bg-orange-100 text-orange-700' },
+  past_due: { label: 'Past Due', cls: 'bg-red-100 text-red-700' },
+  canceled: { label: 'Canceled', cls: 'bg-red-100 text-red-700' },
+  cancelled: { label: 'Cancelled', cls: 'bg-red-100 text-red-700' },
+};
+
+const subscriptionStatusMeta = (status?: string): { label: string; cls: string } =>
+  SUBSCRIPTION_STATUS_META[(status || '').toLowerCase()] || { label: 'Inactive', cls: 'bg-gray-100 text-gray-600' };
+
 const ViewMembers = () => {
   const { memberDetails, isLoading } = useSelector((state: RootState) => state.members) as {
     memberDetails: MemberDetailsResponse | null;
@@ -228,6 +241,14 @@ const ViewMembers = () => {
             </div>
             <div className="px-4 py-3 sm:px-6 sm:py-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Status</p>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).cls}`}
+                  >
+                    {subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).label}
+                  </span>
+                </div>
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Subscription Code</p>
                   <p className="text-base font-semibold capitalize text-gray-900">
