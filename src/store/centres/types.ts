@@ -383,6 +383,9 @@ export interface WaitlistEntry {
   /** Backend source flag — 'foundation' | 'launchWaitlist'. */
   subscriptionSrc?: string;
   registerdVia?: string; // sic — backend spelling
+  /** QR-campaign attribution code (e.g. a qrcampaign doc's `code`), when the
+   * signup came through a campaign link/QR scan rather than the plain form. */
+  registrationSource?: string;
   plan?: string;
   createdAt?: string;
   /** Server-supplied queue position; derived from the row index when absent. */

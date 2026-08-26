@@ -110,10 +110,23 @@ const TYPE_BUCKET_META: Record<string, { label: string; className: string }> = {
   event: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
 };
 
+// One-off override: signups attributed to this specific QR campaign
+// (registrationSource, set from a qrcampaign doc's `code`) show a short
+// campaign-specific label instead of the generic subscriptionSrc-derived
+// bucket (e.g. "Pre Launch") — requested for the NYC01 Aug 28 launch event.
+// Not a general registrationSource→bucket system; add another entry here
+// (or generalise this) if/when the next campaign needs the same treatment.
+const CAMPAIGN_TYPE_OVERRIDES: Record<string, { label: string; className: string }> = {
+  nycaug28: { label: 'Event - Aug 28', className: 'bg-violet-100 text-violet-700' },
+};
+
 // Filter bucket for an entry's raw subscriptionSrc — a known legacy spelling's
 // bucket, or (for anything new) the raw value itself, so it filters correctly
-// even before anyone's added a label for it.
+// even before anyone's added a label for it. A recognised registrationSource
+// campaign overrides this entirely (see CAMPAIGN_TYPE_OVERRIDES).
 const typeKeyOf = (entry: WaitlistEntry): string => {
+  const regSrc = (entry.registrationSource || '').toLowerCase();
+  if (regSrc && CAMPAIGN_TYPE_OVERRIDES[regSrc]) return regSrc;
   const src = (entry.subscriptionSrc || '').toLowerCase();
   if (!src) return 'other';
   return LEGACY_TYPE_BUCKET[src] ?? src;
@@ -122,6 +135,7 @@ const typeKeyOf = (entry: WaitlistEntry): string => {
 // Display label + badge colour for a bucket key. Unknown buckets (new
 // campaign sources) fall back to a title-cased label with a neutral badge.
 const typeMetaFor = (bucket: string): { label: string; className: string } =>
+  CAMPAIGN_TYPE_OVERRIDES[bucket] ||
   TYPE_BUCKET_META[bucket] || { label: titleCase(bucket), className: 'bg-gray-100 text-gray-600' };
 
 const mapColumns = (cols: ColumnDef[]): TableColumn[] =>
@@ -368,14 +382,18 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email</span>
             <input
               className={`w-full rounded-lg border bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:bg-white ${
-                tried && !emailFormatValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
+                tried && !emailFormatValid
+                  ? 'border-red-400 ring-1 ring-red-300'
+                  : 'border-gray-200 focus:border-[#21295A]'
               }`}
               placeholder="jordan@example.com"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
             />
-            {tried && !emailFormatValid && <p className="mt-1 text-[11px] text-red-500">Enter a valid email address.</p>}
+            {tried && !emailFormatValid && (
+              <p className="mt-1 text-[11px] text-red-500">Enter a valid email address.</p>
+            )}
           </div>
           <div>
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</span>
@@ -533,12 +551,16 @@ const WaitlistLeads = () => {
     if (viewEntry.type === 'waitlist') {
       const updated = await dispatch(updateWaitlistStatus({ facilityCode, waitlistId: viewEntry.id, status })).unwrap();
       setViewEntry(prev =>
-        prev ? { ...prev, status: updated.status || status, statusHistory: updated.statusHistory || prev.statusHistory } : prev
+        prev
+          ? { ...prev, status: updated.status || status, statusHistory: updated.statusHistory || prev.statusHistory }
+          : prev
       );
     } else {
       const updated = await dispatch(updateLeadStatus({ facilityCode, leadId: viewEntry.id, status })).unwrap();
       setViewEntry(prev =>
-        prev ? { ...prev, status: updated.status || status, statusHistory: updated.statusHistory || prev.statusHistory } : prev
+        prev
+          ? { ...prev, status: updated.status || status, statusHistory: updated.statusHistory || prev.statusHistory }
+          : prev
       );
     }
   };
