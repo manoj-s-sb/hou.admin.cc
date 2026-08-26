@@ -130,9 +130,9 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
             >
               {initials(name)}
             </span>
-            <div>
-              <p className="text-[16px] font-bold text-[#21295A]">{name}</p>
-              {email && <p className="text-[13px] text-gray-400">{email}</p>}
+            <div className="min-w-0">
+              <p className="break-words text-[16px] font-bold text-[#21295A]">{name}</p>
+              {email && <p className="break-words text-[13px] text-gray-400">{email}</p>}
             </div>
           </div>
 
@@ -140,7 +140,7 @@ const MemberDetailDrawer: React.FC<MemberDetailDrawerProps> = ({
             {fields.map(f => (
               <div key={f.label} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                 <p className="text-[12px] text-gray-400">{f.label}</p>
-                <p className="mt-0.5 text-[14px] font-bold text-[#21295A]">{f.value || '—'}</p>
+                <p className="mt-0.5 break-words text-[14px] font-bold text-[#21295A]">{f.value || '—'}</p>
               </div>
             ))}
           </div>
