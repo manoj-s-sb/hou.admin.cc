@@ -222,9 +222,7 @@ const CentreManagement: React.FC = () => {
               <CentreCard
                 key={c.id || c.code}
                 centre={c}
-                onEdit={
-                  canManageCentres && CENTRE_EDIT_ENABLED ? summary => startEdit(summary.code) : undefined
-                }
+                onEdit={canManageCentres && CENTRE_EDIT_ENABLED ? summary => startEdit(summary.code) : undefined}
                 onOpen={summary => {
                   facilityScope.set(summary.code);
                   // Land on the first module this user has read access to.

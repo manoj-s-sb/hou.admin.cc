@@ -234,7 +234,7 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
                 onChange={e => setEventName(e.target.value)}
               />
               <p className="mt-1 text-[11px] text-gray-400">
-                Shown as a badge on these rows, e.g. "Event - {eventName.trim() || 'Aug 28 Launch'}".
+                Shown as a badge on these rows, e.g. Event - `{eventName.trim() || 'Aug 28 Launch'}`.
               </p>
             </div>
           )}

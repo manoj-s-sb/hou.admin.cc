@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 
 import { Toaster } from 'react-hot-toast';
 import { Provider, useDispatch, useSelector } from 'react-redux';
@@ -10,35 +10,12 @@ import { Loader } from './components/Loader';
 import SessionExpiredModal from './components/SessionExpiredModal';
 import menus, { MENU_ITEM_BY_MODULE } from './constants/menus';
 import { ROUTES } from './constants/routes';
-import {
-  Login,
-  UserList,
-  Induction,
-  ViewInduction,
-  Tours,
-  Members,
-  ViewMembers,
-  SlotBookings,
-  CoachSchedule,
-  Tailgate,
-  StaffManagement,
-  AddStaffMember,
-  ViewStaffMember,
-  CentreManagement,
-  CentreModuleRoute,
-  MembershipPlans,
-  Tickets,
-} from './pages';
+import { Login, ViewInduction, ViewMembers, CentreManagement, CentreModuleRoute } from './pages';
 import ComingSoon from './pages/centres/components/ComingSoon';
 import { ACCESS_SCOPES, canRead, PermissionRoute, RestrictedAccess, sidebarItems } from './rbac';
 import { setSessionExpiredCallback } from './services';
 import { fetchMe } from './store/auth/api';
 import store, { persistor, AppDispatch, RootState } from './store/store';
-
-// Heavy routes split into their own chunks — Reports pulls in recharts (~300 KB),
-// Maintenance is a 900+ LOC page. Keeps the initial bundle lean for everyone else.
-const Reports = lazy(() => import('./pages/reports'));
-const Maintenance = lazy(() => import('./pages/maintenance'));
 
 const DefaultLanding: React.FC<{ bootChecked: boolean }> = ({ bootChecked }) => {
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
