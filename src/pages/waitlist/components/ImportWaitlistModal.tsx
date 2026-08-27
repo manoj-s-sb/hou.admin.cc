@@ -10,8 +10,7 @@ import { AppDispatch } from '../../../store/store';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-// Sheets in the wild spell these headers in slightly different ways ("Phone
-// Number" vs "Phone", "Registered Via" vs "RegisterVia") — normalise to
+// Sheets in the wild spell these headers in slightly different ways ("P
 // lowercase-alnum before matching so header formatting doesn't matter.
 const normaliseHeader = (h: string): string => h.toLowerCase().replace(/[^a-z0-9]/g, '');
 
