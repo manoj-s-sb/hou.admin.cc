@@ -310,13 +310,14 @@ export const createLead = createAsyncThunk<
  */
 export const bulkImportWaitlist = createAsyncThunk<
   WaitlistImportResult,
-  { facilityCode: string; subscriptionSrc: string; entries: WaitlistImportRow[] },
+  { facilityCode: string; subscriptionSrc: string; eventName?: string; entries: WaitlistImportRow[] },
   { rejectValue: string }
->('centres/bulkImportWaitlist', async ({ facilityCode, subscriptionSrc, entries }, { rejectWithValue }) => {
+>('centres/bulkImportWaitlist', async ({ facilityCode, subscriptionSrc, eventName, entries }, { rejectWithValue }) => {
   try {
     const res = await api.post<{ data: WaitlistImportResult }>(endpoints.centres.waitlistImport, {
       facilityCode,
       subscriptionSrc,
+      eventName,
       entries,
     });
     return res.data?.data ?? (res.data as unknown as WaitlistImportResult);

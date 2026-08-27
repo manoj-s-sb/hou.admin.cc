@@ -71,9 +71,11 @@ const endpoints = {
     // POST { facilityCode, waitlistId, status, changedByName } — status is one of
     // not_contacted/contacted/no_response/converted/not_interested
     waitlistStatusUpdate: '/admin/centres/waitlist/status/update',
-    // POST { facilityCode, subscriptionSrc, entries: [{name,email,phone?,countryCode?,registerdVia?,timestamp?}] }
-    // — "Import from Excel". Rows with an email that already exists (on this centre, or earlier in
-    // the same upload) are skipped, not rejected — response reports createdCount/skippedCount/skipped.
+    // POST { facilityCode, subscriptionSrc, eventName?, entries: [{name,email,phone?,countryCode?,registerdVia?,timestamp?}] }
+    // — "Import from Excel". eventName is required when subscriptionSrc is 'event' — stored as
+    // registrationSource on every row so the Waitlist tab can badge it "Event - {eventName}".
+    // Rows with an email that already exists (on this centre, or earlier in the same upload) are
+    // skipped, not rejected — response reports createdCount/skippedCount/skipped.
     waitlistImport: '/admin/centres/waitlist/import',
     leadsNotesAdd: '/admin/centres/leads/notes/add', // POST { facilityCode, leadId, text, createdByName }
     leadsNotesDelete: '/admin/centres/leads/notes/delete', // POST { facilityCode, leadId, noteId }

@@ -113,33 +113,43 @@ const TYPE_BUCKET_META: Record<string, { label: string; className: string }> = {
   event: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
 };
 
-// One-off override: signups attributed to this specific QR campaign
-// (registrationSource, set from a qrcampaign doc's `code`) show a short
-// campaign-specific label instead of the generic subscriptionSrc-derived
-// bucket (e.g. "Pre Launch") — requested for the NYC01 Aug 28 launch event.
-// Not a general registrationSource→bucket system; add another entry here
-// (or generalise this) if/when the next campaign needs the same treatment.
+// Legacy QR-campaign codes whose raw registrationSource value doesn't read as a
+// name on its own (e.g. "nycaug28" doesn't obviously mean "Aug 28"). Any NEWER
+// registrationSource (e.g. one typed into "Import from Excel" → Event Name) is
+// handled generically below — "Event - {name}" derived straight from the value,
+// no per-campaign code change needed. Only add here if a future QR code's raw
+// value needs a friendlier override than its own text.
 const CAMPAIGN_TYPE_OVERRIDES: Record<string, { label: string; className: string }> = {
   nycaug28: { label: 'Event - Aug 28', className: 'bg-violet-100 text-violet-700' },
 };
 
 // Filter bucket for an entry's raw subscriptionSrc — a known legacy spelling's
 // bucket, or (for anything new) the raw value itself, so it filters correctly
-// even before anyone's added a label for it. A recognised registrationSource
-// campaign overrides this entirely (see CAMPAIGN_TYPE_OVERRIDES).
+// even before anyone's added a label for it. A registrationSource (a specific
+// named event/campaign occurrence) always takes priority over the generic
+// subscriptionSrc-derived bucket — see typeMetaFor for how it's displayed.
 const typeKeyOf = (entry: WaitlistEntry): string => {
-  const regSrc = (entry.registrationSource || '').toLowerCase();
-  if (regSrc && CAMPAIGN_TYPE_OVERRIDES[regSrc]) return regSrc;
+  const regSrc = (entry.registrationSource || '').trim();
+  if (regSrc) {
+    const key = regSrc.toLowerCase();
+    return CAMPAIGN_TYPE_OVERRIDES[key] ? key : `event:${regSrc}`;
+  }
   const src = (entry.subscriptionSrc || '').toLowerCase();
   if (!src) return 'other';
   return LEGACY_TYPE_BUCKET[src] ?? src;
 };
 
-// Display label + badge colour for a bucket key. Unknown buckets (new
-// campaign sources) fall back to a title-cased label with a neutral badge.
-const typeMetaFor = (bucket: string): { label: string; className: string } =>
-  CAMPAIGN_TYPE_OVERRIDES[bucket] ||
-  TYPE_BUCKET_META[bucket] || { label: titleCase(bucket), className: 'bg-gray-100 text-gray-600' };
+// Display label + badge colour for a bucket key. An "event:{name}" bucket (see
+// typeKeyOf) renders as "Event - {name}" directly from the admin-entered name —
+// no code change needed per campaign. Any other unknown bucket falls back to a
+// title-cased label with a neutral badge.
+const typeMetaFor = (bucket: string): { label: string; className: string } => {
+  if (CAMPAIGN_TYPE_OVERRIDES[bucket]) return CAMPAIGN_TYPE_OVERRIDES[bucket];
+  if (bucket.startsWith('event:')) {
+    return { label: `Event - ${bucket.slice('event:'.length)}`, className: 'bg-violet-100 text-violet-700' };
+  }
+  return TYPE_BUCKET_META[bucket] || { label: titleCase(bucket), className: 'bg-gray-100 text-gray-600' };
+};
 
 const mapColumns = (cols: ColumnDef[]): TableColumn[] =>
   cols.map(col => ({
