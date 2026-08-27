@@ -15,14 +15,14 @@ import { AppDispatch, RootState } from '../../store/store';
 const user_svg = '/assets/user.svg';
 
 type FilterState = {
-  email: string;
+  search: string;
   billingCycle: '' | NonNullable<MemberRequest['billingCycle']>;
   subscriptionType: '' | NonNullable<MemberRequest['subscriptionCode']>;
   status: '' | NonNullable<MemberRequest['subscriptionStatus']>;
 };
 
 const defaultFilters: FilterState = {
-  email: '',
+  search: '',
   billingCycle: '',
   subscriptionType: '',
   status: '',
@@ -30,7 +30,7 @@ const defaultFilters: FilterState = {
 
 function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterState {
   return {
-    email: searchParams.get('email') ?? '',
+    search: searchParams.get('search') ?? '',
     billingCycle: (searchParams.get('billingCycle') as FilterState['billingCycle']) ?? '',
     subscriptionType: (searchParams.get('subscriptionType') as FilterState['subscriptionType']) ?? '',
     status: (searchParams.get('status') as FilterState['status']) ?? '',
@@ -39,7 +39,7 @@ function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterStat
 
 function filtersToSearchParams(filters: FilterState): Record<string, string> {
   const params: Record<string, string> = {};
-  if (filters.email.trim()) params.email = filters.email.trim();
+  if (filters.search.trim()) params.search = filters.search.trim();
   if (filters.billingCycle) params.billingCycle = filters.billingCycle;
   if (filters.subscriptionType) params.subscriptionType = filters.subscriptionType;
   if (filters.status) params.status = filters.status;
@@ -245,9 +245,9 @@ const Members = () => {
         facilityCode: getFacilityCode(),
       };
 
-      const trimmedEmail = appliedFilters.email.trim();
-      if (trimmedEmail) {
-        payload.email = trimmedEmail;
+      const trimmedSearch = appliedFilters.search.trim();
+      if (trimmedSearch) {
+        payload.search = trimmedSearch;
       }
       if (appliedFilters.billingCycle) {
         payload.billingCycle = appliedFilters.billingCycle;
@@ -270,6 +270,16 @@ const Members = () => {
     setFilters(parseFiltersFromSearchParams(searchParams));
   }, [searchParams]);
 
+  // Live search: apply the Search box on its own, debounced, as the user types
+  // — the other filters (billing cycle, plan, status) still need "Apply Filters".
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchParams(filtersToSearchParams(filters), { replace: true });
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.search]);
+
   useEffect(() => {
     const applied = parseFiltersFromSearchParams(searchParams);
     const payload: MemberRequest = {
@@ -277,8 +287,8 @@ const Members = () => {
       limit: currentLimit,
       facilityCode: getFacilityCode(),
     };
-    const trimmedEmail = applied.email.trim();
-    if (trimmedEmail) payload.email = trimmedEmail;
+    const trimmedSearch = applied.search.trim();
+    if (trimmedSearch) payload.search = trimmedSearch;
     if (applied.billingCycle) payload.billingCycle = applied.billingCycle;
     if (applied.subscriptionType) payload.subscriptionCode = applied.subscriptionType;
     if (applied.status) payload.subscriptionStatus = applied.status;
@@ -388,13 +398,13 @@ const Members = () => {
       <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <div className="px-4 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Email */}
+            {/* Search */}
             <div>
               <label
                 className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="filter-email"
+                htmlFor="filter-search"
               >
-                Email
+                Search
               </label>
               <div className="relative">
                 <svg
@@ -412,11 +422,11 @@ const Members = () => {
                 </svg>
                 <input
                   className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                  id="filter-email"
-                  placeholder="Search by email…"
+                  id="filter-search"
+                  placeholder="Search by name, email or phone…"
                   type="text"
-                  value={filters.email}
-                  onChange={e => handleFilterChange('email', e.target.value)}
+                  value={filters.search}
+                  onChange={e => handleFilterChange('search', e.target.value)}
                 />
               </div>
             </div>

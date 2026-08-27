@@ -41,7 +41,7 @@ const num = (v: unknown): number => {
 /** Present (not null/undefined) — used to keep guest-pricing blank when unset. */
 const hasVal = (v: unknown): boolean => v !== undefined && v !== null;
 
-const FEATURE_TYPES: AdditionalFacilityType[] = ['gym', 'podcast', 'meeting', 'gaming'];
+const FEATURE_TYPES: AdditionalFacilityType[] = ['gym', 'podcast', 'meeting', 'gaming', 'custom'];
 
 /**
  * Rebuild the wizard's additional-facilities list from the saved `facility.features`

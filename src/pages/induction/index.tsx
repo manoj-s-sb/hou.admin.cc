@@ -14,20 +14,20 @@ import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils
 
 type FilterState = {
   date: string;
-  email: string;
+  search: string;
   status: string;
 };
 
 const defaultFilters: FilterState = {
   date: '',
-  email: '',
+  search: '',
   status: 'all',
 };
 
 function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterState {
   return {
     date: searchParams.get('date') ?? '',
-    email: searchParams.get('email') ?? '',
+    search: searchParams.get('search') ?? '',
     status: searchParams.get('status') ?? 'pending',
   };
 }
@@ -35,7 +35,7 @@ function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterStat
 function filtersToSearchParams(filters: FilterState): Record<string, string> {
   const params: Record<string, string> = {};
   if (filters.date) params.date = filters.date;
-  if (filters.email.trim()) params.email = filters.email.trim();
+  if (filters.search.trim()) params.search = filters.search.trim();
   if (filters.status) params.status = filters.status;
   return params;
 }
@@ -66,6 +66,16 @@ const Induction = () => {
     setFilters(parseFiltersFromSearchParams(searchParams));
   }, [searchParams]);
 
+  // Live search: apply the Search box on its own, debounced, as the user types
+  // — Date/Status still need "Apply Filters".
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchParams(filtersToSearchParams(filters), { replace: true });
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.search]);
+
   useEffect(() => {
     const applied = parseFiltersFromSearchParams(searchParams);
     dispatch(
@@ -74,7 +84,7 @@ const Induction = () => {
         page: 1,
         type: 'inductionbooking',
         listLimit: inductionListData?.limit || 20,
-        email: applied.email,
+        search: applied.search,
         status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
       })
     );
@@ -200,7 +210,7 @@ const Induction = () => {
                       page: inductionListData?.page || 1,
                       type: 'inductionbooking',
                       listLimit: inductionListData?.limit || 20,
-                      email: applied.email,
+                      search: applied.search,
                       status:
                         applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
                     })
@@ -285,13 +295,13 @@ const Induction = () => {
       <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <div className="px-4 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {/* Email */}
+            {/* Search */}
             <div>
               <label
                 className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="induction-email-filter"
+                htmlFor="induction-search-filter"
               >
-                Email
+                Search
               </label>
               <div className="relative">
                 <svg
@@ -309,11 +319,11 @@ const Induction = () => {
                 </svg>
                 <input
                   className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                  id="induction-email-filter"
-                  placeholder="Search by email…"
+                  id="induction-search-filter"
+                  placeholder="Search by name, email or phone…"
                   type="text"
-                  value={filters.email}
-                  onChange={e => setFilters(prev => ({ ...prev, email: e.target.value }))}
+                  value={filters.search}
+                  onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
                 />
               </div>
             </div>
@@ -438,7 +448,7 @@ const Induction = () => {
                 date: filters.date,
                 type: 'inductionbooking',
                 listLimit: inductionListData?.limit || 20,
-                email: filters.email,
+                search: filters.search,
                 status: filters.status === 'pending' ? 'confirmed' : filters.status === 'all' ? '' : filters.status,
               })
             );
@@ -453,7 +463,7 @@ const Induction = () => {
                 date: filters.date,
                 type: 'inductionbooking',
                 listLimit: rowsPerPage,
-                email: filters.email,
+                search: filters.search,
                 status: filters.status === 'pending' ? 'confirmed' : filters.status === 'all' ? '' : filters.status,
               })
             );
@@ -507,7 +517,7 @@ const Induction = () => {
                             page: inductionListData?.page || 1,
                             type: 'inductionbooking',
                             listLimit: inductionListData?.limit || 20,
-                            email: applied.email,
+                            search: applied.search,
                             status:
                               applied.status === 'pending'
                                 ? 'confirmed'

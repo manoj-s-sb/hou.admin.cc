@@ -73,7 +73,9 @@ export const makeAdditionalFacility = (type: AdditionalFacilityType, index = 1):
       ? 'Gym / Fitness Area'
       : type === 'gaming'
         ? 'Gaming Area'
-        : `${type === 'podcast' ? 'Podcast' : 'Meeting'} Room ${index}`,
+        : type === 'custom'
+          ? `New Facility ${index}`
+          : `${type === 'podcast' ? 'Podcast' : 'Meeting'} Room ${index}`,
   fortnightlyPrice: 0,
   annualDiscountPct: 0,
   totalCapacity: type === 'gym' ? 200 : 12,
@@ -296,6 +298,8 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
   };
 
   const removeRoom = (id: string) => onChange(facilities.filter(f => f.id !== id));
+
+  const customFacilities = facilities.filter(f => f.type === 'custom');
 
   // ── per-facility config form ──
   const renderConfig = (f: AdditionalFacility, roomLabel?: string) => {
@@ -630,6 +634,97 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
           </div>
         );
       })}
+
+      {/* Custom facilities — anything not covered by the fixed types above. Each one
+          is independently added/removed rather than toggled, since there's no single
+          fixed slot for them. */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: 10, marginBottom: 10, overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '13px 16px',
+            background: '#fff',
+          }}
+        >
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              background: '#f3f4f6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              flexShrink: 0,
+            }}
+          >
+            ✨
+          </div>
+          <div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>Custom Facilities</span>
+            <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 1 }}>
+              Anything not covered above — add your own bookable space with its own pricing, capacity & hours.
+            </div>
+          </div>
+        </div>
+
+        {customFacilities.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--border)', background: '#f9fafb' }}>
+            {customFacilities.map((f, i) => (
+              <div
+                key={f.id}
+                style={{ padding: 16, borderTop: i === 0 ? 'none' : '1px solid var(--border)', position: 'relative' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -4 }}>
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--muted)',
+                      fontSize: 16,
+                    }}
+                    type="button"
+                    onClick={() => removeRoom(f.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+                {renderConfig(f, 'Custom Facility')}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div
+          style={{ padding: '10px 16px', borderTop: customFacilities.length > 0 ? 'none' : '1px solid var(--border)' }}
+        >
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 14px',
+              border: '1.5px dashed var(--border)',
+              borderRadius: 8,
+              background: '#fff',
+              color: 'var(--blue)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              width: '100%',
+              justifyContent: 'center',
+            }}
+            type="button"
+            onClick={() => addRoom('custom')}
+          >
+            + Add custom facility
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

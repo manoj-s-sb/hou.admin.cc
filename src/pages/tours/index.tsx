@@ -23,7 +23,7 @@ const Tours = () => {
   const { inductionList: inductionListData, isLoading } = useSelector((state: RootState) => state.induction);
 
   const [selectedDate, setSelectedDate] = useState('');
-  const [emailFilter, setEmailFilter] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
   const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
 
@@ -36,7 +36,7 @@ const Tours = () => {
         page,
         type: 'tourbooking',
         listLimit: limit,
-        email: emailFilter,
+        search: searchFilter,
         status: statusFilter === 'pending' ? 'confirmed' : statusFilter,
       })
     );
@@ -46,6 +46,16 @@ const Tours = () => {
     applyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
+
+  // Live search: apply the Search box on its own, debounced, as the user types
+  // — Date/Status still need "Apply Filters".
+  useEffect(() => {
+    const t = setTimeout(() => {
+      applyFilters(1, currentLimit);
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchFilter]);
 
   const tourColumns: ColumnDef[] = [
     {
@@ -196,13 +206,13 @@ const Tours = () => {
       <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <div className="px-4 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {/* Email */}
+            {/* Search */}
             <div>
               <label
                 className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="tour-email-filter"
+                htmlFor="tour-search-filter"
               >
-                Email
+                Search
               </label>
               <div className="relative">
                 <svg
@@ -220,11 +230,11 @@ const Tours = () => {
                 </svg>
                 <input
                   className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                  id="tour-email-filter"
-                  placeholder="Search by email…"
+                  id="tour-search-filter"
+                  placeholder="Search by name, email or phone…"
                   type="text"
-                  value={emailFilter}
-                  onChange={e => setEmailFilter(e.target.value)}
+                  value={searchFilter}
+                  onChange={e => setSearchFilter(e.target.value)}
                 />
               </div>
             </div>
@@ -273,7 +283,7 @@ const Tours = () => {
               className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
               type="button"
               onClick={() => {
-                setEmailFilter('');
+                setSearchFilter('');
                 setSelectedDate('');
                 setStatusFilter('all');
                 dispatch(
@@ -282,7 +292,7 @@ const Tours = () => {
                     page: 1,
                     type: 'tourbooking',
                     listLimit: currentLimit,
-                    email: '',
+                    search: '',
                     status: 'all',
                   })
                 );

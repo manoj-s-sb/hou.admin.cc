@@ -170,10 +170,10 @@ const buildFeatures = (state: WizardState): Record<string, unknown> => {
         psUnits: f.psUnits,
         chargePerHour: f.chargePerHour,
       };
-      // Multi-instance types (podcast/meeting) collect into an array.
+      // Multi-instance types (podcast/meeting/custom) collect into an array.
       if (Array.isArray(existing)) (existing as unknown[]).push(entry);
       else if (existing) features[f.type] = [existing, entry];
-      else features[f.type] = f.type === 'podcast' || f.type === 'meeting' ? [entry] : entry;
+      else features[f.type] = f.type === 'podcast' || f.type === 'meeting' || f.type === 'custom' ? [entry] : entry;
     });
   return features;
 };

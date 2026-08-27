@@ -82,7 +82,7 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
   const accent = centreColour(centre.code);
   const { kpi } = centre;
   const location = [centre.stateCode, centre.countryCode].filter(Boolean).join(', ') || centre.cityCode || '—';
-  const plans = kpi?.plans ?? {};
+  const plans = kpi?.activePlans ?? {};
   const hasPlans = PLAN_META.some(p => (plans[p.key] ?? 0) > 0);
   const tz = getTzAbbr(centre.timezone);
   const tailgates = kpi?.tailgates ?? 0;
@@ -142,7 +142,7 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
 
       {/* ── KPI rollup (mapped from the API `stats` block) ── */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 rounded-[10px] border border-cmx-border bg-cmx-body/60 p-3">
-        <Stat hero label="Total Members" value={kpi?.totalMembers} />
+        <Stat hero label="Active Members" value={kpi?.activeMembers} />
         <Stat label="Bookings · 30d" value={kpi?.bookings30d} />
         <Stat
           emptyHint={

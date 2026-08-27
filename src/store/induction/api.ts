@@ -13,7 +13,7 @@ import {
 
 export const inductionList = createAsyncThunk(
   'induction/inductionList',
-  async ({ date, page, type, listLimit, email, status }: InductionListRequest, { rejectWithValue }) => {
+  async ({ date, page, type, listLimit, search, status }: InductionListRequest, { rejectWithValue }) => {
     try {
       const payload: Record<string, unknown> = {
         date,
@@ -22,8 +22,8 @@ export const inductionList = createAsyncThunk(
         limit: listLimit,
       };
 
-      if (email?.trim()) {
-        payload.email = email.trim();
+      if (search?.trim()) {
+        payload.search = search.trim();
       }
 
       if (status && status !== 'all') {
