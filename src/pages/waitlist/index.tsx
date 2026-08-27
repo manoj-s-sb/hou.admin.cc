@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
+import * as XLSX from 'xlsx';
 
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
@@ -196,25 +197,13 @@ const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ messag
   </div>
 );
 
-// ── Export preview / download (CSV) ──────────────────────────
-const csvEscape = (v: string): string => {
-  const s = (v ?? '').toString();
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-
-const downloadCsv = (filename: string, headers: string[], rows: string[][]) => {
-  const rowsCsv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
-  // Leading BOM so Excel opens the UTF-8 file correctly.
-  const bom = String.fromCharCode(0xfeff);
-  const blob = new Blob([bom + rowsCsv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+// ── Export preview / download (real .xlsx, via the same SheetJS build used for import) ──
+const downloadXlsx = (filename: string, sheetName: string, headers: string[], rows: string[][]) => {
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const workbook = XLSX.utils.book_new();
+  // Excel sheet names are capped at 31 chars.
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
+  XLSX.writeFile(workbook, filename);
 };
 
 interface ExportData {
@@ -297,14 +286,14 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
             className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
             disabled={data.rows.length === 0}
             type="button"
-            onClick={() => downloadCsv(data.filename, data.headers, data.rows)}
+            onClick={() => downloadXlsx(data.filename, data.title, data.headers, data.rows)}
           >
             <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" x2="12" y1="15" y2="3" />
             </svg>
-            Download CSV
+            Download Excel
           </button>
         </div>
       </div>
@@ -560,6 +549,7 @@ const WaitlistLeads = () => {
       const updated = await dispatch(addLeadNote({ facilityCode, leadId: viewEntry.id, text })).unwrap();
       setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
     }
+    toast.success('Note saved');
   };
 
   const handleDeleteNote = async (noteId: string) => {
@@ -597,6 +587,7 @@ const WaitlistLeads = () => {
           : prev
       );
     }
+    toast.success('Status updated');
   };
 
   // Fetches EVERY waitlist row (bypasses pagination) — the Waitlist tab always
@@ -698,7 +689,7 @@ const WaitlistLeads = () => {
     if (tab === 'waitlist') {
       return {
         title: 'Waitlist',
-        filename: `waitlist-${facilityCode || 'centre'}.csv`,
+        filename: `waitlist-${facilityCode || 'centre'}.xlsx`,
         headers: ['Name', 'Email', 'Phone', 'Waitlist Type', 'Status', 'Date Added', 'Position'],
         rows: waitlistRows.map((e, i) => {
           const typeLabel = e.subscriptionSrc ? typeMetaFor(typeKeyOf(e)).label : '';
@@ -717,7 +708,7 @@ const WaitlistLeads = () => {
     }
     return {
       title: 'Enquires',
-      filename: `enquires-${facilityCode || 'centre'}.csv`,
+      filename: `enquires-${facilityCode || 'centre'}.xlsx`,
       headers: ['Name', 'Email', 'Phone', 'Action', 'Plan', 'Billing', 'Status', 'Date'],
       rows: leadsRows.map(l => {
         const plan = leadPlanOf(l);
