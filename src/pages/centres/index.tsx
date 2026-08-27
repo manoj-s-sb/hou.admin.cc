@@ -12,7 +12,7 @@ import { facilityScope } from '../../utils/facilityScope';
 
 import { LIVE_CENTRE_MODULES } from './centreModules';
 import CentreCard from './components/CentreCard';
-import { CENTRE_CREATION_ENABLED, STATUS_FILTERS, PAGE_LIMIT } from './constants';
+import { CENTRE_CREATION_ENABLED, CENTRE_EDIT_ENABLED, STATUS_FILTERS, PAGE_LIMIT } from './constants';
 import NewCentreWizard from './newCentre/NewCentreWizard';
 
 import type { CentreApiStatus } from '../../store/centres/types';
@@ -222,7 +222,9 @@ const CentreManagement: React.FC = () => {
               <CentreCard
                 key={c.id || c.code}
                 centre={c}
-                onEdit={canManageCentres ? summary => startEdit(summary.code) : undefined}
+                onEdit={
+                  canManageCentres && CENTRE_EDIT_ENABLED ? summary => startEdit(summary.code) : undefined
+                }
                 onOpen={summary => {
                   facilityScope.set(summary.code);
                   // Land on the first module this user has read access to.

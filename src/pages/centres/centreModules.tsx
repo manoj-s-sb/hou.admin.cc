@@ -10,6 +10,7 @@ import Tickets from '../tickets';
 import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
 
+import ComingSoon from './components/ComingSoon';
 import Facilities from './facilities';
 import PlansPricing from './plans';
 
@@ -18,6 +19,12 @@ import type { CentreModuleKey } from '../../contexts/CentreNavContext';
 // Maintenance is a large page kept in its own chunk (see App.tsx) — lazy-load it here too
 // so the registry (imported by the Sidebar) doesn't pull it into the main bundle.
 const Maintenance = lazy(() => import('../maintenance'));
+
+// Temporary: Plans & Pricing shows real per-centre data behind a Coming Soon
+// placeholder for now — the PlansPricing import above stays wired so restoring
+// it later is just swapping this back for `PlansPricing` as the module's
+// `component`. Frontend-only; the backend routes are untouched.
+const PlansPricingComingSoon: React.FC = () => <ComingSoon moduleLabel="Plans & Pricing" />;
 
 export interface CentreModuleDef {
   key: CentreModuleKey;
@@ -195,7 +202,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         key: 'plans',
         label: 'Plans & Pricing',
         slug: 'plans-pricing',
-        component: PlansPricing,
+        component: PlansPricingComingSoon,
         scope: ACCESS_SCOPES.plansPricing,
         icon: I(
           <>

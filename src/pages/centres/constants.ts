@@ -212,6 +212,13 @@ export const PRE_LAUNCH_FACILITY_CODES = new Set([NEW_YORK_FACILITY_CODE]);
    `true` (or delete this flag and its two call sites) in the next push. ── */
 export const CENTRE_CREATION_ENABLED = false;
 
+/* ── Temporary: editing an existing centre is disabled in production for now.
+   Hides the "Edit"/"Edit & Activate" button on every centre card in
+   src/pages/centres/index.tsx (passed as CentreCard's onEdit prop). Frontend-
+   only; the backend still accepts update requests. Flip back to `true` (or
+   delete this flag and its call site) in the next push. ── */
+export const CENTRE_EDIT_ENABLED = false;
+
 /* ── Centre list page ── */
 export const PAGE_LIMIT = 20;
 export const STATUS_FILTERS: { key: '' | CentreApiStatus; label: string }[] = [
