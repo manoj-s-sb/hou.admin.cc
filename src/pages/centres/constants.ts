@@ -205,6 +205,13 @@ export const GRID_3: CSSProperties = { display: 'grid', gridTemplateColumns: 're
 export const NEW_YORK_FACILITY_CODE = 'NYC01';
 export const PRE_LAUNCH_FACILITY_CODES = new Set([NEW_YORK_FACILITY_CODE]);
 
+/* ── Temporary: "New Centre" creation is disabled in production for now — an
+   accidental add is hard to clean up. Hides both entry points (the header
+   button and the dashed "Add New Centre" card) in src/pages/centres/index.tsx.
+   Frontend-only; the backend still accepts create requests. Flip back to
+   `true` (or delete this flag and its two call sites) in the next push. ── */
+export const CENTRE_CREATION_ENABLED = false;
+
 /* ── Centre list page ── */
 export const PAGE_LIMIT = 20;
 export const STATUS_FILTERS: { key: '' | CentreApiStatus; label: string }[] = [

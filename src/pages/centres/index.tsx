@@ -12,7 +12,7 @@ import { facilityScope } from '../../utils/facilityScope';
 
 import { LIVE_CENTRE_MODULES } from './centreModules';
 import CentreCard from './components/CentreCard';
-import { STATUS_FILTERS, PAGE_LIMIT } from './constants';
+import { CENTRE_CREATION_ENABLED, STATUS_FILTERS, PAGE_LIMIT } from './constants';
 import NewCentreWizard from './newCentre/NewCentreWizard';
 
 import type { CentreApiStatus } from '../../store/centres/types';
@@ -200,7 +200,7 @@ const CentreManagement: React.FC = () => {
           All Centres
           {!isLoading && <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--sub)' }}> · {total}</span>}
         </div>
-        {canManageCentres && (
+        {canManageCentres && CENTRE_CREATION_ENABLED && (
           <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => setWizardOpen(true)}>
             <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
               <line x1="12" x2="12" y1="5" y2="19" />
@@ -232,10 +232,10 @@ const CentreManagement: React.FC = () => {
               />
             ))}
 
-            {/* Add New Centre dashed card — super-admin only, and only alongside the
-                unfiltered/live view (All or Active); it doesn't make sense to invite
-                adding a new centre while browsing Draft/Staging/Suspended ones. */}
-            {canManageCentres && (statusFilter === '' || statusFilter === 'active') && (
+            {/* Add New Centre dashed card — super-admin only, only alongside the
+                unfiltered/live view (All or Active), and only while centre creation
+                is enabled (see CENTRE_CREATION_ENABLED in ./constants). */}
+            {canManageCentres && CENTRE_CREATION_ENABLED && (statusFilter === '' || statusFilter === 'active') && (
               <button
                 aria-label="Add new centre"
                 className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"
