@@ -37,7 +37,13 @@ export const STATUS_META: Record<ContactStatus, { label: string; className: stri
   not_interested: { label: 'Not Interested', className: 'border-red-200 bg-red-50 text-red-700' },
 };
 
-const STATUS_ORDER: ContactStatus[] = ['not_contacted', 'contacted', 'no_response', 'converted', 'not_interested'];
+export const STATUS_ORDER: ContactStatus[] = [
+  'not_contacted',
+  'contacted',
+  'no_response',
+  'converted',
+  'not_interested',
+];
 
 interface MemberDetailDrawerProps {
   title: string;
