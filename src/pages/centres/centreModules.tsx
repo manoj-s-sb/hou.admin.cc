@@ -12,7 +12,6 @@ import WaitlistLeads from '../waitlist';
 
 import ComingSoon from './components/ComingSoon';
 import Facilities from './facilities';
-import PlansPricing from './plans';
 
 import type { CentreModuleKey } from '../../contexts/CentreNavContext';
 

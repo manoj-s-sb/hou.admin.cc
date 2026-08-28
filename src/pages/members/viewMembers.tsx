@@ -129,10 +129,7 @@ const ViewMembers = () => {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-lg text-gray-500">No member details found</p>
-          <button
-            className="mt-4 font-medium text-blue-600 hover:text-blue-700"
-            onClick={() => navigate(backPath)}
-          >
+          <button className="mt-4 font-medium text-blue-600 hover:text-blue-700" onClick={() => navigate(backPath)}>
             Go back to members list
           </button>
         </div>
