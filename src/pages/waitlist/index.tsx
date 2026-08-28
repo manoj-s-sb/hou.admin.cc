@@ -24,7 +24,7 @@ import { AppDispatch, RootState } from '../../store/store';
 import { formatDate } from '../../utils/dateUtils';
 
 import ImportWaitlistModal from './components/ImportWaitlistModal';
-import MemberDetailDrawer, { DetailField, STATUS_META } from './components/MemberDetailDrawer';
+import MemberDetailDrawer, { DetailField, STATUS_META, STATUS_ORDER } from './components/MemberDetailDrawer';
 
 const PAGE_SIZE = 20;
 
@@ -54,6 +54,18 @@ const titleCase = (raw: string): string =>
 // "3 Nov 2024" — falls back to a muted dash when the date is missing/invalid.
 const readableDate = (value?: string): string =>
   value ? formatDate(value, { day: 'numeric', month: 'short', year: 'numeric' }, 'en-GB') : '—';
+
+type RecencyOrder = 'newest' | 'oldest';
+
+// A missing/invalid date sorts as if it were the oldest possible entry, rather
+// than throwing it to a random spot — Array.sort is stable, so ties (including
+// two missing dates) keep their original relative order.
+const sortByRecency = <T,>(rows: T[], order: RecencyOrder, dateOf: (row: T) => string | undefined): T[] =>
+  [...rows].sort((a, b) => {
+    const at = new Date(dateOf(a) || 0).getTime() || 0;
+    const bt = new Date(dateOf(b) || 0).getTime() || 0;
+    return order === 'newest' ? bt - at : at - bt;
+  });
 
 // Older docs predate the `status` field — treat a missing status as 'not_contacted'.
 const StatusBadge: React.FC<{ status?: ContactStatus }> = ({ status }) => {
@@ -206,16 +218,81 @@ const downloadXlsx = (filename: string, sheetName: string, headers: string[], ro
   XLSX.writeFile(workbook, filename);
 };
 
-interface ExportData {
-  title: string;
-  filename: string;
-  headers: string[];
-  rows: string[][];
+// "Event - Aug 28" → "event-aug-28", for a readable filename suffix.
+const slugify = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+interface ExportSourceOption {
+  label: string;
+  value: string;
 }
 
+// Both Waitlist and Enquires entries carry the same `status` field/type, so the
+// Status filter is common to both tabs (unlike Source, which is Waitlist-only).
+const STATUS_EXPORT_OPTIONS: ExportSourceOption[] = [
+  { label: 'All Statuses', value: 'all' },
+  ...STATUS_ORDER.map(s => ({ label: STATUS_META[s].label, value: s })),
+];
+
+interface ExportData {
+  title: string;
+  /** Base filename, no extension — the modal appends a filter-derived suffix + ".xlsx". */
+  filename: string;
+  headers: string[];
+  entries: (WaitlistEntry | LeadEntry)[];
+  toRow: (entry: WaitlistEntry | LeadEntry) => string[];
+  // Present for Waitlist only — Enquires has no subscriptionSrc/registrationSource,
+  // so it gets a Range/Status control but no Source dropdown.
+  sourceOptions?: ExportSourceOption[];
+  sourceKeyOf?: (entry: WaitlistEntry | LeadEntry) => string;
+}
+
+type ExportRange = 'all' | 'first100' | 'custom';
+
 const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = ({ data, onClose }) => {
-  const preview = data.rows.slice(0, 50);
-  const truncated = data.rows.length > preview.length;
+  const [source, setSource] = useState('all');
+  const [status, setStatus] = useState('all');
+  const [range, setRange] = useState<ExportRange>('all');
+  const [customCount, setCustomCount] = useState(100);
+
+  // Source narrows first (independent of whatever Type filter/search is active on the
+  // table itself — this modal is a self-contained view of the full loaded dataset).
+  const sourceFiltered = useMemo(() => {
+    if (!data.sourceOptions || !data.sourceKeyOf || source === 'all') return data.entries;
+    return data.entries.filter(e => data.sourceKeyOf?.(e) === source);
+  }, [data, source]);
+
+  const statusFiltered = useMemo(() => {
+    if (status === 'all') return sourceFiltered;
+    return sourceFiltered.filter(e => (e.status || 'not_contacted') === status);
+  }, [sourceFiltered, status]);
+
+  const maxCustomCount = Math.max(1, statusFiltered.length);
+  const rangedEntries = useMemo(() => {
+    if (range === 'all') return statusFiltered;
+    const count = range === 'first100' ? 100 : Math.min(Math.max(1, customCount), maxCustomCount);
+    return statusFiltered.slice(0, count);
+  }, [statusFiltered, range, customCount, maxCustomCount]);
+
+  const rows = useMemo(() => rangedEntries.map(data.toRow), [rangedEntries, data]);
+
+  const filename = useMemo(() => {
+    const parts: string[] = [];
+    if (data.sourceOptions && source !== 'all') {
+      const label = data.sourceOptions.find(o => o.value === source)?.label || source;
+      parts.push(slugify(label));
+    }
+    if (status !== 'all') parts.push(slugify(STATUS_EXPORT_OPTIONS.find(o => o.value === status)?.label || status));
+    if (range === 'first100') parts.push('first100');
+    if (range === 'custom') parts.push(`first${Math.min(Math.max(1, customCount), maxCustomCount)}`);
+    return `${data.filename}${parts.length ? `-${parts.join('-')}` : ''}.xlsx`;
+  }, [data, source, status, range, customCount, maxCustomCount]);
+
+  const preview = rows.slice(0, 50);
+  const truncated = rows.length > preview.length;
   return (
     <div
       aria-modal="true"
@@ -227,7 +304,7 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
           <div>
             <h2 className="text-[16px] font-bold text-[#21295A]">Export Preview — {data.title}</h2>
             <p className="mt-0.5 text-[12px] text-gray-400">
-              {data.rows.length} row{data.rows.length === 1 ? '' : 's'} (current page). Review below, then download.
+              {rows.length} row{rows.length === 1 ? '' : 's'} selected. Review below, then download.
             </p>
           </div>
           <button
@@ -240,8 +317,88 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
           </button>
         </div>
 
+        <div className="flex flex-wrap gap-4 border-b border-gray-100 px-6 py-4">
+          <div className="min-w-[220px] flex-1">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Export Range</p>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-[13px] text-gray-700">
+                <input
+                  checked={range === 'all'}
+                  name="export-range"
+                  type="radio"
+                  onChange={() => setRange('all')}
+                />
+                All records — {statusFiltered.length}
+              </label>
+              <label className="flex items-center gap-2 text-[13px] text-gray-700">
+                <input
+                  checked={range === 'first100'}
+                  disabled={statusFiltered.length <= 100}
+                  name="export-range"
+                  type="radio"
+                  onChange={() => setRange('first100')}
+                />
+                First 100 records
+              </label>
+              <label className="flex items-center gap-2 text-[13px] text-gray-700">
+                <input
+                  checked={range === 'custom'}
+                  name="export-range"
+                  type="radio"
+                  onChange={() => setRange('custom')}
+                />
+                Custom range
+                {range === 'custom' && (
+                  <>
+                    <span className="text-gray-400">— first</span>
+                    <input
+                      className="w-16 rounded-md border border-gray-200 px-2 py-0.5 text-[12px]"
+                      max={maxCustomCount}
+                      min={1}
+                      type="number"
+                      value={customCount}
+                      onChange={e => setCustomCount(Number(e.target.value) || 1)}
+                    />
+                    <span className="text-gray-400">of {statusFiltered.length}</span>
+                  </>
+                )}
+              </label>
+            </div>
+          </div>
+          {data.sourceOptions && (
+            <div className="min-w-[160px] flex-1">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Source</p>
+              <select
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700"
+                value={source}
+                onChange={e => setSource(e.target.value)}
+              >
+                {data.sourceOptions.map(o => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="min-w-[160px] flex-1">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</p>
+            <select
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700"
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+            >
+              {STATUS_EXPORT_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="flex-1 overflow-auto px-6 py-4">
-          {data.rows.length === 0 ? (
+          {rows.length === 0 ? (
             <p className="py-10 text-center text-[13px] text-gray-400">Nothing to export.</p>
           ) : (
             <table className="w-full border-collapse text-left text-[12px]">
@@ -269,7 +426,7 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
           )}
           {truncated && (
             <p className="mt-3 text-[11px] text-gray-400">
-              Showing first {preview.length} of {data.rows.length} rows — all rows are included in the download.
+              Showing first {preview.length} of {rows.length} rows — all selected rows are included in the download.
             </p>
           )}
         </div>
@@ -284,9 +441,9 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
           </button>
           <button
             className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
-            disabled={data.rows.length === 0}
+            disabled={rows.length === 0}
             type="button"
-            onClick={() => downloadXlsx(data.filename, data.title, data.headers, data.rows)}
+            onClick={() => downloadXlsx(filename, data.title, data.headers, rows)}
           >
             <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -462,6 +619,9 @@ const WaitlistLeads = () => {
   const [tab, setTab] = useState<'waitlist' | 'leads'>('waitlist');
   const [typeFilter, setTypeFilter] = useState('all');
   const [waitlistSearch, setWaitlistSearch] = useState('');
+  // Newest-first by default so a fresh page load surfaces who just signed up —
+  // Position numbers are unaffected either way (see waitlistColumns' Position cell).
+  const [waitlistSort, setWaitlistSort] = useState<RecencyOrder>('newest');
   // The Waitlist tab always loads the FULL dataset (see fetchAllWaitlist) — both
   // to let the Type filter search everything, not just one page, and to build
   // its filter chips/labels dynamically from whatever types actually exist.
@@ -473,6 +633,7 @@ const WaitlistLeads = () => {
   // the search box below can match against every entry, not just one page —
   // same reasoning and pagination approach as the Waitlist tab above.
   const [leadsSearch, setLeadsSearch] = useState('');
+  const [leadsSort, setLeadsSort] = useState<RecencyOrder>('newest');
   const [leadsUiPage, setLeadsUiPage] = useState(0);
   const [leadsUiRowsPerPage, setLeadsUiRowsPerPage] = useState(PAGE_SIZE);
   const [showExport, setShowExport] = useState(false);
@@ -492,9 +653,12 @@ const WaitlistLeads = () => {
     isManualLead: boolean;
   } | null>(null);
 
-  const openWaitlistEntry = (entry: WaitlistEntry, index: number) => {
+  const openWaitlistEntry = (entry: WaitlistEntry) => {
     const typeLabel = entry.subscriptionSrc ? typeMetaFor(typeKeyOf(entry)).label : '—';
-    const pos = entry.position ?? waitlistUiPage * waitlistUiRowsPerPage + index + 1;
+    // Always the entry's true position in `waitlist` (its original, position-ordered load
+    // order) — never derived from the row's index in the currently sorted/paginated table,
+    // so Position stays correct no matter what Newest/Oldest sort is active.
+    const pos = entry.position ?? waitlist.indexOf(entry) + 1;
     setViewEntry({
       type: 'waitlist',
       id: entry.id || '',
@@ -642,7 +806,9 @@ const WaitlistLeads = () => {
   }, [waitlist]);
 
   // Applied client-side over the full loaded dataset (see fetchAllWaitlist) —
-  // Type chip first, then a partial match on name, email, phone or contact status.
+  // Type chip, then a partial match on name/email/phone/status, then the
+  // Newest/Oldest sort. This only reorders what's displayed — Position always
+  // reflects each entry's true position in `waitlist` (see waitlistColumns).
   const waitlistRows = useMemo(() => {
     let rows = typeFilter === 'all' ? waitlist : waitlist.filter(e => typeKeyOf(e) === typeFilter);
     const q = waitlistSearch.trim().toLowerCase();
@@ -655,8 +821,8 @@ const WaitlistLeads = () => {
         return name.includes(q) || email.includes(q) || phone.includes(q) || statusLabel.includes(q);
       });
     }
-    return rows;
-  }, [waitlist, typeFilter, waitlistSearch]);
+    return sortByRecency(rows, waitlistSort, e => e.createdAt);
+  }, [waitlist, typeFilter, waitlistSearch, waitlistSort]);
 
   // Reset to page 1 whenever the filtered set changes size, so switching
   // filters (or a fresh import) never leaves the table on an out-of-range page.
@@ -668,15 +834,18 @@ const WaitlistLeads = () => {
   // matches a partial name, email, phone number or contact status, same idiom as waitlistRows.
   const leadsRows = useMemo(() => {
     const q = leadsSearch.trim().toLowerCase();
-    if (!q) return leads;
-    return leads.filter(l => {
-      const name = leadDisplayNameOf(l).toLowerCase();
-      const email = (l.details?.email || '').toLowerCase();
-      const phone = (l.details?.phoneNo || '').toLowerCase();
-      const statusLabel = STATUS_META[l.status || 'not_contacted'].label.toLowerCase();
-      return name.includes(q) || email.includes(q) || phone.includes(q) || statusLabel.includes(q);
-    });
-  }, [leads, leadsSearch]);
+    let rows = leads;
+    if (q) {
+      rows = rows.filter(l => {
+        const name = leadDisplayNameOf(l).toLowerCase();
+        const email = (l.details?.email || '').toLowerCase();
+        const phone = (l.details?.phoneNo || '').toLowerCase();
+        const statusLabel = STATUS_META[l.status || 'not_contacted'].label.toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q) || statusLabel.includes(q);
+      });
+    }
+    return sortByRecency(rows, leadsSort, l => l.timestamp || l.createdAt);
+  }, [leads, leadsSearch, leadsSort]);
 
   // Reset to page 1 whenever the filtered set changes size, so a new search
   // (or a fresh add) never leaves the table on an out-of-range page.
@@ -684,16 +853,20 @@ const WaitlistLeads = () => {
     setLeadsUiPage(0);
   }, [leadsRows.length]);
 
-  // Export payload for the active tab — the full filtered set (see waitlistRows).
+  // Export payload for the active tab — the full loaded dataset (not waitlistRows/leadsRows,
+  // which reflect the table's on-screen Type filter/search). The export modal has its own
+  // Range + Source controls, deliberately independent of whatever's currently on screen.
   const exportData: ExportData = useMemo(() => {
     if (tab === 'waitlist') {
       return {
         title: 'Waitlist',
-        filename: `waitlist-${facilityCode || 'centre'}.xlsx`,
+        filename: `waitlist-${facilityCode || 'centre'}`,
         headers: ['Name', 'Email', 'Phone', 'Waitlist Type', 'Status', 'Date Added', 'Position'],
-        rows: waitlistRows.map((e, i) => {
+        entries: waitlist,
+        toRow: entry => {
+          const e = entry as WaitlistEntry;
           const typeLabel = e.subscriptionSrc ? typeMetaFor(typeKeyOf(e)).label : '';
-          const pos = e.position ?? i + 1;
+          const pos = e.position ?? waitlist.indexOf(e) + 1;
           return [
             e.name || '',
             e.email || '',
@@ -703,14 +876,18 @@ const WaitlistLeads = () => {
             readableDate(e.createdAt),
             `#${pos}`,
           ];
-        }),
+        },
+        sourceOptions: typeFilterOptions.map(o => (o.value === 'all' ? { ...o, label: 'All Sources' } : o)),
+        sourceKeyOf: entry => typeKeyOf(entry as WaitlistEntry),
       };
     }
     return {
       title: 'Enquires',
-      filename: `enquires-${facilityCode || 'centre'}.xlsx`,
+      filename: `enquires-${facilityCode || 'centre'}`,
       headers: ['Name', 'Email', 'Phone', 'Action', 'Plan', 'Billing', 'Status', 'Date'],
-      rows: leadsRows.map(l => {
+      entries: leads,
+      toRow: entry => {
+        const l = entry as LeadEntry;
         const plan = leadPlanOf(l);
         const cycle = l.details?.billing_cycle ?? '';
         return [
@@ -723,9 +900,9 @@ const WaitlistLeads = () => {
           STATUS_META[l.status || 'not_contacted'].label,
           readableDate(l.timestamp || l.createdAt),
         ];
-      }),
+      },
     };
-  }, [tab, waitlistRows, leadsRows, facilityCode]);
+  }, [tab, waitlist, leads, facilityCode, typeFilterOptions]);
 
   const waitlistColumns: ColumnDef[] = [
     {
@@ -801,9 +978,11 @@ const WaitlistLeads = () => {
       flex: 0.7,
       minWidth: 90,
       sortable: false,
-      renderCell: ({ row, index }) => {
+      renderCell: ({ row }) => {
         const entry = row as WaitlistEntry;
-        const pos = entry.position ?? waitlistUiPage * waitlistUiRowsPerPage + index + 1;
+        // True position in `waitlist` (original load order) — independent of the
+        // Newest/Oldest sort or pagination currently applied to the table view.
+        const pos = entry.position ?? waitlist.indexOf(entry) + 1;
         return <span className="text-[13px] font-bold text-[#21295A]">#{pos}</span>;
       },
     },
@@ -813,11 +992,11 @@ const WaitlistLeads = () => {
       flex: 0.6,
       minWidth: 80,
       sortable: false,
-      renderCell: ({ row, index }) => (
+      renderCell: ({ row }) => (
         <button
           className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
           type="button"
-          onClick={() => openWaitlistEntry(row as WaitlistEntry, index)}
+          onClick={() => openWaitlistEntry(row as WaitlistEntry)}
         >
           View
         </button>
@@ -1009,13 +1188,22 @@ const WaitlistLeads = () => {
                 </Chip>
               ))}
             </div>
-            <input
-              className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
-              placeholder="Search by name, phone, email or status…"
-              type="text"
-              value={waitlistSearch}
-              onChange={e => setWaitlistSearch(e.target.value)}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sort</span>
+              <Chip active={waitlistSort === 'newest'} onClick={() => setWaitlistSort('newest')}>
+                Newest first
+              </Chip>
+              <Chip active={waitlistSort === 'oldest'} onClick={() => setWaitlistSort('oldest')}>
+                Oldest first
+              </Chip>
+              <input
+                className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+                placeholder="Search by name, phone, email or status…"
+                type="text"
+                value={waitlistSearch}
+                onChange={e => setWaitlistSearch(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="mb-2 flex justify-end">
@@ -1051,14 +1239,23 @@ const WaitlistLeads = () => {
       ) : (
         <>
           {/* ── Filter Bar ──────────────────────────────────── */}
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
-            <input
-              className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
-              placeholder="Search by name, phone, email or status…"
-              type="text"
-              value={leadsSearch}
-              onChange={e => setLeadsSearch(e.target.value)}
-            />
+          <div className="mb-4 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sort</span>
+              <Chip active={leadsSort === 'newest'} onClick={() => setLeadsSort('newest')}>
+                Newest first
+              </Chip>
+              <Chip active={leadsSort === 'oldest'} onClick={() => setLeadsSort('oldest')}>
+                Oldest first
+              </Chip>
+              <input
+                className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+                placeholder="Search by name, phone, email or status…"
+                type="text"
+                value={leadsSearch}
+                onChange={e => setLeadsSearch(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="mb-2 flex justify-end">
