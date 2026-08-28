@@ -73,6 +73,9 @@ const endpoints = {
     leads: `${API_PREFIX}/admin/centres/leads`, // POST { facilityCode, action?, subscription_code?, page, limit }
     waitlistNotesAdd: `${API_PREFIX}/admin/centres/waitlist/notes/add`, // POST { facilityCode, waitlistId, text, createdByName }
     waitlistNotesDelete: `${API_PREFIX}/admin/centres/waitlist/notes/delete`, // POST { facilityCode, waitlistId, noteId }
+    // POST { facilityCode, waitlistId, deletedByName } — SOFT delete: the entry stops
+    // appearing in /admin/centres/waitlist, but the document stays in Cosmos.
+    waitlistDelete: `${API_PREFIX}/admin/centres/waitlist/delete`,
     // POST { facilityCode, waitlistId, status, changedByName } — status is one of
     // not_contacted/contacted/no_response/converted/not_interested
     waitlistStatusUpdate: `${API_PREFIX}/admin/centres/waitlist/status/update`,

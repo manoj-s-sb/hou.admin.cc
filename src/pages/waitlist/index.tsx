@@ -13,6 +13,7 @@ import {
   createLead,
   deleteLead,
   deleteLeadNote,
+  deleteWaitlistEntry,
   deleteWaitlistNote,
   getCentreLeads,
   getCentreWaitlist,
@@ -652,6 +653,25 @@ const WaitlistLeads = () => {
     /** Only manually-added leads ("+ Add Enquiry") are deletable — funnel-derived ones aren't. */
     isManualLead: boolean;
   } | null>(null);
+  // Tracks which row's inline Delete button (in the table, next to View) is
+  // in flight — disables just that row's button, distinct from the drawer's
+  // own delete (handleDeleteEntry/deletingEntry inside MemberDetailDrawer).
+  const [deletingWaitlistId, setDeletingWaitlistId] = useState<string | null>(null);
+
+  const handleDeleteWaitlistRow = async (entry: WaitlistEntry) => {
+    if (!facilityCode || !entry.id || deletingWaitlistId) return;
+    if (!window.confirm(`Delete ${entry.name || entry.email || 'this entry'}? This can't be undone.`)) return;
+    setDeletingWaitlistId(entry.id);
+    try {
+      await dispatch(deleteWaitlistEntry({ facilityCode, waitlistId: entry.id })).unwrap();
+      toast.success('Removed from waitlist');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
+      toast.error(message || 'Failed to delete');
+    } finally {
+      setDeletingWaitlistId(null);
+    }
+  };
 
   const openWaitlistEntry = (entry: WaitlistEntry) => {
     const typeLabel = entry.subscriptionSrc ? typeMetaFor(typeKeyOf(entry)).label : '—';
@@ -728,9 +748,15 @@ const WaitlistLeads = () => {
   };
 
   const handleDeleteEntry = async () => {
-    if (!viewEntry || !facilityCode || viewEntry.type !== 'lead') return;
-    await dispatch(deleteLead({ facilityCode, leadId: viewEntry.id })).unwrap();
-    toast.success('Enquiry deleted');
+    if (!viewEntry || !facilityCode) return;
+    if (viewEntry.type === 'waitlist') {
+      // Soft delete — the entry stops appearing here, but the document stays in Cosmos.
+      await dispatch(deleteWaitlistEntry({ facilityCode, waitlistId: viewEntry.id })).unwrap();
+      toast.success('Removed from waitlist');
+    } else {
+      await dispatch(deleteLead({ facilityCode, leadId: viewEntry.id })).unwrap();
+      toast.success('Enquiry deleted');
+    }
     setViewEntry(null);
   };
 
@@ -989,18 +1015,36 @@ const WaitlistLeads = () => {
     {
       field: 'actions',
       headerName: '',
-      flex: 0.6,
-      minWidth: 80,
+      flex: 1,
+      minWidth: 130,
       sortable: false,
-      renderCell: ({ row }) => (
-        <button
-          className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
-          type="button"
-          onClick={() => openWaitlistEntry(row as WaitlistEntry)}
-        >
-          View
-        </button>
-      ),
+      renderCell: ({ row }) => {
+        const entry = row as WaitlistEntry;
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
+              type="button"
+              onClick={() => openWaitlistEntry(entry)}
+            >
+              View
+            </button>
+            <button
+              aria-label="Delete"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+              disabled={deletingWaitlistId === entry.id}
+              title="Delete from waitlist"
+              type="button"
+              onClick={() => handleDeleteWaitlistRow(entry)}
+            >
+              <svg fill="none" height={14} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={14}>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -1314,7 +1358,7 @@ const WaitlistLeads = () => {
           title={viewEntry.title}
           onAddNote={handleAddNote}
           onClose={() => setViewEntry(null)}
-          onDeleteEntry={viewEntry.isManualLead ? handleDeleteEntry : undefined}
+          onDeleteEntry={viewEntry.type === 'waitlist' || viewEntry.isManualLead ? handleDeleteEntry : undefined}
           onDeleteNote={handleDeleteNote}
           onStatusChange={handleStatusChange}
         />

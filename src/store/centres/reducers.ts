@@ -6,6 +6,7 @@ import {
   createCentre,
   deleteLead,
   deleteLeadNote,
+  deleteWaitlistEntry,
   deleteWaitlistNote,
   getCentreBookings,
   getCentreDetails,
@@ -174,6 +175,9 @@ const centresSlice = createSlice({
     });
     builder.addCase(deleteLead.fulfilled, (state, action) => {
       state.leads = state.leads.filter(e => e.id !== action.payload.leadId);
+    });
+    builder.addCase(deleteWaitlistEntry.fulfilled, (state, action) => {
+      state.waitlist = state.waitlist.filter(e => e.id !== action.payload.waitlistId);
     });
     builder.addCase(updateWaitlistStatus.fulfilled, (state, action) => {
       const updated = action.payload;

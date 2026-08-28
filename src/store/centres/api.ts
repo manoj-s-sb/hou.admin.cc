@@ -280,6 +280,21 @@ export const updateWaitlistStatus = createAsyncThunk<
   }
 });
 
+/** POST /admin/centres/waitlist/delete — SOFT delete: the entry stops appearing in
+ * /admin/centres/waitlist, but the document itself is untouched in Cosmos. */
+export const deleteWaitlistEntry = createAsyncThunk<
+  { waitlistId: string },
+  { facilityCode: string; waitlistId: string },
+  { rejectValue: string }
+>('centres/deleteWaitlistEntry', async ({ facilityCode, waitlistId }, { rejectWithValue }) => {
+  try {
+    await api.post(endpoints.centres.waitlistDelete, { facilityCode, waitlistId, deletedByName: actorName() });
+    return { waitlistId };
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to delete waitlist entry'));
+  }
+});
+
 /**
  * POST /admin/centres/leads/create — manually add a lead (not backed by the funnel
  * tracker). Backend's CreateLeadRequest (extra="forbid") accepts exactly:
