@@ -6,7 +6,8 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
-import { ROUTES } from '../../constants/routes';
+import { buildRoute, ROUTES } from '../../constants/routes';
+import { getFacilityCode } from '../../constants/user';
 import { getInductionStepsDetails, updateInductionSteps, userInductionDetails } from '../../store/induction/api';
 import { Induction, SubStep } from '../../store/induction/types';
 import { activateUserSubscription } from '../../store/members/api';
@@ -28,6 +29,13 @@ const ViewInduction = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? '';
+  // The centre this induction was viewed from — see the same pattern/rationale in
+  // pages/members/viewMembers.tsx (Back must return to the centre-scoped list, not
+  // the global Coming-Soon /induction route).
+  const backFacilityCode = (location.state as { facilityCode?: string } | null)?.facilityCode || getFacilityCode();
+  const backPath = backFacilityCode
+    ? `${buildRoute.centreModule(backFacilityCode, 'induction')}${listSearch}`
+    : `${ROUTES.INDUCTION.path}${listSearch}`;
   const { userId = '' } = useParams<{ userId: string }>();
 
   const [data, setData] = useState<Induction | null>(induction?.userInductionDetails ?? null);
@@ -142,7 +150,7 @@ const ViewInduction = () => {
           search={false}
           title="View Induction"
           value=""
-          onBackClick={() => navigate(`${ROUTES.INDUCTION.path}${listSearch}`)}
+          onBackClick={() => navigate(backPath)}
           onSearch={() => undefined}
         />
         <div className="flex items-center justify-center rounded-lg bg-white p-12 shadow-md">
@@ -162,7 +170,7 @@ const ViewInduction = () => {
           search={false}
           title="View Induction"
           value=""
-          onBackClick={() => navigate(`${ROUTES.INDUCTION.path}${listSearch}`)}
+          onBackClick={() => navigate(backPath)}
           onSearch={() => undefined}
         />
         <div className="rounded-lg bg-white p-12 shadow-md">
@@ -170,7 +178,7 @@ const ViewInduction = () => {
             <p className="text-lg text-gray-600">No induction details found</p>
             <button
               className="mt-4 rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-              onClick={() => navigate(`${ROUTES.INDUCTION.path}${listSearch}`)}
+              onClick={() => navigate(backPath)}
             >
               Back to Inductions
             </button>
@@ -189,7 +197,7 @@ const ViewInduction = () => {
         search={false}
         title="View Induction"
         value=""
-        onBackClick={() => navigate(`${ROUTES.INDUCTION.path}${listSearch}`)}
+        onBackClick={() => navigate(backPath)}
         onSearch={() => undefined}
       />
 

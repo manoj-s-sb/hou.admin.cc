@@ -2,17 +2,30 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
+import * as XLSX from 'xlsx';
 
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { getFacilityCode } from '../../constants/user';
-import { addLeadNote, addWaitlistNote, createLead, getCentreLeads, getCentreWaitlist } from '../../store/centres/api';
-import { AdminNote, LeadEntry, WaitlistEntry } from '../../store/centres/types';
+import {
+  addLeadNote,
+  addWaitlistNote,
+  createLead,
+  deleteLead,
+  deleteLeadNote,
+  deleteWaitlistEntry,
+  deleteWaitlistNote,
+  getCentreLeads,
+  getCentreWaitlist,
+  updateLeadStatus,
+  updateWaitlistStatus,
+} from '../../store/centres/api';
+import { AdminNote, ContactStatus, LeadEntry, StatusHistoryEntry, WaitlistEntry } from '../../store/centres/types';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDate } from '../../utils/dateUtils';
 
 import ImportWaitlistModal from './components/ImportWaitlistModal';
-import MemberDetailDrawer, { DetailField } from './components/MemberDetailDrawer';
+import MemberDetailDrawer, { DetailField, STATUS_META, STATUS_ORDER } from './components/MemberDetailDrawer';
 
 const PAGE_SIZE = 20;
 
@@ -43,7 +56,40 @@ const titleCase = (raw: string): string =>
 const readableDate = (value?: string): string =>
   value ? formatDate(value, { day: 'numeric', month: 'short', year: 'numeric' }, 'en-GB') : '—';
 
-const planOf = (e: WaitlistEntry): string => (e.plan || e.details?.subscription_code || '').toString();
+type RecencyOrder = 'newest' | 'oldest';
+
+// A missing/invalid date sorts as if it were the oldest possible entry, rather
+// than throwing it to a random spot — Array.sort is stable, so ties (including
+// two missing dates) keep their original relative order.
+const sortByRecency = <T,>(rows: T[], order: RecencyOrder, dateOf: (row: T) => string | undefined): T[] =>
+  [...rows].sort((a, b) => {
+    const at = new Date(dateOf(a) || 0).getTime() || 0;
+    const bt = new Date(dateOf(b) || 0).getTime() || 0;
+    return order === 'newest' ? bt - at : at - bt;
+  });
+
+// Older docs predate the `status` field — treat a missing status as 'not_contacted'.
+const StatusBadge: React.FC<{ status?: ContactStatus }> = ({ status }) => {
+  const meta = STATUS_META[status || 'not_contacted'];
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${meta.className}`}>{meta.label}</span>
+  );
+};
+
+// Prefixes the country code (e.g. "+1"), when the signup/import captured one.
+const waitlistPhoneOf = (e: WaitlistEntry): string => {
+  if (!e.phoneNo) return '—';
+  const cc = (e.countryCode || '').trim();
+  if (!cc) return e.phoneNo;
+  return `${cc.startsWith('+') ? cc : `+${cc}`} ${e.phoneNo}`;
+};
+
+// Funnel-derived leads carry the plan under `subscription_code`; manually-added
+// leads (the "+ Add Lead" form) carry it under `planInterest` instead.
+const leadPlanOf = (e: LeadEntry): string => (e.details?.subscription_code || e.details?.planInterest || '').toString();
+
+// Manually-added leads have a `name`; funnel-derived leads don't, so fall back to email.
+const leadDisplayNameOf = (e: LeadEntry): string => e.details?.name || e.details?.email || 'Unknown';
 
 // PLAN filter is client-side (the waitlist endpoint takes no plan param).
 const PLAN_FILTERS: { label: string; value: string }[] = [
@@ -81,19 +127,43 @@ const TYPE_BUCKET_META: Record<string, { label: string; className: string }> = {
   event: { label: 'Event', className: 'bg-violet-100 text-violet-700' },
 };
 
+// Legacy QR-campaign codes whose raw registrationSource value doesn't read as a
+// name on its own (e.g. "nycaug28" doesn't obviously mean "Aug 28"). Any NEWER
+// registrationSource (e.g. one typed into "Import from Excel" → Event Name) is
+// handled generically below — "Event - {name}" derived straight from the value,
+// no per-campaign code change needed. Only add here if a future QR code's raw
+// value needs a friendlier override than its own text.
+const CAMPAIGN_TYPE_OVERRIDES: Record<string, { label: string; className: string }> = {
+  nycaug28: { label: 'Event - Aug 28', className: 'bg-violet-100 text-violet-700' },
+};
+
 // Filter bucket for an entry's raw subscriptionSrc — a known legacy spelling's
 // bucket, or (for anything new) the raw value itself, so it filters correctly
-// even before anyone's added a label for it.
+// even before anyone's added a label for it. A registrationSource (a specific
+// named event/campaign occurrence) always takes priority over the generic
+// subscriptionSrc-derived bucket — see typeMetaFor for how it's displayed.
 const typeKeyOf = (entry: WaitlistEntry): string => {
+  const regSrc = (entry.registrationSource || '').trim();
+  if (regSrc) {
+    const key = regSrc.toLowerCase();
+    return CAMPAIGN_TYPE_OVERRIDES[key] ? key : `event:${regSrc}`;
+  }
   const src = (entry.subscriptionSrc || '').toLowerCase();
   if (!src) return 'other';
   return LEGACY_TYPE_BUCKET[src] ?? src;
 };
 
-// Display label + badge colour for a bucket key. Unknown buckets (new
-// campaign sources) fall back to a title-cased label with a neutral badge.
-const typeMetaFor = (bucket: string): { label: string; className: string } =>
-  TYPE_BUCKET_META[bucket] || { label: titleCase(bucket), className: 'bg-gray-100 text-gray-600' };
+// Display label + badge colour for a bucket key. An "event:{name}" bucket (see
+// typeKeyOf) renders as "Event - {name}" directly from the admin-entered name —
+// no code change needed per campaign. Any other unknown bucket falls back to a
+// title-cased label with a neutral badge.
+const typeMetaFor = (bucket: string): { label: string; className: string } => {
+  if (CAMPAIGN_TYPE_OVERRIDES[bucket]) return CAMPAIGN_TYPE_OVERRIDES[bucket];
+  if (bucket.startsWith('event:')) {
+    return { label: `Event - ${bucket.slice('event:'.length)}`, className: 'bg-violet-100 text-violet-700' };
+  }
+  return TYPE_BUCKET_META[bucket] || { label: titleCase(bucket), className: 'bg-gray-100 text-gray-600' };
+};
 
 const mapColumns = (cols: ColumnDef[]): TableColumn[] =>
   cols.map(col => ({
@@ -140,37 +210,90 @@ const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ messag
   </div>
 );
 
-// ── Export preview / download (CSV) ──────────────────────────
-const csvEscape = (v: string): string => {
-  const s = (v ?? '').toString();
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+// ── Export preview / download (real .xlsx, via the same SheetJS build used for import) ──
+const downloadXlsx = (filename: string, sheetName: string, headers: string[], rows: string[][]) => {
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const workbook = XLSX.utils.book_new();
+  // Excel sheet names are capped at 31 chars.
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
+  XLSX.writeFile(workbook, filename);
 };
 
-const downloadCsv = (filename: string, headers: string[], rows: string[][]) => {
-  const rowsCsv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
-  // Leading BOM so Excel opens the UTF-8 file correctly.
-  const bom = String.fromCharCode(0xfeff);
-  const blob = new Blob([bom + rowsCsv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
+// "Event - Aug 28" → "event-aug-28", for a readable filename suffix.
+const slugify = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+interface ExportSourceOption {
+  label: string;
+  value: string;
+}
+
+// Both Waitlist and Enquires entries carry the same `status` field/type, so the
+// Status filter is common to both tabs (unlike Source, which is Waitlist-only).
+const STATUS_EXPORT_OPTIONS: ExportSourceOption[] = [
+  { label: 'All Statuses', value: 'all' },
+  ...STATUS_ORDER.map(s => ({ label: STATUS_META[s].label, value: s })),
+];
 
 interface ExportData {
   title: string;
+  /** Base filename, no extension — the modal appends a filter-derived suffix + ".xlsx". */
   filename: string;
   headers: string[];
-  rows: string[][];
+  entries: (WaitlistEntry | LeadEntry)[];
+  toRow: (entry: WaitlistEntry | LeadEntry) => string[];
+  // Present for Waitlist only — Enquires has no subscriptionSrc/registrationSource,
+  // so it gets a Range/Status control but no Source dropdown.
+  sourceOptions?: ExportSourceOption[];
+  sourceKeyOf?: (entry: WaitlistEntry | LeadEntry) => string;
 }
 
+type ExportRange = 'all' | 'first100' | 'custom';
+
 const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = ({ data, onClose }) => {
-  const preview = data.rows.slice(0, 50);
-  const truncated = data.rows.length > preview.length;
+  const [source, setSource] = useState('all');
+  const [status, setStatus] = useState('all');
+  const [range, setRange] = useState<ExportRange>('all');
+  const [customCount, setCustomCount] = useState(100);
+
+  // Source narrows first (independent of whatever Type filter/search is active on the
+  // table itself — this modal is a self-contained view of the full loaded dataset).
+  const sourceFiltered = useMemo(() => {
+    if (!data.sourceOptions || !data.sourceKeyOf || source === 'all') return data.entries;
+    return data.entries.filter(e => data.sourceKeyOf?.(e) === source);
+  }, [data, source]);
+
+  const statusFiltered = useMemo(() => {
+    if (status === 'all') return sourceFiltered;
+    return sourceFiltered.filter(e => (e.status || 'not_contacted') === status);
+  }, [sourceFiltered, status]);
+
+  const maxCustomCount = Math.max(1, statusFiltered.length);
+  const rangedEntries = useMemo(() => {
+    if (range === 'all') return statusFiltered;
+    const count = range === 'first100' ? 100 : Math.min(Math.max(1, customCount), maxCustomCount);
+    return statusFiltered.slice(0, count);
+  }, [statusFiltered, range, customCount, maxCustomCount]);
+
+  const rows = useMemo(() => rangedEntries.map(data.toRow), [rangedEntries, data]);
+
+  const filename = useMemo(() => {
+    const parts: string[] = [];
+    if (data.sourceOptions && source !== 'all') {
+      const label = data.sourceOptions.find(o => o.value === source)?.label || source;
+      parts.push(slugify(label));
+    }
+    if (status !== 'all') parts.push(slugify(STATUS_EXPORT_OPTIONS.find(o => o.value === status)?.label || status));
+    if (range === 'first100') parts.push('first100');
+    if (range === 'custom') parts.push(`first${Math.min(Math.max(1, customCount), maxCustomCount)}`);
+    return `${data.filename}${parts.length ? `-${parts.join('-')}` : ''}.xlsx`;
+  }, [data, source, status, range, customCount, maxCustomCount]);
+
+  const preview = rows.slice(0, 50);
+  const truncated = rows.length > preview.length;
   return (
     <div
       aria-modal="true"
@@ -182,7 +305,7 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
           <div>
             <h2 className="text-[16px] font-bold text-[#21295A]">Export Preview — {data.title}</h2>
             <p className="mt-0.5 text-[12px] text-gray-400">
-              {data.rows.length} row{data.rows.length === 1 ? '' : 's'} (current page). Review below, then download.
+              {rows.length} row{rows.length === 1 ? '' : 's'} selected. Review below, then download.
             </p>
           </div>
           <button
@@ -195,8 +318,83 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
           </button>
         </div>
 
+        <div className="flex flex-wrap gap-4 border-b border-gray-100 px-6 py-4">
+          <div className="min-w-[220px] flex-1">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Export Range</p>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-[13px] text-gray-700">
+                <input checked={range === 'all'} name="export-range" type="radio" onChange={() => setRange('all')} />
+                All records — {statusFiltered.length}
+              </label>
+              <label className="flex items-center gap-2 text-[13px] text-gray-700">
+                <input
+                  checked={range === 'first100'}
+                  disabled={statusFiltered.length <= 100}
+                  name="export-range"
+                  type="radio"
+                  onChange={() => setRange('first100')}
+                />
+                First 100 records
+              </label>
+              <label className="flex items-center gap-2 text-[13px] text-gray-700">
+                <input
+                  checked={range === 'custom'}
+                  name="export-range"
+                  type="radio"
+                  onChange={() => setRange('custom')}
+                />
+                Custom range
+                {range === 'custom' && (
+                  <>
+                    <span className="text-gray-400">— first</span>
+                    <input
+                      className="w-16 rounded-md border border-gray-200 px-2 py-0.5 text-[12px]"
+                      max={maxCustomCount}
+                      min={1}
+                      type="number"
+                      value={customCount}
+                      onChange={e => setCustomCount(Number(e.target.value) || 1)}
+                    />
+                    <span className="text-gray-400">of {statusFiltered.length}</span>
+                  </>
+                )}
+              </label>
+            </div>
+          </div>
+          {data.sourceOptions && (
+            <div className="min-w-[160px] flex-1">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Source</p>
+              <select
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700"
+                value={source}
+                onChange={e => setSource(e.target.value)}
+              >
+                {data.sourceOptions.map(o => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="min-w-[160px] flex-1">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</p>
+            <select
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700"
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+            >
+              {STATUS_EXPORT_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="flex-1 overflow-auto px-6 py-4">
-          {data.rows.length === 0 ? (
+          {rows.length === 0 ? (
             <p className="py-10 text-center text-[13px] text-gray-400">Nothing to export.</p>
           ) : (
             <table className="w-full border-collapse text-left text-[12px]">
@@ -224,7 +422,7 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
           )}
           {truncated && (
             <p className="mt-3 text-[11px] text-gray-400">
-              Showing first {preview.length} of {data.rows.length} rows — all rows are included in the download.
+              Showing first {preview.length} of {rows.length} rows — all selected rows are included in the download.
             </p>
           )}
         </div>
@@ -239,16 +437,16 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
           </button>
           <button
             className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
-            disabled={data.rows.length === 0}
+            disabled={rows.length === 0}
             type="button"
-            onClick={() => downloadCsv(data.filename, data.headers, data.rows)}
+            onClick={() => downloadXlsx(filename, data.title, data.headers, rows)}
           >
             <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" x2="12" y1="15" y2="3" />
             </svg>
-            Download CSV
+            Download Excel
           </button>
         </div>
       </div>
@@ -270,28 +468,30 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
   const [plan, setPlan] = useState('all');
   const [saving, setSaving] = useState(false);
   const [tried, setTried] = useState(false);
-  const emailValid = Boolean(email.trim()) && EMAIL_RE.test(email.trim());
+  // Email is optional, but the backend rejects a lead with neither email nor phone.
+  const emailFormatValid = !email.trim() || EMAIL_RE.test(email.trim());
   const nameValid = Boolean(name.trim());
+  const contactValid = Boolean(email.trim()) || Boolean(phone.trim());
 
   const handleSubmit = async () => {
     setTried(true);
-    if (!emailValid || !nameValid) return;
+    if (!emailFormatValid || !nameValid || !contactValid) return;
     setSaving(true);
     try {
       await dispatch(
         createLead({
           facilityCode,
           name: name.trim(),
-          email: email.trim(),
+          email: email.trim() || undefined,
           phone: phone.trim() || undefined,
           subscriptionCode: plan === 'all' ? undefined : plan,
         })
       ).unwrap();
-      toast.success('Lead added');
+      toast.success('Enquiry added');
       onAdded();
       onClose();
     } catch (e) {
-      toast.error(typeof e === 'string' ? e : 'Could not add the lead');
+      toast.error(typeof e === 'string' ? e : 'Could not add the enquiry');
     } finally {
       setSaving(false);
     }
@@ -306,8 +506,7 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
       <div className="flex max-h-[88vh] w-full max-w-[440px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[#21295A]">Add Lead</h2>
-            <p className="mt-0.5 text-[12px] text-gray-400">Manually add someone who toured but hasn&apos;t joined.</p>
+            <h2 className="text-[16px] font-bold text-[#21295A]">Add Enquiry</h2>
           </div>
           <button
             aria-label="Close"
@@ -334,27 +533,36 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
             {tried && !nameValid && <p className="mt-1 text-[11px] text-red-500">Name is required.</p>}
           </div>
           <div>
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email *</span>
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email</span>
             <input
               className={`w-full rounded-lg border bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:bg-white ${
-                tried && !emailValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
+                tried && !emailFormatValid
+                  ? 'border-red-400 ring-1 ring-red-300'
+                  : 'border-gray-200 focus:border-[#21295A]'
               }`}
               placeholder="jordan@example.com"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
             />
-            {tried && !emailValid && <p className="mt-1 text-[11px] text-red-500">Enter a valid email address.</p>}
+            {tried && !emailFormatValid && (
+              <p className="mt-1 text-[11px] text-red-500">Enter a valid email address.</p>
+            )}
           </div>
           <div>
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</span>
             <input
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+              className={`w-full rounded-lg border bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:bg-white ${
+                tried && !contactValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
+              }`}
               placeholder="+1 555 000 0000"
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
             />
+            {tried && !contactValid && (
+              <p className="mt-1 text-[11px] text-red-500">Provide at least an email or a phone number.</p>
+            )}
           </div>
           <div>
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">
@@ -389,7 +597,7 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
             type="button"
             onClick={handleSubmit}
           >
-            {saving ? 'Adding…' : 'Add Lead'}
+            {saving ? 'Adding…' : 'Add Enquiry'}
           </button>
         </div>
       </div>
@@ -400,20 +608,16 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
 const WaitlistLeads = () => {
   const dispatch = useDispatch<AppDispatch>();
   const facilityCode = getFacilityCode();
-  const {
-    waitlist,
-    waitlistLoading,
-    waitlistError,
-    leads,
-    leadsLoading,
-    leadsError,
-    leadsTotal,
-    leadsPage,
-    leadsLimit,
-  } = useSelector((state: RootState) => state.centres);
+  const { waitlist, waitlistLoading, waitlistError, leads, leadsLoading, leadsError } = useSelector(
+    (state: RootState) => state.centres
+  );
 
   const [tab, setTab] = useState<'waitlist' | 'leads'>('waitlist');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [waitlistSearch, setWaitlistSearch] = useState('');
+  // Newest-first by default so a fresh page load surfaces who just signed up —
+  // Position numbers are unaffected either way (see waitlistColumns' Position cell).
+  const [waitlistSort, setWaitlistSort] = useState<RecencyOrder>('newest');
   // The Waitlist tab always loads the FULL dataset (see fetchAllWaitlist) — both
   // to let the Type filter search everything, not just one page, and to build
   // its filter chips/labels dynamically from whatever types actually exist.
@@ -421,6 +625,13 @@ const WaitlistLeads = () => {
   // "Position" column can still show a correct absolute number on later pages.
   const [waitlistUiPage, setWaitlistUiPage] = useState(0);
   const [waitlistUiRowsPerPage, setWaitlistUiRowsPerPage] = useState(PAGE_SIZE);
+  // The Enquires (Leads) tab also loads the FULL dataset (see fetchAllLeads) so
+  // the search box below can match against every entry, not just one page —
+  // same reasoning and pagination approach as the Waitlist tab above.
+  const [leadsSearch, setLeadsSearch] = useState('');
+  const [leadsSort, setLeadsSort] = useState<RecencyOrder>('newest');
+  const [leadsUiPage, setLeadsUiPage] = useState(0);
+  const [leadsUiRowsPerPage, setLeadsUiRowsPerPage] = useState(PAGE_SIZE);
   const [showExport, setShowExport] = useState(false);
   const [showAddLead, setShowAddLead] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -430,45 +641,81 @@ const WaitlistLeads = () => {
     title: string;
     name: string;
     email?: string;
+    status: ContactStatus;
+    statusHistory: StatusHistoryEntry[];
     fields: DetailField[];
     notes: AdminNote[];
+    /** Only manually-added leads ("+ Add Enquiry") are deletable — funnel-derived ones aren't. */
+    isManualLead: boolean;
   } | null>(null);
+  // Tracks which row's inline Delete button (in the table, next to View) is
+  // in flight — disables just that row's button, distinct from the drawer's
+  // own delete (handleDeleteEntry/deletingEntry inside MemberDetailDrawer).
+  const [deletingWaitlistId, setDeletingWaitlistId] = useState<string | null>(null);
 
-  const openWaitlistEntry = (entry: WaitlistEntry, index: number) => {
+  const handleDeleteWaitlistRow = async (entry: WaitlistEntry) => {
+    if (!facilityCode || !entry.id || deletingWaitlistId) return;
+    if (!window.confirm(`Delete ${entry.name || entry.email || 'this entry'}? This can't be undone.`)) return;
+    setDeletingWaitlistId(entry.id);
+    try {
+      await dispatch(deleteWaitlistEntry({ facilityCode, waitlistId: entry.id })).unwrap();
+      toast.success('Removed from waitlist');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
+      toast.error(message || 'Failed to delete');
+    } finally {
+      setDeletingWaitlistId(null);
+    }
+  };
+
+  const openWaitlistEntry = (entry: WaitlistEntry) => {
     const typeLabel = entry.subscriptionSrc ? typeMetaFor(typeKeyOf(entry)).label : '—';
-    const plan = planOf(entry);
-    const pos = entry.position ?? waitlistUiPage * waitlistUiRowsPerPage + index + 1;
+    // Always the entry's true position in `waitlist` (its original, position-ordered load
+    // order) — never derived from the row's index in the currently sorted/paginated table,
+    // so Position stays correct no matter what Newest/Oldest sort is active.
+    const pos = entry.position ?? waitlist.indexOf(entry) + 1;
     setViewEntry({
       type: 'waitlist',
       id: entry.id || '',
       title: 'Waitlist Member',
       name: entry.name || entry.email || 'Unknown',
       email: entry.email,
+      status: entry.status || 'not_contacted',
+      statusHistory: entry.statusHistory || [],
       fields: [
         { label: 'Waitlist Type', value: typeLabel },
-        { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
+        { label: 'Email', value: entry.email || '—' },
+        { label: 'Phone', value: waitlistPhoneOf(entry) },
         { label: 'Date Added', value: readableDate(entry.createdAt) },
         { label: 'Position', value: `#${pos}` },
       ],
       notes: entry.notes || [],
+      isManualLead: false,
     });
   };
 
   const openLeadEntry = (entry: LeadEntry) => {
-    const code = entry.details?.subscription_code ?? '';
+    const plan = leadPlanOf(entry);
     const cycle = entry.details?.billing_cycle ?? '';
     setViewEntry({
       type: 'lead',
       id: entry.id || '',
-      title: 'Lead',
-      name: entry.details?.email || 'Unknown',
+      title: 'Enquiry',
+      name: leadDisplayNameOf(entry),
+      // Only show a separate email line when the name isn't already the email
+      // (funnel-derived leads have no name, so name already IS the email).
+      email: entry.details?.name ? entry.details?.email : undefined,
+      status: entry.status || 'not_contacted',
+      statusHistory: entry.statusHistory || [],
       fields: [
         { label: 'Action', value: entry.action ? titleCase(entry.action) : '—' },
-        { label: 'Requested Plan', value: code ? titleCase(code) : '—' },
+        { label: 'Requested Plan', value: plan ? titleCase(plan) : '—' },
+        { label: 'Phone', value: entry.details?.phoneNo || '—' },
         { label: 'Billing Cycle', value: cycle ? titleCase(cycle) : '—' },
         { label: 'Date', value: readableDate(entry.timestamp || entry.createdAt) },
       ],
       notes: entry.notes || [],
+      isManualLead: entry.action === 'manual_lead_created',
     });
   };
 
@@ -481,6 +728,51 @@ const WaitlistLeads = () => {
       const updated = await dispatch(addLeadNote({ facilityCode, leadId: viewEntry.id, text })).unwrap();
       setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
     }
+    toast.success('Note saved');
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!viewEntry || !facilityCode) return;
+    if (viewEntry.type === 'waitlist') {
+      const updated = await dispatch(deleteWaitlistNote({ facilityCode, waitlistId: viewEntry.id, noteId })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
+    } else {
+      const updated = await dispatch(deleteLeadNote({ facilityCode, leadId: viewEntry.id, noteId })).unwrap();
+      setViewEntry(prev => (prev ? { ...prev, notes: updated.notes || [] } : prev));
+    }
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!viewEntry || !facilityCode) return;
+    if (viewEntry.type === 'waitlist') {
+      // Soft delete — the entry stops appearing here, but the document stays in Cosmos.
+      await dispatch(deleteWaitlistEntry({ facilityCode, waitlistId: viewEntry.id })).unwrap();
+      toast.success('Removed from waitlist');
+    } else {
+      await dispatch(deleteLead({ facilityCode, leadId: viewEntry.id })).unwrap();
+      toast.success('Enquiry deleted');
+    }
+    setViewEntry(null);
+  };
+
+  const handleStatusChange = async (status: ContactStatus) => {
+    if (!viewEntry || !facilityCode) return;
+    if (viewEntry.type === 'waitlist') {
+      const updated = await dispatch(updateWaitlistStatus({ facilityCode, waitlistId: viewEntry.id, status })).unwrap();
+      setViewEntry(prev =>
+        prev
+          ? { ...prev, status: updated.status || status, statusHistory: updated.statusHistory || prev.statusHistory }
+          : prev
+      );
+    } else {
+      const updated = await dispatch(updateLeadStatus({ facilityCode, leadId: viewEntry.id, status })).unwrap();
+      setViewEntry(prev =>
+        prev
+          ? { ...prev, status: updated.status || status, statusHistory: updated.statusHistory || prev.statusHistory }
+          : prev
+      );
+    }
+    toast.success('Status updated');
   };
 
   // Fetches EVERY waitlist row (bypasses pagination) — the Waitlist tab always
@@ -491,23 +783,25 @@ const WaitlistLeads = () => {
     dispatch(getCentreWaitlist({ facilityCode, page: 1, limit: PAGE_SIZE, all: true }));
   }, [dispatch, facilityCode]);
 
-  const fetchLeads = useCallback(
-    (page: number, limit: number) => {
-      if (!facilityCode) return;
-      dispatch(getCentreLeads({ facilityCode, page, limit }));
-    },
-    [dispatch, facilityCode]
-  );
+  // Fetches EVERY lead row (bypasses pagination) — the Enquires tab always
+  // loads the full set, so the search box below can match every entry, not
+  // just the current page (mirrors fetchAllWaitlist above).
+  const fetchAllLeads = useCallback(() => {
+    if (!facilityCode) return;
+    dispatch(getCentreLeads({ facilityCode, page: 1, limit: PAGE_SIZE, all: true }));
+  }, [dispatch, facilityCode]);
 
   // Initial load + tab switch: always fetch the active tab fresh, filters already reset.
   useEffect(() => {
     if (tab === 'waitlist') fetchAllWaitlist();
-    else fetchLeads(1, PAGE_SIZE);
-  }, [tab, fetchAllWaitlist, fetchLeads]);
+    else fetchAllLeads();
+  }, [tab, fetchAllWaitlist, fetchAllLeads]);
 
   const switchTab = (next: 'waitlist' | 'leads') => {
     if (next === tab) return;
     setTypeFilter('all');
+    setWaitlistSearch('');
+    setLeadsSearch('');
     setTab(next);
   };
 
@@ -532,11 +826,24 @@ const WaitlistLeads = () => {
     return [{ label: 'All types', value: 'all' }, ...dynamic];
   }, [waitlist]);
 
-  // Applied client-side over the full loaded dataset (see fetchAllWaitlist).
+  // Applied client-side over the full loaded dataset (see fetchAllWaitlist) —
+  // Type chip, then a partial match on name/email/phone/status, then the
+  // Newest/Oldest sort. This only reorders what's displayed — Position always
+  // reflects each entry's true position in `waitlist` (see waitlistColumns).
   const waitlistRows = useMemo(() => {
-    if (typeFilter === 'all') return waitlist;
-    return waitlist.filter(e => typeKeyOf(e) === typeFilter);
-  }, [waitlist, typeFilter]);
+    let rows = typeFilter === 'all' ? waitlist : waitlist.filter(e => typeKeyOf(e) === typeFilter);
+    const q = waitlistSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(e => {
+        const name = (e.name || '').toLowerCase();
+        const email = (e.email || '').toLowerCase();
+        const phone = (e.phoneNo || '').toLowerCase();
+        const statusLabel = STATUS_META[e.status || 'not_contacted'].label.toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q) || statusLabel.includes(q);
+      });
+    }
+    return sortByRecency(rows, waitlistSort, e => e.createdAt);
+  }, [waitlist, typeFilter, waitlistSearch, waitlistSort]);
 
   // Reset to page 1 whenever the filtered set changes size, so switching
   // filters (or a fresh import) never leaves the table on an out-of-range page.
@@ -544,45 +851,79 @@ const WaitlistLeads = () => {
     setWaitlistUiPage(0);
   }, [waitlistRows.length]);
 
-  // Export payload for the active tab — the full filtered set (see waitlistRows).
+  // Applied client-side over the full loaded dataset (see fetchAllLeads) —
+  // matches a partial name, email, phone number or contact status, same idiom as waitlistRows.
+  const leadsRows = useMemo(() => {
+    const q = leadsSearch.trim().toLowerCase();
+    let rows = leads;
+    if (q) {
+      rows = rows.filter(l => {
+        const name = leadDisplayNameOf(l).toLowerCase();
+        const email = (l.details?.email || '').toLowerCase();
+        const phone = (l.details?.phoneNo || '').toLowerCase();
+        const statusLabel = STATUS_META[l.status || 'not_contacted'].label.toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q) || statusLabel.includes(q);
+      });
+    }
+    return sortByRecency(rows, leadsSort, l => l.timestamp || l.createdAt);
+  }, [leads, leadsSearch, leadsSort]);
+
+  // Reset to page 1 whenever the filtered set changes size, so a new search
+  // (or a fresh add) never leaves the table on an out-of-range page.
+  useEffect(() => {
+    setLeadsUiPage(0);
+  }, [leadsRows.length]);
+
+  // Export payload for the active tab — the full loaded dataset (not waitlistRows/leadsRows,
+  // which reflect the table's on-screen Type filter/search). The export modal has its own
+  // Range + Source controls, deliberately independent of whatever's currently on screen.
   const exportData: ExportData = useMemo(() => {
     if (tab === 'waitlist') {
       return {
         title: 'Waitlist',
-        filename: `waitlist-${facilityCode || 'centre'}.csv`,
-        headers: ['Name', 'Email', 'Waitlist Type', 'Plan', 'Date Added', 'Position'],
-        rows: waitlistRows.map((e, i) => {
+        filename: `waitlist-${facilityCode || 'centre'}`,
+        headers: ['Name', 'Email', 'Phone', 'Waitlist Type', 'Status', 'Date Added', 'Position'],
+        entries: waitlist,
+        toRow: entry => {
+          const e = entry as WaitlistEntry;
           const typeLabel = e.subscriptionSrc ? typeMetaFor(typeKeyOf(e)).label : '';
-          const plan = planOf(e);
-          const pos = e.position ?? i + 1;
+          const pos = e.position ?? waitlist.indexOf(e) + 1;
           return [
             e.name || '',
             e.email || '',
+            e.phoneNo ? waitlistPhoneOf(e) : '',
             typeLabel,
-            plan ? titleCase(plan) : '',
+            STATUS_META[e.status || 'not_contacted'].label,
             readableDate(e.createdAt),
             `#${pos}`,
           ];
-        }),
+        },
+        sourceOptions: typeFilterOptions.map(o => (o.value === 'all' ? { ...o, label: 'All Sources' } : o)),
+        sourceKeyOf: entry => typeKeyOf(entry as WaitlistEntry),
       };
     }
     return {
-      title: 'Leads',
-      filename: `leads-${facilityCode || 'centre'}.csv`,
-      headers: ['Email', 'Action', 'Plan', 'Billing', 'Date'],
-      rows: leads.map(l => {
-        const code = l.details?.subscription_code ?? '';
+      title: 'Enquires',
+      filename: `enquires-${facilityCode || 'centre'}`,
+      headers: ['Name', 'Email', 'Phone', 'Action', 'Plan', 'Billing', 'Status', 'Date'],
+      entries: leads,
+      toRow: entry => {
+        const l = entry as LeadEntry;
+        const plan = leadPlanOf(l);
         const cycle = l.details?.billing_cycle ?? '';
         return [
+          l.details?.name || '',
           l.details?.email || '',
+          l.details?.phoneNo || '',
           l.action ? titleCase(l.action) : '',
-          code ? titleCase(code) : '',
+          plan ? titleCase(plan) : '',
           cycle ? titleCase(cycle) : '',
+          STATUS_META[l.status || 'not_contacted'].label,
           readableDate(l.timestamp || l.createdAt),
         ];
-      }),
+      },
     };
-  }, [tab, waitlistRows, leads, facilityCode]);
+  }, [tab, waitlist, leads, facilityCode, typeFilterOptions]);
 
   const waitlistColumns: ColumnDef[] = [
     {
@@ -610,6 +951,26 @@ const WaitlistLeads = () => {
       },
     },
     {
+      field: 'phoneNo',
+      headerName: 'Phone',
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <span className="text-[13px] text-gray-700">{waitlistPhoneOf(row as WaitlistEntry)}</span>
+      ),
+    },
+    {
+      field: 'createdAt',
+      headerName: 'Date Added',
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <span className="text-[13px] text-gray-500">{readableDate((row as WaitlistEntry).createdAt)}</span>
+      ),
+    },
+    {
       field: 'subscriptionSrc',
       headerName: 'Waitlist Type',
       flex: 1,
@@ -625,25 +986,12 @@ const WaitlistLeads = () => {
       },
     },
     {
-      field: 'plan',
-      headerName: 'Plan',
+      field: 'status',
+      headerName: 'Status',
       flex: 1,
-      minWidth: 120,
+      minWidth: 130,
       sortable: false,
-      renderCell: ({ row }) => {
-        const plan = planOf(row as WaitlistEntry);
-        return <span className="text-[13px] text-gray-700">{plan ? titleCase(plan) : '—'}</span>;
-      },
-    },
-    {
-      field: 'createdAt',
-      headerName: 'Date Added',
-      flex: 1,
-      minWidth: 120,
-      sortable: false,
-      renderCell: ({ row }) => (
-        <span className="text-[13px] text-gray-500">{readableDate((row as WaitlistEntry).createdAt)}</span>
-      ),
+      renderCell: ({ row }) => <StatusBadge status={(row as WaitlistEntry).status} />,
     },
     {
       field: 'position',
@@ -651,27 +999,47 @@ const WaitlistLeads = () => {
       flex: 0.7,
       minWidth: 90,
       sortable: false,
-      renderCell: ({ row, index }) => {
+      renderCell: ({ row }) => {
         const entry = row as WaitlistEntry;
-        const pos = entry.position ?? waitlistUiPage * waitlistUiRowsPerPage + index + 1;
+        // True position in `waitlist` (original load order) — independent of the
+        // Newest/Oldest sort or pagination currently applied to the table view.
+        const pos = entry.position ?? waitlist.indexOf(entry) + 1;
         return <span className="text-[13px] font-bold text-[#21295A]">#{pos}</span>;
       },
     },
     {
       field: 'actions',
       headerName: '',
-      flex: 0.6,
-      minWidth: 80,
+      flex: 1,
+      minWidth: 130,
       sortable: false,
-      renderCell: ({ row, index }) => (
-        <button
-          className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
-          type="button"
-          onClick={() => openWaitlistEntry(row as WaitlistEntry, index)}
-        >
-          View
-        </button>
-      ),
+      renderCell: ({ row }) => {
+        const entry = row as WaitlistEntry;
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-3 py-1.5 text-[12px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A] hover:text-white"
+              type="button"
+              onClick={() => openWaitlistEntry(entry)}
+            >
+              View
+            </button>
+            <button
+              aria-label="Delete"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+              disabled={deletingWaitlistId === entry.id}
+              title="Delete from waitlist"
+              type="button"
+              onClick={() => handleDeleteWaitlistRow(entry)}
+            >
+              <svg fill="none" height={14} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={14}>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -683,16 +1051,21 @@ const WaitlistLeads = () => {
       minWidth: 220,
       sortable: false,
       renderCell: ({ row }) => {
-        const email = (row as LeadEntry).details?.email || 'Unknown';
+        const entry = row as LeadEntry;
+        const name = leadDisplayNameOf(entry);
+        const email = entry.details?.email;
         return (
           <div className="flex items-center gap-3">
             <span
               className="inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-              style={{ background: avatarColor(email) }}
+              style={{ background: avatarColor(name) }}
             >
-              {initials(email)}
+              {initials(name)}
             </span>
-            <p className="text-[13px] font-semibold text-[#21295A]">{email}</p>
+            <div>
+              <p className="text-[13px] font-semibold text-[#21295A]">{name}</p>
+              {email && email !== name && <p className="text-[11px] text-gray-400">{email}</p>}
+            </div>
           </div>
         );
       },
@@ -715,8 +1088,8 @@ const WaitlistLeads = () => {
       minWidth: 120,
       sortable: false,
       renderCell: ({ row }) => {
-        const code = (row as LeadEntry).details?.subscription_code;
-        return <span className="text-[13px] text-gray-700">{code ? titleCase(code) : '—'}</span>;
+        const plan = leadPlanOf(row as LeadEntry);
+        return <span className="text-[13px] text-gray-700">{plan ? titleCase(plan) : '—'}</span>;
       },
     },
     {
@@ -746,6 +1119,14 @@ const WaitlistLeads = () => {
       },
     },
     {
+      field: 'status',
+      headerName: 'Status',
+      flex: 1,
+      minWidth: 130,
+      sortable: false,
+      renderCell: ({ row }) => <StatusBadge status={(row as LeadEntry).status} />,
+    },
+    {
       field: 'actions',
       headerName: '',
       flex: 0.6,
@@ -768,9 +1149,9 @@ const WaitlistLeads = () => {
       {/* ── Page Header ─────────────────────────────────────── */}
       <div className="mb-5 flex items-start justify-between gap-3 border-b border-gray-100 pb-4">
         <div>
-          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Waitlist / Leads</h1>
+          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Waitlist / Enquires</h1>
           <p className="mt-1 text-[12px] font-medium text-gray-400">
-            Members waiting for a spot · Leads who toured but haven&apos;t joined
+            Members waiting for a spot · Enquires who toured but haven&apos;t joined
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -784,7 +1165,7 @@ const WaitlistLeads = () => {
                 <line x1="12" x2="12" y1="5" y2="19" />
                 <line x1="5" x2="19" y1="12" y2="12" />
               </svg>
-              Add Lead
+              Add Enquiry
             </button>
           )}
           {tab === 'waitlist' && (
@@ -829,7 +1210,7 @@ const WaitlistLeads = () => {
             type="button"
             onClick={() => switchTab(t)}
           >
-            {t === 'waitlist' ? 'Waitlist' : 'Leads'}
+            {t === 'waitlist' ? 'Waitlist' : 'Enquires'}
           </button>
         ))}
       </div>
@@ -837,7 +1218,7 @@ const WaitlistLeads = () => {
       {tab === 'waitlist' ? (
         <>
           {/* ── Filter Bar ──────────────────────────────────── */}
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
               {typeFilterOptions.map(f => (
@@ -845,6 +1226,22 @@ const WaitlistLeads = () => {
                   {f.label}
                 </Chip>
               ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sort</span>
+              <Chip active={waitlistSort === 'newest'} onClick={() => setWaitlistSort('newest')}>
+                Newest first
+              </Chip>
+              <Chip active={waitlistSort === 'oldest'} onClick={() => setWaitlistSort('oldest')}>
+                Oldest first
+              </Chip>
+              <input
+                className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+                placeholder="Search by name, phone, email or status…"
+                type="text"
+                value={waitlistSearch}
+                onChange={e => setWaitlistSearch(e.target.value)}
+              />
             </div>
           </div>
 
@@ -880,35 +1277,54 @@ const WaitlistLeads = () => {
         </>
       ) : (
         <>
+          {/* ── Filter Bar ──────────────────────────────────── */}
+          <div className="mb-4 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sort</span>
+              <Chip active={leadsSort === 'newest'} onClick={() => setLeadsSort('newest')}>
+                Newest first
+              </Chip>
+              <Chip active={leadsSort === 'oldest'} onClick={() => setLeadsSort('oldest')}>
+                Oldest first
+              </Chip>
+              <input
+                className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+                placeholder="Search by name, phone, email or status…"
+                type="text"
+                value={leadsSearch}
+                onChange={e => setLeadsSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="mb-2 flex justify-end">
             <span className="text-[11px] text-gray-400">
-              {leads.length} of {leadsTotal} entries
+              {leadsRows.length} of {leads.length} entries
             </span>
           </div>
 
           {leadsError ? (
-            <ErrorState message={leadsError} onRetry={() => fetchLeads(1, leadsLimit || PAGE_SIZE)} />
+            <ErrorState message={leadsError} onRetry={fetchAllLeads} />
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
               <DataTable
                 columns={mapColumns(leadsColumns)}
-                data={leads}
+                data={leadsRows}
                 emptyState={{
-                  subtitle: 'Leads appear here once prospects tour the centre',
-                  title: 'No leads for this centre',
+                  subtitle: leadsSearch
+                    ? 'Try a different name, phone or email'
+                    : 'Enquires appear here once prospects tour the centre',
+                  title: leadsSearch ? 'No matching enquires' : 'No enquires for this centre',
                 }}
                 getRowId={row => row.id || row.details?.email || `${row.action ?? ''}-${row.timestamp ?? ''}`}
                 loading={leadsLoading}
-                page={(leadsPage || 1) - 1}
-                rowsPerPage={leadsLimit || PAGE_SIZE}
-                serverSide={true}
-                totalRows={leadsTotal}
-                onPageChange={(page: number) => {
-                  const limit = leadsLimit || PAGE_SIZE;
-                  const newPage = page + 1;
-                  if (newPage !== (leadsPage || 1)) fetchLeads(newPage, limit);
+                page={leadsUiPage}
+                rowsPerPage={leadsUiRowsPerPage}
+                onPageChange={setLeadsUiPage}
+                onRowsPerPageChange={rowsPerPage => {
+                  setLeadsUiRowsPerPage(rowsPerPage);
+                  setLeadsUiPage(0);
                 }}
-                onRowsPerPageChange={(rowsPerPage: number) => fetchLeads(1, rowsPerPage)}
               />
             </div>
           )}
@@ -917,11 +1333,7 @@ const WaitlistLeads = () => {
 
       {showExport && <ExportPreviewModal data={exportData} onClose={() => setShowExport(false)} />}
       {showAddLead && facilityCode && (
-        <AddLeadModal
-          facilityCode={facilityCode}
-          onAdded={() => fetchLeads(1, leadsLimit || PAGE_SIZE)}
-          onClose={() => setShowAddLead(false)}
-        />
+        <AddLeadModal facilityCode={facilityCode} onAdded={fetchAllLeads} onClose={() => setShowAddLead(false)} />
       )}
       {showImport && facilityCode && (
         <ImportWaitlistModal
@@ -936,9 +1348,14 @@ const WaitlistLeads = () => {
           fields={viewEntry.fields}
           name={viewEntry.name}
           notes={viewEntry.notes}
+          status={viewEntry.status}
+          statusHistory={viewEntry.statusHistory}
           title={viewEntry.title}
           onAddNote={handleAddNote}
           onClose={() => setViewEntry(null)}
+          onDeleteEntry={viewEntry.type === 'waitlist' || viewEntry.isManualLead ? handleDeleteEntry : undefined}
+          onDeleteNote={handleDeleteNote}
+          onStatusChange={handleStatusChange}
         />
       )}
     </div>

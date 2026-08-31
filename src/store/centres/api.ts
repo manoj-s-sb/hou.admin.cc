@@ -20,6 +20,7 @@ import type {
   CentreListRequest,
   CentreListResponse,
   CentreMember,
+  ContactStatus,
   FacilitySummary,
   LeadEntry,
   WaitlistEntry,
@@ -196,28 +197,32 @@ export const getCentreWaitlist = createAsyncThunk<
 /** POST /admin/centres/leads — paginated lead-activity logs for a centre. */
 export const getCentreLeads = createAsyncThunk<
   { entries: LeadEntry[]; total: number; page: number; limit: number },
-  { facilityCode: string; action?: string; subscriptionCode?: string; page: number; limit: number },
+  { facilityCode: string; action?: string; subscriptionCode?: string; page: number; limit: number; all?: boolean },
   { rejectValue: string }
->('centres/getCentreLeads', async ({ facilityCode, action, subscriptionCode, page, limit }, { rejectWithValue }) => {
-  try {
-    const res = await api.post<{ data: unknown }>(endpoints.centres.leads, {
-      facilityCode,
-      action,
-      subscription_code: subscriptionCode,
-      page,
-      limit,
-    });
-    const { entries, total } = unwrapList<LeadEntry>(res.data?.data ?? res.data, [
-      'items',
-      'leads',
-      'entries',
-      'results',
-    ]);
-    return { entries, total, page, limit };
-  } catch (error) {
-    return rejectWithValue(handleApiError(error, 'Failed to fetch leads'));
+>(
+  'centres/getCentreLeads',
+  async ({ facilityCode, action, subscriptionCode, page, limit, all }, { rejectWithValue }) => {
+    try {
+      const res = await api.post<{ data: unknown }>(endpoints.centres.leads, {
+        facilityCode,
+        action,
+        subscription_code: subscriptionCode,
+        page,
+        limit,
+        all,
+      });
+      const { entries, total } = unwrapList<LeadEntry>(res.data?.data ?? res.data, [
+        'items',
+        'leads',
+        'entries',
+        'results',
+      ]);
+      return { entries, total, page, limit };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch leads'));
+    }
   }
-});
+);
 
 /** POST /admin/centres/waitlist/notes/add — append an admin note, returns the updated entry. */
 export const addWaitlistNote = createAsyncThunk<
@@ -238,14 +243,67 @@ export const addWaitlistNote = createAsyncThunk<
   }
 });
 
+/** POST /admin/centres/waitlist/notes/delete — remove an admin note, returns the updated entry. */
+export const deleteWaitlistNote = createAsyncThunk<
+  WaitlistEntry,
+  { facilityCode: string; waitlistId: string; noteId: string },
+  { rejectValue: string }
+>('centres/deleteWaitlistNote', async ({ facilityCode, waitlistId, noteId }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: WaitlistEntry }>(endpoints.centres.waitlistNotesDelete, {
+      facilityCode,
+      waitlistId,
+      noteId,
+    });
+    return res.data?.data ?? (res.data as unknown as WaitlistEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to delete note'));
+  }
+});
+
+/** POST /admin/centres/waitlist/status/update — set the contact status, returns the updated entry. */
+export const updateWaitlistStatus = createAsyncThunk<
+  WaitlistEntry,
+  { facilityCode: string; waitlistId: string; status: ContactStatus },
+  { rejectValue: string }
+>('centres/updateWaitlistStatus', async ({ facilityCode, waitlistId, status }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: WaitlistEntry }>(endpoints.centres.waitlistStatusUpdate, {
+      facilityCode,
+      waitlistId,
+      status,
+      changedByName: actorName(),
+    });
+    return res.data?.data ?? (res.data as unknown as WaitlistEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to update status'));
+  }
+});
+
+/** POST /admin/centres/waitlist/delete — SOFT delete: the entry stops appearing in
+ * /admin/centres/waitlist, but the document itself is untouched in Cosmos. */
+export const deleteWaitlistEntry = createAsyncThunk<
+  { waitlistId: string },
+  { facilityCode: string; waitlistId: string },
+  { rejectValue: string }
+>('centres/deleteWaitlistEntry', async ({ facilityCode, waitlistId }, { rejectWithValue }) => {
+  try {
+    await api.post(endpoints.centres.waitlistDelete, { facilityCode, waitlistId, deletedByName: actorName() });
+    return { waitlistId };
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to delete waitlist entry'));
+  }
+});
+
 /**
  * POST /admin/centres/leads/create — manually add a lead (not backed by the funnel
- * tracker). Backend's CreateLeadRequest (extra="forbid") only accepts exactly:
- * facilityCode, name (required), email (required), phone, planInterest.
+ * tracker). Backend's CreateLeadRequest (extra="forbid") accepts exactly:
+ * facilityCode, name (required), email, phone, planInterest — email and phone are
+ * both optional, but the backend rejects a lead with neither.
  */
 export const createLead = createAsyncThunk<
   LeadEntry,
-  { facilityCode: string; name: string; email: string; phone?: string; subscriptionCode?: string },
+  { facilityCode: string; name: string; email?: string; phone?: string; subscriptionCode?: string },
   { rejectValue: string }
 >('centres/createLead', async ({ facilityCode, name, email, phone, subscriptionCode }, { rejectWithValue }) => {
   try {
@@ -270,13 +328,14 @@ export const createLead = createAsyncThunk<
  */
 export const bulkImportWaitlist = createAsyncThunk<
   WaitlistImportResult,
-  { facilityCode: string; subscriptionSrc: string; entries: WaitlistImportRow[] },
+  { facilityCode: string; subscriptionSrc: string; eventName?: string; entries: WaitlistImportRow[] },
   { rejectValue: string }
->('centres/bulkImportWaitlist', async ({ facilityCode, subscriptionSrc, entries }, { rejectWithValue }) => {
+>('centres/bulkImportWaitlist', async ({ facilityCode, subscriptionSrc, eventName, entries }, { rejectWithValue }) => {
   try {
     const res = await api.post<{ data: WaitlistImportResult }>(endpoints.centres.waitlistImport, {
       facilityCode,
       subscriptionSrc,
+      eventName,
       entries,
     });
     return res.data?.data ?? (res.data as unknown as WaitlistImportResult);
@@ -301,6 +360,60 @@ export const addLeadNote = createAsyncThunk<
     return res.data?.data ?? (res.data as unknown as LeadEntry);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to add note'));
+  }
+});
+
+/** POST /admin/centres/leads/notes/delete — remove an admin note, returns the updated entry. */
+export const deleteLeadNote = createAsyncThunk<
+  LeadEntry,
+  { facilityCode: string; leadId: string; noteId: string },
+  { rejectValue: string }
+>('centres/deleteLeadNote', async ({ facilityCode, leadId, noteId }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: LeadEntry }>(endpoints.centres.leadsNotesDelete, {
+      facilityCode,
+      leadId,
+      noteId,
+    });
+    return res.data?.data ?? (res.data as unknown as LeadEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to delete note'));
+  }
+});
+
+/**
+ * POST /admin/centres/leads/delete — permanently remove a manually-added lead.
+ * Only manual leads are deletable; funnel-derived ones 404.
+ */
+export const deleteLead = createAsyncThunk<
+  { leadId: string },
+  { facilityCode: string; leadId: string },
+  { rejectValue: string }
+>('centres/deleteLead', async ({ facilityCode, leadId }, { rejectWithValue }) => {
+  try {
+    await api.post(endpoints.centres.leadsDelete, { facilityCode, leadId });
+    return { leadId };
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to delete lead'));
+  }
+});
+
+/** POST /admin/centres/leads/status/update — set the contact status, returns the updated entry. */
+export const updateLeadStatus = createAsyncThunk<
+  LeadEntry,
+  { facilityCode: string; leadId: string; status: ContactStatus },
+  { rejectValue: string }
+>('centres/updateLeadStatus', async ({ facilityCode, leadId, status }, { rejectWithValue }) => {
+  try {
+    const res = await api.post<{ data: LeadEntry }>(endpoints.centres.leadsStatusUpdate, {
+      facilityCode,
+      leadId,
+      status,
+      changedByName: actorName(),
+    });
+    return res.data?.data ?? (res.data as unknown as LeadEntry);
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Failed to update status'));
   }
 });
 

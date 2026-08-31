@@ -106,7 +106,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
       },
       {
         key: 'waitlist',
-        label: 'Waitlist / Leads',
+        label: 'Leads',
         slug: 'waitlist',
         component: WaitlistLeads,
         scope: ACCESS_SCOPES.waitlistLeads,

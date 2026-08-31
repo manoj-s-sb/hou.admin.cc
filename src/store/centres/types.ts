@@ -359,20 +359,43 @@ export interface AdminNote {
   createdAt: string;
 }
 
+/** Contact-status pipeline for a waitlist/lead entry — tracks admin follow-up, independent of the free-text admin notes. */
+export type ContactStatus = 'not_contacted' | 'contacted' | 'no_response' | 'converted' | 'not_interested';
+
+/** One entry in a waitlist/lead entry's `statusHistory` — who changed the contact status, and when. */
+export interface StatusHistoryEntry {
+  id: string;
+  status: ContactStatus;
+  changedByName: string;
+  changedById: string | null;
+  changedAt: string;
+}
+
 /** One row from GET /admin/centres/:facilityCode/waitlist. Fields are optional/defensive. */
 export interface WaitlistEntry {
   id?: string;
   name?: string;
   email?: string;
+  /** Backend field is spelled "phoneNo". */
+  phoneNo?: string;
+  /** Phone country code, e.g. "+1" — only present when the signup/import captured one. */
+  countryCode?: string;
   /** Backend source flag — 'foundation' | 'launchWaitlist'. */
   subscriptionSrc?: string;
   registerdVia?: string; // sic — backend spelling
+  /** QR-campaign attribution code (e.g. a qrcampaign doc's `code`), when the
+   * signup came through a campaign link/QR scan rather than the plain form. */
+  registrationSource?: string;
   plan?: string;
   createdAt?: string;
   /** Server-supplied queue position; derived from the row index when absent. */
   position?: number;
   /** Admin notes, oldest first. Defaults to [] server-side — never null. */
   notes?: AdminNote[];
+  /** Defaults to 'not_contacted' server-side on older docs — never absent on a real response. */
+  status?: ContactStatus;
+  /** Contact-status change log, oldest first. Defaults to [] server-side — never null. */
+  statusHistory?: StatusHistoryEntry[];
   details?: {
     subscription_code?: string;
     [key: string]: unknown;
@@ -405,12 +428,23 @@ export interface LeadEntry {
   createdAt?: string;
   /** Admin notes, oldest first. Defaults to [] server-side — never null. */
   notes?: AdminNote[];
+  /** Defaults to 'not_contacted' server-side on older docs — never absent on a real response. */
+  status?: ContactStatus;
+  /** Contact-status change log, oldest first. Defaults to [] server-side — never null. */
+  statusHistory?: StatusHistoryEntry[];
   /** Set on leads added manually via "+ Add Lead" — not present on funnel-tracked leads. */
   name?: string;
   phone?: string;
   details?: {
+    /** Only present on manually-added leads — funnel-tracked leads have no name of their own here. */
+    name?: string;
     email?: string;
+    /** Only present on manually-added leads (backend field is spelled "phoneNo") — funnel-tracked leads have no phone. */
+    phoneNo?: string;
+    /** Funnel-derived leads' plan — the checkout-session subscription code. */
     subscription_code?: string;
+    /** Manually-added leads' plan — free-text "Plan interest" chosen on the Add Lead form. */
+    planInterest?: string;
     billing_cycle?: string;
     [key: string]: unknown;
   };
@@ -546,6 +580,11 @@ export interface CentresInitialState {
   total: number;
   isLoading: boolean;
   error: string | null;
+  /** requestId of the most recently dispatched getCentres call — lets the reducer
+   * discard an older, slower request's response that resolves after a newer one
+   * (e.g. typing "h" then "hh" quickly), which would otherwise silently overwrite
+   * the correct results with a stale/broader list. */
+  centresRequestId: string | null;
 
   // ── Single centre (details bundle) ──
   details: CentreBundle | null;
@@ -581,6 +620,7 @@ export const initialState: CentresInitialState = {
   total: 0,
   isLoading: true,
   error: null,
+  centresRequestId: null,
 
   details: null,
   detailsLoading: false,

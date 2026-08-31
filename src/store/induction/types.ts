@@ -6,6 +6,8 @@ export interface InductionListRequest {
   /** Free-text filter — matches name, email, or phone (partial, case-insensitive). */
   search?: string;
   status?: string;
+  /** Omit for the global (all-centres) view; pass to scope to one centre. */
+  facilityCode?: string;
 }
 
 export interface InductionStepsDetailsRequest {
