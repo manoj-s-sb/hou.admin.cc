@@ -222,7 +222,9 @@ const Members = () => {
               title="View member details"
               onClick={e => {
                 e.stopPropagation();
-                navigate(buildRoute.viewMembers(params.row.userId), { state: { listSearch: location.search } });
+                navigate(buildRoute.viewMembers(params.row.userId), {
+                  state: { listSearch: location.search, facilityCode: getFacilityCode() },
+                });
               }}
             >
               View
@@ -548,7 +550,9 @@ const Members = () => {
             }
           }}
           onRowClick={row => {
-            navigate(buildRoute.viewMembers(row.userId), { state: { listSearch: location.search } });
+            navigate(buildRoute.viewMembers(row.userId), {
+              state: { listSearch: location.search, facilityCode: getFacilityCode() },
+            });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
             dispatch(getMembers(buildRequestPayload({ limit: rowsPerPage, skip: 0 })));

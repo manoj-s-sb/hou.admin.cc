@@ -10,8 +10,7 @@ import { AppDispatch } from '../../../store/store';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-// Sheets in the wild spell these headers in slightly different ways ("Phone
-// Number" vs "Phone", "Registered Via" vs "RegisterVia") — normalise to
+// Sheets in the wild spell these headers in slightly different ways ("P
 // lowercase-alnum before matching so header formatting doesn't matter.
 const normaliseHeader = (h: string): string => h.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -56,11 +55,18 @@ const IMPORT_TYPE_OPTIONS: { label: string; value: string }[] = [
 
 const PREVIEW_LIMIT = 50;
 
-const emptyRawRow = (): RawRow => ({ name: '', email: '', phone: '', countryCode: '', timestamp: '', registerdVia: '' });
+const emptyRawRow = (): RawRow => ({
+  name: '',
+  email: '',
+  phone: '',
+  countryCode: '',
+  timestamp: '',
+  registerdVia: '',
+});
 
 const parseWorkbook = (buffer: ArrayBuffer): RawRow[] => {
   const workbook = XLSX.read(buffer, { type: 'array' });
-  const sheetName = workbook.SheetNames[0];
+  const [sheetName] = workbook.SheetNames;
   if (!sheetName) return [];
   const sheet = workbook.Sheets[sheetName];
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
@@ -105,9 +111,12 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
   const [fileName, setFileName] = useState('');
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [subscriptionSrc, setSubscriptionSrc] = useState('');
+  const [eventName, setEventName] = useState('');
   const [parseError, setParseError] = useState('');
   const [importing, setImporting] = useState(false);
 
+  const isEventType = subscriptionSrc === 'event';
+  const eventNameValid = !isEventType || eventName.trim().length > 0;
   const validRows = rows.filter(r => r.status === 'valid');
   const duplicateCount = rows.filter(r => r.status === 'duplicate').length;
   const invalidCount = rows.filter(r => r.status === 'invalid').length;
@@ -133,7 +142,7 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
   };
 
   const handleImport = async () => {
-    if (!subscriptionSrc || validRows.length === 0) return;
+    if (!subscriptionSrc || !eventNameValid || validRows.length === 0) return;
     setImporting(true);
     try {
       const entries: WaitlistImportRow[] = validRows.map(r => ({
@@ -144,11 +153,19 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
         registerdVia: r.registerdVia || undefined,
         timestamp: r.timestamp || undefined,
       }));
-      const result = await dispatch(bulkImportWaitlist({ facilityCode, subscriptionSrc, entries })).unwrap();
+      const result = await dispatch(
+        bulkImportWaitlist({
+          facilityCode,
+          subscriptionSrc,
+          eventName: isEventType ? eventName.trim() : undefined,
+          entries,
+        })
+      ).unwrap();
       const skippedTotal = result.skippedCount + duplicateCount + invalidCount;
       toast.success(
-        `Imported ${result.createdCount} entr${result.createdCount === 1 ? 'y' : 'ies'}` +
-          (skippedTotal ? `, skipped ${skippedTotal}` : '')
+        `Imported ${result.createdCount} entr${result.createdCount === 1 ? 'y' : 'ies'}${
+          skippedTotal ? `, skipped ${skippedTotal}` : ''
+        }`
       );
       onImported();
       onClose();
@@ -202,6 +219,24 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
             </select>
             <p className="mt-1 text-[11px] text-gray-400">Applied to every row in this import.</p>
           </div>
+
+          {isEventType && (
+            <div>
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Event Name *
+              </span>
+              <input
+                className="w-full max-w-[260px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+                placeholder="e.g. Aug 28 Launch"
+                type="text"
+                value={eventName}
+                onChange={e => setEventName(e.target.value)}
+              />
+              <p className="mt-1 text-[11px] text-gray-400">
+                Shown as a badge on these rows, e.g. Event - `{eventName.trim() || 'Aug 28 Launch'}`.
+              </p>
+            </div>
+          )}
 
           <div>
             <input
@@ -295,7 +330,7 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
           </button>
           <button
             className="rounded-lg bg-[#21295A] px-5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
-            disabled={importing || !subscriptionSrc || validRows.length === 0}
+            disabled={importing || !subscriptionSrc || !eventNameValid || validRows.length === 0}
             type="button"
             onClick={handleImport}
           >

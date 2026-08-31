@@ -8,6 +8,7 @@ import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
+import { getFacilityCode } from '../../constants/user';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
@@ -56,6 +57,7 @@ const Induction = () => {
 
   const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
   const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
+  const facilityCode = getFacilityCode();
 
   const applyFilters = () => {
     const params = filtersToSearchParams(filters);
@@ -86,10 +88,11 @@ const Induction = () => {
         listLimit: inductionListData?.limit || 20,
         search: applied.search,
         status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+        facilityCode,
       })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, searchParams]);
+  }, [dispatch, searchParams, facilityCode]);
 
   const currentPage = inductionListData?.page ? inductionListData.page - 1 : 0;
   const rowsPerPage = inductionListData?.limit || 20;
@@ -213,6 +216,7 @@ const Induction = () => {
                       search: applied.search,
                       status:
                         applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+                      facilityCode,
                     })
                   );
                   toast.success('Induction status updated successfully!');
@@ -235,7 +239,9 @@ const Induction = () => {
                   title="View induction details"
                   onClick={e => {
                     e.stopPropagation();
-                    navigate(buildRoute.viewInduction(params.row.userId), { state: { listSearch: location.search } });
+                    navigate(buildRoute.viewInduction(params.row.userId), {
+                      state: { listSearch: location.search, facilityCode },
+                    });
                   }}
                 >
                   View
@@ -280,6 +286,7 @@ const Induction = () => {
       inductionListData?.page,
       inductionListData?.limit,
       isLoading,
+      facilityCode,
     ]
   );
 
@@ -450,11 +457,12 @@ const Induction = () => {
                 listLimit: inductionListData?.limit || 20,
                 search: filters.search,
                 status: filters.status === 'pending' ? 'confirmed' : filters.status === 'all' ? '' : filters.status,
+                facilityCode,
               })
             );
           }}
           onRowClick={row => {
-            navigate(buildRoute.viewInduction(row.userId), { state: { listSearch: location.search } });
+            navigate(buildRoute.viewInduction(row.userId), { state: { listSearch: location.search, facilityCode } });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
             dispatch(
@@ -465,6 +473,7 @@ const Induction = () => {
                 listLimit: rowsPerPage,
                 search: filters.search,
                 status: filters.status === 'pending' ? 'confirmed' : filters.status === 'all' ? '' : filters.status,
+                facilityCode,
               })
             );
           }}
@@ -524,6 +533,7 @@ const Induction = () => {
                                 : applied.status === 'all'
                                   ? ''
                                   : applied.status,
+                            facilityCode,
                           })
                         );
                         toast.success('Status changed back to Pending!');

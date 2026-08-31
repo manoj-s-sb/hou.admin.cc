@@ -4,6 +4,10 @@ import {
   addLeadNote,
   addWaitlistNote,
   createCentre,
+  deleteLead,
+  deleteLeadNote,
+  deleteWaitlistEntry,
+  deleteWaitlistNote,
   getCentreBookings,
   getCentreDetails,
   getCentreLeads,
@@ -11,6 +15,8 @@ import {
   getCentres,
   getCentreWaitlist,
   updateCentre,
+  updateLeadStatus,
+  updateWaitlistStatus,
 } from './api';
 import { initialState } from './types';
 
@@ -20,16 +26,22 @@ const centresSlice = createSlice({
   reducers: {},
   extraReducers: builder => {
     // ── List ──
-    builder.addCase(getCentres.pending, state => {
+    builder.addCase(getCentres.pending, (state, action) => {
       state.isLoading = true;
       state.error = null;
+      // Mark this as the latest in-flight request — see field doc in types.ts.
+      state.centresRequestId = action.meta.requestId;
     });
     builder.addCase(getCentres.fulfilled, (state, action) => {
+      // A newer search/filter was dispatched after this one — an older, slower
+      // request resolving now would overwrite the current (correct) results.
+      if (action.meta.requestId !== state.centresRequestId) return;
       state.isLoading = false;
       state.facilities = action.payload.facilities;
       state.total = action.payload.total;
     });
     builder.addCase(getCentres.rejected, (state, action) => {
+      if (action.meta.requestId !== state.centresRequestId) return;
       state.isLoading = false;
       state.facilities = [];
       state.total = 0;
@@ -147,6 +159,32 @@ const centresSlice = createSlice({
       if (idx !== -1) state.waitlist[idx] = updated;
     });
     builder.addCase(addLeadNote.fulfilled, (state, action) => {
+      const updated = action.payload;
+      const idx = state.leads.findIndex(e => e.id === updated.id);
+      if (idx !== -1) state.leads[idx] = updated;
+    });
+    builder.addCase(deleteWaitlistNote.fulfilled, (state, action) => {
+      const updated = action.payload;
+      const idx = state.waitlist.findIndex(e => e.id === updated.id);
+      if (idx !== -1) state.waitlist[idx] = updated;
+    });
+    builder.addCase(deleteLeadNote.fulfilled, (state, action) => {
+      const updated = action.payload;
+      const idx = state.leads.findIndex(e => e.id === updated.id);
+      if (idx !== -1) state.leads[idx] = updated;
+    });
+    builder.addCase(deleteLead.fulfilled, (state, action) => {
+      state.leads = state.leads.filter(e => e.id !== action.payload.leadId);
+    });
+    builder.addCase(deleteWaitlistEntry.fulfilled, (state, action) => {
+      state.waitlist = state.waitlist.filter(e => e.id !== action.payload.waitlistId);
+    });
+    builder.addCase(updateWaitlistStatus.fulfilled, (state, action) => {
+      const updated = action.payload;
+      const idx = state.waitlist.findIndex(e => e.id === updated.id);
+      if (idx !== -1) state.waitlist[idx] = updated;
+    });
+    builder.addCase(updateLeadStatus.fulfilled, (state, action) => {
       const updated = action.payload;
       const idx = state.leads.findIndex(e => e.id === updated.id);
       if (idx !== -1) state.leads[idx] = updated;
