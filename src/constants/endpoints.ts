@@ -72,11 +72,26 @@ const endpoints = {
     waitlist: `${API_PREFIX}/admin/centres/waitlist`, // POST { facilityCode, subscriptionSrc?, registerdVia?, page, limit }
     leads: `${API_PREFIX}/admin/centres/leads`, // POST { facilityCode, action?, subscription_code?, page, limit }
     waitlistNotesAdd: `${API_PREFIX}/admin/centres/waitlist/notes/add`, // POST { facilityCode, waitlistId, text, createdByName }
-    // POST { facilityCode, subscriptionSrc, entries: [{name,email,phone?,countryCode?,registerdVia?,timestamp?}] }
-    // — "Import from Excel". Rows with an email that already exists (on this centre, or earlier in
-    // the same upload) are skipped, not rejected — response reports createdCount/skippedCount/skipped.
+    waitlistNotesDelete: `${API_PREFIX}/admin/centres/waitlist/notes/delete`, // POST { facilityCode, waitlistId, noteId }
+    // POST { facilityCode, waitlistId, deletedByName } — SOFT delete: the entry stops
+    // appearing in /admin/centres/waitlist, but the document stays in Cosmos.
+    waitlistDelete: `${API_PREFIX}/admin/centres/waitlist/delete`,
+    // POST { facilityCode, waitlistId, status, changedByName } — status is one of
+    // not_contacted/contacted/no_response/converted/not_interested
+    waitlistStatusUpdate: `${API_PREFIX}/admin/centres/waitlist/status/update`,
+    // POST { facilityCode, subscriptionSrc, eventName?, entries: [{name,email,phone?,countryCode?,registerdVia?,timestamp?}] }
+    // — "Import from Excel". eventName is required when subscriptionSrc is 'event' — stored as
+    // registrationSource on every row so the Waitlist tab can badge it "Event - {eventName}".
+    // Rows with an email that already exists (on this centre, or earlier in the same upload) are
+    // skipped, not rejected — response reports createdCount/skippedCount/skipped.
     waitlistImport: `${API_PREFIX}/admin/centres/waitlist/import`,
     leadsNotesAdd: `${API_PREFIX}/admin/centres/leads/notes/add`, // POST { facilityCode, leadId, text, createdByName }
+    leadsNotesDelete: `${API_PREFIX}/admin/centres/leads/notes/delete`, // POST { facilityCode, leadId, noteId }
+    // POST { facilityCode, leadId } — only manually-added leads are deletable; 404 for funnel-derived ones.
+    leadsDelete: `${API_PREFIX}/admin/centres/leads/delete`,
+    // POST { facilityCode, leadId, status, changedByName } — status is one of
+    // not_contacted/contacted/no_response/converted/not_interested
+    leadsStatusUpdate: `${API_PREFIX}/admin/centres/leads/status/update`,
     // POST { facilityCode, name, email, phone?, planInterest? } — extra="forbid" on
     // the backend, so no other fields (e.g. createdByName) may be sent.
     leadsCreate: `${API_PREFIX}/admin/centres/leads/create`,
@@ -106,7 +121,6 @@ const endpoints = {
   // period, startDate, endDate) are passed as query params; the `tab` selects the
   // response shape (overview | membership | utilisation | sessions | capacity).
   reports: `${API_PREFIX}/admin/reports`,
-
 };
 
 export default endpoints;
