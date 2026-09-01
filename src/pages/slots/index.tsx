@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import LoaderComponent from '../../components/Loader';
+import endpoints from '../../constants/endpoints';
 import { getFacilityCode } from '../../constants/user';
+import api from '../../services';
 import { getSlots } from '../../store/slots/api';
 import { AppDispatch, RootState } from '../../store/store';
 
@@ -87,6 +89,50 @@ const SlotBookings: React.FC = () => {
     dispatch(getSlots({ date: formattedDate, facilityCode }));
   }, [dispatch, formattedDate, facilityCode]);
 
+  // Slot bookings don't carry the member's plan — look it up per booked userId via the
+  // same member-details endpoint the "View" modal already uses successfully, kept out of
+  // the members Redux slice so it can't stomp on the Members page's own membersList state.
+  const [planByUserId, setPlanByUserId] = useState<Record<string, string>>({});
+  const bookedUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    (slots?.lanes || []).forEach(lane => {
+      lane.slots?.forEach(slot => {
+        const userId = slot.booking?.user?.userId;
+        if (slot.isBooked && slot.status?.toLowerCase() === 'confirmed' && userId) ids.add(userId);
+      });
+    });
+    return Array.from(ids);
+  }, [slots]);
+
+  useEffect(() => {
+    const missing = bookedUserIds.filter(id => !(id in planByUserId));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      missing.map(userId =>
+        api
+          .post(endpoints.members.membersDetails, { userId })
+          .then(res => [userId, res.data?.data?.subscription?.subscriptionCode || ''] as const)
+          .catch(() => [userId, ''] as const)
+      )
+    ).then(entries => {
+      if (cancelled) return;
+      setPlanByUserId(prev => {
+        // Always record the userId, even with an empty plan — otherwise a failed/planless
+        // lookup would keep re-triggering the fetch effect on every render.
+        const next = { ...prev };
+        entries.forEach(([userId, plan]) => {
+          next[userId] = plan;
+        });
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookedUserIds]);
+
   const slotStats = useMemo(() => {
     const lanes = slots?.lanes || [];
     let totalBooked = 0,
@@ -164,6 +210,7 @@ const SlotBookings: React.FC = () => {
             date={formattedDate}
             facilityCode={facilityCode}
             lanes={slots?.lanes || []}
+            planByUserId={planByUserId}
             timeSlots={slots?.timeSlots || []}
           />
         </div>

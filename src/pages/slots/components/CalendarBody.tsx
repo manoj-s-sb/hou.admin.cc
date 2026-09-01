@@ -42,12 +42,14 @@ interface CalendarBodyProps {
   timeSlots: string[];
   date: string;
   facilityCode: string;
+  /** userId -> subscriptionCode (e.g. 'premium'), for showing a booked member's plan on their cell. */
+  planByUserId?: Record<string, string>;
 }
 
 const AVAILABLE_ODD = 'bg-[#EEF7F7]';
 const AVAILABLE_EVEN = 'bg-[#F5FAFA]';
 
-const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProps) => {
+const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} }: CalendarBodyProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const { isBlockLaneLoading } = useSelector((state: RootState) => state.slots);
   const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
@@ -281,6 +283,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
             )}
           >
             <span className="font-semibold">{getDisplayName(currentSlot?.booking?.user)}</span>
+            {currentSlot?.booking?.user?.userId && planByUserId[currentSlot.booking.user.userId] && (
+              <span
+                className={composeClasses('font-medium capitalize opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}
+              >
+                {planByUserId[currentSlot.booking.user.userId]}
+              </span>
+            )}
             {currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0 && (
               <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
                 {currentSlot.booking.guests.length} Guest{currentSlot.booking.guests.length > 1 ? 's' : ''}

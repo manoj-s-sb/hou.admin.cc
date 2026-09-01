@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { LoaderSpinner } from '../../../components/Loader';
+import endpoints from '../../../constants/endpoints';
 import { ACCESS_SCOPES, PermissionGate } from '../../../rbac';
+import api from '../../../services';
 import { Slot } from '../../../store/slots/types';
 
 const BLOCK_REASONS = [
@@ -38,12 +40,43 @@ const SlotDetailsModal = ({
   const [selectedReason, setSelectedReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [showFullDisableReason, setShowFullDisableReason] = useState(false);
+  const [membershipPlan, setMembershipPlan] = useState<string | null>(null);
+  const [isPlanLoading, setIsPlanLoading] = useState(false);
+
+  const isBooked = !!slot?.isBooked && slot?.status?.toLowerCase() === 'confirmed';
+  const userId = slot?.booking?.user?.userId;
+
+  // The slots list doesn't carry the member's plan — fetch it separately via
+  // the same member-details lookup the Members page uses, keyed off the
+  // booking's userId. Kept out of the members Redux slice so it can't stomp
+  // on state.members.memberDetails if that page is also mounted elsewhere.
+  useEffect(() => {
+    if (!isOpen || !isBooked || !userId) {
+      setMembershipPlan(null);
+      return;
+    }
+    let cancelled = false;
+    setIsPlanLoading(true);
+    api
+      .post(endpoints.members.membersDetails, { userId })
+      .then(res => {
+        if (!cancelled) setMembershipPlan(res.data?.data?.subscription?.subscriptionCode || null);
+      })
+      .catch(() => {
+        if (!cancelled) setMembershipPlan(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsPlanLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, isBooked, userId]);
 
   if (!isOpen || !slot) return null;
 
   const isAvailable = slot.status?.toLowerCase() === 'available';
   const isBlocked = !slot.isBooked && slot.status?.toLowerCase() === 'disabled';
-  const isBooked = slot.isBooked && slot.status?.toLowerCase() === 'confirmed';
 
   const getStatusBadge = () => {
     // Check if booking status is completed
@@ -169,6 +202,14 @@ const SlotDetailsModal = ({
                     <div className="flex justify-between">
                       <span className="text-[14px] text-gray-600">Phone:</span>
                       <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.phone}</span>
+                    </div>
+                  )}
+                  {(isPlanLoading || membershipPlan) && (
+                    <div className="flex justify-between">
+                      <span className="text-[14px] text-gray-600">Membership Plan:</span>
+                      <span className="text-[14px] font-medium capitalize text-[#21295A]">
+                        {isPlanLoading ? 'Loading…' : membershipPlan}
+                      </span>
                     </div>
                   )}
                   {slot?.booking?.facilityPin && (

@@ -303,6 +303,9 @@ const ViewMembers = () => {
                 (sum: number, c) => sum + (c.purchasedSlotCount ?? 0),
                 0
               );
+              // The backend returns cycles oldest-first; show newest (current/active) first instead,
+              // so it's visible without needing "Show More" — older cycles trail off below it.
+              const orderedCycles = [...memberDetails.slotUsageTable.cycles].reverse();
 
               return (
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -323,10 +326,7 @@ const ViewMembers = () => {
 
                   <div className="px-4 py-3 sm:px-6 sm:py-4">
                     <div className="space-y-2">
-                      {(showAllCycles
-                        ? memberDetails.slotUsageTable.cycles
-                        : memberDetails.slotUsageTable.cycles.slice(0, 5)
-                      ).map((cycle, index: number) => {
+                      {(showAllCycles ? orderedCycles : orderedCycles.slice(0, 5)).map((cycle, index: number) => {
                         const isExpanded = expandedCycles.includes(cycle.cycleNumber);
                         const meta = statusMeta[cycle.status] ?? {
                           label: cycle.status,
