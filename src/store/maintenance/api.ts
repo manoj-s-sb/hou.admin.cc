@@ -32,11 +32,19 @@ import type {
  * the Tickets module imports this helper too. Do NOT remove.
  */
 export const uploadFileToBlob = async (uploadUrl: string, file: File): Promise<void> => {
-  await fetch(uploadUrl, {
+  const res = await fetch(uploadUrl, {
     method: 'PUT',
     headers: { 'x-ms-blob-type': 'BlockBlob' },
     body: file,
   });
+  // fetch() only rejects on a network-level failure (DNS, CORS block, connection
+  // reset) — an HTTP error status (e.g. an expired/invalid SAS, a transient 5xx)
+  // resolves normally and would otherwise be silently treated as a successful
+  // upload, leaving the caller pointing an attachment record at a blob that was
+  // never actually written.
+  if (!res.ok) {
+    throw new Error(`Blob upload failed (${res.status})`);
+  }
 };
 
 // Drop undefined keys so the action body only carries what the caller set.

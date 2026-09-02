@@ -278,15 +278,22 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
     }
   };
 
-  const handleAttachment = async (file: File | null) => {
-    if (!file || !ticket) return;
-    try {
-      const blobName = await uploadTicketFile(ticket.facilityCode, file);
-      await dispatch(addTicketAttachment({ ticketId, blobName })).unwrap();
-      afterMutation('Attachment added');
-    } catch (e) {
-      toast.error(typeof e === 'string' ? e : 'Could not attach the file');
+  const handleAttachment = async (files: File[]) => {
+    if (!files.length || !ticket) return;
+    let added = 0;
+    for (const file of files) {
+      try {
+        // Sequential (not Promise.all): addTicketAttachment appends to the ticket's
+        // attachment list server-side, so parallel calls could race and clobber
+        // each other's update.
+        const blobName = await uploadTicketFile(ticket.facilityCode, file);
+        await dispatch(addTicketAttachment({ ticketId, blobName })).unwrap();
+        added++;
+      } catch (e) {
+        toast.error(typeof e === 'string' ? e : `Could not attach ${file.name}`);
+      }
     }
+    if (added) afterMutation(added === 1 ? 'Attachment added' : `${added} attachments added`);
   };
 
   const isClosed = ticket?.status === 'closed';
@@ -523,13 +530,21 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                       onChange={e => setComment(e.target.value)}
                     />
                     <div className="mt-2 flex items-center justify-between">
-                      <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-1.5 text-[11.5px] font-semibold text-gray-500 hover:bg-gray-100">
+                      {/* Visually hidden but NOT display:none — see CreateTicketModal's
+                          Attachments field for why (`hidden`/display:none on a file input
+                          is unreliable in some browsers once the surrounding form has
+                          re-rendered from typing elsewhere). */}
+                      <label className="relative flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-1.5 text-[11.5px] font-semibold text-gray-500 hover:bg-gray-100">
                         📎 Add attachment
                         <input
+                          multiple
                           accept="image/*,video/*"
-                          className="hidden"
+                          className="absolute h-px w-px overflow-hidden opacity-0"
                           type="file"
-                          onChange={e => handleAttachment(e.target.files?.[0] ?? null)}
+                          onChange={e => {
+                            handleAttachment(Array.from(e.target.files ?? []));
+                            e.target.value = '';
+                          }}
                         />
                       </label>
                       <button
