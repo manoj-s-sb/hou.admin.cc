@@ -89,7 +89,9 @@ const buildLanes = (state: WizardState): ApiLane[] => {
   };
   push('batting', num(state.battingLanes));
   push('bowling', num(state.bowlingLanes));
-  push('multipurpose', num(state.multipurposeLanes));
+  // "hybrid", not "multipurpose" — matches what real lane documents (and the
+  // slots module's laneType) actually use; see facilities/index.tsx's LANE_META.
+  push('hybrid', num(state.multipurposeLanes));
   return lanes;
 };
 

@@ -18,7 +18,10 @@ const FEATURE_META: Record<string, { icon: string; label: string; bg: string }> 
 const LANE_META = [
   { key: 'batting', label: 'Batting Lanes', icon: '🏏', color: '#21295A' },
   { key: 'bowling', label: 'Bowling Lanes', icon: '🎳', color: '#008482' },
-  { key: 'multipurpose', label: 'Hybrid Lanes', icon: '🔄', color: '#d97706' },
+  // Real lane documents store this as "hybrid" (see slots module's laneType), not
+  // "multipurpose" — the New Centre wizard used a different value than the rest of
+  // the app actually writes/expects, so real hybrid lanes were undercounted here.
+  { key: 'hybrid', label: 'Hybrid Lanes', icon: '🔄', color: '#d97706' },
 ];
 
 const to12h = (hhmm?: string): string => {

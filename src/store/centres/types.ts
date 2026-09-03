@@ -189,7 +189,7 @@ export interface LanePitchBox {
 export interface ApiLane {
   type: 'lane';
   laneNo: number;
-  laneType: 'batting' | 'bowling' | 'multipurpose';
+  laneType: 'batting' | 'bowling' | 'hybrid';
   status: string;
   code: string;
   lanePitchMapping: Record<string, LanePitchBox>; // "60".."160"

@@ -115,7 +115,7 @@ const PlansPricing: React.FC = () => {
           type="button"
           onClick={() => toast('Add / edit plans from Centre Management → Edit')}
         >
-          + Add / Edit Plans
+          Add / Edit Plans
         </button>
       </div>
 

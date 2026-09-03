@@ -85,7 +85,7 @@ const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, c
             : isListLoading
               ? 'Loading staff…'
               : selectable.length
-                ? '+ Add a person…'
+                ? 'Add a person…'
                 : activeStaff.length
                   ? 'All active staff already added'
                   : staffList.length

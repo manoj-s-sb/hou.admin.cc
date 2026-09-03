@@ -192,7 +192,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
       <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[#21295A]">+ Create Ticket</h2>
+            <h2 className="text-[16px] font-bold text-[#21295A]">Create Ticket</h2>
             <p className="mt-0.5 text-[12px] text-gray-400">Raise a ticket or incident — assigned to NOC or Staff</p>
           </div>
           <button

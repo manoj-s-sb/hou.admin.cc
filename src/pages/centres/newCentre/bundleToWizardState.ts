@@ -199,7 +199,8 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
       '',
     battingLanes: laneCount('batting'),
     bowlingLanes: laneCount('bowling'),
-    multipurposeLanes: laneCount('multipurpose'),
+    // Real lane documents use "hybrid" — see buildCreatePayload.ts.
+    multipurposeLanes: laneCount('hybrid'),
     facilities: facility.amenities?.length ? facility.amenities : ['Batting Lanes', 'Bowling Lanes'],
     slotDurationMinutes: num(slotCfg.slotDurationMinutes) || 45,
     advanceBookingWindowDays: num(slotCfg.advanceBookingWindowDays) || 7,

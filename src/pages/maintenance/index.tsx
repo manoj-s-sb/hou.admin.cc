@@ -255,7 +255,7 @@ const Maintenance: React.FC = () => {
               type="button"
               onClick={() => setTemplateModal({ open: true, template: null })}
             >
-              + Add Task
+              Add Task
             </button>
           )}
         </div>
