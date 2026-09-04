@@ -247,7 +247,7 @@ const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: Facil
               fontWeight: 600,
             }}
           >
-            + Add
+            Add
             {inputEl}
           </label>
         )}
@@ -622,7 +622,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
                         type="button"
                         onClick={() => addRoom(panel.type)}
                       >
-                        + Add another {panel.title.replace(/s$/, '').toLowerCase()}
+                        Add another {panel.title.replace(/s$/, '').toLowerCase()}
                       </button>
                     </div>
                   </>
@@ -721,7 +721,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
             type="button"
             onClick={() => addRoom('custom')}
           >
-            + Add custom facility
+            Add custom facility
           </button>
         </div>
       </div>

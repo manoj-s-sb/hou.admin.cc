@@ -24,7 +24,8 @@ import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import countries from '../../constants/countries.json';
 import { getRelationshipLabel } from '../../constants/relationship';
-import { ROUTES } from '../../constants/routes';
+import { buildRoute, ROUTES } from '../../constants/routes';
+import { getFacilityCode } from '../../constants/user';
 import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -35,6 +36,19 @@ interface HealthDeclarationItem {
   selectedOptions?: string;
 }
 
+const SUBSCRIPTION_STATUS_META: Record<string, { label: string; cls: string }> = {
+  active: { label: 'Active', cls: 'bg-green-100 text-green-700' },
+  resumed: { label: 'Resumed', cls: 'bg-green-100 text-green-700' },
+  pendingactivation: { label: 'Pending Activation', cls: 'bg-amber-100 text-amber-700' },
+  paused: { label: 'Paused', cls: 'bg-orange-100 text-orange-700' },
+  past_due: { label: 'Past Due', cls: 'bg-red-100 text-red-700' },
+  canceled: { label: 'Canceled', cls: 'bg-red-100 text-red-700' },
+  cancelled: { label: 'Cancelled', cls: 'bg-red-100 text-red-700' },
+};
+
+const subscriptionStatusMeta = (status?: string): { label: string; cls: string } =>
+  SUBSCRIPTION_STATUS_META[(status || '').toLowerCase()] || { label: 'Inactive', cls: 'bg-gray-100 text-gray-600' };
+
 const ViewMembers = () => {
   const { memberDetails, isLoading } = useSelector((state: RootState) => state.members) as {
     memberDetails: MemberDetailsResponse | null;
@@ -44,6 +58,14 @@ const ViewMembers = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? '';
+  // The centre this member was viewed from — passed via navigation state (the row-click
+  // navigate() in members/index.tsx), falling back to the current facility scope so a
+  // direct/refreshed visit still resolves. Without this, "Back" would fall through to
+  // the global (non-centre-scoped) /members route, which is gated behind Coming Soon.
+  const backFacilityCode = (location.state as { facilityCode?: string } | null)?.facilityCode || getFacilityCode();
+  const backPath = backFacilityCode
+    ? `${buildRoute.centreModule(backFacilityCode, 'members')}${listSearch}`
+    : `${ROUTES.MEMBERS.path}${listSearch}`;
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [expandedCycles, setExpandedCycles] = useState<number[]>([]);
   const [showAllCycles, setShowAllCycles] = useState(false);
@@ -107,10 +129,7 @@ const ViewMembers = () => {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-lg text-gray-500">No member details found</p>
-          <button
-            className="mt-4 font-medium text-blue-600 hover:text-blue-700"
-            onClick={() => navigate(`${ROUTES.MEMBERS.path}${listSearch}`)}
-          >
+          <button className="mt-4 font-medium text-blue-600 hover:text-blue-700" onClick={() => navigate(backPath)}>
             Go back to members list
           </button>
         </div>
@@ -144,7 +163,7 @@ const ViewMembers = () => {
           search={false}
           title="Member Details"
           value=""
-          onBackClick={() => navigate(`${ROUTES.MEMBERS.path}${listSearch}`)}
+          onBackClick={() => navigate(backPath)}
           onSearch={() => undefined}
         />
 
@@ -220,6 +239,14 @@ const ViewMembers = () => {
             <div className="px-4 py-3 sm:px-6 sm:py-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Status</p>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).cls}`}
+                  >
+                    {subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).label}
+                  </span>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Subscription Code</p>
                   <p className="text-base font-semibold capitalize text-gray-900">
                     {memberDetails.subscription.subscriptionCode}
@@ -276,6 +303,9 @@ const ViewMembers = () => {
                 (sum: number, c) => sum + (c.purchasedSlotCount ?? 0),
                 0
               );
+              // The backend returns cycles oldest-first; show newest (current/active) first instead,
+              // so it's visible without needing "Show More" — older cycles trail off below it.
+              const orderedCycles = [...memberDetails.slotUsageTable.cycles].reverse();
 
               return (
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -296,10 +326,7 @@ const ViewMembers = () => {
 
                   <div className="px-4 py-3 sm:px-6 sm:py-4">
                     <div className="space-y-2">
-                      {(showAllCycles
-                        ? memberDetails.slotUsageTable.cycles
-                        : memberDetails.slotUsageTable.cycles.slice(0, 5)
-                      ).map((cycle, index: number) => {
+                      {(showAllCycles ? orderedCycles : orderedCycles.slice(0, 5)).map((cycle, index: number) => {
                         const isExpanded = expandedCycles.includes(cycle.cycleNumber);
                         const meta = statusMeta[cycle.status] ?? {
                           label: cycle.status,

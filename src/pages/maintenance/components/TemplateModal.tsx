@@ -400,7 +400,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
               type="button"
               onClick={addStep}
             >
-              + Add Step
+              Add Step
             </button>
           </div>
 

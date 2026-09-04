@@ -213,7 +213,11 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
               className="block w-full text-[12px] text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-gray-700"
               type="file"
               onChange={e => {
-                setFiles(prev => [...prev, ...Array.from(e.target.files ?? [])]);
+                // Capture into a plain array BEFORE resetting the input below — setFiles's
+                // updater runs slightly later than this handler, so reading e.target.files
+                // lazily inside it would see the empty FileList left by the reset instead.
+                const picked = Array.from(e.target.files ?? []);
+                setFiles(prev => [...prev, ...picked]);
                 // Reset so the input fires again next time, instead of just extending this selection.
                 e.target.value = '';
               }}

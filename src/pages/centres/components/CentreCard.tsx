@@ -16,6 +16,7 @@ const PLAN_META: { key: string; label: string; dot: string }[] = [
   { key: 'premium', label: 'Premium', dot: 'bg-[#7c3aed]' },
   { key: 'standard', label: 'Standard', dot: 'bg-cmx-blue' },
   { key: 'family', label: 'Family', dot: 'bg-cmx-green' },
+  { key: 'offpeak', label: 'Off Peak', dot: 'bg-cmx-amber' },
 ];
 
 const getTzAbbr = (tz: string): string => {
@@ -81,7 +82,13 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
   const status = STATUS_META[centre.status] ?? STATUS_META.draft;
   const accent = centreColour(centre.code);
   const { kpi } = centre;
-  const location = [centre.stateCode, centre.countryCode].filter(Boolean).join(', ') || centre.cityCode || '—';
+  const location =
+    [centre.stateCode, centre.countryCode]
+      .filter(Boolean)
+      .map(s => s.toUpperCase())
+      .join(', ') ||
+    centre.cityCode ||
+    '—';
   const plans = kpi?.activePlans ?? {};
   const hasPlans = PLAN_META.some(p => (plans[p.key] ?? 0) > 0);
   const tz = getTzAbbr(centre.timezone);
@@ -220,8 +227,7 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
       </div>
 
       {/* ── Footer: open affordance ── */}
-      <div className="mt-3.5 flex items-center justify-between border-t border-cmx-border pt-3">
-        <span className="text-[11px] font-medium text-muted">Updated {centre.updatedAt?.slice(0, 10) || '—'}</span>
+      <div className="mt-3.5 flex items-center justify-end border-t border-cmx-border pt-3">
         <div className="flex items-center gap-2.5">
           {/* Every centre is editable. Drafts get an amber "Edit & Activate" call-to-action
               to finish setup; active/suspended centres get a neutral "Edit" (the wizard then

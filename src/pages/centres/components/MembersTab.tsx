@@ -188,7 +188,7 @@ const MembersTab: React.FC<Props> = ({ centre }) => {
             type="button"
             onClick={comingSoon}
           >
-            + Add Member
+            Add Member
           </button>
         </div>
       </div>

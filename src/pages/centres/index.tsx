@@ -202,10 +202,6 @@ const CentreManagement: React.FC = () => {
         </div>
         {canManageCentres && (
           <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => setWizardOpen(true)}>
-            <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
-              <line x1="12" x2="12" y1="5" y2="19" />
-              <line x1="5" x2="19" y1="12" y2="12" />
-            </svg>
             New Centre
           </button>
         )}
@@ -240,16 +236,6 @@ const CentreManagement: React.FC = () => {
                 type="button"
                 onClick={() => setWizardOpen(true)}
               >
-                <svg
-                  className="h-7 w-7 text-muted"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  viewBox="0 0 24 24"
-                >
-                  <line x1="12" x2="12" y1="5" y2="19" />
-                  <line x1="5" x2="19" y1="12" y2="12" />
-                </svg>
                 <span className="text-[13px] font-semibold text-sub">Add New Centre</span>
               </button>
             )}
