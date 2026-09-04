@@ -85,6 +85,10 @@ const endpoints = {
     // Rows with an email that already exists (on this centre, or earlier in the same upload) are
     // skipped, not rejected — response reports createdCount/skippedCount/skipped.
     waitlistImport: `${API_PREFIX}/admin/centres/waitlist/import`,
+    // POST { names: string[] } — resolves NAMED permissions (see backend
+    // shared/access_permissions.py) for the calling user. Returns booleans only,
+    // e.g. { "canDeleteWaitlist": true } — never the underlying allow-list.
+    permissionsResolve: `${API_PREFIX}/admin/permissions/resolve`,
     leadsNotesAdd: `${API_PREFIX}/admin/centres/leads/notes/add`, // POST { facilityCode, leadId, text, createdByName }
     leadsNotesDelete: `${API_PREFIX}/admin/centres/leads/notes/delete`, // POST { facilityCode, leadId, noteId }
     // POST { facilityCode, leadId } — only manually-added leads are deletable; 404 for funnel-derived ones.
