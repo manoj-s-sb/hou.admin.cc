@@ -15,6 +15,7 @@ import type {
   AdditionalFacility,
   AdditionalFacilityType,
   ApiMembership,
+  ApiProduct,
   CentreBundle,
   OperatingHoursDay,
   OperatingHoursMap,
@@ -41,36 +42,50 @@ const num = (v: unknown): number => {
 /** Present (not null/undefined) — used to keep guest-pricing blank when unset. */
 const hasVal = (v: unknown): boolean => v !== undefined && v !== null;
 
-const FEATURE_TYPES: AdditionalFacilityType[] = ['gym', 'podcast', 'meeting', 'gaming', 'custom'];
+/** Products already surfaced via the Lanes step — never reconstructed as additional facilities. */
+const LANE_PRODUCT_CODES = new Set(['batting', 'bowling', 'hybrid', 'multipurpose']);
+
+/** Map a product's `code` back to the wizard's facility type — mirrors productCodeFor in buildCreatePayload.ts. */
+const facilityTypeFromCode = (code: string): AdditionalFacilityType => {
+  const c = code.toLowerCase();
+  if (c === 'gym') return 'gym';
+  if (c === 'gaming') return 'gaming';
+  if (c.startsWith('podcastroom')) return 'podcast';
+  if (c.startsWith('meetingroom')) return 'meeting';
+  return 'custom';
+};
 
 /**
- * Rebuild the wizard's additional-facilities list from the saved `facility.features`
- * map so editing a centre shows the ones already configured (and re-saving keeps
- * them instead of replacing the map with only the newly-added one).
+ * Rebuild the wizard's additional-facilities list from the real `product` docs
+ * (bundle.products) so editing a centre shows the ones already configured. Best-effort:
+ * the real docs' nested shape (slotPricing/sessionRules/guestPolicy) is mapped back onto
+ * the wizard's flatter fields — see buildCreatePayload.ts's buildProducts for the forward
+ * direction. Note products are CREATE-ONLY on save (see facility_models.py), so re-saving
+ * an unchanged facility here never overwrites its real DB values.
  */
-const featuresToAdditional = (features: Record<string, unknown> | undefined): AdditionalFacility[] => {
+const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFacility[] => {
   const out: AdditionalFacility[] = [];
-  Object.entries(features ?? {}).forEach(([type, val]) => {
-    if (!FEATURE_TYPES.includes(type as AdditionalFacilityType)) return;
-    const entries = Array.isArray(val) ? val : val && typeof val === 'object' ? [val] : [];
-    entries.forEach((raw, i) => {
-      const e = raw as Record<string, unknown>;
-      const base = makeAdditionalFacility(type as AdditionalFacilityType, i + 1);
-      out.push({
-        ...base,
-        name: (e.name as string) || base.name,
-        fortnightlyPrice: num(e.fortnightlyPrice),
-        annualDiscountPct: num(e.annualDiscountPct),
-        totalCapacity: num(e.totalCapacity) || base.totalCapacity,
-        concurrentCapacity: num(e.concurrentCapacity) || base.concurrentCapacity,
-        slotDuration: (e.slotDuration as string) || base.slotDuration,
-        guestSessionPrice: num(e.guestSessionPrice),
-        freeGuestVisits: num(e.freeGuestVisits),
-        openTime: (e.openTime as string) || base.openTime,
-        closeTime: (e.closeTime as string) || base.closeTime,
-        psUnits: hasVal(e.psUnits) ? num(e.psUnits) : base.psUnits,
-        chargePerHour: hasVal(e.chargePerHour) ? num(e.chargePerHour) : base.chargePerHour,
-      });
+  (products ?? []).forEach((p, i) => {
+    const code = (p.code ?? '').toLowerCase();
+    if (!code || LANE_PRODUCT_CODES.has(code)) return;
+    const type = facilityTypeFromCode(code);
+    const base = makeAdditionalFacility(type, i + 1);
+    out.push({
+      ...base,
+      name: p.name || base.name,
+      fortnightlyPrice: num(p.slotPricing?.default?.price) || base.fortnightlyPrice,
+      guestSessionPrice: hasVal(p.guestPolicy?.additionalGuestPrice)
+        ? num(p.guestPolicy?.additionalGuestPrice)
+        : base.guestSessionPrice,
+      totalCapacity: hasVal(p.guestPolicy?.maxGuestsPerSlot)
+        ? num(p.guestPolicy?.maxGuestsPerSlot)
+        : base.totalCapacity,
+      concurrentCapacity: hasVal(p.sessionRules?.slotCapacity)
+        ? num(p.sessionRules?.slotCapacity)
+        : base.concurrentCapacity,
+      slotDuration: hasVal(p.sessionRules?.durationMinutes)
+        ? `${p.sessionRules?.durationMinutes} minutes`
+        : base.slotDuration,
     });
   });
   return out;
@@ -199,11 +214,12 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
       '',
     battingLanes: laneCount('batting'),
     bowlingLanes: laneCount('bowling'),
-    multipurposeLanes: laneCount('multipurpose'),
+    // Real lane documents use "hybrid" — see buildCreatePayload.ts.
+    multipurposeLanes: laneCount('hybrid'),
     facilities: facility.amenities?.length ? facility.amenities : ['Batting Lanes', 'Bowling Lanes'],
     slotDurationMinutes: num(slotCfg.slotDurationMinutes) || 45,
     advanceBookingWindowDays: num(slotCfg.advanceBookingWindowDays) || 7,
-    additionalFacilities: featuresToAdditional(facility.features),
+    additionalFacilities: productsToAdditional(bundle.products),
     plans,
     firstGuestFee: hasVal(reg.firstGuestFee) ? num(reg.firstGuestFee) : null,
     additionalGuestDiscountPct: hasVal(reg.additionalGuestDiscountPct) ? num(reg.additionalGuestDiscountPct) : null,

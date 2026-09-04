@@ -438,7 +438,7 @@ const Step4Plans: React.FC<Props> = ({
       type="button"
       onClick={addDiscount}
     >
-      + Add Discount
+      Add Discount
     </button>
 
     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>

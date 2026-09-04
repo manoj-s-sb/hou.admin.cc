@@ -139,8 +139,11 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         blobNames = await Promise.all(files.map(f => uploadTicketFile(centre, f)));
       } catch {
         setSubmitting(false);
+        // Could be storage CORS not configured for this origin, or the upload itself
+        // failing/timing out (expired SAS, transient error) — either way surface it
+        // rather than silently creating the ticket without its attachment.
         toast.error(
-          'Attachment upload failed — the tickets storage needs CORS enabled for this site. Remove the file to create without it, or fix storage CORS and retry.'
+          'Attachment upload failed — check storage CORS is enabled for this site, or retry. Remove the file to create the ticket without it.'
         );
         return;
       }
@@ -189,7 +192,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
       <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[#21295A]">+ Create Ticket</h2>
+            <h2 className="text-[16px] font-bold text-[#21295A]">Create Ticket</h2>
             <p className="mt-0.5 text-[12px] text-gray-400">Raise a ticket or incident — assigned to NOC or Staff</p>
           </div>
           <button
@@ -391,17 +394,35 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
 
           <div>
             <span className={labelClass}>Attachments</span>
-            <input
-              multiple
-              accept="image/*,video/*"
-              className="block w-full text-[12px] text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-gray-700"
-              type="file"
-              onChange={e => {
-                setFiles(prev => [...prev, ...Array.from(e.target.files ?? [])]);
-                // Reset so the input fires again next time, instead of just extending this selection.
-                e.target.value = '';
-              }}
-            />
+            <div className="flex items-center gap-2">
+              {/* Visually hidden but NOT display:none (`hidden`/display:none on a file
+                  input is unreliable in some browsers — the click still opens the OS
+                  picker, but the resulting change event can silently get dropped while
+                  the surrounding form re-renders from typing elsewhere). Keeping it
+                  genuinely present in the layout, just invisible, avoids that. */}
+              <label className="relative inline-flex cursor-pointer items-center rounded-lg bg-gray-100 px-3 py-1.5 text-[12px] font-semibold text-gray-700 hover:bg-gray-200">
+                Choose Files
+                <input
+                  multiple
+                  accept="image/*,video/*"
+                  className="absolute h-px w-px overflow-hidden opacity-0"
+                  type="file"
+                  onChange={e => {
+                    // Capture the picked files into a plain array BEFORE resetting the input below.
+                    // setFiles's updater callback runs slightly later than this synchronous handler,
+                    // so if it read e.target.files itself, it would see the empty FileList left by
+                    // the reset instead of the files that were actually just picked.
+                    const picked = Array.from(e.target.files ?? []);
+                    setFiles(prev => [...prev, ...picked]);
+                    // Reset so the input fires again next time, instead of just extending this selection.
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              <span className="text-[12px] text-gray-500">
+                {files.length === 0 ? 'No file chosen' : `${files.length} file${files.length > 1 ? 's' : ''} chosen`}
+              </span>
+            </div>
             {files.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {files.map((f, i) => (

@@ -196,6 +196,25 @@ const InductionAccordionItem = ({
   const PENDING_MEMBERSHIP_STATUSES = new Set(['pendingactivation', 'inactive']);
   const showPrimaryActions =
     isPrimary && (!data?.subscriptionStatus || PENDING_MEMBERSHIP_STATUSES.has(data.subscriptionStatus));
+  // Whether the primary member's subscription has actually been activated (as opposed to
+  // just having all induction steps checked off — those are two separate things).
+  const isSubscriptionActivated =
+    Boolean(data?.subscriptionStatus) && !PENDING_MEMBERSHIP_STATUSES.has(data?.subscriptionStatus ?? '');
+
+  // Three-tier progress, not just done/not-done: steps can be fully checked off ("Save
+  // Induction" done) while the primary member's subscription is still awaiting activation —
+  // that's "Partial Completed", distinct from "Completed" (subscription actually active).
+  // Non-primary members have no activation step, so steps-done is simply "Completed" for them.
+  const progressStatus: 'in_progress' | 'partial_completed' | 'completed' = !isInductionCompletedFromAPI
+    ? 'in_progress'
+    : isPrimary && !isSubscriptionActivated
+      ? 'partial_completed'
+      : 'completed';
+  const PROGRESS_STATUS_META: Record<typeof progressStatus, { label: string; cls: string }> = {
+    in_progress: { label: 'In Progress', cls: 'text-orange-600' },
+    partial_completed: { label: 'Partial Completed', cls: 'text-amber-600' },
+    completed: { label: 'Completed', cls: 'text-green-600' },
+  };
 
   return (
     <div className="mb-3 overflow-hidden rounded-lg border border-gray-200">
@@ -232,8 +251,8 @@ const InductionAccordionItem = ({
                 <p className="text-xs font-medium text-gray-700">
                   {completedCount} / {totalSteps} Steps
                 </p>
-                <p className={`text-xs ${isInductionCompletedFromAPI ? 'text-green-600' : 'text-orange-600'}`}>
-                  {isInductionCompletedFromAPI ? 'Completed' : 'In Progress'}
+                <p className={`text-xs ${PROGRESS_STATUS_META[progressStatus].cls}`}>
+                  {PROGRESS_STATUS_META[progressStatus].label}
                 </p>
               </div>
             )}
@@ -246,8 +265,8 @@ const InductionAccordionItem = ({
                 <p className="text-sm font-medium text-gray-700">
                   {completedCount} / {totalSteps} Steps
                 </p>
-                <p className={`text-xs ${isInductionCompletedFromAPI ? 'text-green-600' : 'text-orange-600'}`}>
-                  {isInductionCompletedFromAPI ? 'Completed' : 'In Progress'}
+                <p className={`text-xs ${PROGRESS_STATUS_META[progressStatus].cls}`}>
+                  {PROGRESS_STATUS_META[progressStatus].label}
                 </p>
               </div>
             )}
@@ -401,13 +420,16 @@ const InductionAccordionItem = ({
                 <span>{isSaving ? 'Saving...' : 'Save Induction'}</span>
               </button>
             )}
-            {/* Activate Subscription Button - only while membership is still pending activation */}
+            {/* Activate Subscription Button - only while membership is still pending activation.
+                Light green at rest, brightening to a stronger green on hover — a muted gray
+                while disabled (steps not done yet) keeps that state visually distinct from
+                "ready to activate". */}
             {showPrimaryActions && (
               <button
                 className={`flex w-full items-center justify-center space-x-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto sm:px-6 ${
                   data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader
-                    ? 'cursor-not-allowed bg-green-400'
-                    : 'bg-green-600 hover:bg-green-700 hover:shadow-lg'
+                    ? 'cursor-not-allowed bg-gray-300 text-gray-500'
+                    : 'bg-green-400 hover:bg-green-600 hover:shadow-lg'
                 }`}
                 disabled={data?.status !== 'completed' || isActivatingSubscription || isSaving || buttonLoader}
                 title={data?.status !== 'completed' ? 'Complete all the induction steps to activate subscription' : ''}
@@ -416,6 +438,20 @@ const InductionAccordionItem = ({
                 {isActivatingSubscription && <ButtonLoader />}
                 <span>{isActivatingSubscription ? 'Activating...' : 'Activate Subscription'}</span>
               </button>
+            )}
+            {/* Once activated, replace the action row with a green confirmation instead of
+                just leaving the space empty. */}
+            {isPrimary && isSubscriptionActivated && (
+              <span className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700 sm:w-auto sm:px-6">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    clipRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    fillRule="evenodd"
+                  />
+                </svg>
+                Activated
+              </span>
             )}
           </div>
         </div>

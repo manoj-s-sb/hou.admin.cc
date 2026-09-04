@@ -227,8 +227,7 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
       </div>
 
       {/* ── Footer: open affordance ── */}
-      <div className="mt-3.5 flex items-center justify-between border-t border-cmx-border pt-3">
-        <span className="text-[11px] font-medium text-muted">Updated {centre.updatedAt?.slice(0, 10) || '—'}</span>
+      <div className="mt-3.5 flex items-center justify-end border-t border-cmx-border pt-3">
         <div className="flex items-center gap-2.5">
           {/* Every centre is editable. Drafts get an amber "Edit & Activate" call-to-action
               to finish setup; active/suspended centres get a neutral "Edit" (the wizard then

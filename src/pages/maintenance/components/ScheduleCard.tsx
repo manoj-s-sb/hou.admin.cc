@@ -219,15 +219,19 @@ const ScheduleCard: React.FC<Props> = ({
           ⚑ Flag Issue
         </button>
         {!isDone && (
-          <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-500 transition hover:bg-gray-50">
+          <label className="relative flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-500 transition hover:bg-gray-50">
             📎 Attach
             <input
               multiple
               accept="image/*,video/*"
-              className="hidden"
+              className="absolute h-px w-px overflow-hidden opacity-0"
               type="file"
               onChange={e => {
-                setFiles(prev => [...prev, ...Array.from(e.target.files ?? [])]);
+                // Capture into a plain array BEFORE resetting the input below — setFiles's
+                // updater runs slightly later than this handler, so reading e.target.files
+                // lazily inside it would see the empty FileList left by the reset instead.
+                const picked = Array.from(e.target.files ?? []);
+                setFiles(prev => [...prev, ...picked]);
                 e.target.value = '';
               }}
             />

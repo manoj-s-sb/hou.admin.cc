@@ -5,54 +5,67 @@ import { useSelector } from 'react-redux';
 
 import { DEFAULT_AMENITIES } from '../constants';
 
+import type { ApiProduct } from '../../../store/centres/types';
 import type { RootState } from '../../../store/store';
 
-/** Icon + display label + icon tint per additional-facility type (mirrors the wizard). */
-const FEATURE_META: Record<string, { icon: string; label: string; bg: string }> = {
-  gym: { icon: '🏋️', label: 'Gym / Fitness Area', bg: '#fef9c3' },
-  podcast: { icon: '🎙', label: 'Podcast Studio', bg: '#ecedf4' },
-  meeting: { icon: '🗂', label: 'Meeting Rooms', bg: '#d0f0f0' },
-  gaming: { icon: '🎮', label: 'Gaming Zone', bg: '#eeedfe' },
+/** Icon + display label + icon tint, matched against a product's `code` (mirrors the wizard's types). */
+const FEATURE_META: { match: (code: string) => boolean; icon: string; label: string; bg: string }[] = [
+  { match: c => c.includes('gym'), icon: '🏋️', label: 'Gym / Fitness Area', bg: '#fef9c3' },
+  { match: c => c.includes('podcast'), icon: '🎙', label: 'Podcast Room', bg: '#ecedf4' },
+  { match: c => c.includes('meeting'), icon: '🗂', label: 'Meeting Room', bg: '#d0f0f0' },
+  { match: c => c.includes('gaming') || c.includes('game'), icon: '🎮', label: 'Gaming Zone', bg: '#eeedfe' },
+];
+const featureMetaFor = (code: string): { icon: string; label: string; bg: string } =>
+  FEATURE_META.find(m => m.match(code.toLowerCase())) ?? { icon: '📦', label: code, bg: '#f3f4f6' };
+
+/** Products already surfaced via the Lanes section — skip them here to avoid double-listing. */
+const LANE_PRODUCT_CODES = new Set(['batting', 'bowling', 'hybrid', 'multipurpose']);
+
+const STATUS_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  active: { label: 'Active', color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' },
+  commingsoon: { label: 'Coming Soon', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  inactive: { label: 'Inactive', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
 };
+const statusMetaFor = (status: string): { label: string; color: string; bg: string; border: string } =>
+  STATUS_META[status] ?? { label: status, color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' };
 
 const LANE_META = [
   { key: 'batting', label: 'Batting Lanes', icon: '🏏', color: '#21295A' },
   { key: 'bowling', label: 'Bowling Lanes', icon: '🎳', color: '#008482' },
-  { key: 'multipurpose', label: 'Hybrid Lanes', icon: '🔄', color: '#d97706' },
+  // Real lane documents store this as "hybrid" (see slots module's laneType), not
+  // "multipurpose" — the New Centre wizard used a different value than the rest of
+  // the app actually writes/expects, so real hybrid lanes were undercounted here.
+  { key: 'hybrid', label: 'Hybrid Lanes', icon: '🔄', color: '#d97706' },
 ];
 
-const to12h = (hhmm?: string): string => {
-  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? '');
-  if (!m) return hhmm ?? '';
-  const ap = Number(m[1]) >= 12 ? 'PM' : 'AM';
-  const h = Number(m[1]) % 12 || 12;
-  return `${h}:${m[2]} ${ap}`;
+const money = (amount?: number, currency?: string): string => {
+  if (!Number.isFinite(amount)) return '—';
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: (currency || 'USD').toUpperCase(),
+    }).format(amount as number);
+  } catch {
+    return `$${(amount as number).toFixed(2)}`;
+  }
 };
-
-const money = (v: unknown): string => {
-  const n = Number(v);
-  return Number.isFinite(n) ? `$${n.toFixed(2)}` : '—';
-};
-
-type FeatureEntry = Record<string, unknown> & { name?: string };
 
 /** True when a value is set (not null/undefined) — so a legit 0 still renders. */
 const has = (v: unknown): boolean => v !== undefined && v !== null;
 
-/** Build the label/value rows for one additional facility, skipping absent fields. */
-const detailRows = (e: FeatureEntry): [string, string][] => {
+/** Build the label/value rows for one product, skipping fields the doc doesn't set. */
+const detailRows = (p: ApiProduct): [string, string][] => {
   const rows: [string, string][] = [];
-  if (has(e.fortnightlyPrice)) rows.push(['Fortnightly price', money(e.fortnightlyPrice)]);
-  if (has(e.annualDiscountPct)) rows.push(['Annual discount', `${Number(e.annualDiscountPct)}%`]);
-  if (has(e.totalCapacity)) rows.push(['Total capacity', `${Number(e.totalCapacity)} members`]);
-  if (has(e.concurrentCapacity)) rows.push(['Max concurrent', `${Number(e.concurrentCapacity)} at a time`]);
-  if (e.slotDuration) rows.push(['Slot duration', String(e.slotDuration)]);
-  if (has(e.guestSessionPrice)) rows.push(['Guest price', money(e.guestSessionPrice)]);
-  if (has(e.freeGuestVisits)) rows.push(['Free guest visits', `${Number(e.freeGuestVisits)} / month`]);
-  if (has(e.psUnits)) rows.push(['PS units', String(e.psUnits)]);
-  if (has(e.chargePerHour)) rows.push(['Charge / hour', money(e.chargePerHour)]);
-  if (e.openTime && e.closeTime) {
-    rows.push(['Operating hours', `${to12h(String(e.openTime))} – ${to12h(String(e.closeTime))}`]);
+  const price = p.slotPricing?.default;
+  if (has(price?.price)) rows.push(['Price per slot', money(price?.price, price?.currency)]);
+  if (has(p.sessionRules?.durationMinutes)) rows.push(['Session duration', `${p.sessionRules?.durationMinutes} min`]);
+  if (has(p.sessionRules?.slotCapacity)) rows.push(['Capacity per slot', `${p.sessionRules?.slotCapacity}`]);
+  if (has(p.sessionRules?.maxBookingsPerDay)) rows.push(['Max bookings / day', `${p.sessionRules?.maxBookingsPerDay}`]);
+  if (has(p.sessionRules?.advanceBookingDays))
+    rows.push(['Advance booking', `${p.sessionRules?.advanceBookingDays} days`]);
+  if (has(p.guestPolicy?.maxGuestsPerSlot)) rows.push(['Max guests / slot', `${p.guestPolicy?.maxGuestsPerSlot}`]);
+  if (has(p.guestPolicy?.additionalGuestPrice) && Number(p.guestPolicy?.additionalGuestPrice) > 0) {
+    rows.push(['Extra guest price', money(p.guestPolicy?.additionalGuestPrice)]);
   }
   return rows;
 };
@@ -80,13 +93,9 @@ const Facilities: React.FC = () => {
   // default list is only a fallback for centres created before it was persisted.
   const amenities = bundle?.facility?.amenities?.length ? bundle.facility.amenities : DEFAULT_AMENITIES;
 
-  const features = (bundle?.facility?.features ?? {}) as Record<string, unknown>;
-  const items: { type: string; entry: FeatureEntry }[] = [];
-  Object.entries(features).forEach(([type, val]) => {
-    if (Array.isArray(val))
-      val.forEach(v => v && typeof v === 'object' && items.push({ type, entry: v as FeatureEntry }));
-    else if (val && typeof val === 'object') items.push({ type, entry: val as FeatureEntry });
-  });
+  // Bookable facility products (podcast room, meeting room, gym, ...) — real `type: "product"`
+  // docs linked to this centre via facilityCode, returned alongside facility/lanes/memberships.
+  const products = (bundle?.products ?? []).filter(p => !LANE_PRODUCT_CODES.has((p.code ?? '').toLowerCase()));
 
   return (
     <div>
@@ -184,7 +193,7 @@ const Facilities: React.FC = () => {
 
       {/* Additional bookable facilities */}
       <div style={sectionLabel}>Additional Bookable Facilities</div>
-      {items.length === 0 ? (
+      {products.length === 0 ? (
         <div
           style={{
             background: '#fff',
@@ -203,12 +212,13 @@ const Facilities: React.FC = () => {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
-          {items.map(({ type, entry }, i) => {
-            const meta = FEATURE_META[type] ?? { icon: '📦', label: type, bg: '#f3f4f6' };
-            const rows = detailRows(entry);
+          {products.map(p => {
+            const meta = featureMetaFor(p.code ?? '');
+            const status = statusMetaFor(p.status);
+            const rows = detailRows(p);
             return (
               <div
-                key={`${type}-${i}`}
+                key={p.id ?? p.code}
                 style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}
               >
                 <div
@@ -236,34 +246,41 @@ const Facilities: React.FC = () => {
                     {meta.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)' }}>
-                      {entry.name || meta.label}
-                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)' }}>{p.name || meta.label}</div>
                     <span
                       style={{
                         display: 'inline-block',
                         marginTop: 3,
                         fontSize: 10.5,
                         fontWeight: 600,
-                        color: '#d97706',
-                        background: '#fffbeb',
-                        border: '1px solid #fde68a',
+                        color: status.color,
+                        background: status.bg,
+                        border: `1px solid ${status.border}`,
                         borderRadius: 20,
                         padding: '1px 8px',
                       }}
                     >
-                      Active
+                      {status.label}
                     </span>
                   </div>
+                  <button
+                    className="shrink-0 cursor-pointer self-start rounded-full border border-cmx-border bg-white px-3.5 py-1.5 text-[12px] font-semibold text-sub transition-all hover:bg-gray-50"
+                    type="button"
+                    onClick={() => toast(`Edit "${p.name || meta.label}" from Centre Management → Edit`)}
+                  >
+                    Edit
+                  </button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px', padding: 16 }}>
-                  {rows.map(([label, value]) => (
-                    <div key={label}>
-                      <div style={{ fontSize: 11, color: 'var(--sub)' }}>{label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginTop: 2 }}>{value}</div>
-                    </div>
-                  ))}
-                </div>
+                {rows.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px', padding: 16 }}>
+                    {rows.map(([label, value]) => (
+                      <div key={label}>
+                        <div style={{ fontSize: 11, color: 'var(--sub)' }}>{label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginTop: 2 }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
