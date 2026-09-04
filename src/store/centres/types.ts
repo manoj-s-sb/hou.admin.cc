@@ -243,16 +243,76 @@ export interface ApiMembershipSalesFlow {
   id?: string;
 }
 
+/**
+ * Bookable facility product (podcast room, meeting room, gym, ...), `type: "product"`,
+ * linked to its centre via `facilityCode`. Lives alongside facility/lane/membership docs
+ * in the same bundle; the Facilities page renders these directly (see facilities/index.tsx).
+ */
+export interface ApiProduct {
+  type: 'product';
+  id?: string;
+  code: string;
+  facilityCode: string;
+  isAddon?: boolean;
+  bookingModel?: string;
+  name: string;
+  description?: string;
+  benefits?: string[];
+  status: string; // e.g. "active" | "commingsoon"
+  version?: number;
+  slotPricing?: {
+    default?: { price: number; currency: string };
+    texRateId?: string;
+    taxRate?: number;
+  };
+  sessionRules?: {
+    durationMinutes?: number;
+    slotIncrementMinutes?: number;
+    slotCapacity?: number;
+    maxBookingsPerDay?: number;
+    maxActiveBookings?: number;
+    advanceBookingDays?: number;
+    noWalkIns?: boolean;
+  };
+  guestPolicy?: {
+    maxGuestsPerSlot?: number;
+    additionalGuestPrice?: number;
+  };
+}
+
 /** Grouped bundle returned by /details and /create. */
 export interface CentreBundle {
   facility: ApiFacility;
   lanes: ApiLane[];
   memberships: ApiMembership[];
   membershipSalesFlow: ApiMembershipSalesFlow;
+  products?: ApiProduct[];
 }
 
-/** Create body — same bundle, server fills id/timestamps. */
-export type CentreCreateRequest = CentreBundle;
+/**
+ * Write payload for one product (New Centre wizard's Additional Facilities step →
+ * /admin/centres/create or /update). The server always persists the SAME nested
+ * structure the real docs use (slotPricing/sessionRules/guestPolicy) — see
+ * CentreService._build_product_doc — mapping these flatter fields into it.
+ * CREATE-ONLY on /update: a `code` that already exists is left untouched, never
+ * overwritten or deleted (see buildCreatePayload.ts / bundleToWizardState.ts).
+ */
+export interface ApiProductInput {
+  type: 'product';
+  code: string;
+  name: string;
+  status?: string;
+  fortnightlyPrice?: number;
+  guestSessionPrice?: number;
+  totalCapacity?: number;
+  concurrentCapacity?: number;
+  seatingCapacity?: number;
+  slotDuration?: string;
+  freeGuestVisits?: number;
+}
+
+/** Create/update body — same bundle shape, but `products` is the write-side (flatter) shape. */
+export type CentreCreateRequest = Omit<CentreBundle, 'products'> & { products?: ApiProductInput[] };
 
 /* ════════════════════════════════════════════════════════════════════════════
  *  2. Domain / wizard models

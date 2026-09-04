@@ -15,6 +15,7 @@ import type {
   ApiLane,
   ApiMembership,
   ApiMembershipSalesFlow,
+  ApiProductInput,
   CentreBundle,
   CentreCreateRequest,
   OperatingHoursDay,
@@ -151,33 +152,54 @@ const buildSalesFlow = (state: WizardState): ApiMembershipSalesFlow => {
   };
 };
 
-/** Additional bookable facilities (gym/podcast/meeting/gaming) → features map. */
-const buildFeatures = (state: WizardState): Record<string, unknown> => {
-  const features: Record<string, unknown> = {};
-  state.additionalFacilities
+/** Stable product `code` per additional-facility instance — matches the real, hand-created
+ * docs' naming (e.g. "blr01-podcastroom") so the wizard's output lines up with existing data. */
+const productCodeFor = (f: WizardState['additionalFacilities'][number], indexInType: number): string => {
+  switch (f.type) {
+    case 'gym':
+      return 'gym';
+    case 'gaming':
+      return 'gaming';
+    case 'podcast':
+      return indexInType > 1 ? `podcastroom-${indexInType}` : 'podcastroom';
+    case 'meeting':
+      return indexInType > 1 ? `meetingroom-${indexInType}` : 'meetingroom';
+    default: {
+      const slug = (f.name || 'custom-facility')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      return slug || `custom-${indexInType}`;
+    }
+  }
+};
+
+/**
+ * Additional bookable facilities (gym/podcast/meeting/gaming/custom) → product docs.
+ * The backend (CentreService._build_product_doc) maps these flat fields into the SAME
+ * nested structure the real docs use, and on /update these are CREATE-ONLY — an
+ * existing product code is never overwritten or deleted (see facility_models.py).
+ */
+const buildProducts = (state: WizardState): ApiProductInput[] => {
+  const seen: Record<string, number> = {};
+  return state.additionalFacilities
     .filter(f => f.enabled)
-    .forEach(f => {
-      const existing = features[f.type];
-      const entry = {
+    .map(f => {
+      seen[f.type] = (seen[f.type] ?? 0) + 1;
+      return {
+        type: 'product',
+        code: productCodeFor(f, seen[f.type]),
         name: f.name,
+        status: 'active',
         fortnightlyPrice: f.fortnightlyPrice,
-        annualDiscountPct: f.annualDiscountPct,
+        guestSessionPrice: f.guestSessionPrice,
         totalCapacity: f.totalCapacity,
         concurrentCapacity: f.concurrentCapacity,
+        seatingCapacity: f.seatingCapacity,
         slotDuration: f.slotDuration,
-        guestSessionPrice: f.guestSessionPrice,
         freeGuestVisits: f.freeGuestVisits,
-        openTime: f.openTime,
-        closeTime: f.closeTime,
-        psUnits: f.psUnits,
-        chargePerHour: f.chargePerHour,
       };
-      // Multi-instance types (podcast/meeting/custom) collect into an array.
-      if (Array.isArray(existing)) (existing as unknown[]).push(entry);
-      else if (existing) features[f.type] = [existing, entry];
-      else features[f.type] = f.type === 'podcast' || f.type === 'meeting' || f.type === 'custom' ? [entry] : entry;
     });
-  return features;
 };
 
 const buildFacility = (state: WizardState): ApiFacility => ({
@@ -217,7 +239,9 @@ const buildFacility = (state: WizardState): ApiFacility => ({
   holidays: [],
   // Not collected by the wizard yet — refine when the sample JSON is available.
   security: {},
-  features: buildFeatures(state),
+  // Additional bookable facilities are written as `product` docs (see buildProducts
+  // below), not here — this field is unused dead weight kept only for back-compat.
+  features: {},
   waitlist: {},
   edgeDevice: {},
   induction: {},
@@ -236,6 +260,9 @@ export function buildCreatePayload(state: WizardState, original?: CentreBundle):
   const lanes = buildLanes(state);
   const memberships = buildMemberships(state);
   const membershipSalesFlow = buildSalesFlow(state);
+  // Products are matched by `code` on the backend (not a grafted id) — an existing
+  // code is skipped there (create-only), so nothing to graft here on edit.
+  const products = buildProducts(state);
 
   // On edit, graft the server-generated ids back on so the backend updates the
   // existing docs (matched by code) rather than treating this as a create.
@@ -250,5 +277,5 @@ export function buildCreatePayload(state: WizardState, original?: CentreBundle):
     });
   }
 
-  return { facility, lanes, memberships, membershipSalesFlow };
+  return { facility, lanes, memberships, membershipSalesFlow, products };
 }
