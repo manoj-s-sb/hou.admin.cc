@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { LoaderSpinner } from '../../../components/Loader';
 import endpoints from '../../../constants/endpoints';
+import { getLocalUser } from '../../../constants/user';
 import { ACCESS_SCOPES, PermissionGate } from '../../../rbac';
 import api from '../../../services';
 import { Slot } from '../../../store/slots/types';
@@ -19,7 +20,7 @@ interface SlotDetailsModalProps {
   laneNo: number;
   isOpen: boolean;
   onClose: () => void;
-  onBlockSlot: (reason: string) => void;
+  onBlockSlot: (reason: string, blockedByName: string) => void;
   onUnblockSlot: () => void;
   isLoading?: boolean;
   timeSlot: string;
@@ -42,6 +43,15 @@ const SlotDetailsModal = ({
   const [showFullDisableReason, setShowFullDisableReason] = useState(false);
   const [membershipPlan, setMembershipPlan] = useState<string | null>(null);
   const [isPlanLoading, setIsPlanLoading] = useState(false);
+  // Pre-filled from the logged-in user, but editable — e.g. for a shared/generic
+  // login used by different physical staff, whoever's actually blocking it can
+  // retype their own name here. Resets to the current user's name each time the
+  // modal opens (not just on first mount).
+  const [blockedByName, setBlockedByName] = useState('');
+
+  useEffect(() => {
+    if (isOpen) setBlockedByName(getLocalUser().name);
+  }, [isOpen]);
 
   const isBooked = !!slot?.isBooked && slot?.status?.toLowerCase() === 'confirmed';
   const userId = slot?.booking?.user?.userId;
@@ -177,6 +187,12 @@ const SlotDetailsModal = ({
                         </span>
                       </div>
                     )}
+                    {slot.disabledByName && (
+                      <div className="flex justify-between">
+                        <span className="text-[13px] text-gray-600">Blocked By:</span>
+                        <span className="text-[13px] font-medium text-red-600">{slot.disabledByName}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -305,6 +321,21 @@ const SlotDetailsModal = ({
                         <span className="text-red-500">Maximum 500 characters allowed</span>
                       )}
                     </div>
+                    <div>
+                      <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="blocked-by-name">
+                        Blocked By
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                        id="blocked-by-name"
+                        placeholder="Your name"
+                        // Pre-filled from your login — edit this if you're blocking on
+                        // behalf of someone else using a shared login.
+                        type="text"
+                        value={blockedByName}
+                        onChange={e => setBlockedByName(e.target.value)}
+                      />
+                    </div>
                   </>
                 )}
               </div>
@@ -320,7 +351,7 @@ const SlotDetailsModal = ({
                   disabled={isLoading || !selectedReason || !customReason.trim() || customReason.length > 500}
                   onClick={() => {
                     const reason = `${selectedReason}: ${customReason.trim()}`;
-                    onBlockSlot(reason);
+                    onBlockSlot(reason, blockedByName.trim());
                   }}
                 >
                   {isLoading ? (

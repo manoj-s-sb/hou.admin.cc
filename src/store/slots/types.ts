@@ -37,6 +37,12 @@ export interface Slot {
   booking?: Partial<BookingDetails>;
   disableReason?: string;
   disabledAt?: string;
+  // Admin userId (JWT sub) who blocked it — audit trail, not a display name.
+  disabledBy?: string;
+  // Display name typed in the Block modal's "Blocked by" field (defaults to the
+  // logged-in user's name, editable — e.g. a shared/generic login used by
+  // different physical staff). Shown in the modal as "Blocked by".
+  disabledByName?: string;
 }
 
 export interface Lanes {
@@ -67,6 +73,8 @@ export interface UpdateLaneStatusRequest {
   slotCode?: string | string[];
   blockLaneApp?: boolean;
   startTime?: string;
+  // Display name of who is blocking the slot — see Slot.disabledByName.
+  blockedByName?: string;
 }
 
 export interface CoachSlotsRequest {

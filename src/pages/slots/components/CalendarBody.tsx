@@ -202,7 +202,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
 
   const handleCloseSlotModal = () => setSelectedSlot(null);
 
-  const handleBlockSlot = async (reason: string) => {
+  const handleBlockSlot = async (reason: string, blockedByName: string) => {
     if (selectedSlot) {
       try {
         await dispatch(
@@ -210,6 +210,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
             action: 'disable',
             reason: reason || 'Manual block from admin',
             slotCode: selectedSlot.slot.slotCode,
+            blockedByName: blockedByName || undefined,
           })
         ).unwrap();
         await dispatch(getSlots({ date, facilityCode }));
