@@ -51,6 +51,14 @@ export const MENU_GROUPS: MenuGroup[] = [
         module: ACCESS_SCOPES.tour,
         hideForSuperAdmin: true,
       },
+      {
+        // Unified calendar aggregating bookings/inductions/tours/coach bookings.
+        // No `module` gate — visible to every authenticated admin, same as the
+        // "no module" convention documented on MenuItem above.
+        path: ROUTES.CALENDAR.path,
+        label: ROUTES.CALENDAR.label,
+        icon: '/assets/calendar.svg',
+      },
     ],
   },
   {

@@ -9,7 +9,22 @@ import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { getFacilityCode } from '../../constants/user';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
-import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
+import { formatDateAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
+
+const formatDateYMD = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Current calendar month as a startDate/endDate range — browser-local, deliberately
+ * NOT the Chicago-hardcoded getTodayDateInChicago() (wrong "today" for a non-Chicago
+ * centre like BLR01). Used as the DEFAULT view (no exact date picked) so a tour
+ * booked for any day this month shows up without the admin having to already know
+ * its exact date — matching what the unified Calendar page already shows by default. */
+const currentMonthRange = (): { startDate: string; endDate: string } => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { startDate: formatDateYMD(start), endDate: formatDateYMD(end) };
+};
 
 const statusMap: Record<string, { label: string; className: string }> = {
   completed: { label: 'Completed', className: 'bg-green-100 text-green-700' },
@@ -32,9 +47,15 @@ const Tours = () => {
   const currentLimit = inductionListData.limit || 20;
 
   const applyFilters = (page = 1, limit = currentLimit) => {
+    // No exact date picked → default to the current month (same range the unified
+    // Calendar page shows by default), instead of sending date: '' which the
+    // backend rejects outright (previously caused the list to silently show
+    // "No tours found" even when a tour existed later this month).
+    const dateParams = selectedDate ? { date: selectedDate } : currentMonthRange();
     dispatch(
       inductionList({
-        date: selectedDate,
+        date: '',
+        ...dateParams,
         page,
         type: 'tourbooking',
         listLimit: limit,
@@ -100,9 +121,9 @@ const Tours = () => {
       flex: 1,
       sortable: false,
       renderCell: params => (
-        <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
+        <span className="text-[13px] text-gray-700">{formatDateAsAuthored(params.row?.timeSlot?.startTime)}</span>
       ),
-      valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
+      valueGetter: params => formatDateAsAuthored(params.row?.timeSlot?.startTime),
     },
     {
       field: 'Slot Time',
@@ -113,13 +134,13 @@ const Tours = () => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
         if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
-        return <span className="text-[13px] text-gray-700">{formatTimeRangeChicago(startTime, endTime)}</span>;
+        return <span className="text-[13px] text-gray-700">{formatTimeRangeAsAuthored(startTime, endTime)}</span>;
       },
       valueGetter: params => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
         if (!startTime || !endTime) return '';
-        return formatTimeRangeChicago(startTime, endTime);
+        return formatTimeRangeAsAuthored(startTime, endTime);
       },
     },
     {
@@ -292,6 +313,7 @@ const Tours = () => {
                 dispatch(
                   inductionList({
                     date: '',
+                    ...currentMonthRange(),
                     page: 1,
                     type: 'tourbooking',
                     listLimit: currentLimit,

@@ -18,6 +18,8 @@ import type { CentreModuleKey } from '../../contexts/CentreNavContext';
 // Maintenance is a large page kept in its own chunk (see App.tsx) — lazy-load it here too
 // so the registry (imported by the Sidebar) doesn't pull it into the main bundle.
 const Maintenance = lazy(() => import('../maintenance'));
+// Calendar pulls in react-big-calendar — same chunking rationale as Maintenance above.
+const Calendar = lazy(() => import('../calendar'));
 
 export interface CentreModuleDef {
   key: CentreModuleKey;
@@ -169,6 +171,24 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
             <line x1="8" x2="8" y1="2" y2="6" />
             <line x1="3" x2="21" y1="10" y2="10" />
             <path d="M8 14l2 2 4-4" />
+          </>
+        ),
+      },
+      {
+        // Placed last (below Coach Schedule) per request — a unified calendar view,
+        // no `scope` needed since it's visible to every authenticated admin inside
+        // the centre, same as the global Calendar sidebar entry in constants/menus.ts.
+        key: 'calendar',
+        label: 'Calendar',
+        slug: 'calendar',
+        component: Calendar,
+        icon: I(
+          <>
+            <rect height="18" rx="2" width="18" x="3" y="4" />
+            <line x1="16" x2="16" y1="2" y2="6" />
+            <line x1="8" x2="8" y1="2" y2="6" />
+            <line x1="3" x2="21" y1="10" y2="10" />
+            <rect fill="currentColor" height="4" stroke="none" width="4" x="7" y="13" />
           </>
         ),
       },

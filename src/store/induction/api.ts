@@ -13,14 +13,26 @@ import {
 
 export const inductionList = createAsyncThunk(
   'induction/inductionList',
-  async ({ date, page, type, listLimit, search, status, facilityCode }: InductionListRequest, { rejectWithValue }) => {
+  async (
+    { date, startDate, endDate, page, type, listLimit, search, status, facilityCode }: InductionListRequest,
+    { rejectWithValue }
+  ) => {
     try {
       const payload: Record<string, unknown> = {
-        date,
         type,
         page,
         limit: listLimit,
       };
+
+      // The backend rejects a request with neither `date` nor `startDate`+`endDate`
+      // set — never send date: '' on its own. Prefer the exact single day when
+      // given; fall back to the range.
+      if (date) {
+        payload.date = date;
+      } else if (startDate && endDate) {
+        payload.startDate = startDate;
+        payload.endDate = endDate;
+      }
 
       if (search?.trim()) {
         payload.search = search.trim();

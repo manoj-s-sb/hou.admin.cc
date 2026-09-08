@@ -38,6 +38,8 @@ import store, { persistor, AppDispatch, RootState } from './store/store';
 // Maintenance is a 900+ LOC page. Keeps the initial bundle lean for everyone else.
 const Reports = lazy(() => import('./pages/reports'));
 const Maintenance = lazy(() => import('./pages/maintenance'));
+// Calendar pulls in react-big-calendar — same chunking rationale as above.
+const CalendarPage = lazy(() => import('./pages/calendar'));
 
 const DefaultLanding: React.FC<{ bootChecked: boolean }> = ({ bootChecked }) => {
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
@@ -249,6 +251,16 @@ const AppRoutes: React.FC = () => {
               </PermissionRoute>
             }
             path={ROUTES.TICKETS.path}
+          />
+          <Route
+            element={
+              // No module prop → visible to every authenticated admin (see decision
+              // in the Calendar feature summary: no RBAC gate on this page).
+              <PermissionRoute>
+                <CalendarPage />
+              </PermissionRoute>
+            }
+            path={ROUTES.CALENDAR.path}
           />
           <Route element={<DefaultLanding bootChecked={bootChecked} />} path={ROUTES.ROOT.path} />
         </Routes>
