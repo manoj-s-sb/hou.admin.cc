@@ -17,6 +17,7 @@ import { AppDispatch, RootState } from '../../store/store';
 import FlagIssueModal from './components/FlagIssueModal';
 import LaneTaskCard from './components/LaneTaskCard';
 import LogsView from './components/LogsView';
+import MaintenanceCalendarView from './components/MaintenanceCalendarView';
 import ScheduleCard from './components/ScheduleCard';
 import ScheduleModal from './components/ScheduleModal';
 import StepsModal from './components/StepsModal';
@@ -71,13 +72,21 @@ const Maintenance: React.FC = () => {
   const canManage = canManageTasks();
 
   // View state
-  const [centreModule, setCentreModule] = useState<CentreModule>('library');
+  // Defaults to "My Schedule" inside a centre — that's the day-to-day working view;
+  // the global task library (no centre context) is unaffected, since this state is
+  // only ever read when isCentre is true.
+  const [centreModule, setCentreModule] = useState<CentreModule>('schedule');
   const [globalTab, setGlobalTab] = useState<GlobalBucket>('weekly');
   const [centreTab, setCentreTab] = useState<CentreBucket>('weekly');
   const [scheduleDay, setScheduleDay] = useState<string>(toISODate(new Date())); // ISO date | 'overdue'
   const scheduleDateInputRef = useRef<HTMLInputElement>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [libLane, setLibLane] = useState<number>(1); // Task Library lane (centre)
+  // "My Schedule" view mode: day-tabs + list (existing), or the month-grid calendar
+  // (reuses the same react-big-calendar UI as the unified Calendar page) — see
+  // MaintenanceCalendarView. Purely a client-side re-view of already-loaded `schedules`.
+  const [scheduleView, setScheduleView] = useState<'list' | 'calendar'>('list');
+  const [calendarSchedule, setCalendarSchedule] = useState<TaskSchedule | null>(null);
 
   // Modals
   const [templateModal, setTemplateModal] = useState<{ open: boolean; template: TaskTemplate | null }>({
@@ -312,147 +321,150 @@ const Maintenance: React.FC = () => {
     </>
   );
 
-  const renderSchedule = () => (
-    <>
-      <div className="flex flex-wrap items-end gap-1 border-b border-gray-100 pb-px">
-        {dayTabs.map(d => {
-          const count = dayCount(d.iso);
-          return (
-            <button
-              key={d.iso}
-              className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
-                scheduleDay === d.iso
-                  ? 'border-[#21295A] text-[#21295A]'
-                  : 'border-transparent text-gray-400 hover:text-gray-600'
-              }`}
-              type="button"
-              onClick={() => setScheduleDay(d.iso)}
-            >
-              <span>
-                {d.label}
-                {/* Colour the count only when the day has tasks; muted otherwise. */}
-                <span
-                  className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                    count > 0 ? 'bg-[#21295A] text-white' : 'bg-gray-100 text-gray-400'
-                  }`}
-                >
-                  {count}
+  const renderSchedule = () =>
+    scheduleView === 'calendar' ? (
+      <MaintenanceCalendarView schedules={schedules} onSelectSchedule={setCalendarSchedule} />
+    ) : (
+      <>
+        <div className="flex flex-wrap items-end gap-1 border-b border-gray-100 pb-px">
+          {dayTabs.map(d => {
+            const count = dayCount(d.iso);
+            return (
+              <button
+                key={d.iso}
+                className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
+                  scheduleDay === d.iso
+                    ? 'border-[#21295A] text-[#21295A]'
+                    : 'border-transparent text-gray-400 hover:text-gray-600'
+                }`}
+                type="button"
+                onClick={() => setScheduleDay(d.iso)}
+              >
+                <span>
+                  {d.label}
+                  {/* Colour the count only when the day has tasks; muted otherwise. */}
+                  <span
+                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      count > 0 ? 'bg-[#21295A] text-white' : 'bg-gray-100 text-gray-400'
+                    }`}
+                  >
+                    {count}
+                  </span>
                 </span>
+                <span className="text-[10px] font-medium text-gray-400">{d.sub}</span>
+              </button>
+            );
+          })}
+          <button
+            className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
+              scheduleDay === 'overdue'
+                ? 'border-red-500 text-red-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+            type="button"
+            onClick={() => setScheduleDay('overdue')}
+          >
+            <span>
+              Overdue
+              <span
+                className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  overdueSchedules.length > 0 ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                {overdueSchedules.length}
               </span>
-              <span className="text-[10px] font-medium text-gray-400">{d.sub}</span>
-            </button>
-          );
-        })}
-        <button
-          className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
-            scheduleDay === 'overdue'
-              ? 'border-red-500 text-red-600'
-              : 'border-transparent text-gray-400 hover:text-gray-600'
-          }`}
-          type="button"
-          onClick={() => setScheduleDay('overdue')}
-        >
-          <span>
-            Overdue
-            <span
-              className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                overdueSchedules.length > 0 ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400'
-              }`}
-            >
-              {overdueSchedules.length}
             </span>
-          </span>
-          <span className="text-[10px] font-medium text-gray-400">Past due</span>
-        </button>
+            <span className="text-[10px] font-medium text-gray-400">Past due</span>
+          </button>
 
-        {/* All — every scheduled task, past and future. */}
-        <button
-          className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
-            scheduleDay === 'all'
-              ? 'border-[#21295A] text-[#21295A]'
-              : 'border-transparent text-gray-400 hover:text-gray-600'
-          }`}
-          type="button"
-          onClick={() => setScheduleDay('all')}
-        >
-          <span>
-            All
-            <span
-              className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                schedules.length > 0 ? 'bg-[#21295A] text-white' : 'bg-gray-100 text-gray-400'
-              }`}
-            >
-              {schedules.length}
+          {/* All — every scheduled task, past and future. */}
+          <button
+            className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
+              scheduleDay === 'all'
+                ? 'border-[#21295A] text-[#21295A]'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+            type="button"
+            onClick={() => setScheduleDay('all')}
+          >
+            <span>
+              All
+              <span
+                className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  schedules.length > 0 ? 'bg-[#21295A] text-white' : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                {schedules.length}
+              </span>
             </span>
-          </span>
-          <span className="text-[10px] font-medium text-gray-400">Past &amp; future</span>
-        </button>
+            <span className="text-[10px] font-medium text-gray-400">Past &amp; future</span>
+          </button>
 
-        {/* Calendar — jump to any specific date (past or future). A visually-hidden
+          {/* Calendar — jump to any specific date (past or future). A visually-hidden
             input can't reliably be opened via an implicit <label> click forward
             (browser-dependent for a near-zero-size element), so the button opens
             it explicitly via showPicker(). */}
-        <button
-          className={`ml-auto flex cursor-pointer items-center gap-1.5 self-center rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition ${
-            isCustomDay
-              ? 'border-[#21295A] bg-[#ecedf4] text-[#21295A]'
-              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-          }`}
-          title="Pick a date"
-          type="button"
-          onClick={() => {
-            const input = scheduleDateInputRef.current;
-            if (!input) return;
-            if (typeof input.showPicker === 'function') input.showPicker();
-            else input.click();
-          }}
-        >
-          📅{' '}
-          {isCustomDay
-            ? new Date(`${scheduleDay}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-            : 'Calendar'}
-          <input
-            ref={scheduleDateInputRef}
-            className="sr-only"
-            type="date"
-            value={isCustomDay ? scheduleDay : ''}
-            onChange={e => e.target.value && setScheduleDay(e.target.value)}
-          />
-        </button>
-      </div>
-
-      {schedulesLoading ? (
-        <p className="py-12 text-center text-[13px] text-gray-400">Loading schedule…</p>
-      ) : visibleSchedules.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-[13px] font-semibold text-gray-500">
-            {scheduleDay === 'overdue'
-              ? '🎉 No overdue tasks — all up to date!'
-              : scheduleDay === 'all'
-                ? 'No tasks scheduled yet.'
-                : 'No tasks scheduled for this day.'}
-          </p>
-          {canManage && <p className="mt-1 text-[12px] text-gray-400">Schedule tasks from the Task Library.</p>}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {visibleSchedules.map(s => (
-            <ScheduleCard
-              key={s.id}
-              canManage={canManage}
-              facilityCode={facilityCode}
-              schedule={s}
-              onChanged={loadSchedules}
-              onFlag={setFlag}
-              onReschedule={canManage ? setReschedule : undefined}
-              onUnschedule={canManage ? onUnschedule : undefined}
-              onViewSteps={openScheduleSteps}
+          <button
+            className={`ml-auto flex cursor-pointer items-center gap-1.5 self-center rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition ${
+              isCustomDay
+                ? 'border-[#21295A] bg-[#ecedf4] text-[#21295A]'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+            title="Pick a date"
+            type="button"
+            onClick={() => {
+              const input = scheduleDateInputRef.current;
+              if (!input) return;
+              if (typeof input.showPicker === 'function') input.showPicker();
+              else input.click();
+            }}
+          >
+            📅{' '}
+            {isCustomDay
+              ? new Date(`${scheduleDay}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : 'Calendar'}
+            <input
+              ref={scheduleDateInputRef}
+              className="sr-only"
+              type="date"
+              value={isCustomDay ? scheduleDay : ''}
+              onChange={e => e.target.value && setScheduleDay(e.target.value)}
             />
-          ))}
+          </button>
         </div>
-      )}
-    </>
-  );
+
+        {schedulesLoading ? (
+          <p className="py-12 text-center text-[13px] text-gray-400">Loading schedule…</p>
+        ) : visibleSchedules.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-[13px] font-semibold text-gray-500">
+              {scheduleDay === 'overdue'
+                ? '🎉 No overdue tasks — all up to date!'
+                : scheduleDay === 'all'
+                  ? 'No tasks scheduled yet.'
+                  : 'No tasks scheduled for this day.'}
+            </p>
+            {canManage && <p className="mt-1 text-[12px] text-gray-400">Schedule tasks from the Task Library.</p>}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {visibleSchedules.map(s => (
+              <ScheduleCard
+                key={s.id}
+                canManage={canManage}
+                facilityCode={facilityCode}
+                schedule={s}
+                onChanged={loadSchedules}
+                onFlag={setFlag}
+                onReschedule={canManage ? setReschedule : undefined}
+                onUnschedule={canManage ? onUnschedule : undefined}
+                onViewSteps={openScheduleSteps}
+              />
+            ))}
+          </div>
+        )}
+      </>
+    );
 
   return (
     <div className="space-y-5">
@@ -466,13 +478,30 @@ const Maintenance: React.FC = () => {
           </p>
         </div>
         {isCentre && (
-          <button
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
-            type="button"
-            onClick={() => setShowLogs(true)}
-          >
-            📋 Logs
-          </button>
+          <div className="flex flex-shrink-0 flex-col items-end gap-2">
+            <button
+              className={`flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-[12px] font-semibold transition ${
+                scheduleView === 'calendar'
+                  ? 'border-[#21295A] bg-[#ecedf4] text-[#21295A]'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              type="button"
+              onClick={() => {
+                setCentreModule('schedule');
+                setShowLogs(false);
+                setScheduleView(v => (v === 'calendar' ? 'list' : 'calendar'));
+              }}
+            >
+              📅 Calendar
+            </button>
+            <button
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+              type="button"
+              onClick={() => setShowLogs(true)}
+            >
+              📋 Logs
+            </button>
+          </div>
         )}
       </div>
 
@@ -574,6 +603,65 @@ const Maintenance: React.FC = () => {
           videoUrl={stepsView.videoUrl}
           onClose={() => setStepsView(null)}
         />
+      )}
+      {calendarSchedule && (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-[650] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+        >
+          {/* Solid white card, matching StepsModal/ScheduleModal — ScheduleCard's own
+              tinted backgrounds (e.g. bg-teal-50/50) assume an opaque white page
+              behind them and look washed-out floating directly on the dark overlay. */}
+          <div className="flex max-h-[90vh] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between bg-[#1a2340] px-6 py-4">
+              <div className="min-w-0 truncate text-[16px] font-bold text-white">{calendarSchedule.template.title}</div>
+              <button
+                aria-label="Close"
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                type="button"
+                onClick={() => setCalendarSchedule(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-y-auto bg-white p-5">
+              <ScheduleCard
+                canManage={canManage}
+                facilityCode={facilityCode}
+                schedule={calendarSchedule}
+                onChanged={() => {
+                  loadSchedules();
+                  setCalendarSchedule(null);
+                }}
+                onFlag={s => {
+                  setCalendarSchedule(null);
+                  setFlag(s);
+                }}
+                onReschedule={
+                  canManage
+                    ? s => {
+                        setCalendarSchedule(null);
+                        setReschedule(s);
+                      }
+                    : undefined
+                }
+                onUnschedule={
+                  canManage
+                    ? s => {
+                        setCalendarSchedule(null);
+                        onUnschedule(s);
+                      }
+                    : undefined
+                }
+                onViewSteps={s => {
+                  setCalendarSchedule(null);
+                  openScheduleSteps(s);
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

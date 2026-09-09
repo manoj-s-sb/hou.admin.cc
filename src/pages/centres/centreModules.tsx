@@ -175,13 +175,14 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         ),
       },
       {
-        // Placed last (below Coach Schedule) per request — a unified calendar view,
-        // no `scope` needed since it's visible to every authenticated admin inside
-        // the centre, same as the global Calendar sidebar entry in constants/menus.ts.
+        // Placed last (below Coach Schedule) per request — a unified calendar view.
+        // Assignable per staff member, like every other module here — see
+        // ACCESS_SCOPES.calendar / constants/menus.ts's matching entry.
         key: 'calendar',
         label: 'Calendar',
         slug: 'calendar',
         component: Calendar,
+        scope: ACCESS_SCOPES.calendar,
         icon: I(
           <>
             <rect height="18" rx="2" width="18" x="3" y="4" />

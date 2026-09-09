@@ -72,6 +72,7 @@ const CENTRE_SUB_MODULE_ORDER = [
   'maintenance', // "Centre view"
   'facilities',
   'planspricing',
+  'calendar',
 ];
 
 interface RowProps {

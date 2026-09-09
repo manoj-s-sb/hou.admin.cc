@@ -37,6 +37,7 @@ export const MODULES = {
   WAITLIST_LEADS: 'waitlistleads',
   FACILITIES: 'facilities',
   PLANS_PRICING: 'planspricing',
+  CALENDAR: 'calendar',
   SUPER_ADMIN: SUPER_ADMIN_ONLY,
 } as const;
 
@@ -58,5 +59,6 @@ export const ACCESS_SCOPES = {
   waitlistLeads: [MODULES.WAITLIST_LEADS],
   facilities: [MODULES.FACILITIES],
   plansPricing: [MODULES.PLANS_PRICING],
+  calendar: [MODULES.CALENDAR],
   superAdmin: [MODULES.SUPER_ADMIN],
 } as const;

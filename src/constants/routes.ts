@@ -22,7 +22,6 @@ export const ROUTES = {
   CENTRE_MODULE: { path: '/centres/:facilityCode/:moduleSlug', label: 'Centre Module' },
   MEMBERSHIP_PLANS: { path: '/membership-plans', label: 'Membership Plans' },
   TICKETS: { path: '/tickets', label: 'Tickets / Incidents' },
-  CALENDAR: { path: '/calendar', label: 'Calendar' },
 } as const;
 
 // Dynamic-path builders for routes with URL params

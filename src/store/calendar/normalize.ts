@@ -68,7 +68,10 @@ export const extractCoachBookingEvents = (coaches: Coach[]): CalendarEvent[] => 
         if (!isValidTimeSlot(slot.startTime, slot.endTime)) continue;
         events.push({
           id: `coach-${slot.coachSlotCode}`,
-          title: `${coach.name || coach.coachCode} — Booked`,
+          // Show the MEMBER who booked, same as Slot Booking/Induction/Tour titles
+          // (person-first, generic label only when unresolvable) — not the coach's
+          // own name, which stays visible in the popup's "Coach" detail row instead.
+          title: slot.memberName || 'Coach Booking',
           start: slot.startTime,
           end: slot.endTime,
           type: 'coach_booking',

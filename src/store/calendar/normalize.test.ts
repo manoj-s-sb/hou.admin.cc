@@ -87,7 +87,7 @@ describe('normalizeTourEvent', () => {
 });
 
 describe('extractCoachBookingEvents', () => {
-  it('produces one event per unavailable slot, skipping available slots', () => {
+  it('produces one event per real (status=confirmed) booking, skipping available AND disabled slots', () => {
     const coaches: Coach[] = [
       coach({
         availability: [
@@ -100,12 +100,27 @@ describe('extractCoachBookingEvents', () => {
                 startTime: '2026-01-05T09:00:00-06:00',
                 endTime: '2026-01-05T09:45:00-06:00',
                 isAvailable: false,
+                status: 'confirmed',
+                bookingId: 'booking_123',
+                memberName: 'Dave Mathews',
+                memberEmail: 'dave@example.com',
+                memberPhone: '5551234',
               },
               {
                 coachSlotCode: 'S2',
                 startTime: '2026-01-05T10:00:00-06:00',
                 endTime: '2026-01-05T10:45:00-06:00',
                 isAvailable: true,
+                status: 'available',
+              },
+              {
+                // isAvailable=false is ALSO set on non-bookable "disabled" placeholder
+                // slots (e.g. off-hours) — must not be treated as a booking.
+                coachSlotCode: 'S3',
+                startTime: '2026-01-05T23:00:00-06:00',
+                endTime: '2026-01-05T23:45:00-06:00',
+                isAvailable: false,
+                status: 'disabled',
               },
             ],
           },
@@ -121,9 +136,43 @@ describe('extractCoachBookingEvents', () => {
         id: 'coach-S1',
         type: 'coach_booking',
         color: EVENT_TYPE_CONFIG.coach_booking.color,
-        title: 'Ashraf Hosein — Booked',
+        // Title shows the MEMBER who booked (person-first, same convention as
+        // Slot Booking/Induction/Tour) — not the coach's own name.
+        title: 'Dave Mathews',
       })
     );
+    expect(events[0].meta).toMatchObject({
+      coachName: 'Ashraf Hosein',
+      memberName: 'Dave Mathews',
+      memberEmail: 'dave@example.com',
+      memberPhone: '5551234',
+    });
+  });
+
+  it('falls back to a generic title when the member name is unresolved (e.g. an orphaned bookingId)', () => {
+    const coaches: Coach[] = [
+      coach({
+        availability: [
+          {
+            date: '2026-01-05',
+            isHoliday: false,
+            slots: [
+              {
+                coachSlotCode: 'S1',
+                startTime: '2026-01-05T09:00:00-06:00',
+                endTime: '2026-01-05T09:45:00-06:00',
+                isAvailable: false,
+                status: 'confirmed',
+                bookingId: 'booking_orphaned',
+              },
+            ],
+          },
+        ],
+      }),
+    ];
+
+    const events = extractCoachBookingEvents(coaches);
+    expect(events[0].title).toBe('Coach Booking');
   });
 
   it('returns an empty array for no coaches / no availability', () => {
