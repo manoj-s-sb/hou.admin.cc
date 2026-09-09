@@ -20,7 +20,17 @@ export const getSlots = createAsyncThunk(
 export const updateLaneStatus = createAsyncThunk(
   'slots/updateLaneStatus',
   async (
-    { date, facilityCode, laneCode, action, reason, slotCode, blockLaneApp, startTime }: UpdateLaneStatusRequest,
+    {
+      date,
+      facilityCode,
+      laneCode,
+      action,
+      reason,
+      slotCode,
+      blockLaneApp,
+      startTime,
+      blockedByName,
+    }: UpdateLaneStatusRequest,
     { rejectWithValue }
   ) => {
     try {
@@ -34,6 +44,7 @@ export const updateLaneStatus = createAsyncThunk(
         slotCode: normalizedSlotCode,
         blockLaneApp,
         startTime,
+        blockedByName,
       });
       return response.data?.data;
     } catch (error) {
