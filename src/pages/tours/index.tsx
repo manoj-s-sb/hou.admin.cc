@@ -11,20 +11,15 @@ import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
 
-const formatDateYMD = (d: Date): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-/** Current calendar month as a startDate/endDate range — browser-local, deliberately
- * NOT the Chicago-hardcoded getTodayDateInChicago() (wrong "today" for a non-Chicago
- * centre like BLR01). Used as the DEFAULT view (no exact date picked) so a tour
- * booked for any day this month shows up without the admin having to already know
- * its exact date — matching what the unified Calendar page already shows by default. */
-const currentMonthRange = (): { startDate: string; endDate: string } => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { startDate: formatDateYMD(start), endDate: formatDateYMD(end) };
-};
+/** The backend's `BookingListRequest` rejects a request with neither `date` nor
+ * `startDate`+`endDate` set (see booking_models.py's _validate_date_or_range) —
+ * there is no "no date filter, return everything" mode. So whenever no exact
+ * date is picked, fall back to a startDate/endDate range wide enough to be
+ * "everything in practice" (2000-01-01 through 2099-12-31), rather than
+ * restricting to just the current calendar month — a narrower default was
+ * silently hiding real past/future tours any time the admin hadn't already
+ * set an exact date. */
+const ALL_TIME_RANGE = { startDate: '2000-01-01', endDate: '2099-12-31' };
 
 const statusMap: Record<string, { label: string; className: string }> = {
   completed: { label: 'Completed', className: 'bg-green-100 text-green-700' },
@@ -51,7 +46,7 @@ const Tours = () => {
     // Calendar page shows by default), instead of sending date: '' which the
     // backend rejects outright (previously caused the list to silently show
     // "No tours found" even when a tour existed later this month).
-    const dateParams = selectedDate ? { date: selectedDate } : currentMonthRange();
+    const dateParams = selectedDate ? { date: selectedDate } : ALL_TIME_RANGE;
     dispatch(
       inductionList({
         date: '',
@@ -313,7 +308,7 @@ const Tours = () => {
                 dispatch(
                   inductionList({
                     date: '',
-                    ...currentMonthRange(),
+                    ...ALL_TIME_RANGE,
                     page: 1,
                     type: 'tourbooking',
                     listLimit: currentLimit,

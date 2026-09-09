@@ -25,26 +25,18 @@ const defaultFilters: FilterState = {
   status: 'all',
 };
 
-const formatDateYMD = (d: Date): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-/** Current calendar month as a startDate/endDate range — browser-local (not the
- * Chicago-hardcoded getTodayDateInChicago(), wrong "today" for a non-Chicago
- * centre like BLR01). Used whenever no exact date is picked, so an induction
- * booked any day this month shows up without the admin already knowing its
- * exact date — same fix already applied to the Tour List page, and matching
- * what the unified Calendar page shows by default. Empty date: '' alone was
- * previously sent straight to the backend, which rejects it outright (a
- * silent 400 that made the list always look empty until a date was picked). */
-const currentMonthRange = (): { startDate: string; endDate: string } => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { startDate: formatDateYMD(start), endDate: formatDateYMD(end) };
-};
+/** The backend's `BookingListRequest` rejects a request with neither `date` nor
+ * `startDate`+`endDate` set (see booking_models.py's _validate_date_or_range) —
+ * there is no "no date filter, return everything" mode. So whenever no exact
+ * date is picked, fall back to a startDate/endDate range wide enough to be
+ * "everything in practice" (2000-01-01 through 2099-12-31), rather than
+ * restricting to just the current calendar month — a narrower default was
+ * silently hiding real past/future inductions (e.g. one booked last month)
+ * any time the admin hadn't already set an exact date. */
+const ALL_TIME_RANGE = { startDate: '2000-01-01', endDate: '2099-12-31' };
 
 const dateParamsFor = (date: string): { date: string; startDate?: string; endDate?: string } =>
-  date ? { date } : { date: '', ...currentMonthRange() };
+  date ? { date } : { date: '', ...ALL_TIME_RANGE };
 
 function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterState {
   return {
