@@ -203,6 +203,9 @@ export interface PlanFillRate {
 }
 export interface WaitlistRow {
   label: string;
+  /** Signup source (e.g. "Launch Waitlist", "Foundation") — the closest thing
+   * to a "plan" a prospective-member waitlist entry has. */
+  sublabel?: string;
   count: number;
   max: number;
   color: string;
