@@ -30,6 +30,8 @@ import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
 
+import AdminNotesSection from './components/AdminNotesSection';
+
 interface HealthDeclarationItem {
   id: string;
   selectedOption?: string;
@@ -727,6 +729,9 @@ const ViewMembers = () => {
               </div>
             </div>
           )}
+
+          {/* Admin Notes Section */}
+          <AdminNotesSection userId={memberDetails.userId} />
 
           {/* Additional Members Section */}
           {memberDetails.members && memberDetails.members.length > 0 && (

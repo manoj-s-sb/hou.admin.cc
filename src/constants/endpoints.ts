@@ -16,6 +16,10 @@ const endpoints = {
     list: `${API_PREFIX}/admin/members/list`,
     membersDetails: `${API_PREFIX}/admin/member/details`,
     membersCount: `${API_PREFIX}/admin/members/stats`,
+    notesList: `${API_PREFIX}/admin/member/notes/list`,
+    notesAdd: `${API_PREFIX}/admin/member/notes/add`,
+    notesUpdate: `${API_PREFIX}/admin/member/notes/update`,
+    notesDelete: `${API_PREFIX}/admin/member/notes/delete`,
   },
   tour: {
     updateTourStatus: `${API_PREFIX}/admin/bookings/tour/status/update`,

@@ -245,6 +245,17 @@ export interface ActivateSubscriptionRequest {
   adminName: string;
 }
 
+/** One admin note on a member — see src/pages/members/components/AdminNotesSection.tsx. */
+export interface MemberNoteItem {
+  id: string;
+  userId: string;
+  noteText: string;
+  createdById: string | null;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export interface MembersCountResponse {
   premiumFortnightly: number;
   premiumAnnual: number;
@@ -291,6 +302,11 @@ export interface MembersInitialState {
   isSubscriptionActivation: boolean;
   membersCount: MembersCountResponse | null;
   purchasedSlotsData: PurchasedSlotsData | null;
+  /** Admin Notes — kept separate from `memberDetails` so a note add/edit/delete
+   * never has to refetch the whole member object. */
+  memberNotes: MemberNoteItem[];
+  memberNotesLoading: boolean;
+  memberNotesError: string | null;
 }
 
 export const initialState: MembersInitialState = {
@@ -306,6 +322,9 @@ export const initialState: MembersInitialState = {
   },
   memberDetails: null,
   isSubscriptionActivation: false,
+  memberNotes: [],
+  memberNotesLoading: false,
+  memberNotesError: null,
   membersCount: null,
   purchasedSlotsData: null,
 };

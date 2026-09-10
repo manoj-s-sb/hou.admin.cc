@@ -6,7 +6,7 @@ import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 import store from '../store';
 
-import { ActivateSubscriptionRequest, MemberRequest } from './types';
+import { ActivateSubscriptionRequest, MemberNoteItem, MemberRequest } from './types';
 
 export const getMembers = createAsyncThunk(
   'members/getMembers',
@@ -84,6 +84,59 @@ export const getMembersCount = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch members count'));
+    }
+  }
+);
+
+// ── Admin Notes ──────────────────────────────────────────────────────
+// Kept as a separate slice of state (memberNotes) from memberDetails so
+// adding/editing/deleting a note never has to refetch the whole member
+// object — see MembersInitialState in ./types.ts.
+
+export const getMemberNotes = createAsyncThunk(
+  'members/getMemberNotes',
+  async ({ userId }: { userId: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.members.notesList, { userId });
+      return response.data as { data: { notes: MemberNoteItem[] } };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch notes'));
+    }
+  }
+);
+
+export const addMemberNote = createAsyncThunk(
+  'members/addMemberNote',
+  async ({ userId, noteText }: { userId: string; noteText: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.members.notesAdd, { userId, noteText });
+      return response.data as { data: MemberNoteItem };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to add note'));
+    }
+  }
+);
+
+export const updateMemberNote = createAsyncThunk(
+  'members/updateMemberNote',
+  async ({ userId, noteId, noteText }: { userId: string; noteId: string; noteText: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.members.notesUpdate, { userId, noteId, noteText });
+      return response.data as { data: MemberNoteItem };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to update note'));
+    }
+  }
+);
+
+export const deleteMemberNote = createAsyncThunk(
+  'members/deleteMemberNote',
+  async ({ userId, noteId }: { userId: string; noteId: string }, { rejectWithValue }) => {
+    try {
+      await api.post(endpoints.members.notesDelete, { userId, noteId });
+      return { noteId };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to delete note'));
     }
   }
 );
