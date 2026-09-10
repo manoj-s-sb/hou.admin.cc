@@ -478,7 +478,7 @@ const Maintenance: React.FC = () => {
           </p>
         </div>
         {isCentre && (
-          <div className="flex flex-shrink-0 flex-col items-end gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <button
               className={`flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-[12px] font-semibold transition ${
                 scheduleView === 'calendar'
@@ -526,6 +526,12 @@ const Maintenance: React.FC = () => {
                 onClick={() => {
                   setCentreModule(m.key);
                   setShowLogs(false);
+                  // "My Schedule" always means the list view — without this, clicking it
+                  // while the Calendar toggle was on left scheduleView stuck on 'calendar'
+                  // (centreModule was already 'schedule', so nothing else changed), making
+                  // the tile look unresponsive and forcing a second click on the Calendar
+                  // button just to get back to the list.
+                  if (m.key === 'schedule') setScheduleView('list');
                 }}
               >
                 <div className="flex items-center gap-2">
