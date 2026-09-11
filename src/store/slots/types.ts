@@ -37,6 +37,12 @@ export interface Slot {
   booking?: Partial<BookingDetails>;
   disableReason?: string;
   disabledAt?: string;
+  // Admin userId (JWT sub) who blocked it — audit trail, not a display name.
+  disabledBy?: string;
+  // Display name typed in the Block modal's "Blocked by" field (defaults to the
+  // logged-in user's name, editable — e.g. a shared/generic login used by
+  // different physical staff). Shown in the modal as "Blocked by".
+  disabledByName?: string;
 }
 
 export interface Lanes {
@@ -67,6 +73,8 @@ export interface UpdateLaneStatusRequest {
   slotCode?: string | string[];
   blockLaneApp?: boolean;
   startTime?: string;
+  // Display name of who is blocking the slot — see Slot.disabledByName.
+  blockedByName?: string;
 }
 
 export interface CoachSlotsRequest {
@@ -78,10 +86,25 @@ export interface CoachSlotsRequest {
 export interface CoachSlot {
   coachSlotCode: string;
   endTime: string;
+  // `isAvailable: false` alone does NOT mean booked — it's also set on non-bookable
+  // 'disabled' placeholder slots (e.g. off-hours). A real booking is identified by
+  // status === 'confirmed' (equivalently, bookingId being set) — check that, not
+  // isAvailable, to decide whether a slot represents an actual booking.
   isAvailable: boolean;
   startTime: string;
+  status?: string;
+  bookingId?: string;
   bookingCode?: string;
   bookingType?: string;
+  // Lane the coach session is booked on, when known — parsed server-side from
+  // the linked regular slot's code, display-only.
+  laneNo?: number;
+  // The member who booked this coach session — resolved server-side via bookingId,
+  // same join the regular Slot Bookings calendar uses. Absent when the booking
+  // doesn't resolve (a data-integrity gap, not a rendering issue).
+  memberName?: string;
+  memberEmail?: string;
+  memberPhone?: string;
 }
 
 export interface Availability {

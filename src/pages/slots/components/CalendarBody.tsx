@@ -202,7 +202,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
 
   const handleCloseSlotModal = () => setSelectedSlot(null);
 
-  const handleBlockSlot = async (reason: string) => {
+  const handleBlockSlot = async (reason: string, blockedByName: string) => {
     if (selectedSlot) {
       try {
         await dispatch(
@@ -210,6 +210,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
             action: 'disable',
             reason: reason || 'Manual block from admin',
             slotCode: selectedSlot.slot.slotCode,
+            blockedByName: blockedByName || undefined,
           })
         ).unwrap();
         await dispatch(getSlots({ date, facilityCode }));
@@ -282,7 +283,15 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
                     : 'bg-[#21295A] text-white'
             )}
           >
-            <span className="font-semibold">{getDisplayName(currentSlot?.booking?.user)}</span>
+            <span className="font-semibold">
+              {
+                // A slot marked booked with no resolvable user means the bookingId on
+                // this slot doesn't point to any real slotbooking document (a backend
+                // data-integrity gap, logged server-side) — show that plainly instead
+                // of rendering a blank cell with no indication anything's wrong.
+                getDisplayName(currentSlot?.booking?.user) || 'Booking details unavailable'
+              }
+            </span>
             {currentSlot?.booking?.user?.userId && planByUserId[currentSlot.booking.user.userId] && (
               <span
                 className={composeClasses('font-medium capitalize opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}

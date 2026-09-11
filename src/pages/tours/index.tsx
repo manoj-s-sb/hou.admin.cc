@@ -9,7 +9,17 @@ import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { getFacilityCode } from '../../constants/user';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
-import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
+import { formatDateAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
+
+/** The backend's `BookingListRequest` rejects a request with neither `date` nor
+ * `startDate`+`endDate` set (see booking_models.py's _validate_date_or_range) —
+ * there is no "no date filter, return everything" mode. So whenever no exact
+ * date is picked, fall back to a startDate/endDate range wide enough to be
+ * "everything in practice" (2000-01-01 through 2099-12-31), rather than
+ * restricting to just the current calendar month — a narrower default was
+ * silently hiding real past/future tours any time the admin hadn't already
+ * set an exact date. */
+const ALL_TIME_RANGE = { startDate: '2000-01-01', endDate: '2099-12-31' };
 
 const statusMap: Record<string, { label: string; className: string }> = {
   completed: { label: 'Completed', className: 'bg-green-100 text-green-700' },
@@ -32,9 +42,15 @@ const Tours = () => {
   const currentLimit = inductionListData.limit || 20;
 
   const applyFilters = (page = 1, limit = currentLimit) => {
+    // No exact date picked → default to the current month (same range the unified
+    // Calendar page shows by default), instead of sending date: '' which the
+    // backend rejects outright (previously caused the list to silently show
+    // "No tours found" even when a tour existed later this month).
+    const dateParams = selectedDate ? { date: selectedDate } : ALL_TIME_RANGE;
     dispatch(
       inductionList({
-        date: selectedDate,
+        date: '',
+        ...dateParams,
         page,
         type: 'tourbooking',
         listLimit: limit,
@@ -100,9 +116,9 @@ const Tours = () => {
       flex: 1,
       sortable: false,
       renderCell: params => (
-        <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
+        <span className="text-[13px] text-gray-700">{formatDateAsAuthored(params.row?.timeSlot?.startTime)}</span>
       ),
-      valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
+      valueGetter: params => formatDateAsAuthored(params.row?.timeSlot?.startTime),
     },
     {
       field: 'Slot Time',
@@ -113,13 +129,13 @@ const Tours = () => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
         if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
-        return <span className="text-[13px] text-gray-700">{formatTimeRangeChicago(startTime, endTime)}</span>;
+        return <span className="text-[13px] text-gray-700">{formatTimeRangeAsAuthored(startTime, endTime)}</span>;
       },
       valueGetter: params => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
         if (!startTime || !endTime) return '';
-        return formatTimeRangeChicago(startTime, endTime);
+        return formatTimeRangeAsAuthored(startTime, endTime);
       },
     },
     {
@@ -292,6 +308,7 @@ const Tours = () => {
                 dispatch(
                   inductionList({
                     date: '',
+                    ...ALL_TIME_RANGE,
                     page: 1,
                     type: 'tourbooking',
                     listLimit: currentLimit,

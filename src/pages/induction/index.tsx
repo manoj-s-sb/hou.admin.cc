@@ -11,7 +11,7 @@ import { buildRoute } from '../../constants/routes';
 import { getFacilityCode } from '../../constants/user';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
-import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
+import { formatDateAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
 
 type FilterState = {
   date: string;
@@ -24,6 +24,19 @@ const defaultFilters: FilterState = {
   search: '',
   status: 'all',
 };
+
+/** The backend's `BookingListRequest` rejects a request with neither `date` nor
+ * `startDate`+`endDate` set (see booking_models.py's _validate_date_or_range) —
+ * there is no "no date filter, return everything" mode. So whenever no exact
+ * date is picked, fall back to a startDate/endDate range wide enough to be
+ * "everything in practice" (2000-01-01 through 2099-12-31), rather than
+ * restricting to just the current calendar month — a narrower default was
+ * silently hiding real past/future inductions (e.g. one booked last month)
+ * any time the admin hadn't already set an exact date. */
+const ALL_TIME_RANGE = { startDate: '2000-01-01', endDate: '2099-12-31' };
+
+const dateParamsFor = (date: string): { date: string; startDate?: string; endDate?: string } =>
+  date ? { date } : { date: '', ...ALL_TIME_RANGE };
 
 function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterState {
   return {
@@ -82,7 +95,7 @@ const Induction = () => {
     const applied = parseFiltersFromSearchParams(searchParams);
     dispatch(
       inductionList({
-        date: applied.date,
+        ...dateParamsFor(applied.date),
         page: 1,
         type: 'inductionbooking',
         listLimit: inductionListData?.limit || 20,
@@ -135,9 +148,9 @@ const Induction = () => {
         flex: 1,
         sortable: false,
         renderCell: params => (
-          <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
+          <span className="text-[13px] text-gray-700">{formatDateAsAuthored(params.row?.timeSlot?.startTime)}</span>
         ),
-        valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
+        valueGetter: params => formatDateAsAuthored(params.row?.timeSlot?.startTime),
       },
       {
         field: 'Slot Time',
@@ -148,13 +161,13 @@ const Induction = () => {
           const startTime = params.row?.timeSlot?.startTime;
           const endTime = params.row?.timeSlot?.endTime;
           if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
-          return <span className="text-[13px] text-gray-700">{formatTimeRangeChicago(startTime, endTime)}</span>;
+          return <span className="text-[13px] text-gray-700">{formatTimeRangeAsAuthored(startTime, endTime)}</span>;
         },
         valueGetter: params => {
           const startTime = params.row?.timeSlot?.startTime;
           const endTime = params.row?.timeSlot?.endTime;
           if (!startTime || !endTime) return '';
-          return formatTimeRangeChicago(startTime, endTime);
+          return formatTimeRangeAsAuthored(startTime, endTime);
         },
       },
       {
@@ -209,7 +222,7 @@ const Induction = () => {
                   const applied = parseFiltersFromSearchParams(searchParams);
                   dispatch(
                     inductionList({
-                      date: applied.date,
+                      ...dateParamsFor(applied.date),
                       page: inductionListData?.page || 1,
                       type: 'inductionbooking',
                       listLimit: inductionListData?.limit || 20,
@@ -452,7 +465,7 @@ const Induction = () => {
             dispatch(
               inductionList({
                 page: pageNumber,
-                date: filters.date,
+                ...dateParamsFor(filters.date),
                 type: 'inductionbooking',
                 listLimit: inductionListData?.limit || 20,
                 search: filters.search,
@@ -468,7 +481,7 @@ const Induction = () => {
             dispatch(
               inductionList({
                 page: 1,
-                date: filters.date,
+                ...dateParamsFor(filters.date),
                 type: 'inductionbooking',
                 listLimit: rowsPerPage,
                 search: filters.search,
@@ -522,7 +535,7 @@ const Induction = () => {
                         const applied = parseFiltersFromSearchParams(searchParams);
                         dispatch(
                           inductionList({
-                            date: applied.date,
+                            ...dateParamsFor(applied.date),
                             page: inductionListData?.page || 1,
                             type: 'inductionbooking',
                             listLimit: inductionListData?.limit || 20,
