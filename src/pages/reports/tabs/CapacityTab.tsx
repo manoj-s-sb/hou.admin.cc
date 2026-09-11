@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 
 import { CapacityData } from '../../../store/reports/types';
 import CapacityRing from '../components/CapacityRing';
@@ -6,8 +6,44 @@ import ChartCard from '../components/ChartCard';
 import ProgressList from '../components/ProgressList';
 import StatCard from '../components/StatCard';
 
+const ALL_TYPES = 'all';
+
 const CapacityTab: React.FC<{ data: CapacityData }> = ({ data }) => {
   const { stats } = data;
+
+  // Waitlist "Type" filter — built dynamically from whatever subscriptionSrc
+  // labels are actually present in the data (same pattern already used by the
+  // Waitlist page's own Type filter), so a new signup source shows up here
+  // automatically with no code change. When a specific type is picked, one
+  // row per centre is shown for that type; on "All Types" (default), rows are
+  // aggregated per centre across every type — either way a centre name never
+  // repeats. `max` is recomputed as the sum of the currently-displayed rows
+  // (not the raw network-wide total), so bar lengths stay meaningful within
+  // whatever's currently shown instead of being diluted by filtered-out data.
+  const waitlistTypes = useMemo(
+    () => Array.from(new Set(data.waitlist.map(w => w.sublabel).filter((s): s is string => Boolean(s)))).sort(),
+    [data.waitlist]
+  );
+  const [waitlistType, setWaitlistType] = useState<string>(ALL_TYPES);
+
+  const waitlistRows = useMemo(() => {
+    const source =
+      waitlistType === ALL_TYPES
+        ? (() => {
+            const byLabel = new Map<string, { label: string; count: number; color: string }>();
+            for (const w of data.waitlist) {
+              const existing = byLabel.get(w.label);
+              if (existing) existing.count += w.count;
+              else byLabel.set(w.label, { label: w.label, count: w.count, color: w.color });
+            }
+            return Array.from(byLabel.values());
+          })()
+        : data.waitlist.filter(w => w.sublabel === waitlistType);
+
+    const total = source.reduce((sum, r) => sum + r.count, 0);
+    return source.map(r => ({ ...r, max: total })).sort((a, b) => b.count - a.count);
+  }, [data.waitlist, waitlistType]);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -25,9 +61,9 @@ const CapacityTab: React.FC<{ data: CapacityData }> = ({ data }) => {
         />
         <StatCard
           accent="from-amber-500 to-orange-500"
-          subtitle="free capacity"
-          title="Buffer"
-          value={`${stats.bufferPct}%`}
+          subtitle="slots not booked"
+          title="Unallocated Buffer"
+          value={Math.max(0, stats.totalSlots - stats.filledSlots)}
         />
         <StatCard
           accent="from-violet-500 to-purple-500"
@@ -112,16 +148,35 @@ const CapacityTab: React.FC<{ data: CapacityData }> = ({ data }) => {
             }))}
           />
         </ChartCard>
-        <ChartCard subtitle="By plan and centre" title="Waitlist">
-          {data.waitlist.length === 0 ? (
-            <p className="py-8 text-center text-sm font-medium text-gray-400">
-              No waitlist data is tracked for slots yet.
-            </p>
+        <ChartCard
+          action={
+            waitlistTypes.length > 0 && (
+              <select
+                aria-label="Filter waitlist by type"
+                className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[12px] font-semibold text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+                value={waitlistType}
+                onChange={e => setWaitlistType(e.target.value)}
+              >
+                <option value={ALL_TYPES}>All Types</option>
+                {waitlistTypes.map(t => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            )
+          }
+          subtitle="Prospective members waiting, by centre"
+          title="Waitlist"
+        >
+          {waitlistRows.length === 0 ? (
+            <p className="py-8 text-center text-sm font-medium text-gray-400">No one is on the waitlist right now.</p>
           ) : (
             <ProgressList
-              items={data.waitlist.map(w => ({
+              items={waitlistRows.map(w => ({
                 label: w.label,
                 value: w.count,
+                valueLabel: String(w.count),
                 max: w.max,
                 color: w.color,
               }))}

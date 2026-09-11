@@ -2,6 +2,7 @@ import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import { persistReducer, persistStore, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 
 import authReducer from './auth/reducers';
+import calendarReducer from './calendar/reducers';
 import centresReducer from './centres/reducers';
 import inductionReducer from './induction/reducers';
 import maintenanceReducer from './maintenance/reducers';
@@ -16,6 +17,7 @@ import ticketsReducer from './tickets/reducers';
 
 const rootReducer = combineReducers({
   auth: persistReducer(authPersistConfig, authReducer),
+  calendar: calendarReducer,
   centres: centresReducer,
   induction: inductionReducer,
   maintenance: maintenanceReducer,

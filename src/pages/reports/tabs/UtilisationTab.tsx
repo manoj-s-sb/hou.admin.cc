@@ -15,19 +15,19 @@ const UtilisationTab: React.FC<{ data: UtilisationData }> = ({ data }) => {
         <StatCard
           accent="from-indigo-500 to-blue-500"
           subtitle="slots filled"
-          title="Avg Utilisation"
+          title="Avg Daily Utilisation"
           value={stats.avgUtilisation === null ? '—' : `${stats.avgUtilisation}%`}
         />
         <StatCard
           accent="from-violet-500 to-purple-500"
           subtitle="busiest slot"
-          title="Peak Hour"
+          title="Peak Hour Utilisation"
           value={stats.peakHour}
         />
         <StatCard
           accent="from-emerald-500 to-teal-500"
           subtitle="non-peak hours"
-          title="Off-Peak Avg"
+          title="Off-Peak Utilisation"
           value={`${stats.offPeakAvg}%`}
         />
         <StatCard

@@ -614,6 +614,10 @@ export interface AdditionalFacility {
   // Operating hours
   openTime: string;
   closeTime: string;
+  /** When true, this facility is open 24 hours — openTime/closeTime are kept
+   * (as '00:00'/'23:59') for display/back-compat but the two time inputs are
+   * hidden in favour of a single "24 Hours" toggle. */
+  is24Hours?: boolean;
   photos?: FacilityPhoto[];
   // Gaming-specific
   psUnits?: number;

@@ -50,7 +50,16 @@ const CoachScheduleGrid: React.FC<{
   const [availability, setAvailability] = useState<SlotAvailability>({});
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [selectedCoachIndex] = useState(0);
+  const [selectedCoachIndex, setSelectedCoachIndex] = useState(0);
+
+  const coaches = useMemo(() => coachSlotsList?.[0]?.coaches ?? [], [coachSlotsList]);
+
+  // A facility can have more than one real coach (each with their own calendar) —
+  // reset to the first whenever the list changes (e.g. switching centres) so a
+  // stale index from a previous, longer list never points past the end.
+  useEffect(() => {
+    setSelectedCoachIndex(0);
+  }, [coachSlotsList]);
 
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
@@ -67,8 +76,8 @@ const CoachScheduleGrid: React.FC<{
   }, [selectedSlots]);
 
   useEffect(() => {
-    if (coachSlotsList && coachSlotsList.length > 0) {
-      const currentCoach = coachSlotsList[0].coaches[selectedCoachIndex];
+    if (coaches.length > 0) {
+      const currentCoach = coaches[selectedCoachIndex];
       if (currentCoach) {
         const initialAvailability: SlotAvailability = {};
         currentCoach.availability.forEach(dayAvailability => {
@@ -79,12 +88,12 @@ const CoachScheduleGrid: React.FC<{
         setAvailability(initialAvailability);
       }
     }
-  }, [coachSlotsList, selectedCoachIndex]);
+  }, [coaches, selectedCoachIndex]);
 
-  const currentCoachData: Coach | null = useMemo(() => {
-    if (!coachSlotsList || coachSlotsList.length === 0) return null;
-    return coachSlotsList[0].coaches[selectedCoachIndex] || null;
-  }, [coachSlotsList, selectedCoachIndex]);
+  const currentCoachData: Coach | null = useMemo(
+    () => coaches[selectedCoachIndex] || null,
+    [coaches, selectedCoachIndex]
+  );
 
   const getWeekdayInChicago = (date: Date): string =>
     date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/Chicago' }).toUpperCase();
@@ -223,7 +232,10 @@ const CoachScheduleGrid: React.FC<{
     const timeSlot = timeSlots[slotIndex];
     const slot = findSlotByIndices(dateIndex, timeSlot);
     if (!slot) return 'not-set';
-    if (slot.bookingType && slot.bookingCode) return 'booked';
+    // status/bookingId identify a real booking — bookingType/bookingCode are never
+    // actually populated on coachslot docs; isAvailable=false alone is also set on
+    // non-bookable 'disabled' placeholder slots, so it can't be used here either.
+    if (slot.status === 'confirmed' || slot.bookingId) return 'booked';
     const value = availability[slot.coachSlotCode];
     if (value !== undefined) return value ? 'available' : 'unavailable';
     return slot.isAvailable ? 'available' : 'unavailable';
@@ -674,6 +686,27 @@ const CoachScheduleGrid: React.FC<{
             </div>
           );
         })()}
+
+      {/* Coach selector — only shown when a facility has more than one real coach */}
+      {coaches.length > 1 && (
+        <div className="flex items-center gap-2">
+          <label className="text-[12px] font-semibold text-gray-500" htmlFor="coach-select">
+            Coach:
+          </label>
+          <select
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-[#21295A] outline-none transition focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+            id="coach-select"
+            value={selectedCoachIndex}
+            onChange={e => setSelectedCoachIndex(Number(e.target.value))}
+          >
+            {coaches.map((coach, index) => (
+              <option key={coach.coachCode || index} value={index}>
+                {coach.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Grid card */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">

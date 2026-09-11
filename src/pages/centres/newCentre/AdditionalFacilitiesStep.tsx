@@ -733,26 +733,51 @@ const OperatingHours: React.FC<{
   f: AdditionalFacility;
   patch: (id: string, p: Partial<AdditionalFacility>) => void;
 }> = ({ f, patch }) => (
-  <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
-    <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Operating hours</span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <input
-        className={FF_INPUT}
-        style={{ width: 130 }}
-        type="time"
-        value={f.openTime}
-        onChange={e => patch(f.id, { openTime: e.target.value })}
-      />
-      <span style={{ fontSize: 12, color: 'var(--sub)' }}>to</span>
-      <input
-        className={FF_INPUT}
-        style={{ width: 130 }}
-        type="time"
-        value={f.closeTime}
-        onChange={e => patch(f.id, { closeTime: e.target.value })}
-      />
+  <div className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Operating hours</span>
+      <label className="flex cursor-pointer items-center gap-1.5">
+        <span className="text-[11px] font-medium text-sub">24 Hours</span>
+        <span className="relative inline-block h-[18px] w-8 flex-shrink-0">
+          <input
+            aria-label="Open 24 hours"
+            checked={Boolean(f.is24Hours)}
+            className="peer sr-only"
+            type="checkbox"
+            onChange={e =>
+              patch(f.id, {
+                is24Hours: e.target.checked,
+                ...(e.target.checked ? { openTime: '00:00', closeTime: '23:59' } : {}),
+              })
+            }
+          />
+          <span className="absolute inset-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-navy" />
+          <span className="absolute left-[2px] top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform peer-checked:translate-x-[14px]" />
+        </span>
+      </label>
     </div>
-  </label>
+    {f.is24Hours ? (
+      <div style={{ fontSize: 12, color: 'var(--sub)' }}>Open around the clock — no closing hours.</div>
+    ) : (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          className={FF_INPUT}
+          style={{ width: 130 }}
+          type="time"
+          value={f.openTime}
+          onChange={e => patch(f.id, { openTime: e.target.value })}
+        />
+        <span style={{ fontSize: 12, color: 'var(--sub)' }}>to</span>
+        <input
+          className={FF_INPUT}
+          style={{ width: 130 }}
+          type="time"
+          value={f.closeTime}
+          onChange={e => patch(f.id, { closeTime: e.target.value })}
+        />
+      </div>
+    )}
+  </div>
 );
 
 export default AdditionalFacilitiesStep;

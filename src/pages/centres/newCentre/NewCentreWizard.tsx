@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import NumberInput from '../../../components/NumberInput';
 import { createCentre, updateCentre } from '../../../store/centres/api';
-import { AppDispatch } from '../../../store/store';
+import { AppDispatch, RootState } from '../../../store/store';
 import {
   COUNTRIES,
   COUNTRY_DIAL_CODES,
@@ -40,6 +40,15 @@ const toggleCountry = (current: string[], code: string): string[] => {
   const next = current.filter(c => c !== 'all');
   const out = next.includes(code) ? next.filter(c => c !== code) : [...next, code];
   return out.length ? out : ['all'];
+};
+
+// A facility's countryCode isn't always stored in the same casing/alias as
+// PLAN_COUNTRY_CHIPS's codes (e.g. 'GB'/'USA') — same alias groups already used
+// by constants.ts's COUNTRY_FLAGS, reused here for consistency.
+const COUNTRY_CODE_ALIASES: Record<string, string> = { GB: 'UK', USA: 'US', IND: 'IN' };
+const normalizePlanCountryCode = (code: string): string => {
+  const upper = (code || '').toUpperCase();
+  return COUNTRY_CODE_ALIASES[upper] ?? upper;
 };
 
 const makePlanRows = (): WizardPlanRow[] =>
@@ -306,6 +315,19 @@ interface Props {
 
 const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) => {
   const dispatch = useDispatch<AppDispatch>();
+  // Read-only: whatever centre list is already loaded in Redux (populated by the
+  // Centre Management list page, which the admin came from) — deliberately NOT
+  // re-dispatched here, since getCentres shares state.centres.facilities with that
+  // list page's own pagination/filter/search and re-fetching here would clobber it.
+  const existingCentres = useSelector((state: RootState) => state.centres.facilities);
+  const availablePlanCountryChips = useMemo(() => {
+    const codes = new Set(existingCentres.map(f => normalizePlanCountryCode(f.countryCode)).filter(Boolean));
+    const real = PLAN_COUNTRY_CHIPS.filter(c => c.code === 'all' || codes.has(c.code));
+    // Never show just "All countries" with nothing else to pick — falls back to
+    // the full fixed list if no centres have loaded yet (e.g. a direct deep link
+    // into this wizard before the list page's own fetch has run).
+    return real.length > 1 ? real : PLAN_COUNTRY_CHIPS;
+  }, [existingCentres]);
   const isEdit = Boolean(initialBundle);
   // Edit mode jumps straight to Review (step 6) with all steps already unlocked.
   const [step, setStep] = useState(isEdit ? 6 : 1);
@@ -325,6 +347,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [postcodeLooking, setPostcodeLooking] = useState(false);
+  // Free-text entry for a "Facilities Available" option not in FACILITY_OPTIONS —
+  // added facilities live in the same s.facilities: string[], no separate field.
+  const [customFacilityInput, setCustomFacilityInput] = useState('');
+  const [customFacilityError, setCustomFacilityError] = useState('');
   // Current persisted status of the centre being edited (undefined when creating).
   const currentStatus = initialBundle?.facility?.status;
   // Status the "Create Centre" / "Save Changes" button will persist (Review step radio).
@@ -1138,7 +1164,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               <div className="cmx-eyebrow" style={{ marginBottom: 14 }}>
                 Facilities Available
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
                 {FACILITY_OPTIONS.map(f => {
                   const on = s.facilities.includes(f);
                   return (
@@ -1158,7 +1184,74 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     </label>
                   );
                 })}
+                {/* Custom facilities the admin has typed in below — not part of the
+                    fixed FACILITY_OPTIONS list, so shown as removable chips instead
+                    of checkboxes (nothing to "uncheck" them back to). */}
+                {s.facilities
+                  .filter(f => !FACILITY_OPTIONS.includes(f))
+                  .map(f => (
+                    <span
+                      key={f}
+                      className="inline-flex items-center gap-1.5 rounded-[7px] border border-[#9096be] bg-cmx-blue-light py-1.5 pl-2.5 pr-1.5 text-xs font-medium text-cmx-blue"
+                    >
+                      {f}
+                      <button
+                        aria-label={`Remove ${f}`}
+                        className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-cmx-blue/70 hover:text-cmx-blue"
+                        type="button"
+                        onClick={() => toggleFacility(f)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
               </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                <input
+                  className="cmx-field"
+                  placeholder="Add a facility not listed above (e.g. Nets, Physio Room)…"
+                  style={{ maxWidth: 340 }}
+                  type="text"
+                  value={customFacilityInput}
+                  onChange={e => {
+                    setCustomFacilityInput(e.target.value);
+                    if (customFacilityError) setCustomFacilityError('');
+                  }}
+                  onKeyDown={e => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    const trimmed = customFacilityInput.trim();
+                    if (!trimmed) return;
+                    if (s.facilities.some(f => f.toLowerCase() === trimmed.toLowerCase())) {
+                      setCustomFacilityError('That facility is already added');
+                      return;
+                    }
+                    set({ facilities: [...s.facilities, trimmed] });
+                    setCustomFacilityInput('');
+                  }}
+                />
+                <button
+                  className="cmx-btn cmx-btn-outline"
+                  type="button"
+                  onClick={() => {
+                    const trimmed = customFacilityInput.trim();
+                    if (!trimmed) return;
+                    if (s.facilities.some(f => f.toLowerCase() === trimmed.toLowerCase())) {
+                      setCustomFacilityError('That facility is already added');
+                      return;
+                    }
+                    set({ facilities: [...s.facilities, trimmed] });
+                    setCustomFacilityInput('');
+                  }}
+                >
+                  + Add
+                </button>
+              </div>
+              {customFacilityError && (
+                <div style={{ fontSize: 11, color: '#dc2626', marginTop: -14, marginBottom: 20 }}>
+                  {customFacilityError}
+                </div>
+              )}
 
               <div className="cmx-eyebrow" style={{ marginBottom: 14 }}>
                 Slot Configuration
@@ -1460,7 +1553,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                           <div style={{ marginTop: 10 }}>
                             <span className="cmx-field-label">Available in</span>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                              {PLAN_COUNTRY_CHIPS.map(c => {
+                              {availablePlanCountryChips.map(c => {
                                 const active = row.availableCountries.includes(c.code);
                                 return (
                                   <button

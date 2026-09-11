@@ -168,6 +168,12 @@ const StaffManagement: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  // Defaults to "active" so the screen opens showing only active staff — switch
+  // to Inactive/All to see everyone else. "Inactive" covers suspended staff too:
+  // the backend only ever writes 'active' or 'suspended' (see handleToggleStatus),
+  // and normalizeStatus already collapses 'suspended' into the same "Inactive"
+  // bucket the Status column displays — so there's no separate "Suspended" option.
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'invited' | 'inactive'>('active');
   const { staffList, isListLoading, listError, staffConfig, isConfigLoading, configError } = useSelector(
     (state: RootState) => state.staff
   );
@@ -203,6 +209,12 @@ const StaffManagement: React.FC = () => {
     () => staffList.map(row => mapStaff(row, centreLookup.text, accessLabelOf)),
     [staffList, centreLookup.text, accessLabelOf]
   );
+
+  const filteredStaff: StaffRow[] = useMemo(() => {
+    if (statusFilter === 'all') return staff;
+    return staff.filter(s => s.status === statusFilter);
+  }, [staff, statusFilter]);
+
   const isLoading = isListLoading;
   const error = listError;
 
@@ -522,6 +534,25 @@ const StaffManagement: React.FC = () => {
               {error}
             </div>
           )}
+          <div className="mb-3 flex items-center justify-end">
+            <label
+              className="mr-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+              htmlFor="staff-status-filter"
+            >
+              Status
+            </label>
+            <select
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+              id="staff-status-filter"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="invited">Invited</option>
+              <option value="all">All Statuses</option>
+            </select>
+          </div>
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <DataTable
               columns={staffColumns.map(
@@ -538,7 +569,7 @@ const StaffManagement: React.FC = () => {
                       : undefined,
                 })
               )}
-              data={staff}
+              data={filteredStaff}
               emptyState={{
                 title: 'No staff members yet',
                 subtitle: 'Click "Add Staff Member" to add your first one.',

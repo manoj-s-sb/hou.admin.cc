@@ -75,19 +75,19 @@ const SessionsTab: React.FC<{ data: SessionsData }> = ({ data }) => {
         <StatCard
           accent="from-indigo-500 to-violet-500"
           subtitle="of sessions"
-          title="Batting"
+          title="Batting Sessions"
           value={`${stats.battingPct}%`}
         />
         <StatCard
           accent="from-blue-500 to-cyan-500"
           subtitle="of sessions"
-          title="Bowling"
+          title="Bowling Sessions"
           value={`${stats.bowlingPct}%`}
         />
         <StatCard
           accent="from-emerald-500 to-teal-500"
           subtitle="of sessions"
-          title="Coaching"
+          title="Coaching Sessions"
           value={`${stats.coachingPct}%`}
         />
       </div>
