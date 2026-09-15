@@ -98,6 +98,10 @@ export interface UpdateTourStatusRequest {
 
 export interface InductionState {
   isLoading: boolean;
+  /** bookingCode of the row whose status update is currently in flight (No Show /
+   * Cancel / Undo), or null when none — lets the UI show a per-row spinner instead
+   * of blanking the whole table via the shared `isLoading` flag. */
+  updatingBookingCode: string | null;
   error: string | null;
   inductionList: InductionResponse;
   selectedInduction: Induction | null;
@@ -107,6 +111,7 @@ export interface InductionState {
 
 export const initialState: InductionState = {
   isLoading: false,
+  updatingBookingCode: null,
   error: '',
   inductionList: {
     bookings: [],

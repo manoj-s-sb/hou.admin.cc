@@ -62,7 +62,11 @@ const statusMap: Record<string, { label: string; className: string }> = {
 };
 
 const Induction = () => {
-  const { inductionList: inductionListData, isLoading } = useSelector((state: RootState) => state.induction);
+  const {
+    inductionList: inductionListData,
+    isLoading,
+    updatingBookingCode,
+  } = useSelector((state: RootState) => state.induction);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -271,6 +275,7 @@ const Induction = () => {
           const isNoShow = params.row?.status === 'noshow';
           const isCancelled = params.row?.status === 'cancelled';
           const isConfirmed = params.row?.status === 'confirmed';
+          const isRowUpdating = updatingBookingCode === params.row?.bookingCode;
           return (
             <div className="flex items-center gap-2">
               {!isNoShow && (
@@ -289,19 +294,21 @@ const Induction = () => {
               )}
               {isConfirmed && (
                 <button
-                  className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-all hover:bg-orange-600 hover:text-white"
+                  className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-all hover:bg-orange-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isRowUpdating}
                   title="Mark as no show"
                   onClick={e => {
                     e.stopPropagation();
                     handleStatusUpdate('noshow');
                   }}
                 >
-                  {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'No Show'}
+                  {isRowUpdating ? <LoaderSpinner className="text-current" size="xs" /> : 'No Show'}
                 </button>
               )}
               {isConfirmed && (
                 <button
-                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[12px] font-semibold text-red-700 transition-all hover:bg-red-600 hover:text-white"
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[12px] font-semibold text-red-700 transition-all hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isRowUpdating}
                   title="Cancel this induction booking"
                   onClick={e => {
                     e.stopPropagation();
@@ -358,7 +365,7 @@ const Induction = () => {
       searchParams,
       inductionListData?.page,
       inductionListData?.limit,
-      isLoading,
+      updatingBookingCode,
       facilityCode,
     ]
   );
@@ -587,7 +594,7 @@ const Induction = () => {
               </button>
               <button
                 className="rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#2d3570] disabled:opacity-50"
-                disabled={isLoading}
+                disabled={updatingBookingCode === undoConfirm.bookingCode}
                 type="button"
                 onClick={() => {
                   dispatch(
@@ -610,7 +617,7 @@ const Induction = () => {
                     .finally(() => setUndoConfirm(null));
                 }}
               >
-                {isLoading ? 'Updating…' : 'Yes, Undo'}
+                {updatingBookingCode === undoConfirm.bookingCode ? 'Updating…' : 'Yes, Undo'}
               </button>
             </div>
           </div>
@@ -653,7 +660,7 @@ const Induction = () => {
               </button>
               <button
                 className="rounded-lg bg-red-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-                disabled={isLoading}
+                disabled={updatingBookingCode === cancelConfirm.bookingCode}
                 type="button"
                 onClick={() => {
                   dispatch(
@@ -677,7 +684,7 @@ const Induction = () => {
                     .finally(() => setCancelConfirm(null));
                 }}
               >
-                {isLoading ? 'Cancelling…' : 'Yes, Cancel Booking'}
+                {updatingBookingCode === cancelConfirm.bookingCode ? 'Cancelling…' : 'Yes, Cancel Booking'}
               </button>
             </div>
           </div>

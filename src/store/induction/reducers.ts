@@ -78,16 +78,16 @@ const inductionSlice = createSlice({
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to update tour status. Please try again.';
     });
-    builder.addCase(updateInductionBookingStatus.pending, state => {
-      state.isLoading = true;
+    builder.addCase(updateInductionBookingStatus.pending, (state, action) => {
+      state.updatingBookingCode = action.meta.arg.bookingCode;
       state.error = '';
     });
     builder.addCase(updateInductionBookingStatus.fulfilled, state => {
-      state.isLoading = false;
+      state.updatingBookingCode = null;
       state.error = '';
     });
     builder.addCase(updateInductionBookingStatus.rejected, (state, action) => {
-      state.isLoading = false;
+      state.updatingBookingCode = null;
       state.error = (action.payload as string) || 'Failed to update induction booking status. Please try again.';
     });
     builder.addCase(userInductionDetails.pending, state => {
