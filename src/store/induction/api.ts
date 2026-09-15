@@ -101,12 +101,13 @@ export const updateTourStatus = createAsyncThunk(
 
 export const updateInductionBookingStatus = createAsyncThunk(
   'induction/updateInductionBookingStatus',
-  async ({ userId, bookingCode, status }: UpdateTourStatusRequest, { rejectWithValue }) => {
+  async ({ userId, bookingCode, status, reason }: UpdateTourStatusRequest, { rejectWithValue }) => {
     try {
       const response = await api.post(`${endpoints.induction.updateBookingStatus}`, {
         userId,
         bookingCode,
         status,
+        reason,
       });
       return response?.data;
     } catch (error) {

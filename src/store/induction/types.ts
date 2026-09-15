@@ -92,6 +92,8 @@ export interface UpdateTourStatusRequest {
   userId: string;
   bookingCode: string;
   status: string;
+  /** Optional free-text reason — used when status is 'cancelled'. */
+  reason?: string;
 }
 
 export interface InductionState {
