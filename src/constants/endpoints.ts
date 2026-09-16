@@ -12,6 +12,10 @@ const endpoints = {
   },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,
+  // Forgot-password (OTP-based reset) — three steps, each its own POST.
+  forgotPassword: `${API_PREFIX}/admin/auth/forgot-password`, // { email } → always a generic success message
+  verifyResetOtp: `${API_PREFIX}/admin/auth/verify-reset-otp`, // { email, otp } → { resetToken }
+  resetPassword: `${API_PREFIX}/admin/auth/reset-password`, // { email, resetToken, newPassword, confirmPassword }
   members: {
     list: `${API_PREFIX}/admin/members/list`,
     membersDetails: `${API_PREFIX}/admin/member/details`,

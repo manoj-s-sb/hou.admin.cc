@@ -83,9 +83,18 @@ const Login: React.FC = () => {
 
           {/* Password */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500" htmlFor="password">
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500" htmlFor="password">
+                Password
+              </label>
+              <button
+                className="text-xs font-semibold text-[#21295A] hover:underline"
+                type="button"
+                onClick={() => navigate(ROUTES.FORGOT_PASSWORD.path)}
+              >
+                Forgot password?
+              </button>
+            </div>
             <div className="relative">
               <input
                 required
