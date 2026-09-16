@@ -65,8 +65,16 @@ const isReadRequest = (config: AxiosError['config']): boolean => {
 // Request interceptor - Add auth token to requests and check expiration
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Skip token check for login endpoint
-    if (config.url?.includes('/login')) {
+    // Skip token check for endpoints that are unauthenticated by design — login,
+    // and every step of the forgot-password flow (there is no session yet at
+    // any of these; a leftover expired token from a previous session must never
+    // block them).
+    const isPublicAuthEndpoint =
+      config.url?.includes('/login') ||
+      config.url?.includes('/forgot-password') ||
+      config.url?.includes('/verify-reset-otp') ||
+      config.url?.includes('/reset-password');
+    if (isPublicAuthEndpoint) {
       return config;
     }
 
