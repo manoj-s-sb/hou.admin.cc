@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { LoaderSpinner } from '../../../components/Loader';
+import { getLocalUser } from '../../../constants/user';
 import { Lanes } from '../../../store/slots/types';
+import { formatSlotTime } from '../utils/timeFormat';
 
 const BLOCK_REASONS = [
   { value: '', label: 'Select a reason' },
@@ -15,22 +17,64 @@ interface LaneDetailsModalProps {
   lane: Lanes;
   isOpen: boolean;
   onClose: () => void;
-  onLaneClick: (reason?: string, blockLaneApp?: boolean) => void;
+  onLaneClick: (reason?: string, blockLaneApp?: boolean, blockedByName?: string) => void;
+  onCancelBooking: (slotCode: string, reason: string) => void;
   isLoading?: boolean;
 }
 
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
 
-const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = false }: LaneDetailsModalProps) => {
+const getBookedName = (slot: Lanes['slots'][number]): string => {
+  const firstName = slot.booking?.user?.firstName?.trim();
+  const lastName = slot.booking?.user?.lastName?.trim();
+  return [firstName, lastName].filter(Boolean).join(' ') || 'Booking details unavailable';
+};
+
+const LaneDetailsModal = ({
+  lane,
+  isOpen,
+  onClose,
+  onLaneClick,
+  onCancelBooking,
+  isLoading = false,
+}: LaneDetailsModalProps) => {
   const [selectedReason, setSelectedReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [blockLaneApp] = useState(false);
+  // One shared reason for cancelling bookings in this lane — with several bookings
+  // possibly needing to be cleared to block the whole lane, typing a separate reason
+  // for each one isn't practical, so a single reason applies to all of them.
+  const [cancelReason, setCancelReason] = useState('');
+  // Pre-filled from the logged-in user, but editable — e.g. for a shared/generic
+  // login used by different physical staff. Resets each time the modal opens.
+  const [blockedByName, setBlockedByName] = useState('');
+
+  useEffect(() => {
+    if (isOpen) setBlockedByName(getLocalUser().name);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   // Check if any slot is disabled (blocked)
   const isLaneBlocked = lane.slots.some(slot => slot.status?.toLowerCase() === 'disabled');
   const buttonText = isLaneBlocked ? 'Unblock Lane' : 'Block Lane';
+  const bookedSlots = lane.slots.filter(slot => slot.isBooked && slot.status?.toLowerCase() === 'confirmed');
+  // Slots are blocked in one batch sharing the same reason/blockedByName — the first
+  // disabled slot's audit fields represent the whole lane's block.
+  const disabledSlot = lane.slots.find(slot => slot.status?.toLowerCase() === 'disabled');
+
+  const handleCancelOne = (slotCode: string) => {
+    if (!window.confirm('Cancel this booking? This frees up the slot immediately.')) return;
+    onCancelBooking(slotCode, cancelReason.trim());
+  };
+
+  const handleCancelAll = () => {
+    if (
+      !window.confirm(`Cancel all ${bookedSlots.length} bookings in this lane? This frees up every slot immediately.`)
+    )
+      return;
+    bookedSlots.forEach(slot => onCancelBooking(slot.slotCode, cancelReason.trim()));
+  };
 
   return (
     <div
@@ -62,7 +106,7 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
         </div>
 
         {/* Modal Body */}
-        <div className="px-6 py-6">
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-6">
           <div className="mb-5">
             <h3 className="mb-4 text-[15px] font-semibold text-[#21295A]">Lane Details</h3>
             <div className="space-y-3 rounded-xl border border-[#E5F0F0] bg-gradient-to-br from-[#F8FAFA] to-[#FFFFFF] p-5 shadow-sm">
@@ -82,8 +126,104 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
                   {isLaneBlocked ? 'Blocked' : 'Available'}
                 </span>
               </div>
+
+              {/* Disabled Details - Show if lane is blocked */}
+              {isLaneBlocked &&
+                disabledSlot &&
+                (disabledSlot.disableReason || disabledSlot.disabledAt || disabledSlot.disabledByName) && (
+                  <div className="mt-2 border-t border-red-100 pt-3">
+                    <div className="mb-2">
+                      <span className="text-[14px] font-semibold text-red-600">Disabled Info</span>
+                    </div>
+                    <div className="space-y-2 rounded-lg bg-red-50 p-3">
+                      {disabledSlot.disableReason && (
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                          <span className="text-[13px] text-gray-600">Reason:</span>
+                          <span className="max-w-[300px] break-words text-right text-[13px] font-medium text-red-600">
+                            {disabledSlot.disableReason}
+                          </span>
+                        </div>
+                      )}
+                      {disabledSlot.disabledAt && (
+                        <div className="flex justify-between">
+                          <span className="text-[13px] text-gray-600">Disabled At:</span>
+                          <span className="text-[13px] font-medium text-red-600">
+                            {new Date(disabledSlot.disabledAt).toLocaleString('en-US', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {disabledSlot.disabledByName && (
+                        <div className="flex justify-between">
+                          <span className="text-[13px] text-gray-600">Blocked By:</span>
+                          <span className="text-[13px] font-medium text-red-600">{disabledSlot.disabledByName}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
+
+          {/* Existing bookings in this lane — blocking the lane doesn't touch these,
+              so surface them here with a Cancel option in case the admin needs to
+              clear the lane before blocking it. One shared reason applies to whichever
+              of these get cancelled, rather than typing it out for each booking. */}
+          {!isLaneBlocked && bookedSlots.length > 0 && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">
+                Bookings in this lane <span className="font-normal text-gray-400">({bookedSlots.length})</span>
+              </h3>
+              <div className="mb-3 space-y-2">
+                {bookedSlots.map(slot => (
+                  <div
+                    key={slot.slotCode}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[#E5F0F0] bg-gradient-to-br from-[#F8FAFA] to-[#FFFFFF] p-3.5 shadow-sm"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-[#21295A]">
+                        {formatSlotTime(slot.startTime)} - {formatSlotTime(slot.endTime)}
+                      </div>
+                      <div className="truncate text-[12px] text-gray-500">{getBookedName(slot)}</div>
+                    </div>
+                    <button
+                      className="flex-none rounded-lg border-2 border-red-200 px-3 py-1.5 text-[12.5px] font-medium text-red-600 transition-all hover:bg-red-50"
+                      type="button"
+                      onClick={() => handleCancelOne(slot.slotCode)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="lane-cancel-reason">
+                  Cancellation Reason{' '}
+                  <span className="font-normal text-gray-400">(optional — applies to any booking cancelled above)</span>
+                </label>
+                <textarea
+                  className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                  id="lane-cancel-reason"
+                  maxLength={500}
+                  placeholder="e.g. Facility maintenance — applies to all bookings cancelled in this lane"
+                  rows={2}
+                  value={cancelReason}
+                  onChange={e => setCancelReason(e.target.value)}
+                />
+              </div>
+              {bookedSlots.length > 1 && (
+                <button
+                  className="mt-3 w-full rounded-xl border-2 border-red-200 px-4 py-2.5 text-[13px] font-medium text-red-600 transition-all hover:bg-red-50"
+                  type="button"
+                  onClick={handleCancelAll}
+                >
+                  Cancel All {bookedSlots.length} Bookings
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Block Reason Selection - Only show when lane is not blocked */}
           {!isLaneBlocked && (
@@ -122,6 +262,24 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
                         <span className="text-red-500">Maximum 500 characters allowed</span>
                       )}
                     </div>
+                    <div>
+                      <label
+                        className="mb-1 block text-[13px] font-medium text-gray-600"
+                        htmlFor="lane-blocked-by-name"
+                      >
+                        Blocked By
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                        id="lane-blocked-by-name"
+                        placeholder="Your name"
+                        // Pre-filled from your login — edit this if you're blocking on
+                        // behalf of someone else using a shared login.
+                        type="text"
+                        value={blockedByName}
+                        onChange={e => setBlockedByName(e.target.value)}
+                      />
+                    </div>
                   </>
                 )}
                 {/* Block Lane App Checkbox */}
@@ -148,7 +306,7 @@ const LaneDetailsModal = ({ lane, isOpen, onClose, onLaneClick, isLoading = fals
                   onLaneClick();
                 } else {
                   const reason = `${selectedReason}: ${customReason.trim()}`;
-                  onLaneClick(reason, blockLaneApp);
+                  onLaneClick(reason, blockLaneApp, blockedByName.trim());
                 }
               }}
             >

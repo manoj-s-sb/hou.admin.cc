@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { coachSlots, getSlots, updateLaneStatus } from './api';
 import { initialState } from './types';
@@ -6,7 +6,20 @@ import { initialState } from './types';
 const slotsSlice = createSlice({
   name: 'slots',
   initialState,
-  reducers: {},
+  reducers: {
+    // No cancel-booking endpoint exists yet — this frees the slot in the UI only
+    // (grid + modals) so the flow can be reviewed before the backend is wired up.
+    // A page refresh reverts it, since it re-fetches from getSlots.
+    cancelBookingLocally: (state, action: PayloadAction<{ laneCode: string; slotCode: string }>) => {
+      const lane = state.slots?.lanes.find(l => l.laneCode === action.payload.laneCode);
+      const slot = lane?.slots.find(s => s.slotCode === action.payload.slotCode);
+      if (slot) {
+        slot.isBooked = false;
+        slot.status = 'available';
+        slot.booking = undefined;
+      }
+    },
+  },
   extraReducers: builder => {
     builder.addCase(getSlots.pending, state => {
       state.isLoading = true;
@@ -50,4 +63,5 @@ const slotsSlice = createSlice({
   },
 });
 
+export const { cancelBookingLocally } = slotsSlice.actions;
 export default slotsSlice.reducer;

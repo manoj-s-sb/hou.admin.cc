@@ -6,6 +6,7 @@ import { getLocalUser } from '../../../constants/user';
 import { ACCESS_SCOPES, PermissionGate } from '../../../rbac';
 import api from '../../../services';
 import { Slot } from '../../../store/slots/types';
+import { formatSlotTime, parseSlotDateTime } from '../utils/timeFormat';
 
 const BLOCK_REASONS = [
   { value: '', label: 'Select a reason' },
@@ -15,6 +16,9 @@ const BLOCK_REASONS = [
   { value: 'Other', label: 'Other' },
 ];
 
+// A booking can only be cancelled up until this many minutes before its session starts.
+const CANCEL_CUTOFF_MINUTES = 6;
+
 interface SlotDetailsModalProps {
   slot: Slot | null;
   laneNo: number;
@@ -22,7 +26,11 @@ interface SlotDetailsModalProps {
   onClose: () => void;
   onBlockSlot: (reason: string, blockedByName: string) => void;
   onUnblockSlot: () => void;
+  onCancelBooking: (reason: string) => void;
   isLoading?: boolean;
+  /** The calendar's selected day (YYYY-MM-DD) — combined with the slot's start time
+   * to gate the cancel-booking cutoff. */
+  date: string;
   timeSlot: string;
   nextTimeSlot: string | null;
 }
@@ -34,7 +42,9 @@ const SlotDetailsModal = ({
   onClose,
   onBlockSlot,
   onUnblockSlot,
+  onCancelBooking,
   isLoading = false,
+  date,
   timeSlot,
   nextTimeSlot,
 }: SlotDetailsModalProps) => {
@@ -48,9 +58,15 @@ const SlotDetailsModal = ({
   // retype their own name here. Resets to the current user's name each time the
   // modal opens (not just on first mount).
   const [blockedByName, setBlockedByName] = useState('');
+  const [showCancelReason, setShowCancelReason] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
-    if (isOpen) setBlockedByName(getLocalUser().name);
+    if (isOpen) {
+      setBlockedByName(getLocalUser().name);
+      setShowCancelReason(false);
+      setCancelReason('');
+    }
   }, [isOpen]);
 
   const isBooked = !!slot?.isBooked && slot?.status?.toLowerCase() === 'confirmed';
@@ -87,6 +103,18 @@ const SlotDetailsModal = ({
 
   const isAvailable = slot.status?.toLowerCase() === 'available';
   const isBlocked = !slot.isBooked && slot.status?.toLowerCase() === 'disabled';
+
+  const sessionStart = parseSlotDateTime(date, slot.startTime || timeSlot);
+  const canCancelBooking =
+    isBooked && slot.booking?.bookingStatus?.toLowerCase() !== 'completed' && !!sessionStart
+      ? Date.now() < sessionStart.getTime() - CANCEL_CUTOFF_MINUTES * 60_000
+      : false;
+
+  const handleConfirmCancel = () => {
+    onCancelBooking(cancelReason.trim());
+    setShowCancelReason(false);
+    setCancelReason('');
+  };
 
   const getStatusBadge = () => {
     // Check if booking status is completed
@@ -138,7 +166,8 @@ const SlotDetailsModal = ({
               <div className="flex justify-between">
                 <span className="text-[14px] text-gray-600">Time:</span>
                 <span className="text-[14px] font-medium text-[#21295A]">
-                  {timeSlot} - {nextTimeSlot}
+                  {formatSlotTime(timeSlot)}
+                  {nextTimeSlot ? ` - ${formatSlotTime(nextTimeSlot)}` : ''}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -342,66 +371,124 @@ const SlotDetailsModal = ({
             </div>
           )}
 
+          {/* Cancellation Reason - shown after "Cancel Booking" is clicked, in place of the action buttons */}
+          {showCancelReason && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Cancellation Reason</h3>
+              <textarea
+                className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                maxLength={500}
+                placeholder="Why is this booking being cancelled? (optional)"
+                rows={3}
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+              />
+            </div>
+          )}
+
           {/* Action Buttons - Only show for StanceBeam admins */}
           <div className="flex justify-center gap-3">
-            <PermissionGate module={ACCESS_SCOPES.slots}>
-              {isAvailable && (
+            {showCancelReason ? (
+              <>
                 <button
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                  disabled={isLoading || !selectedReason || !customReason.trim() || customReason.length > 500}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-red-600/20 transition-all hover:scale-[1.02] hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={isLoading}
+                  onClick={handleConfirmCancel}
+                >
+                  {isLoading ? (
+                    <>
+                      <LoaderSpinner className="text-white" size="sm" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Confirm Cancellation'
+                  )}
+                </button>
+                <button
+                  className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={isLoading}
                   onClick={() => {
-                    const reason = `${selectedReason}: ${customReason.trim()}`;
-                    onBlockSlot(reason, blockedByName.trim());
+                    setShowCancelReason(false);
+                    setCancelReason('');
                   }}
                 >
-                  {isLoading ? (
-                    <>
-                      <LoaderSpinner className="text-white" size="sm" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                      Block Slot
-                    </>
-                  )}
+                  Keep Booking
                 </button>
-              )}
+              </>
+            ) : (
+              <PermissionGate module={ACCESS_SCOPES.slots}>
+                {isAvailable && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading || !selectedReason || !customReason.trim() || customReason.length > 500}
+                    onClick={() => {
+                      const reason = `${selectedReason}: ${customReason.trim()}`;
+                      onBlockSlot(reason, blockedByName.trim());
+                    }}
+                  >
+                    {isLoading ? (
+                      <>
+                        <LoaderSpinner className="text-white" size="sm" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                        Block Slot
+                      </>
+                    )}
+                  </button>
+                )}
 
-              {isBlocked && (
-                <button
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                  disabled={isLoading}
-                  onClick={onUnblockSlot}
-                >
-                  {isLoading ? (
-                    <>
-                      <LoaderSpinner className="text-white" size="sm" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                      Unblock Slot
-                    </>
-                  )}
-                </button>
-              )}
-            </PermissionGate>
+                {isBlocked && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading}
+                    onClick={onUnblockSlot}
+                  >
+                    {isLoading ? (
+                      <>
+                        <LoaderSpinner className="text-white" size="sm" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                        Unblock Slot
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {canCancelBooking && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 px-4 py-3 text-[14px] font-medium text-red-600 transition-all hover:scale-[1.02] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading}
+                    title="Cancel is available until 6 minutes before the session starts"
+                    onClick={() => setShowCancelReason(true)}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                    </svg>
+                    Cancel Booking
+                  </button>
+                )}
+              </PermissionGate>
+            )}
 
             <button
               className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
