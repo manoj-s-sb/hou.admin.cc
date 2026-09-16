@@ -4,7 +4,7 @@
  * frontend-only. Keep the enum arrays in sync with the backend.
  */
 import { getFacilityCode, getLocalUser } from '../../constants/user';
-import { getRole } from '../../rbac/permissions';
+import { getRole, isSuperAdmin } from '../../rbac/permissions';
 
 import type { FreqUnit, TaskType, TemplatePriority, TaskTemplate, TemplateEnrich } from '../../store/maintenance/types';
 
@@ -12,9 +12,14 @@ export { getFacilityCode, getLocalUser };
 
 export const ALL_LANES = [1, 2, 3, 4, 5, 6, 7];
 
-// Template CRUD + scheduling are admin-only server-side (ADMIN_ROLES). Mirror that
-// gate in the UI so non-admins don't see actions the backend would 403.
-export const canManageTasks = (): boolean => ['superadmin', 'super_admin', 'admin'].includes(getRole().toLowerCase());
+// Template CRUD + scheduling are admin-only server-side (ADMIN_ROLES: superadmin,
+// super_admin, admin) — a role-identity gate, distinct from the module read/write
+// permission system. Route the superadmin half through the canonical isSuperAdmin()
+// (checks userType[] as well as role, unlike a raw string match) so a superadmin whose
+// `role` field doesn't literally say "superadmin" isn't incorrectly denied here.
+const MAINTENANCE_EXTRA_ADMIN_ROLES = ['super_admin', 'admin'];
+export const canManageTasks = (): boolean =>
+  isSuperAdmin() || MAINTENANCE_EXTRA_ADMIN_ROLES.includes(getRole().toLowerCase());
 
 export const EQUIPMENT_CUSTOM_SENTINEL = 'Other (custom)';
 export const EQUIPMENT_OPTIONS: string[] = [
