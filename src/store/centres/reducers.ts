@@ -8,10 +8,8 @@ import {
   deleteLeadNote,
   deleteWaitlistEntry,
   deleteWaitlistNote,
-  getCentreBookings,
   getCentreDetails,
   getCentreLeads,
-  getCentreMembers,
   getCentres,
   getCentreWaitlist,
   updateCentre,
@@ -83,34 +81,6 @@ const centresSlice = createSlice({
       .addCase(updateCentre.rejected, state => {
         state.saving = false;
       });
-
-    // ── Members ──
-    builder.addCase(getCentreMembers.pending, state => {
-      state.membersLoading = true;
-      state.members = [];
-    });
-    builder.addCase(getCentreMembers.fulfilled, (state, action) => {
-      state.membersLoading = false;
-      state.members = action.payload;
-    });
-    builder.addCase(getCentreMembers.rejected, state => {
-      state.membersLoading = false;
-      state.members = [];
-    });
-
-    // ── Bookings ──
-    builder.addCase(getCentreBookings.pending, state => {
-      state.bookingsLoading = true;
-      state.bookings = [];
-    });
-    builder.addCase(getCentreBookings.fulfilled, (state, action) => {
-      state.bookingsLoading = false;
-      state.bookings = action.payload;
-    });
-    builder.addCase(getCentreBookings.rejected, state => {
-      state.bookingsLoading = false;
-      state.bookings = [];
-    });
 
     // ── Waitlist ── (clear on pending so a stale tab's rows never linger)
     builder.addCase(getCentreWaitlist.pending, state => {

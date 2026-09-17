@@ -3,7 +3,7 @@
  *
  * Three layers live here:
  *   1. Backend contract (doc-bundle API): FacilitySummary, CentreBundle, …
- *   2. Domain / wizard models the UI speaks: Centre, WizardState, CentreMember, …
+ *   2. Domain / wizard models the UI speaks: Centre, WizardState, PlanMeta, …
  *   3. The Redux slice state shape (CentresInitialState + initialState).
  *
  * Spellings are kept verbatim from the backend spec (note `freeSolts`).
@@ -389,27 +389,6 @@ export interface CentreWithKPI extends Centre {
   kpi: CentreKPISnapshot;
 }
 
-export interface CentreMember {
-  id: string;
-  name: string;
-  email: string;
-  plan: string;
-  memberType: string;
-  joinDate: string;
-  bookings: number;
-  status: 'Active' | 'On Hold' | 'Suspended';
-}
-
-export interface CentreBooking {
-  id: string;
-  member: string;
-  lane: string;
-  date: string;
-  time: string;
-  sessionType: string;
-  status: 'Confirmed' | 'Completed' | 'No-show' | 'Cancelled' | 'Waitlisted';
-}
-
 /** An admin-authored note attached to a waitlist or lead entry. */
 export interface AdminNote {
   id: string;
@@ -659,12 +638,6 @@ export interface CentresInitialState {
   // ── Create / update ──
   saving: boolean;
 
-  // ── Ops dashboard ──
-  members: CentreMember[];
-  membersLoading: boolean;
-  bookings: CentreBooking[];
-  bookingsLoading: boolean;
-
   // ── Waitlist / Leads ──
   waitlist: WaitlistEntry[];
   waitlistLoading: boolean;
@@ -692,11 +665,6 @@ export const initialState: CentresInitialState = {
   detailsError: null,
 
   saving: false,
-
-  members: [],
-  membersLoading: false,
-  bookings: [],
-  bookingsLoading: false,
 
   waitlist: [],
   waitlistLoading: false,

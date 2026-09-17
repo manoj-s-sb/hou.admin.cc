@@ -1,13 +1,6 @@
 import type { CSSProperties } from 'react';
 
-import type {
-  AdditionalFacilityType,
-  CentreApiStatus,
-  CentreBooking,
-  CentreMember,
-  OperatingHoursMap,
-  PlanId,
-} from '../../store/centres/types';
+import type { AdditionalFacilityType, CentreApiStatus, OperatingHoursMap, PlanId } from '../../store/centres/types';
 
 export const PLAN_COLORS: Record<PlanId, string> = {
   premium: '#21295A',
@@ -156,18 +149,6 @@ export const CENTRE_STATUS: Record<CentreApiStatus, { label: string; tone: strin
   draft: { label: 'Draft', tone: 'amber' },
   staging: { label: 'Staging', tone: 'blue' },
   suspended: { label: 'Suspended', tone: 'red' },
-};
-export const MEMBER_STATUS_TONE: Record<CentreMember['status'], string> = {
-  Active: 'green',
-  'On Hold': 'amber',
-  Suspended: 'red',
-};
-export const BOOKING_STATUS_TONE: Record<CentreBooking['status'], string> = {
-  Confirmed: 'blue',
-  Completed: 'green',
-  'No-show': 'red',
-  Cancelled: 'gray',
-  Waitlisted: 'amber',
 };
 
 /* ── Members tab ── */
