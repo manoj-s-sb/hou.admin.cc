@@ -3,6 +3,8 @@ import React from 'react';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 
+import { has, num } from '../../../utils/format';
+
 import type { RootState } from '../../../store/store';
 
 /** Display label + accent colour + access hours per plan code (mirrors the catalogue). */
@@ -16,14 +18,6 @@ const PLAN_META: Record<string, { name: string; color: string; access: string }>
 
 // Display order matching the reference layout.
 const ORDER = ['premium', 'standard', 'family', 'offpeak', 'nightowl'];
-
-const num = (v: unknown): number => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-/** Present (not null/undefined) — guest pricing shows "—" rather than $0 when unset. */
-const has = (v: unknown): boolean => v !== undefined && v !== null;
 
 const money = (v: unknown): string =>
   `$${num(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

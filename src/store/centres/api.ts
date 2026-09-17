@@ -14,12 +14,10 @@ import { handleApiError } from '../../utils/errorUtils';
 
 import type {
   CentreApiStatus,
-  CentreBooking,
   CentreBundle,
   CentreCreateRequest,
   CentreListRequest,
   CentreListResponse,
-  CentreMember,
   ContactStatus,
   FacilitySummary,
   LeadEntry,
@@ -29,6 +27,17 @@ import type {
 } from './types';
 
 const actorName = (): string | undefined => getLocalUser().name || undefined;
+
+/**
+ * Unwrap the API envelope. Most endpoints return `{ data: T }`; a few return `T`
+ * directly, so fall back to the raw body. Kept local to this slice (NOT in the
+ * axios response interceptor) so it never changes the response shape the app's
+ * other ~20 `api` consumers expect.
+ */
+const unwrap = <T>(res: { data: unknown }): T => {
+  const body = res.data as { data?: T } | null;
+  return (body?.data ?? (res.data as T)) as T;
+};
 
 /**
  * The waitlist/leads endpoints return the standard envelope, but `data` may be
@@ -60,7 +69,7 @@ export const getCentres = createAsyncThunk<
       limit,
     };
     const res = await api.post<{ data: CentreListResponse }>(endpoints.centres.centresList, body);
-    const data = res.data?.data ?? (res.data as unknown as CentreListResponse);
+    const data = unwrap<CentreListResponse>(res);
     // Map the API's `stats` rollup onto the `kpi` shape the card reads.
     const facilities = (data.facilities ?? []).map(f => ({
       ...f,
@@ -90,7 +99,7 @@ export const getCentreDetails = createAsyncThunk<CentreBundle, string, { rejectV
   async (code, { rejectWithValue }) => {
     try {
       const res = await api.post<{ data: CentreBundle }>(endpoints.centres.centreDetails, { code });
-      return res.data?.data ?? (res.data as unknown as CentreBundle);
+      return unwrap<CentreBundle>(res);
     } catch (error) {
       return rejectWithValue(
         handleApiError(error, 'Could not load this centre. The details API may not be reachable yet.')
@@ -105,7 +114,7 @@ export const createCentre = createAsyncThunk<CentreBundle, CentreCreateRequest, 
   async (payload, { rejectWithValue }) => {
     try {
       const res = await api.post<{ data: CentreBundle }>(endpoints.centres.centreCreate, payload);
-      return res.data?.data ?? (res.data as unknown as CentreBundle);
+      return unwrap<CentreBundle>(res);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not save the centre. Please try again.'));
     }
@@ -131,26 +140,9 @@ export const updateCentre = createAsyncThunk<
   try {
     const body = { centreId, ...payload };
     const res = await api.post<{ data: CentreBundle }>(endpoints.centres.centreUpdate, body);
-    return res.data?.data ?? (res.data as unknown as CentreBundle);
+    return unwrap<CentreBundle>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Could not save the centre. Please try again.'));
-  }
-});
-
-/** GET /admin/centres/:id/members — ops dashboard member list. */
-export const getCentreMembers = createAsyncThunk<
-  CentreMember[],
-  { centreId: string; search?: string; plan?: string; status?: string },
-  { rejectValue: string }
->('centres/getCentreMembers', async ({ centreId, search, plan, status }, { rejectWithValue }) => {
-  try {
-    const res = await api.get<{ data: CentreMember[] }>(endpoints.centres.members(centreId), {
-      params: { search, plan, status },
-    });
-    const data = res.data?.data ?? (res.data as unknown as CentreMember[]);
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    return rejectWithValue(handleApiError(error, 'Failed to fetch members'));
   }
 });
 
@@ -237,7 +229,7 @@ export const addWaitlistNote = createAsyncThunk<
       text,
       createdByName: actorName(),
     });
-    return res.data?.data ?? (res.data as unknown as WaitlistEntry);
+    return unwrap<WaitlistEntry>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to add note'));
   }
@@ -255,7 +247,7 @@ export const deleteWaitlistNote = createAsyncThunk<
       waitlistId,
       noteId,
     });
-    return res.data?.data ?? (res.data as unknown as WaitlistEntry);
+    return unwrap<WaitlistEntry>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to delete note'));
   }
@@ -274,7 +266,7 @@ export const updateWaitlistStatus = createAsyncThunk<
       status,
       changedByName: actorName(),
     });
-    return res.data?.data ?? (res.data as unknown as WaitlistEntry);
+    return unwrap<WaitlistEntry>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to update status'));
   }
@@ -314,7 +306,7 @@ export const createLead = createAsyncThunk<
       phone,
       planInterest: subscriptionCode,
     });
-    return res.data?.data ?? (res.data as unknown as LeadEntry);
+    return unwrap<LeadEntry>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to add lead'));
   }
@@ -338,7 +330,7 @@ export const bulkImportWaitlist = createAsyncThunk<
       eventName,
       entries,
     });
-    return res.data?.data ?? (res.data as unknown as WaitlistImportResult);
+    return unwrap<WaitlistImportResult>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to import waitlist entries'));
   }
@@ -357,7 +349,7 @@ export const addLeadNote = createAsyncThunk<
       text,
       createdByName: actorName(),
     });
-    return res.data?.data ?? (res.data as unknown as LeadEntry);
+    return unwrap<LeadEntry>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to add note'));
   }
@@ -375,7 +367,7 @@ export const deleteLeadNote = createAsyncThunk<
       leadId,
       noteId,
     });
-    return res.data?.data ?? (res.data as unknown as LeadEntry);
+    return unwrap<LeadEntry>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to delete note'));
   }
@@ -411,22 +403,8 @@ export const updateLeadStatus = createAsyncThunk<
       status,
       changedByName: actorName(),
     });
-    return res.data?.data ?? (res.data as unknown as LeadEntry);
+    return unwrap<LeadEntry>(res);
   } catch (error) {
     return rejectWithValue(handleApiError(error, 'Failed to update status'));
   }
 });
-
-/** GET /admin/centres/:id/bookings — ops dashboard booking list. */
-export const getCentreBookings = createAsyncThunk<CentreBooking[], string, { rejectValue: string }>(
-  'centres/getCentreBookings',
-  async (centreId, { rejectWithValue }) => {
-    try {
-      const res = await api.get<{ data: CentreBooking[] }>(endpoints.centres.bookings(centreId));
-      const data = res.data?.data ?? (res.data as unknown as CentreBooking[]);
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      return rejectWithValue(handleApiError(error, 'Failed to fetch bookings'));
-    }
-  }
-);
