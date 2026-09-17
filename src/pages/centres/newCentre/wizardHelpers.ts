@@ -3,72 +3,7 @@
  * so the component file stays focused on state + rendering. Nothing here touches
  * component state — all functions are pure.
  */
-import { DAYS, PLAN_CATALOGUE } from '../constants';
-
-import type { CentreApiStatus, WizardPlanRow, WizardState } from '../../../store/centres/types';
-
-// Toggle a country chip: picking 'all' clears specifics; picking a specific clears 'all'.
-export const toggleCountry = (current: string[], code: string): string[] => {
-  if (code === 'all') return ['all'];
-  const next = current.filter(c => c !== 'all');
-  const out = next.includes(code) ? next.filter(c => c !== code) : [...next, code];
-  return out.length ? out : ['all'];
-};
-
-export const makePlanRows = (): WizardPlanRow[] =>
-  PLAN_CATALOGUE.map(p => ({
-    planId: p.id,
-    enabled: false,
-    fortnightlyPrice: p.fortnightly,
-    annualPrice: p.annual,
-    allocatedSlots: p.defaultSlots,
-    joiningFee: 0,
-    memberCap: p.defaultSlots,
-    isFoundationEligible: p.defaultFoundation,
-    availableCountries: ['all'],
-    // Guest / extra-session pricing is blank until explicitly set (no hardcoded default).
-    firstGuestFee: null,
-    additionalGuestDiscountPct: null,
-    extraSessionCost: null,
-  }));
-
-export const initialState = (): WizardState => ({
-  wizardId: null,
-  name: '',
-  shortCode: '',
-  status: 'draft',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  state: '',
-  postcode: '',
-  country: '',
-  timezone: '',
-  phone: '',
-  email: '',
-  is24x7: false,
-  operatingHours: DAYS.map((_, day) => ({
-    day,
-    openTime: day >= 5 ? '08:00' : '06:00',
-    closeTime: day >= 5 ? '20:00' : '23:00',
-    isOpen: true,
-  })),
-  overallCapacity: '',
-  foundationPool: '',
-  battingLanes: 4,
-  bowlingLanes: 1,
-  multipurposeLanes: 1,
-  facilities: ['Batting Lanes', 'Bowling Lanes'],
-  slotDurationMinutes: 45,
-  advanceBookingWindowDays: 7,
-  additionalFacilities: [],
-  plans: makePlanRows(),
-  firstGuestFee: null,
-  additionalGuestDiscountPct: null,
-  extraSessionCost: null,
-  discounts: [],
-  keyDates: {},
-});
+import type { CentreApiStatus } from '../../../store/centres/types';
 
 // Auto-generate short code: first 3 letters of city + 001 (e.g. DAL001).
 export const genShortCode = (city: string): string => {

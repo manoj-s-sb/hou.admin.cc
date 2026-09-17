@@ -522,7 +522,8 @@ export interface CentreDiscount {
 }
 
 export interface WizardPlanRow {
-  planId: PlanId;
+  /** Plan code — one of the fixed catalogue ids, or any live global plan's code. */
+  planId: PlanId | string;
   enabled: boolean;
   fortnightlyPrice: number;
   annualPrice: number;

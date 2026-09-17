@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch, useSelector } from 'react-redux';
 
-import { PLAN_CATALOGUE } from '../constants';
+import { getMemberships } from '../../../store/memberships/api';
+import { AppDispatch, RootState } from '../../../store/store';
+import { toPlanCatalogue } from '../newCentre/liveCatalogue';
 
 import type { CentreWithKPI } from '../../../store/centres/types';
 
@@ -15,6 +18,15 @@ interface Props {
 
 /** Ops → Plans: plans offered at this centre with local pricing & slot share. */
 const PlansTab: React.FC<Props> = ({ centre }) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const membershipPlans = useSelector((state: RootState) => state.memberships.plans);
+  console.log(membershipPlans, 'membershipPlans');
+  const catalogue = useMemo(() => toPlanCatalogue(membershipPlans), [membershipPlans]);
+
+  useEffect(() => {
+    dispatch(getMemberships());
+  }, [dispatch]);
+
   // Use the per-plan member breakdown as the centre's slot allocation snapshot.
   const breakdown = centre.kpi.planBreakdown;
   const total = breakdown.reduce((sum, p) => sum + p.members, 0) || 1;
@@ -48,7 +60,7 @@ const PlansTab: React.FC<Props> = ({ centre }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
         {breakdown.map(b => {
-          const meta = PLAN_CATALOGUE.find(p => p.id === b.planId);
+          const meta = catalogue.find(p => p.id === b.planId);
           const { colour } = b;
           const pct = Math.round((b.members / total) * 100);
           return (

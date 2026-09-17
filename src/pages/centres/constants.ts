@@ -18,7 +18,8 @@ export const PLAN_COLORS: Record<PlanId, string> = {
 };
 
 export interface PlanMeta {
-  id: PlanId;
+  /** Plan code — one of the fixed catalogue ids, or any live global plan's code. */
+  id: PlanId | string;
   name: string;
   colour: string;
   access: string;
@@ -28,65 +29,6 @@ export interface PlanMeta {
   defaultFoundation: boolean;
   demographics: string[];
 }
-
-/** Global plan catalogue — the network-wide plans a centre can opt into. */
-export const PLAN_CATALOGUE: PlanMeta[] = [
-  {
-    id: 'premium',
-    name: 'Premium',
-    colour: '#21295A',
-    access: '24/7',
-    fortnightly: 59.95,
-    annual: 2493.92,
-    defaultSlots: 50,
-    defaultFoundation: true,
-    demographics: ['adult', 'professional'],
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    colour: '#008482',
-    access: '24/7',
-    fortnightly: 39.95,
-    annual: 1661.92,
-    defaultSlots: 200,
-    defaultFoundation: true,
-    demographics: ['adult', 'youth', 'senior'],
-  },
-  {
-    id: 'offpeak',
-    name: 'Off Peak',
-    colour: '#d97706',
-    access: '9am–3pm & 11pm–6am',
-    fortnightly: 19.95,
-    annual: 829.92,
-    defaultSlots: 50,
-    defaultFoundation: false,
-    demographics: ['senior', 'student'],
-  },
-  {
-    id: 'nightowl',
-    name: 'Night Owl',
-    colour: '#0891b2',
-    access: '11pm–6am',
-    fortnightly: 13.95,
-    annual: 580.32,
-    defaultSlots: 100,
-    defaultFoundation: false,
-    demographics: ['student', 'professional'],
-  },
-  {
-    id: 'family',
-    name: 'Family',
-    colour: '#7c3aed',
-    access: '24/7',
-    fortnightly: 39.95,
-    annual: 1661.92,
-    defaultSlots: 50,
-    defaultFoundation: true,
-    demographics: ['family'],
-  },
-];
 
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
