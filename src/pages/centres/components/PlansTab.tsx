@@ -24,8 +24,11 @@ const PlansTab: React.FC<Props> = ({ centre }) => {
   const catalogue = useMemo(() => toPlanCatalogue(membershipPlans), [membershipPlans]);
 
   useEffect(() => {
-    dispatch(getMemberships());
-  }, [dispatch]);
+    // This centre's own per-centre plan instances (pricing/slots as configured
+    // for THIS facility) — not the global templates (getMemberships(undefined)
+    // is only for the Membership Plans admin page that manages those templates).
+    dispatch(getMemberships(centre.shortCode));
+  }, [dispatch, centre.shortCode]);
 
   // Use the per-plan member breakdown as the centre's slot allocation snapshot.
   const breakdown = centre.kpi.planBreakdown;
