@@ -104,6 +104,10 @@ const SendEmailSection: React.FC<Props> = ({ userId, memberEmail }) => {
           <p className="py-2 text-sm text-gray-400">This member has no email on file.</p>
         ) : (
           <div className="mb-4 space-y-2">
+            <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+              <span className="font-semibold text-gray-500">To:</span>
+              <span className="text-gray-800">{memberEmail}</span>
+            </div>
             <input
               className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-500 focus:bg-white disabled:opacity-60"
               disabled={memberEmailSending || uploading}
@@ -117,7 +121,7 @@ const SendEmailSection: React.FC<Props> = ({ userId, memberEmail }) => {
               className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-500 focus:bg-white disabled:opacity-60"
               disabled={memberEmailSending || uploading}
               maxLength={MAX_BODY_LENGTH}
-              placeholder={`Write a message to ${memberEmail}…`}
+              placeholder="Write a message…"
               rows={4}
               value={body}
               onChange={e => setBody(e.target.value)}
