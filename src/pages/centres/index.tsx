@@ -36,6 +36,14 @@ const CentreManagement: React.FC = () => {
   const { closeCentre } = useCentreNav();
   const navigate = useNavigate();
 
+  // One shared clock for every card's "local time" — a single 1s interval here
+  // instead of one per CentreCard (which was N timers + N re-renders per second).
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   // The list page shows the global sidebar with no centre open — clear any prior selection.
   useEffect(() => {
     closeCentre();
@@ -218,6 +226,7 @@ const CentreManagement: React.FC = () => {
               <CentreCard
                 key={c.id || c.code}
                 centre={c}
+                now={now}
                 onEdit={canManageCentres ? summary => startEdit(summary.code) : undefined}
                 onOpen={summary => {
                   facilityScope.set(summary.code);

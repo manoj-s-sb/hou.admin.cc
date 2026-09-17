@@ -38,6 +38,9 @@ export const MODULES = {
   FACILITIES: 'facilities',
   PLANS_PRICING: 'planspricing',
   CALENDAR: 'calendar',
+  // Not yet sent by the backend's permissions payload — visible to superadmins only
+  // (via the isSuperAdmin() bypass in hasPermission()) until the backend registers it.
+  NOTIFICATIONS: 'notifications',
   SUPER_ADMIN: SUPER_ADMIN_ONLY,
 } as const;
 
@@ -60,5 +63,6 @@ export const ACCESS_SCOPES = {
   facilities: [MODULES.FACILITIES],
   plansPricing: [MODULES.PLANS_PRICING],
   calendar: [MODULES.CALENDAR],
+  notifications: [MODULES.NOTIFICATIONS],
   superAdmin: [MODULES.SUPER_ADMIN],
 } as const;

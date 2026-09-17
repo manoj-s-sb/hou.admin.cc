@@ -7,6 +7,7 @@ import { MODULES } from '../../rbac/constants';
 import { getFxRates, getMemberships } from '../../store/memberships/api';
 import { upsertPlan as upsertPlanAction } from '../../store/memberships/reducers';
 import { AppDispatch, RootState } from '../../store/store';
+import { num } from '../../utils/format';
 
 import PlanDrawer from './components/PlanDrawer';
 import { CURRENCIES, PLAN_REGION_FILTERS, SLOT_DURATION_MINUTES, type CurrencyOption } from './constants';
@@ -32,8 +33,12 @@ const REGION_CURRENCY: Record<string, string> = {
   IND: 'INR',
 };
 
-const money = (usd: number, cur: CurrencyOption) =>
-  `${cur.symbol}${(usd * cur.rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// `amount` is stored in the currency whose USD-rate is `sourceRate` (1 = already
+// USD). Normalise to USD, then convert to the display currency `cur`. When the
+// price is already in the selected currency, sourceRate === cur.rate, so the two
+// cancel and the exact stored value is shown (no lossy re-conversion).
+const money = (amount: number, cur: CurrencyOption, sourceRate = 1) =>
+  `${cur.symbol}${((amount / sourceRate) * cur.rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /* ── Small cell helpers ──────────────────────────────────────────────────── */
 
@@ -108,16 +113,23 @@ const MembershipPlans: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { plans, isLoading } = useSelector((state: RootState) => state.memberships);
 
-  // Live daily FX rates (with the static CURRENCIES table as the offline fallback).
-  const [liveRates, setLiveRates] = useState<Record<string, number> | null>(null);
+  // Live daily FX rates, plus enough context to tell the admin whether they're
+  // seeing today's rate or the static offline fallback (which drifts over time).
+  const [fx, setFx] = useState<{
+    rates: Record<string, number> | null;
+    asOf?: string;
+    status: 'loading' | 'live' | 'fallback';
+  }>({ rates: null, status: 'loading' });
 
   useEffect(() => {
     dispatch(getMemberships(undefined));
     dispatch(getFxRates())
       .unwrap()
-      .then(r => setLiveRates(r.rates ?? null))
+      .then(r => setFx({ rates: r.rates ?? null, asOf: r.asOf, status: 'live' }))
       .catch(() => {
-        // Endpoint unavailable — keep the static reference rates.
+        // Endpoint unavailable — fall back to the static reference rates, but
+        // flag it so the UI can warn the admin the rate may be stale.
+        setFx({ rates: null, status: 'fallback' });
       });
   }, [dispatch]);
 
@@ -131,12 +143,21 @@ const MembershipPlans: React.FC = () => {
   const currencyOptions = useMemo(
     () =>
       CURRENCIES.map(c => {
-        const rate = liveRates?.[c.code];
+        const rate = fx.rates?.[c.code];
         return typeof rate === 'number' ? { ...c, rate } : c;
       }),
-    [liveRates]
+    [fx.rates]
   );
   const currency = currencyOptions.find(c => c.code === currencyCode) ?? currencyOptions[0];
+
+  // USD→<code> rate for a price's OWN stored currency, so a non-USD price is
+  // normalised to USD before display conversion. Uses the same live table as the
+  // display rates, so a price already in the selected currency round-trips exactly.
+  const rateOf = (code?: string): number => {
+    const c = (code || 'USD').toUpperCase();
+    if (c === 'USD') return 1;
+    return fx.rates?.[c] ?? CURRENCIES.find(x => x.code === c)?.rate ?? 1;
+  };
 
   // Changing the country/centre filter also switches the displayed currency so the
   // plan prices below update to that region. Currency can still be overridden manually.
@@ -222,6 +243,10 @@ const MembershipPlans: React.FC = () => {
           </div>
           <span style={{ fontSize: 11, color: 'var(--sub)' }}>
             {currency.code === 'USD' ? 'Base currency' : `1 USD ≈ ${currency.rate.toFixed(3)} ${currency.code}`}
+            {currency.code !== 'USD' && fx.status === 'live' && fx.asOf && ` · rates as of ${fx.asOf}`}
+            {currency.code !== 'USD' && fx.status === 'fallback' && (
+              <span style={{ color: 'var(--cmx-amber, #d97706)' }}> · ⚠ offline — reference rate, may be outdated</span>
+            )}
           </span>
         </div>
       </div>
@@ -258,10 +283,20 @@ const MembershipPlans: React.FC = () => {
       ) : (
         <>
           {tab === 'fortnightly' && (
-            <FortnightlyTab currency={currency} plans={visiblePlans} onEdit={canEdit ? openEdit : undefined} />
+            <FortnightlyTab
+              currency={currency}
+              plans={visiblePlans}
+              rateOf={rateOf}
+              onEdit={canEdit ? openEdit : undefined}
+            />
           )}
           {tab === 'annual' && (
-            <AnnualTab currency={currency} plans={visiblePlans} onEdit={canEdit ? openEdit : undefined} />
+            <AnnualTab
+              currency={currency}
+              plans={visiblePlans}
+              rateOf={rateOf}
+              onEdit={canEdit ? openEdit : undefined}
+            />
           )}
           {tab === 'booking' && <BookingAccessTab plans={visiblePlans} />}
           {tab === 'guests' && <GuestChargesTab currency={currency} plans={visiblePlans} />}
@@ -276,8 +311,9 @@ const MembershipPlans: React.FC = () => {
 const FortnightlyTab: React.FC<{
   plans: MembershipPlan[];
   currency: CurrencyOption;
+  rateOf: (code?: string) => number;
   onEdit?: (p: MembershipPlan) => void;
-}> = ({ plans, currency, onEdit }) => (
+}> = ({ plans, currency, rateOf, onEdit }) => (
   <div>
     <div
       style={{
@@ -301,7 +337,7 @@ const FortnightlyTab: React.FC<{
             <FeatureLabel>Fortnightly Price</FeatureLabel>
             {plans.map(p => (
               <td key={p.id} className={TD}>
-                <strong>{money(p.fortnightlyPrice, currency)}</strong>
+                <strong>{money(p.fortnightlyPrice, currency, rateOf(p.currency))}</strong>
               </td>
             ))}
           </tr>
@@ -348,7 +384,7 @@ const FortnightlyTab: React.FC<{
             {plans.map(p => (
               <td key={p.id} className={TD}>
                 {p.extraSessionEnabled ? (
-                  <Pill tone="blue">{money(p.extraSessionPrice, currency)} · 1/day max</Pill>
+                  <Pill tone="blue">{money(p.extraSessionPrice, currency, rateOf(p.currency))} · 1/day max</Pill>
                 ) : (
                   <Pill tone="gray">Not available</Pill>
                 )}
@@ -368,7 +404,7 @@ const FortnightlyTab: React.FC<{
             {plans.map(p => (
               <td key={p.id} className={TD}>
                 {p.additionalMemberFee !== null ? (
-                  `${money(p.additionalMemberFee, currency)} per member`
+                  `${money(p.additionalMemberFee, currency, rateOf(p.currency))} per member`
                 ) : (
                   <Pill tone="gray">N/A</Pill>
                 )}
@@ -430,8 +466,9 @@ const FortnightlyTab: React.FC<{
 const AnnualTab: React.FC<{
   plans: MembershipPlan[];
   currency: CurrencyOption;
+  rateOf: (code?: string) => number;
   onEdit?: (p: MembershipPlan) => void;
-}> = ({ plans, currency, onEdit }) => (
+}> = ({ plans, currency, rateOf, onEdit }) => (
   <div>
     <div
       style={{
@@ -461,7 +498,7 @@ const AnnualTab: React.FC<{
             <FeatureLabel>Annual Price (billed once)</FeatureLabel>
             {plans.map(p => (
               <td key={p.id} className={TD}>
-                <strong>{money(p.annualPrice, currency)}</strong>
+                <strong>{money(p.annualPrice, currency, rateOf(p.currency))}</strong>
               </td>
             ))}
           </tr>
@@ -469,7 +506,7 @@ const AnnualTab: React.FC<{
             <FeatureLabel>Equiv. per fortnight</FeatureLabel>
             {plans.map(p => (
               <td key={p.id} className={TD} style={{ color: 'var(--sub)', fontSize: 12 }}>
-                ~{money(p.annualPrice / 26, currency)}
+                ~{money(p.annualPrice / 26, currency, rateOf(p.currency))}
               </td>
             ))}
           </tr>
@@ -741,10 +778,6 @@ interface GuestRules {
 }
 
 const GuestChargesTab: React.FC<{ plans: MembershipPlan[]; currency: CurrencyOption }> = ({ plans, currency }) => {
-  const num = (v: unknown): number => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
   // A present value → String; otherwise the descriptive fallback for that feature.
   const str = (v: unknown, fallback: string): string =>
     v === null || v === undefined || v === '' ? fallback : String(v);

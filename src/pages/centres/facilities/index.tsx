@@ -3,6 +3,7 @@ import React from 'react';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 
+import { has } from '../../../utils/format';
 import { DEFAULT_AMENITIES } from '../constants';
 
 import type { ApiProduct } from '../../../store/centres/types';
@@ -51,8 +52,6 @@ const money = (amount?: number, currency?: string): string => {
 };
 
 /** True when a value is set (not null/undefined) — so a legit 0 still renders. */
-const has = (v: unknown): boolean => v !== undefined && v !== null;
-
 /** Build the label/value rows for one product, skipping fields the doc doesn't set. */
 const detailRows = (p: ApiProduct): [string, string][] => {
   const rows: [string, string][] = [];

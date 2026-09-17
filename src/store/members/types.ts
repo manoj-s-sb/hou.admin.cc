@@ -256,6 +256,27 @@ export interface MemberNoteItem {
   updatedAt: string | null;
 }
 
+/** One attachment reference on a sent member email — see SendEmailSection.tsx. */
+export interface MemberEmailAttachment {
+  blobName: string;
+  fileName: string;
+  contentType?: string | null;
+  sizeBytes?: number | null;
+}
+
+/** One custom email sent to a member — see src/pages/members/components/SendEmailSection.tsx. */
+export interface MemberEmailItem {
+  id: string;
+  userId: string;
+  subject: string;
+  body: string;
+  attachments: MemberEmailAttachment[];
+  sentById: string | null;
+  sentByName: string;
+  sentAt: string;
+  status: 'sent' | 'failed';
+}
+
 export interface MembersCountResponse {
   premiumFortnightly: number;
   premiumAnnual: number;
@@ -307,6 +328,12 @@ export interface MembersInitialState {
   memberNotes: MemberNoteItem[];
   memberNotesLoading: boolean;
   memberNotesError: string | null;
+  /** Custom emails sent to a member — kept separate from `memberDetails` for
+   * the same reason `memberNotes` is (see above). */
+  memberEmails: MemberEmailItem[];
+  memberEmailsLoading: boolean;
+  memberEmailsError: string | null;
+  memberEmailSending: boolean;
 }
 
 export const initialState: MembersInitialState = {
@@ -325,6 +352,10 @@ export const initialState: MembersInitialState = {
   memberNotes: [],
   memberNotesLoading: false,
   memberNotesError: null,
+  memberEmails: [],
+  memberEmailsLoading: false,
+  memberEmailsError: null,
+  memberEmailSending: false,
   membersCount: null,
   purchasedSlotsData: null,
 };

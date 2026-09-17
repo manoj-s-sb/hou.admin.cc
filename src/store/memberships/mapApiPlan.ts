@@ -40,6 +40,9 @@ export function mapApiMembership(m: ApiMembership): MembershipPlan {
 
     fortnightlyPrice: regular.fortnightly ?? 0,
     annualPrice: regular.annual ?? 0,
+    // Preserve the price's own currency (default USD) so the page converts FROM
+    // it instead of assuming USD — the reverse mapper already keeps it too.
+    currency: (regular.currency ?? 'USD').toUpperCase(),
 
     accessType,
     accessHours: accessType === '24/7' ? '24/7' : (m.access?.type ?? '—'),

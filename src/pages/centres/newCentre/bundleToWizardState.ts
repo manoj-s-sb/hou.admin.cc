@@ -7,7 +7,7 @@
  * chip list, additional bookable facilities, centre discounts) fall back to
  * sensible defaults — the bundle is the source of truth for everything else.
  */
-import { DAYS, PLAN_CATALOGUE } from '../constants';
+import { DAYS } from '../constants';
 
 import { makeAdditionalFacility } from './AdditionalFacilitiesStep';
 
@@ -19,7 +19,6 @@ import type {
   CentreBundle,
   OperatingHoursDay,
   OperatingHoursMap,
-  PlanId,
   WizardPlanRow,
   WizardState,
 } from '../../../store/centres/types';
@@ -107,23 +106,6 @@ const toWizardHours = (hours: OperatingHoursMap | undefined): OperatingHoursDay[
 const is24x7Hours = (hours: OperatingHoursMap | undefined): boolean =>
   !!hours && DAY_KEYS.every(k => (hours[k] ?? [])[0] === '00:00-23:59');
 
-/** Base plan rows (all disabled) — enabled rows get overlaid from the bundle. */
-const basePlanRows = (): WizardPlanRow[] =>
-  PLAN_CATALOGUE.map(p => ({
-    planId: p.id,
-    enabled: false,
-    fortnightlyPrice: p.fortnightly,
-    annualPrice: p.annual,
-    allocatedSlots: p.defaultSlots,
-    joiningFee: 0,
-    memberCap: p.defaultSlots,
-    isFoundationEligible: p.defaultFoundation,
-    availableCountries: ['all'],
-    firstGuestFee: null,
-    additionalGuestDiscountPct: null,
-    extraSessionCost: null,
-  }));
-
 const guestRulesOf = (m: ApiMembership): Record<string, unknown> =>
   (m.bookingRules?.guestBookingRules as Record<string, unknown>) ?? {};
 
@@ -151,26 +133,30 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     return null;
   };
 
-  // Pass 1: overlay enabled memberships; record which ones had no saved allocation.
-  const unknownAlloc: PlanId[] = [];
+  // Pass 1: one row per ACTUAL enabled membership on this centre — not filtered
+  // through any fixed catalogue, so a plan created after this centre was set up
+  // (or one whose code was never in the old static PLAN_CATALOGUE) still shows
+  // up correctly when editing. Record which ones had no saved allocation.
+  const unknownAlloc: string[] = [];
   let knownAllocSum = 0;
-  const plans = basePlanRows().map(row => {
-    const m = memberships.find(mm => mm.code === row.planId);
-    if (!m) return row;
+  const plans: WizardPlanRow[] = memberships.map(m => {
     const regular = (m.pricing?.regular ?? {}) as Record<string, unknown>;
     const guest = guestRulesOf(m);
     const countries = ((m.accessControl as Record<string, unknown>)?.availableCountries as string[]) ?? ['all'];
-    const alloc = lookupAlloc(row.planId, m);
-    if (alloc === null) unknownAlloc.push(row.planId);
+    const alloc = lookupAlloc(m.code, m);
+    if (alloc === null) unknownAlloc.push(m.code);
     else knownAllocSum += alloc;
+    const allocatedSlots = alloc ?? 0;
     return {
-      ...row,
+      planId: m.code,
       enabled: true,
-      fortnightlyPrice: num(regular.fortnightly) || row.fortnightlyPrice,
-      annualPrice: num(regular.annual) || row.annualPrice,
-      allocatedSlots: alloc ?? row.allocatedSlots,
+      fortnightlyPrice: num(regular.fortnightly),
+      annualPrice: num(regular.annual),
+      allocatedSlots,
       joiningFee: num(m.registrationFee),
-      isFoundationEligible: row.isFoundationEligible,
+      memberCap: allocatedSlots,
+      // Not carried on ApiMembership — best-effort default; user can re-set in step 4.
+      isFoundationEligible: false,
       availableCountries: countries.length ? countries : ['all'],
       firstGuestFee: hasVal(guest.firstGuestFee) ? num(guest.firstGuestFee) : null,
       additionalGuestDiscountPct: hasVal(guest.additionalGuestDiscountPct)

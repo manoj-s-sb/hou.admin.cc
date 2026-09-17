@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { getSlots, updateLaneStatus } from '../../../store/slots/api';
+import { cancelBookingLocally } from '../../../store/slots/reducers';
 import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
 
@@ -106,14 +107,22 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
     }
   };
 
-  const handleUnblockLane = async (blockReason?: string, blockLaneApp?: boolean) => {
+  const handleUnblockLane = async (blockReason?: string, blockLaneApp?: boolean, blockedByName?: string) => {
     if (selectedLane) {
       try {
         const isLaneBlocked = selectedLane.slots.some(slot => slot.status?.toLowerCase() === 'disabled');
         const action = isLaneBlocked ? 'available' : 'disable';
         const reason = isLaneBlocked ? 'Manual unblock from admin' : blockReason || 'Manual block from admin';
         await dispatch(
-          updateLaneStatus({ date, facilityCode, laneCode: selectedLane.laneCode, action, reason, blockLaneApp })
+          updateLaneStatus({
+            date,
+            facilityCode,
+            laneCode: selectedLane.laneCode,
+            action,
+            reason,
+            blockLaneApp,
+            blockedByName: isLaneBlocked ? undefined : blockedByName || undefined,
+          })
         ).unwrap();
         await dispatch(getSlots({ date, facilityCode }));
         toast.success(
@@ -201,6 +210,23 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
   };
 
   const handleCloseSlotModal = () => setSelectedSlot(null);
+
+  // No cancel-booking endpoint exists yet — this frees the slot in the UI only
+  // (see cancelBookingLocally). A page refresh reverts it. `reason` isn't
+  // persisted anywhere yet (no backend to store it against), so it's surfaced
+  // only in the confirmation toast for now.
+  const handleCancelBooking = (reason: string) => {
+    if (!selectedSlot) return;
+    dispatch(cancelBookingLocally({ laneCode: selectedSlot.laneCode, slotCode: selectedSlot.slot.slotCode }));
+    toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+    setSelectedSlot(null);
+  };
+
+  const handleCancelBookingInLane = (slotCode: string, reason: string) => {
+    if (!selectedLane) return;
+    dispatch(cancelBookingLocally({ laneCode: selectedLane.laneCode, slotCode }));
+    toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+  };
 
   const handleBlockSlot = async (reason: string, blockedByName: string) => {
     if (selectedSlot) {
@@ -537,7 +563,10 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
         <LaneDetailsModal
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedLane}
-          lane={selectedLane}
+          // Re-derived from the live `lanes` prop (not the stale click-time snapshot)
+          // so cancelling a booking below updates this list without closing the modal.
+          lane={lanes.find(l => l.laneCode === selectedLane.laneCode) || selectedLane}
+          onCancelBooking={handleCancelBookingInLane}
           onClose={handleCloseModal}
           onLaneClick={handleUnblockLane}
         />
@@ -545,6 +574,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
 
       {selectedSlot && (
         <SlotDetailsModal
+          date={date}
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedSlot}
           laneNo={selectedSlot.laneNo}
@@ -552,6 +582,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           slot={selectedSlot.slot}
           timeSlot={timeSlots[selectedSlot.slotIndex]}
           onBlockSlot={handleBlockSlot}
+          onCancelBooking={handleCancelBooking}
           onClose={handleCloseSlotModal}
           onUnblockSlot={handleUnblockSlot}
         />

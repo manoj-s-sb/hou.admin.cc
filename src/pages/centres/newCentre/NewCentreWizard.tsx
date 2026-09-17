@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import NumberInput from '../../../components/NumberInput';
 import { createCentre, updateCentre } from '../../../store/centres/api';
+import { getMemberships } from '../../../store/memberships/api';
 import { AppDispatch, RootState } from '../../../store/store';
 import {
   COUNTRIES,
@@ -13,11 +14,11 @@ import {
   DAYS,
   DEMOGRAPHICS,
   FACILITY_OPTIONS,
-  PLAN_CATALOGUE,
   PLAN_COUNTRY_CHIPS,
   SLOT_DURATIONS,
   TIMEZONES,
   WIZARD_STEPS,
+  type PlanMeta,
 } from '../constants';
 
 import AdditionalFacilitiesStep from './AdditionalFacilitiesStep';
@@ -25,6 +26,7 @@ import AllocationBar from './AllocationBar';
 import { buildCreatePayload } from './buildCreatePayload';
 import { bundleToWizardState } from './bundleToWizardState';
 import { downloadCentrePdf } from './centrePdf';
+import { defaultPlanRow, toPlanCatalogue } from './liveCatalogue';
 
 import type {
   CentreApiStatus,
@@ -50,23 +52,6 @@ const normalizePlanCountryCode = (code: string): string => {
   const upper = (code || '').toUpperCase();
   return COUNTRY_CODE_ALIASES[upper] ?? upper;
 };
-
-const makePlanRows = (): WizardPlanRow[] =>
-  PLAN_CATALOGUE.map(p => ({
-    planId: p.id,
-    enabled: false,
-    fortnightlyPrice: p.fortnightly,
-    annualPrice: p.annual,
-    allocatedSlots: p.defaultSlots,
-    joiningFee: 0,
-    memberCap: p.defaultSlots,
-    isFoundationEligible: p.defaultFoundation,
-    availableCountries: ['all'],
-    // Guest / extra-session pricing is blank until explicitly set (no hardcoded default).
-    firstGuestFee: null,
-    additionalGuestDiscountPct: null,
-    extraSessionCost: null,
-  }));
 
 const initialState = (): WizardState => ({
   wizardId: null,
@@ -98,7 +83,8 @@ const initialState = (): WizardState => ({
   slotDurationMinutes: 45,
   advanceBookingWindowDays: 7,
   additionalFacilities: [],
-  plans: makePlanRows(),
+  // Seeded once the live global-plan catalogue loads — see the merge effect below.
+  plans: [],
   firstGuestFee: null,
   additionalGuestDiscountPct: null,
   extraSessionCost: null,
@@ -328,6 +314,15 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     // into this wizard before the list page's own fetch has run).
     return real.length > 1 ? real : PLAN_COUNTRY_CHIPS;
   }, [existingCentres]);
+  // Live global plan templates (Membership Plans page) — replaces the old hardcoded
+  // PLAN_CATALOGUE so a plan created there is selectable here without a redeploy.
+  useEffect(() => {
+    dispatch(getMemberships());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
+  const membershipPlans = useSelector((state: RootState) => state.memberships.plans);
+  const catalogue: PlanMeta[] = useMemo(() => toPlanCatalogue(membershipPlans), [membershipPlans]);
+
   const isEdit = Boolean(initialBundle);
   // Edit mode jumps straight to Review (step 6) with all steps already unlocked.
   const [step, setStep] = useState(isEdit ? 6 : 1);
@@ -376,6 +371,23 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
       return next;
     });
   };
+
+  // Seed a default (disabled) row for any live catalogue plan not already present
+  // in s.plans — additive only, never touches an existing row. Covers: a brand-new
+  // wizard (starts with plans: []), a resumed draft, and editing an existing centre
+  // (bundleToWizardState only returns rows for plans it actually has — this adds
+  // the rest of the catalogue as selectable-but-off, including any plan created
+  // after the centre was originally set up).
+  useEffect(() => {
+    if (!catalogue.length) return;
+    setS(prev => {
+      const existingIds = new Set(prev.plans.map(p => p.planId));
+      const missing = catalogue.filter(c => !existingIds.has(c.id)).map(defaultPlanRow);
+      if (!missing.length) return prev;
+      return { ...prev, plans: [...prev.plans, ...missing] };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogue]);
 
   const requestClose = useCallback(() => {
     if (
@@ -489,8 +501,32 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   const setHour = (day: number, patch: Partial<{ openTime: string; closeTime: string; isOpen: boolean }>) =>
     set({ operatingHours: s.operatingHours.map(h => (h.day === day ? { ...h, ...patch } : h)) });
 
+  // Upserts so a click is never dropped on the rare race where the catalogue's
+  // merge effect (above) hasn't run yet for a given plan.
   const setPlan = (planId: string, patch: Partial<WizardPlanRow>) =>
-    set({ plans: s.plans.map(p => (p.planId === planId ? { ...p, ...patch } : p)) });
+    set({
+      plans: s.plans.some(p => p.planId === planId)
+        ? s.plans.map(p => (p.planId === planId ? { ...p, ...patch } : p))
+        : [
+            ...s.plans,
+            {
+              ...defaultPlanRow(
+                catalogue.find(c => c.id === planId) ?? {
+                  id: planId,
+                  name: planId,
+                  colour: '#9ca3af',
+                  access: '',
+                  fortnightly: 0,
+                  annual: 0,
+                  defaultSlots: 0,
+                  defaultFoundation: false,
+                  demographics: [],
+                }
+              ),
+              ...patch,
+            },
+          ],
+    });
 
   const addDiscount = () => {
     const d: CentreDiscount = {
@@ -505,9 +541,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   };
 
   const visiblePlans = useMemo(() => {
-    if (demo === 'all') return PLAN_CATALOGUE;
-    return PLAN_CATALOGUE.filter(p => p.demographics.includes(demo));
-  }, [demo]);
+    if (demo === 'all') return catalogue;
+    return catalogue.filter(p => p.demographics.includes(demo));
+  }, [demo, catalogue]);
 
   const save = async () => {
     if (!stepValid(4)) {
@@ -517,7 +553,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     }
     setSaving(true);
     const finalState: WizardState = { ...s, status: saveStatus };
-    const payload = buildCreatePayload(finalState, initialBundle);
+    const payload = buildCreatePayload(finalState, catalogue, initialBundle);
     // Centres are addressed by their (uppercase) short code everywhere in this API
     // — /details is fetched by code, and the lookup is case-sensitive — so the
     // update endpoint's centreId is the facility code, not the facility doc id
@@ -540,7 +576,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   };
 
   const onDownloadPdf = () => {
-    if (!downloadCentrePdf(s)) {
+    if (!downloadCentrePdf(s, catalogue)) {
       toast.error('Could not open the PDF — please allow pop-ups for this site.');
     }
   };
@@ -1372,7 +1408,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
 
               {/* Plan rows */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                {PLAN_CATALOGUE.map(meta => {
+                {catalogue.map(meta => {
                   const row = s.plans.find(p => p.planId === meta.id);
                   const visible = visiblePlans.some(p => p.id === meta.id);
                   if (!visible || !row) return null;
@@ -1586,7 +1622,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
 
               {/* Live allocation bar */}
               <div style={{ marginBottom: 20 }}>
-                <AllocationBar capacity={capacity} plans={s.plans} />
+                <AllocationBar capacity={capacity} catalogue={catalogue} plans={s.plans} />
               </div>
 
               <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
@@ -1916,7 +1952,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     {s.plans
                       .filter(p => p.enabled)
                       .map(p => {
-                        const meta = PLAN_CATALOGUE.find(m => m.id === p.planId) ?? {
+                        const meta = catalogue.find(m => m.id === p.planId) ?? {
                           name: p.planId,
                           colour: '#9ca3af',
                         };

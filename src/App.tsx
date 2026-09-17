@@ -12,6 +12,7 @@ import menus, { MENU_ITEM_BY_MODULE } from './constants/menus';
 import { ROUTES } from './constants/routes';
 import {
   Login,
+  ForgotPassword,
   UserList,
   Induction,
   ViewInduction,
@@ -96,6 +97,7 @@ const AppRoutes: React.FC = () => {
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route element={<Login />} path={ROUTES.LOGIN.path} />
+          <Route element={<ForgotPassword />} path={ROUTES.FORGOT_PASSWORD.path} />
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.reports}>

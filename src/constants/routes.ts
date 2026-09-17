@@ -2,6 +2,7 @@
 export const ROUTES = {
   ROOT: { path: '/', label: '' },
   LOGIN: { path: '/login', label: 'Login' },
+  FORGOT_PASSWORD: { path: '/forgot-password', label: 'Forgot Password' },
   REPORTS: { path: '/reports', label: 'Reports' },
   USERS: { path: '/users', label: 'Users' },
   MEMBERS: { path: '/members', label: 'Members' },

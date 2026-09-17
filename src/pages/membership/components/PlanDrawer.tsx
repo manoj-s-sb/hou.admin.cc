@@ -22,6 +22,21 @@ const ACCESS_LABELS: Record<AccessType, string> = {
   custom: 'Custom hours',
 };
 
+/**
+ * Split a saved custom-hours string ("HH:MM–HH:MM") back into its two ends so
+ * editing an existing custom plan preserves its real hours instead of silently
+ * resetting them to the 9-to-9 defaults. Falls back for non-custom or
+ * unparseable plans. Kept in sync with the join format in `handleSave` (en-dash).
+ */
+const CUSTOM_HOURS_DEFAULT = { start: '09:00', end: '21:00' };
+const parseCustomHours = (plan: MembershipPlan | null): { start: string; end: string } => {
+  if (plan?.accessType === 'custom' && plan.accessHours?.includes('–')) {
+    const [start, end] = plan.accessHours.split('–').map(s => s.trim());
+    if (start && end) return { start, end };
+  }
+  return CUSTOM_HOURS_DEFAULT;
+};
+
 const blankPlan: MembershipPlan = {
   id: '',
   name: '',
@@ -30,6 +45,7 @@ const blankPlan: MembershipPlan = {
   colour: '#21295A',
   fortnightlyPrice: 0,
   annualPrice: 0,
+  currency: 'USD',
   accessType: '24/7',
   accessHours: '24/7',
   peakAccess: true,
@@ -55,8 +71,8 @@ const FIELD =
 const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
   const dispatch = useDispatch<AppDispatch>();
   const [form, setForm] = useState<MembershipPlan>(plan ?? blankPlan);
-  const [customStart, setCustomStart] = useState('09:00');
-  const [customEnd, setCustomEnd] = useState('21:00');
+  const [customStart, setCustomStart] = useState(() => parseCustomHours(plan).start);
+  const [customEnd, setCustomEnd] = useState(() => parseCustomHours(plan).end);
   const [saving, setSaving] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
 

@@ -8,8 +8,6 @@
  * constants below so refinement — once a real CENTRE_CREATE_SAMPLE.json is
  * supplied — is localized to this file.
  */
-import { PLAN_CATALOGUE } from '../constants';
-
 import type {
   ApiFacility,
   ApiLane,
@@ -22,6 +20,7 @@ import type {
   OperatingHoursMap,
   WizardState,
 } from '../../../store/centres/types';
+import type { PlanMeta } from '../constants';
 
 const num = (v: number | string | ''): number => {
   const n = typeof v === 'number' ? v : parseFloat(String(v));
@@ -97,11 +96,11 @@ const buildLanes = (state: WizardState): ApiLane[] => {
 };
 
 /** Enabled plan rows → membership docs. Guest charges go under bookingRules. */
-const buildMemberships = (state: WizardState): ApiMembership[] =>
+const buildMemberships = (state: WizardState, catalogue: PlanMeta[]): ApiMembership[] =>
   state.plans
     .filter(p => p.enabled)
     .map(p => {
-      const meta = PLAN_CATALOGUE.find(c => c.id === p.planId);
+      const meta = catalogue.find(c => c.id === p.planId);
       return {
         type: 'membership',
         code: p.planId,
@@ -255,10 +254,14 @@ const buildFacility = (state: WizardState): ApiFacility => ({
   keyDates: state.keyDates,
 });
 
-export function buildCreatePayload(state: WizardState, original?: CentreBundle): CentreCreateRequest {
+export function buildCreatePayload(
+  state: WizardState,
+  catalogue: PlanMeta[],
+  original?: CentreBundle
+): CentreCreateRequest {
   const facility = buildFacility(state);
   const lanes = buildLanes(state);
-  const memberships = buildMemberships(state);
+  const memberships = buildMemberships(state, catalogue);
   const membershipSalesFlow = buildSalesFlow(state);
   // Products are matched by `code` on the backend (not a grafted id) — an existing
   // code is skipped there (create-only), so nothing to graft here on edit.

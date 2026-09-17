@@ -7,10 +7,10 @@ import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
 import { getFacilityCode } from '../../constants/user';
-import { decodeToken } from '../../helpers';
 import { getMembers, getMembersCount } from '../../store/members/api';
 import { MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
+import { decodeToken } from '../../utils/decodeToken';
 
 const user_svg = '/assets/user.svg';
 

@@ -6,7 +6,13 @@ import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 import store from '../store';
 
-import { ActivateSubscriptionRequest, MemberNoteItem, MemberRequest } from './types';
+import {
+  ActivateSubscriptionRequest,
+  MemberEmailAttachment,
+  MemberEmailItem,
+  MemberNoteItem,
+  MemberRequest,
+} from './types';
 
 export const getMembers = createAsyncThunk(
   'members/getMembers',
@@ -137,6 +143,68 @@ export const deleteMemberNote = createAsyncThunk(
       return { noteId };
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to delete note'));
+    }
+  }
+);
+
+// ── Custom emails sent to a member ───────────────────────────────────
+// Kept as a separate slice of state (memberEmails), same reasoning as
+// Admin Notes above.
+
+export const getMemberEmails = createAsyncThunk(
+  'members/getMemberEmails',
+  async ({ userId }: { userId: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.members.emailsList, { userId });
+      return response.data as { data: { emails: MemberEmailItem[] } };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch sent emails'));
+    }
+  }
+);
+
+/** SAS upload URL for one attachment, then the caller PUTs the file bytes
+ * straight to blob storage — same two-step flow as the Support Ticket
+ * attachment upload (src/pages/tickets .../CreateTicketModal.tsx). */
+export const getMemberEmailUploadUrl = async (
+  fileName: string,
+  contentType?: string
+): Promise<{ uploadUrl: string; blobName: string }> => {
+  const response = await api.post(endpoints.members.emailUploadUrl, { fileName, contentType });
+  return response.data.data as { uploadUrl: string; blobName: string; expiresAt: string };
+};
+
+/** Uploads one file directly to blob storage via its SAS URL, returning the
+ * blobName to reference it in the send request. */
+export const uploadMemberEmailAttachment = async (file: File): Promise<MemberEmailAttachment> => {
+  const { uploadUrl, blobName } = await getMemberEmailUploadUrl(file.name, file.type);
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'x-ms-blob-type': 'BlockBlob',
+      ...(file.type && { 'Content-Type': file.type }),
+    },
+  });
+  return { blobName, fileName: file.name, contentType: file.type, sizeBytes: file.size };
+};
+
+export const sendMemberEmail = createAsyncThunk(
+  'members/sendMemberEmail',
+  async (
+    {
+      userId,
+      subject,
+      body,
+      attachments,
+    }: { userId: string; subject: string; body: string; attachments: MemberEmailAttachment[] },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.post(endpoints.members.emailsSend, { userId, subject, body, attachments });
+      return response.data as { data: MemberEmailItem };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to send email'));
     }
   }
 );

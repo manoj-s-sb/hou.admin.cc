@@ -4,6 +4,7 @@ import { ACCESS_SCOPES } from '../../rbac/constants';
 import CoachSchedule from '../coach';
 import Induction from '../induction';
 import Members from '../members';
+import Notifications from '../notifications';
 import SlotBookings from '../slots';
 import Tailgate from '../tailgate';
 import Tickets from '../tickets';
@@ -190,6 +191,22 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
             <line x1="8" x2="8" y1="2" y2="6" />
             <line x1="3" x2="21" y1="10" y2="10" />
             <rect fill="currentColor" height="4" stroke="none" width="4" x="7" y="13" />
+          </>
+        ),
+      },
+      {
+        // UI only — bulk push/email composer + history, no API wiring yet
+        // (backend module not registered, so ACCESS_SCOPES.notifications only
+        // resolves true for superadmins until then — see rbac/constants.ts).
+        key: 'notifications',
+        label: 'Notifications',
+        slug: 'notifications',
+        component: Notifications,
+        scope: ACCESS_SCOPES.notifications,
+        icon: I(
+          <>
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </>
         ),
       },
