@@ -31,6 +31,7 @@ import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
 
 import AdminNotesSection from './components/AdminNotesSection';
+import SendEmailSection from './components/SendEmailSection';
 
 interface HealthDeclarationItem {
   id: string;
@@ -729,6 +730,9 @@ const ViewMembers = () => {
               </div>
             </div>
           )}
+
+          {/* Send Email Section */}
+          <SendEmailSection memberEmail={memberDetails.email} userId={memberDetails.userId} />
 
           {/* Admin Notes Section */}
           <AdminNotesSection userId={memberDetails.userId} />

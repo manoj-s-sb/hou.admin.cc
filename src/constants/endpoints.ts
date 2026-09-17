@@ -24,6 +24,9 @@ const endpoints = {
     notesAdd: `${API_PREFIX}/admin/member/notes/add`,
     notesUpdate: `${API_PREFIX}/admin/member/notes/update`,
     notesDelete: `${API_PREFIX}/admin/member/notes/delete`,
+    emailsList: `${API_PREFIX}/admin/member/emails/list`,
+    emailsSend: `${API_PREFIX}/admin/member/emails/send`,
+    emailUploadUrl: `${API_PREFIX}/admin/members/email/upload-url`,
   },
   tour: {
     updateTourStatus: `${API_PREFIX}/admin/bookings/tour/status/update`,
