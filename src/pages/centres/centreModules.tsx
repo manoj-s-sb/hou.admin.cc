@@ -11,7 +11,6 @@ import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
 
 import ComingSoon from './components/ComingSoon';
-import Facilities from './facilities';
 
 import type { CentreModuleKey } from '../../contexts/CentreNavContext';
 
@@ -24,6 +23,12 @@ const Maintenance = lazy(() => import('../maintenance'));
 // it later is just swapping this back for `PlansPricing` as the module's
 // `component`. Frontend-only; the backend routes are untouched.
 const PlansPricingComingSoon: React.FC = () => <ComingSoon moduleLabel="Plans & Pricing" />;
+
+// Temporary: Facilities shows real per-centre data behind a Coming Soon
+// placeholder for now — restoring it later is just re-importing `Facilities`
+// from './facilities' and swapping this back in as the module's `component`.
+// Frontend-only; the backend routes are untouched.
+const FacilitiesComingSoon: React.FC = () => <ComingSoon moduleLabel="Facilities" />;
 
 export interface CentreModuleDef {
   key: CentreModuleKey;
@@ -187,7 +192,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         key: 'facilities',
         label: 'Facilities',
         slug: 'facilities',
-        component: Facilities,
+        component: FacilitiesComingSoon,
         scope: ACCESS_SCOPES.facilities,
         icon: I(
           <>

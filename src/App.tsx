@@ -10,7 +10,7 @@ import { Loader } from './components/Loader';
 import SessionExpiredModal from './components/SessionExpiredModal';
 import menus, { MENU_ITEM_BY_MODULE } from './constants/menus';
 import { ROUTES } from './constants/routes';
-import { Login, ViewInduction, ViewMembers, CentreManagement, CentreModuleRoute } from './pages';
+import { Login, ForgotPassword, ViewInduction, ViewMembers, CentreManagement, CentreModuleRoute } from './pages';
 import ComingSoon from './pages/centres/components/ComingSoon';
 import { ACCESS_SCOPES, canRead, PermissionRoute, RestrictedAccess, sidebarItems } from './rbac';
 import { setSessionExpiredCallback } from './services';
@@ -74,6 +74,7 @@ const AppRoutes: React.FC = () => {
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route element={<Login />} path={ROUTES.LOGIN.path} />
+          <Route element={<ForgotPassword />} path={ROUTES.FORGOT_PASSWORD.path} />
           {/* Pre-launch: Centre Management is the only functional area of the app right
               now (see the New York rollout plan). Every other module below keeps its real
               route/permission gate — so it still appears in the sidebar and stays

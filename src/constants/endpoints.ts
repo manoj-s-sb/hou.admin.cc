@@ -12,6 +12,10 @@ const endpoints = {
   },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,
+  // Forgot-password (OTP-based reset) — three steps, each its own POST.
+  forgotPassword: `${API_PREFIX}/admin/auth/forgot-password`, // { email } → always a generic success message
+  verifyResetOtp: `${API_PREFIX}/admin/auth/verify-reset-otp`, // { email, otp } → { resetToken }
+  resetPassword: `${API_PREFIX}/admin/auth/reset-password`, // { email, resetToken, newPassword, confirmPassword }
   members: {
     list: `${API_PREFIX}/admin/members/list`,
     membersDetails: `${API_PREFIX}/admin/member/details`,
@@ -73,6 +77,9 @@ const endpoints = {
     leads: `${API_PREFIX}/admin/centres/leads`, // POST { facilityCode, action?, subscription_code?, page, limit }
     waitlistNotesAdd: `${API_PREFIX}/admin/centres/waitlist/notes/add`, // POST { facilityCode, waitlistId, text, createdByName }
     waitlistNotesDelete: `${API_PREFIX}/admin/centres/waitlist/notes/delete`, // POST { facilityCode, waitlistId, noteId }
+    // POST { facilityCode, waitlistId, deletedByName } — SOFT delete: the entry stops
+    // appearing in /admin/centres/waitlist, but the document stays in Cosmos.
+    waitlistDelete: `${API_PREFIX}/admin/centres/waitlist/delete`,
     // POST { facilityCode, waitlistId, status, changedByName } — status is one of
     // not_contacted/contacted/no_response/converted/not_interested
     waitlistStatusUpdate: `${API_PREFIX}/admin/centres/waitlist/status/update`,
