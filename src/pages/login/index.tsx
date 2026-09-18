@@ -11,7 +11,7 @@ import { login } from '../../store/auth/api';
 import { AppDispatch, RootState } from '../../store/store';
 
 const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(login({ email: username, password }));
+    dispatch(login({ email, password }));
   };
 
   useEffect(() => {
@@ -65,19 +65,19 @@ const Login: React.FC = () => {
         )}
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          {/* Username */}
+          {/* Email */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500" htmlFor="username">
-              Username
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500" htmlFor="email">
+              Email
             </label>
             <input
               required
               className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-[#21295A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#21295A]/10"
-              id="username"
-              placeholder="Enter username"
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
+              id="email"
+              placeholder="Enter email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
             />
           </div>
 
@@ -90,7 +90,7 @@ const Login: React.FC = () => {
               <button
                 className="text-xs font-semibold text-[#21295A] hover:underline"
                 type="button"
-                onClick={() => navigate(ROUTES.FORGOT_PASSWORD.path)}
+                onClick={() => navigate(ROUTES.FORGOT_PASSWORD.path, { state: { email } })}
               >
                 Forgot password?
               </button>
