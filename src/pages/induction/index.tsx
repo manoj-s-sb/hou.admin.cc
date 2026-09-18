@@ -12,6 +12,7 @@ import { getFacilityCode } from '../../constants/user';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
+import { logger } from '../../utils/logger';
 
 type FilterState = {
   date: string;
@@ -267,7 +268,7 @@ const Induction = () => {
                 }
               })
               .catch(err => {
-                console.error('Failed to update induction status:', err);
+                logger.error('Failed to update induction status', err);
                 toast.error(err || 'Failed to update induction status!');
               });
           };

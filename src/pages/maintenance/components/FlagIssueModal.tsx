@@ -231,6 +231,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
                   >
                     📎 {f.name.length > 20 ? `${f.name.slice(0, 20)}…` : f.name}
                     <button
+                      aria-label="Remove file"
                       className="text-red-400 hover:text-red-600"
                       type="button"
                       onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}

@@ -151,6 +151,7 @@ const SendEmailSection: React.FC<Props> = ({ userId, memberEmail }) => {
                   >
                     📎 {f.name.length > 24 ? `${f.name.slice(0, 24)}…` : f.name}
                     <button
+                      aria-label="Remove file"
                       className="text-red-400 hover:text-red-600"
                       disabled={memberEmailSending || uploading}
                       type="button"

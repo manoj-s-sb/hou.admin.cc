@@ -151,9 +151,6 @@ export const CENTRE_STATUS: Record<CentreApiStatus, { label: string; tone: strin
   suspended: { label: 'Suspended', tone: 'red' },
 };
 
-/* ── Members tab ── */
-export const AVATAR_COLORS = ['#21295A', '#008482', '#d97706', '#7c3aed', '#0891b2', '#d42b2b'];
-
 /* ── Ops view: tabs + per-tab placeholders ── */
 export type OpsTab =
   | 'members'
@@ -233,7 +230,6 @@ export const WIZARD_STATUS_LABEL: Record<string, string> = {
   suspended: 'Suspended',
 };
 export const SHORT_CODE_RE = /^[A-Z0-9]{3,6}$/;
-export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /* ── Additional facilities step ── */
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;

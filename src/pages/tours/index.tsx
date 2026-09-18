@@ -10,6 +10,7 @@ import { getFacilityCode } from '../../constants/user';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
+import { logger } from '../../utils/logger';
 
 /** The backend's `BookingListRequest` rejects a request with neither `date` nor
  * `startDate`+`endDate` set (see booking_models.py's _validate_date_or_range) —
@@ -173,7 +174,7 @@ const Tours = () => {
               }
             })
             .catch(err => {
-              console.error('Failed to update tour status:', err);
+              logger.error('Failed to update tour status', err);
               toast.error(err || 'Failed to update tour status!');
             });
         };

@@ -23,28 +23,14 @@ import {
 } from '../../store/centres/api';
 import { AdminNote, ContactStatus, LeadEntry, StatusHistoryEntry, WaitlistEntry } from '../../store/centres/types';
 import { AppDispatch, RootState } from '../../store/store';
+import { avatarColor, initials } from '../../utils/avatar';
 import { formatDate } from '../../utils/dateUtils';
+import { EMAIL_RE } from '../../utils/validation';
 
 import ImportWaitlistModal from './components/ImportWaitlistModal';
 import MemberDetailDrawer, { DetailField, STATUS_META, STATUS_ORDER } from './components/MemberDetailDrawer';
 
 const PAGE_SIZE = 20;
-
-const AVATAR_COLORS = ['#21295A', '#008482', '#d97706', '#7c3aed', '#0891b2', '#d42b2b'];
-
-const initials = (text: string): string =>
-  text
-    .split(/[\s@._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(p => Array.from(p)[0]?.toUpperCase() ?? '')
-    .join('') || '—';
-
-const avatarColor = (seed: string): string => {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash + seed.charCodeAt(i)) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[hash];
-};
 
 // "checkout_session_creation_attempted" → "Checkout Session Creation Attempted"
 const titleCase = (raw: string): string =>
@@ -454,8 +440,6 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
     </div>
   );
 };
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdded: () => void }> = ({
   facilityCode,

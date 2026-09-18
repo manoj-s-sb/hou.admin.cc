@@ -7,8 +7,7 @@ import * as XLSX from 'xlsx';
 import { bulkImportWaitlist } from '../../../store/centres/api';
 import { WaitlistImportRow } from '../../../store/centres/types';
 import { AppDispatch } from '../../../store/store';
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+import { EMAIL_RE } from '../../../utils/validation';
 
 // Sheets in the wild spell these headers in slightly different ways ("P
 // lowercase-alnum before matching so header formatting doesn't matter.
