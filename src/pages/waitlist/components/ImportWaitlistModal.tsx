@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
-import * as XLSX from 'xlsx';
 
 import { bulkImportWaitlist } from '../../../store/centres/api';
 import { WaitlistImportRow } from '../../../store/centres/types';
@@ -63,7 +62,9 @@ const emptyRawRow = (): RawRow => ({
   registerdVia: '',
 });
 
-const parseWorkbook = (buffer: ArrayBuffer): RawRow[] => {
+const parseWorkbook = async (buffer: ArrayBuffer): Promise<RawRow[]> => {
+  // `xlsx` is heavy — load it only when a file is actually being imported.
+  const XLSX = await import('xlsx');
   const workbook = XLSX.read(buffer, { type: 'array' });
   const [sheetName] = workbook.SheetNames;
   if (!sheetName) return [];
@@ -127,7 +128,7 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
     setFileName(file.name);
     try {
       const buffer = await file.arrayBuffer();
-      const parsed = parseWorkbook(buffer).filter(r => r.name || r.email || r.phone);
+      const parsed = (await parseWorkbook(buffer)).filter(r => r.name || r.email || r.phone);
       if (parsed.length === 0) {
         setRows([]);
         setParseError("Couldn't find any rows — check the file has Name/Email columns.");

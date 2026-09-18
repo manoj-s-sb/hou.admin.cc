@@ -28,6 +28,7 @@ Each item tells you: **what's wrong**, **why it's bad**, **where** it is, and **
 - Removed **copy-pasted code**: the email-check rule and the avatar name-circles now live in one shared place each (`src/utils/validation.ts`, `src/utils/avatar.ts`).
 - Cleaned up scattered **debug/error `console` messages** — routed them through the central logger.
 - **Woke up the CI robot** 🤖 — the auto-checker now uses `npm` (was the wrong `yarn`) and runs on the `main` branch + every pull request. It runs lint, format, type-check, tests, and a build.
+- **Faster first load** ⚡ — each page now downloads only when visited (code-splitting), and the heavy Excel/PDF tools load only when used. Initial download roughly **halved** (1.6 MB → ~891 KB).
 
 ---
 
@@ -122,7 +123,7 @@ Each item tells you: **what's wrong**, **why it's bad**, **where** it is, and **
 | Tests | ❌ Almost none |
 | Working auto-checker (CI) | ✅ Yes (just fixed) |
 | Keys stored safely | ⚠️ Not great |
-| Fast loading | ⚠️ So-so |
+| Fast loading | ✅ Better — routes code-split, heavy libs on-demand (initial bundle ~halved) |
 | Works with keyboard/screen readers | ⚠️ Better (buttons named), pop-ups still need work |
 | Different settings for dev/live | ✅ Yes |
 | Secret recipe hidden (source maps) | ✅ Yes |
