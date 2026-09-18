@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import endpoints from '../../constants/endpoints';
 import { ROUTES } from '../../constants/routes';
@@ -28,8 +28,13 @@ const inputClass =
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Pre-fill from the email the admin already typed on the Login page, if they
+  // got here via "Forgot password?" — saves retyping it. Falls back to empty
+  // when this page is reached directly (e.g. a bookmark/deep link).
+  const prefillEmail = (location.state as { email?: string } | null)?.email ?? '';
   const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(prefillEmail);
   const [otp, setOtp] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
