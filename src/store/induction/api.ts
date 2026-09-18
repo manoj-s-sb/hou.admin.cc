@@ -127,3 +127,20 @@ export const userInductionDetails = createAsyncThunk(
     }
   }
 );
+
+/** Records which admin activated this member's subscription after induction, so
+ * the Calendar can show "Completed By <name>" — attribution only, doesn't touch
+ * the booking's status (see endpoints.induction.markActivated). Callers should
+ * treat a failure here as non-fatal (the actual activation already succeeded);
+ * it only means the name won't show on the Calendar for this one action. */
+export const markInductionActivated = createAsyncThunk(
+  'induction/markInductionActivated',
+  async ({ userId }: { userId: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${endpoints.induction.markActivated}`, { userId });
+      return response?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to record activation attribution'));
+    }
+  }
+);

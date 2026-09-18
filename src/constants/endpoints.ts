@@ -64,6 +64,11 @@ const endpoints = {
     updateBookingStatus: `${API_PREFIX}/admin/induction/bookingstatus/update`,
     activateSubscription: `${API_PREFIX}/subscription/admin/activate`,
     userInductionDetails: `${API_PREFIX}/admin/induction/details`,
+    // POST { userId } — records which admin activated this member's subscription
+    // after induction (attribution only; doesn't change booking status, which
+    // already auto-completes when the member finishes onboarding). Shown on the
+    // Calendar's induction event as "Completed By".
+    markActivated: `${API_PREFIX}/admin/induction/activated`,
   },
   centres: {
     // New doc-bundle model (live backend) — all POST.
