@@ -139,12 +139,30 @@ export interface FacilityHoliday {
   name: string;
 }
 
+/** One entry of `facility.addons[0]` — tab config for a bookable area (lane/gym/
+ * podcastroom/meetingroom/...), distinct from the `product` docs which carry the
+ * actual pricing/booking rules for the same feature. */
+export interface FacilityAddonEntry {
+  status: string;
+  isTab: boolean;
+  group: string;
+  order: number;
+  label: string;
+  equipmentCount?: number;
+  areaSqm?: number;
+}
+
+/** `facility.addons` is an array containing ONE object keyed by addon id
+ * ("lane" | "gym" | "podcastroom" | "meetingroom" | ...) — matches the real DB shape. */
+export type FacilityAddonsMap = Record<string, FacilityAddonEntry>;
+
 export interface ApiFacility {
   type: 'facility';
   code: string; // 3–10, UPPER, unique
   name: string;
   cityCode: string;
   countryCode: string;
+  regionCode: string;
   stateCode: string;
   timezone: string;
   status: CentreApiStatus;
@@ -162,6 +180,9 @@ export interface ApiFacility {
   contact: FacilityContact;
   operatingHours: OperatingHoursMap;
   holidays: FacilityHoliday[];
+  // Tab config for bookable areas (lane always present, plus whichever
+  // additional facilities are enabled) — see FacilityAddonsMap.
+  addons: FacilityAddonsMap[];
   // Collected partially / not at all by the wizard today — refine on real JSON.
   security?: Record<string, unknown>;
   features?: Record<string, unknown>;
@@ -212,15 +233,20 @@ export interface ApiMembership {
   type: 'membership';
   code: string; // premium | standard | offpeak | nightowl | family
   name: string;
+  status?: string;
   isPopular: boolean;
+  cityCode?: string;
+  countryCode?: string;
+  stateCode?: string;
+  facilityCode?: string;
   pricing: MembershipPricing;
-  registrationFee: number;
+  registrationFee: Record<string, unknown>;
   access: Record<string, unknown>;
   bookingRules: Record<string, unknown>;
-  memberTypes: unknown[];
+  memberTypes: Record<string, unknown>;
   accessControl: Record<string, unknown>;
   membershipPolicies: Record<string, unknown>;
-  description: string;
+  description: Record<string, unknown>;
   stripe: Record<string, unknown>;
   benefits: string[];
   id?: string;
