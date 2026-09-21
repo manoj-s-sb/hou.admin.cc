@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useDispatch, useSelector } from 'react-redux';
 
 import { useCentreNav } from '../../contexts/CentreNavContext';
+import { getMembers } from '../../store/members/api';
+import { AppDispatch, RootState } from '../../store/store';
 
 /**
  * Bulk push notification composer + history, scoped to the current centre.
  *
  * UI only — everything here (the draft, and the Sent/Scheduled lists) lives in local
  * component state. There is no API wired up yet; `sendNotif()` simulates a send/schedule
- * so the flow can be reviewed end-to-end before the backend module exists.
+ * so the flow can be reviewed end-to-end before the backend module exists. The Individual
+ * audience picker below is the one exception — it searches real centre members via the
+ * same Members List API the Members page uses, so recipients are real accounts even
+ * though the actual send is still simulated.
  */
 
 type AudienceMode = 'All' | 'Centre' | 'Age' | 'Individual';
@@ -21,14 +27,19 @@ interface AttachmentFile {
   url: string;
   isImage: boolean;
 }
+interface IndividualUser {
+  userId: string;
+  name: string;
+}
 interface ComposeState {
-  channel: Channel;
+  pushEnabled: boolean;
+  emailEnabled: boolean;
   heading: string;
   subject: string;
   body: string;
   audience: AudienceMode;
   ages: string[];
-  individualUsers: string[];
+  individualUsers: IndividualUser[];
   schedule: boolean;
   when: string;
   attachment: AttachmentFile | null;
@@ -42,23 +53,11 @@ interface NotifRecord {
 }
 
 const AGE_BANDS = ['Under 10', 'Under 12', 'Under 14', 'Under 16', 'Under 19', '17+'];
-// Dummy member directory for the Individual-user picker — no user-search API yet.
-const DIRECTORY_USERS = [
-  'Dev Sharma',
-  'Priya Nair',
-  'Aarav Mehta',
-  'Kabir Rao',
-  'Isha Verma',
-  'Rohan Das',
-  'Neha Pillai',
-  'Arjun Menon',
-  'Sara Khan',
-  'Vivaan Shah',
-];
 
 function emptyCompose(): ComposeState {
   return {
-    channel: 'push',
+    pushEnabled: true,
+    emailEnabled: false,
     heading: '',
     subject: '',
     body: '',
@@ -129,12 +128,29 @@ const segBtn = (active: boolean) =>
   }`;
 
 const Notifications = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const { activeCentre } = useCentreNav();
+  const { membersList, isLoading: membersLoading } = useSelector((state: RootState) => state.members);
   const [tab, setTab] = useState<NotifTab>('compose');
   const [compose, setCompose] = useState<ComposeState>(() => emptyCompose());
   const [sentList, setSentList] = useState<NotifRecord[]>(() => seedSent());
   const [scheduledList, setScheduledList] = useState<NotifRecord[]>(() => seedScheduled());
   const [userSearch, setUserSearch] = useState('');
+
+  // Debounced search against this centre's real members (same API the Members
+  // page uses) — matches "type a name or email" instead of firing on every keystroke.
+  useEffect(() => {
+    const query = userSearch.trim();
+    if (!query || !activeCentre?.code) return;
+    const timer = setTimeout(() => {
+      dispatch(getMembers({ skip: 0, limit: 8, facilityCode: activeCentre.code, search: query }));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [dispatch, userSearch, activeCentre?.code]);
+
+  const userSuggestions = userSearch.trim()
+    ? membersList.members.filter(m => !compose.individualUsers.some(u => u.userId === m.userId)).slice(0, 8)
+    : [];
 
   const toggleAge = (band: string) => {
     setCompose(c => {
@@ -147,16 +163,20 @@ const Notifications = () => {
     if (c.audience === 'All') return 'All users';
     if (c.audience === 'Centre') return `Centre · ${activeCentre?.name || 'this centre'}`;
     if (c.audience === 'Individual')
-      return c.individualUsers.length ? c.individualUsers.join(', ') : 'Individual (none selected)';
+      return c.individualUsers.length ? c.individualUsers.map(u => u.name).join(', ') : 'Individual (none selected)';
     return c.ages.length ? `Ages ${c.ages.join(', ')}` : 'Age-wise (none selected)';
   };
 
   const sendNotif = () => {
-    if (compose.channel !== 'email' && (!compose.heading.trim() || !compose.body.trim())) {
+    if (!compose.pushEnabled && !compose.emailEnabled) {
+      toast.error('Turn on at least one channel — Push or Email.');
+      return;
+    }
+    if (compose.pushEnabled && (!compose.heading.trim() || !compose.body.trim())) {
       toast.error('Heading and message are both required.');
       return;
     }
-    if (compose.channel !== 'push' && !compose.subject.trim()) {
+    if (compose.emailEnabled && !compose.subject.trim()) {
       toast.error('Subject line is required for email.');
       return;
     }
@@ -172,9 +192,11 @@ const Notifications = () => {
       toast.error('Set a send time, or switch to Send now.');
       return;
     }
+    const channel: Channel =
+      compose.pushEnabled && compose.emailEnabled ? 'both' : compose.pushEnabled ? 'push' : 'email';
     const rec: NotifRecord = {
-      channel: compose.channel,
-      heading: compose.channel === 'push' ? compose.heading.trim() : compose.subject.trim() || compose.heading.trim(),
+      channel,
+      heading: compose.pushEnabled ? compose.heading.trim() : compose.subject.trim() || compose.heading.trim(),
       audienceLabel: audienceLabel(compose),
       when: compose.schedule ? compose.when.trim() : 'Just now',
       media: !!compose.attachment,
@@ -257,17 +279,44 @@ const Notifications = () => {
           </p>
         </div>
         {tab === 'compose' && (
-          <div className="inline-flex flex-none overflow-hidden rounded-lg border border-gray-200">
-            {(['push', 'email', 'both'] as Channel[]).map(ch => (
-              <button
-                key={ch}
-                className={segBtn(compose.channel === ch)}
-                type="button"
-                onClick={() => setCompose(c => ({ ...c, channel: ch }))}
-              >
-                {ch === 'push' ? 'Push' : ch === 'email' ? 'Email' : 'Both'}
-              </button>
-            ))}
+          <div className="flex flex-none items-center gap-4 rounded-lg border border-gray-200 px-4 py-2">
+            <label className="flex cursor-pointer items-center gap-2">
+              <span aria-hidden className="text-[15px]">
+                🔔
+              </span>
+              <span className="text-[13px] font-medium text-gray-600">Push</span>
+              <span className="relative inline-block h-[22px] w-10 flex-shrink-0">
+                <input
+                  aria-label="Send as push notification"
+                  checked={compose.pushEnabled}
+                  className="peer sr-only"
+                  type="checkbox"
+                  onChange={e => setCompose(c => ({ ...c, pushEnabled: e.target.checked }))}
+                />
+                <span className="absolute inset-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-[#21295A]" />
+                <span className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform peer-checked:translate-x-[18px]" />
+              </span>
+            </label>
+
+            <div className="h-6 w-px bg-gray-200" />
+
+            <label className="flex cursor-pointer items-center gap-2">
+              <span aria-hidden className="text-[15px]">
+                ✉️
+              </span>
+              <span className="text-[13px] font-medium text-gray-600">Email</span>
+              <span className="relative inline-block h-[22px] w-10 flex-shrink-0">
+                <input
+                  aria-label="Send as email"
+                  checked={compose.emailEnabled}
+                  className="peer sr-only"
+                  type="checkbox"
+                  onChange={e => setCompose(c => ({ ...c, emailEnabled: e.target.checked }))}
+                />
+                <span className="absolute inset-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-[#21295A]" />
+                <span className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform peer-checked:translate-x-[18px]" />
+              </span>
+            </label>
           </div>
         )}
       </div>
@@ -303,16 +352,18 @@ const Notifications = () => {
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <h2 className="text-[16px] font-bold text-[#21295A]">New notification</h2>
             <span className="text-[13px] text-gray-400">
-              {compose.channel === 'push'
-                ? 'In-app + push'
-                : compose.channel === 'email'
-                  ? 'Email'
-                  : 'In-app + push + Email'}
+              {compose.pushEnabled && compose.emailEnabled
+                ? 'In-app + push + Email'
+                : compose.pushEnabled
+                  ? 'In-app + push'
+                  : compose.emailEnabled
+                    ? 'Email'
+                    : 'Select a channel below'}
             </span>
           </div>
 
           <div className="space-y-5 px-5 py-5">
-            {compose.channel !== 'email' && (
+            {compose.pushEnabled && (
               <div>
                 <label className={labelClass} htmlFor="compose-heading">
                   Heading
@@ -328,7 +379,7 @@ const Notifications = () => {
               </div>
             )}
 
-            {compose.channel !== 'push' && (
+            {compose.emailEnabled && (
               <div className="space-y-5 rounded-lg border border-gray-100 bg-gray-50/60 p-4">
                 <div>
                   <label className={labelClass} htmlFor="compose-subject">
@@ -467,16 +518,19 @@ const Notifications = () => {
                     <div className="mb-1.5 flex flex-wrap gap-1.5">
                       {compose.individualUsers.map(u => (
                         <span
-                          key={u}
+                          key={u.userId}
                           className="inline-flex items-center gap-1.5 rounded-full border border-[#21295A]/30 bg-[#21295A]/5 px-2.5 py-1 text-[12px] font-medium text-[#21295A]"
                         >
-                          {u}
+                          {u.name}
                           <button
                             aria-label="Remove"
                             className="font-bold"
                             type="button"
                             onClick={() =>
-                              setCompose(c => ({ ...c, individualUsers: c.individualUsers.filter(x => x !== u) }))
+                              setCompose(c => ({
+                                ...c,
+                                individualUsers: c.individualUsers.filter(x => x.userId !== u.userId),
+                              }))
                             }
                           >
                             ×
@@ -494,25 +548,32 @@ const Notifications = () => {
                     />
                     {userSearch.trim() && (
                       <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                        {DIRECTORY_USERS.filter(
-                          u =>
-                            u.toLowerCase().includes(userSearch.trim().toLowerCase()) &&
-                            !compose.individualUsers.includes(u)
-                        )
-                          .slice(0, 8)
-                          .map(u => (
-                            <button
-                              key={u}
-                              className="block w-full px-3 py-2 text-left text-[13px] hover:bg-gray-50"
-                              type="button"
-                              onClick={() => {
-                                setCompose(c => ({ ...c, individualUsers: [...c.individualUsers, u] }));
-                                setUserSearch('');
-                              }}
-                            >
-                              {u}
-                            </button>
-                          ))}
+                        {membersLoading ? (
+                          <div className="px-3 py-2 text-[13px] text-gray-400">Searching…</div>
+                        ) : userSuggestions.length === 0 ? (
+                          <div className="px-3 py-2 text-[13px] text-gray-400">No matching members in this centre</div>
+                        ) : (
+                          userSuggestions.map(m => {
+                            const name = `${m.firstName} ${m.lastName}`.trim();
+                            return (
+                              <button
+                                key={m.userId}
+                                className="block w-full px-3 py-2 text-left text-[13px] hover:bg-gray-50"
+                                type="button"
+                                onClick={() => {
+                                  setCompose(c => ({
+                                    ...c,
+                                    individualUsers: [...c.individualUsers, { userId: m.userId, name }],
+                                  }));
+                                  setUserSearch('');
+                                }}
+                              >
+                                <div className="font-medium text-gray-800">{name}</div>
+                                <div className="text-[11px] text-gray-400">{m.email}</div>
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
                     )}
                   </div>

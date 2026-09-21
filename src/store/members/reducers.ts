@@ -11,6 +11,7 @@ import {
   deleteMemberNote,
   getMemberEmails,
   sendMemberEmail,
+  bulkSendMemberEmail,
 } from './api';
 import { initialState } from './types';
 
@@ -147,6 +148,19 @@ const membersSlice = createSlice({
     builder.addCase(sendMemberEmail.rejected, (state, action) => {
       state.memberEmailSending = false;
       state.memberEmailsError = (action.payload as string) || 'Failed to send email';
+    });
+
+    builder.addCase(bulkSendMemberEmail.pending, state => {
+      state.memberEmailBulkSending = true;
+      state.memberEmailsError = null;
+    });
+    builder.addCase(bulkSendMemberEmail.fulfilled, (state, action) => {
+      state.memberEmailBulkSending = false;
+      state.memberEmailBulkResult = action.payload?.data || null;
+    });
+    builder.addCase(bulkSendMemberEmail.rejected, (state, action) => {
+      state.memberEmailBulkSending = false;
+      state.memberEmailsError = (action.payload as string) || 'Failed to send bulk email';
     });
   },
 });

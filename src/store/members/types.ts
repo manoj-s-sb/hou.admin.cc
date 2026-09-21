@@ -277,6 +277,23 @@ export interface MemberEmailItem {
   status: 'sent' | 'failed';
 }
 
+/** One recipient's outcome from a bulk send — see BulkSendEmailModal.tsx. */
+export interface BulkMemberEmailResult {
+  userId: string;
+  status: 'sent' | 'failed' | 'skipped_no_email';
+}
+
+/** Response for POST /admin/members/email/bulk-send. Counts are synchronous —
+ * 'sent' means successfully queued/direct-sent (same meaning as MemberEmailItem's
+ * status), not confirmed delivery. */
+export interface BulkMemberEmailResponse {
+  totalSelected: number;
+  sentCount: number;
+  failedCount: number;
+  skippedNoEmail: number;
+  results: BulkMemberEmailResult[];
+}
+
 export interface MembersCountResponse {
   premiumFortnightly: number;
   premiumAnnual: number;
@@ -334,6 +351,10 @@ export interface MembersInitialState {
   memberEmailsLoading: boolean;
   memberEmailsError: string | null;
   memberEmailSending: boolean;
+  /** Bulk send (Members grid row selection) — kept separate from the
+   * single-member email state above for the same reason memberEmails is. */
+  memberEmailBulkSending: boolean;
+  memberEmailBulkResult: BulkMemberEmailResponse | null;
 }
 
 export const initialState: MembersInitialState = {
@@ -356,6 +377,8 @@ export const initialState: MembersInitialState = {
   memberEmailsLoading: false,
   memberEmailsError: null,
   memberEmailSending: false,
+  memberEmailBulkSending: false,
+  memberEmailBulkResult: null,
   membersCount: null,
   purchasedSlotsData: null,
 };

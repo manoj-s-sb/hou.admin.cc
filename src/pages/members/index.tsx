@@ -7,10 +7,13 @@ import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
 import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
+import { canEditModule } from '../../rbac/permissions';
 import { getMembers, getMembersCount } from '../../store/members/api';
-import { MemberRequest } from '../../store/members/types';
+import { Member, MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
 import { decodeToken } from '../../utils/decodeToken';
+
+import BulkSendEmailModal from './components/BulkSendEmailModal';
 
 const user_svg = '/assets/user.svg';
 
@@ -75,8 +78,48 @@ const Members = () => {
 
   const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
 
+  // Bulk email — row selection on this grid. Keyed by userId, but stores each
+  // row's name/email AT SELECTION TIME (not re-derived from the current page's
+  // data) — otherwise paging away after selecting would silently drop those
+  // recipients from the send while the "N selected" count kept claiming they
+  // were still included.
+  const canBulkEmail = canEditModule('members');
+  const [selectedUserIds, setSelectedUserIds] = useState<Map<string, { userId: string; name: string; email: string }>>(
+    new Map()
+  );
+  const [showBulkEmail, setShowBulkEmail] = useState(false);
+  const toggleSelected = useCallback((row: Member) => {
+    setSelectedUserIds(prev => {
+      const next = new Map(prev);
+      if (next.has(row.userId)) next.delete(row.userId);
+      else
+        next.set(row.userId, { userId: row.userId, name: `${row.firstName} ${row.lastName}`.trim(), email: row.email });
+      return next;
+    });
+  }, []);
+  const selectedMembers = useMemo(() => Array.from(selectedUserIds.values()), [selectedUserIds]);
+
   const membersColumns: ColumnDef[] = useMemo(
     () => [
+      ...(canBulkEmail
+        ? [
+            {
+              field: 'select',
+              headerName: '',
+              width: 40,
+              sortable: false,
+              renderCell: (params: { row: Member }) => (
+                <input
+                  checked={selectedUserIds.has(params.row.userId)}
+                  className="h-4 w-4 rounded border-gray-300 text-[#21295A] focus:ring-[#21295A]"
+                  type="checkbox"
+                  onChange={() => toggleSelected(params.row)}
+                  onClick={e => e.stopPropagation()}
+                />
+              ),
+            },
+          ]
+        : []),
       {
         field: 'sno',
         headerName: 'S.No',
@@ -236,7 +279,7 @@ const Members = () => {
         },
       },
     ],
-    [membersListData.skip, navigate, location.search, facilityCode]
+    [membersListData.skip, navigate, location.search, facilityCode, canBulkEmail, selectedUserIds, toggleSelected]
   );
 
   const currentLimit = membersListData.limit || 20;
@@ -519,6 +562,30 @@ const Members = () => {
         </div>
       </div>
 
+      {canBulkEmail && selectedUserIds.size > 0 && (
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-4 py-2.5">
+          <span className="text-[13px] font-medium text-[#21295A]">
+            {selectedUserIds.size} member{selectedUserIds.size === 1 ? '' : 's'} selected
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              className="text-[12px] font-medium text-gray-500 hover:text-gray-700"
+              type="button"
+              onClick={() => setSelectedUserIds(new Map())}
+            >
+              Clear
+            </button>
+            <button
+              className="rounded-lg bg-[#21295A] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d3570]"
+              type="button"
+              onClick={() => setShowBulkEmail(true)}
+            >
+              Email Selected ({selectedUserIds.size})
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Members Table ───────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <DataTable
@@ -560,6 +627,14 @@ const Members = () => {
           }}
         />
       </div>
+
+      {showBulkEmail && selectedMembers.length > 0 && (
+        <BulkSendEmailModal
+          recipients={selectedMembers}
+          onClose={() => setShowBulkEmail(false)}
+          onSent={() => setSelectedUserIds(new Map())}
+        />
+      )}
     </div>
   );
 };

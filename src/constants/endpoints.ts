@@ -26,6 +26,7 @@ const endpoints = {
     notesDelete: `${API_PREFIX}/admin/member/notes/delete`,
     emailsList: `${API_PREFIX}/admin/member/emails/list`,
     emailsSend: `${API_PREFIX}/admin/member/emails/send`,
+    emailsBulkSend: `${API_PREFIX}/admin/members/email/bulk-send`,
     emailUploadUrl: `${API_PREFIX}/admin/members/email/upload-url`,
   },
   tour: {
