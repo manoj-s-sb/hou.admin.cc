@@ -472,6 +472,7 @@ const Notifications = () => {
                         >
                           {u}
                           <button
+                            aria-label="Remove"
                             className="font-bold"
                             type="button"
                             onClick={() =>

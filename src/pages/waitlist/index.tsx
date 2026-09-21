@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
-import * as XLSX from 'xlsx';
 
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
-import { getFacilityCode } from '../../constants/user';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
 import { fetchNamedPermissions, getNamedPermission } from '../../rbac/namedPermissions';
 import {
   addLeadNote,
@@ -23,28 +22,14 @@ import {
 } from '../../store/centres/api';
 import { AdminNote, ContactStatus, LeadEntry, StatusHistoryEntry, WaitlistEntry } from '../../store/centres/types';
 import { AppDispatch, RootState } from '../../store/store';
+import { avatarColor, initials } from '../../utils/avatar';
 import { formatDate } from '../../utils/dateUtils';
+import { EMAIL_RE } from '../../utils/validation';
 
 import ImportWaitlistModal from './components/ImportWaitlistModal';
 import MemberDetailDrawer, { DetailField, STATUS_META, STATUS_ORDER } from './components/MemberDetailDrawer';
 
 const PAGE_SIZE = 20;
-
-const AVATAR_COLORS = ['#21295A', '#008482', '#d97706', '#7c3aed', '#0891b2', '#d42b2b'];
-
-const initials = (text: string): string =>
-  text
-    .split(/[\s@._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(p => Array.from(p)[0]?.toUpperCase() ?? '')
-    .join('') || '—';
-
-const avatarColor = (seed: string): string => {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash + seed.charCodeAt(i)) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[hash];
-};
 
 // "checkout_session_creation_attempted" → "Checkout Session Creation Attempted"
 const titleCase = (raw: string): string =>
@@ -212,12 +197,19 @@ const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ messag
 );
 
 // ── Export preview / download (real .xlsx, via the same SheetJS build used for import) ──
-const downloadXlsx = (filename: string, sheetName: string, headers: string[], rows: string[][]) => {
-  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  const workbook = XLSX.utils.book_new();
-  // Excel sheet names are capped at 31 chars.
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
-  XLSX.writeFile(workbook, filename);
+// `xlsx` is heavy, so it's loaded on demand (only when the user actually exports)
+// rather than shipped in the page's bundle.
+const downloadXlsx = async (filename: string, sheetName: string, headers: string[], rows: string[][]) => {
+  try {
+    const XLSX = await import('xlsx');
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    // Excel sheet names are capped at 31 chars.
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
+    XLSX.writeFile(workbook, filename);
+  } catch {
+    toast.error('Could not generate the Excel file. Please try again.');
+  }
 };
 
 // "Event - Aug 28" → "event-aug-28", for a readable filename suffix.
@@ -440,7 +432,7 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
             className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
             disabled={rows.length === 0}
             type="button"
-            onClick={() => downloadXlsx(filename, data.title, data.headers, rows)}
+            onClick={() => void downloadXlsx(filename, data.title, data.headers, rows)}
           >
             <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -454,8 +446,6 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
     </div>
   );
 };
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdded: () => void }> = ({
   facilityCode,
@@ -608,7 +598,7 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
 
 const WaitlistLeads = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const facilityCode = getFacilityCode();
+  const facilityCode = useScopedFacilityCode();
   const { waitlist, waitlistLoading, waitlistError, leads, leadsLoading, leadsError } = useSelector(
     (state: RootState) => state.centres
   );

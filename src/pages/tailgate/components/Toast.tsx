@@ -23,7 +23,7 @@ const Toast = ({ message, type, onDismiss }: ToastProps) => {
       <span>
         {prefix} {message}
       </span>
-      <button className="ml-2 text-white/70 hover:text-white" type="button" onClick={onDismiss}>
+      <button aria-label="Dismiss" className="ml-2 text-white/70 hover:text-white" type="button" onClick={onDismiss}>
         ✕
       </button>
     </div>

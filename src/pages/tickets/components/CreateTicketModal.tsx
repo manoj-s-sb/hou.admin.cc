@@ -5,6 +5,7 @@ import { useDispatch } from 'react-redux';
 
 import { AppDispatch } from '../../../store/store';
 import { createTicket, uploadTicketFile } from '../../../store/tickets/api';
+import { EMAIL_RE } from '../../../utils/validation';
 import {
   ALL_LANES,
   CATEGORY_META,
@@ -101,7 +102,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   // and Lanes (chips) are easy to miss, so we show the reason on the field itself
   // rather than relying only on a transient toast.
   const isCustomerSupport = category === 'customer_support';
-  const emailInvalid = Boolean(customerEmail.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim());
+  const emailInvalid = Boolean(customerEmail.trim()) && !EMAIL_RE.test(customerEmail.trim());
   const errors = {
     centre: !centre ? 'Select a centre' : '',
     title: !title.trim() ? 'Title is required' : '',
@@ -432,6 +433,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
                   >
                     📎 {f.name.length > 20 ? `${f.name.slice(0, 20)}…` : f.name}
                     <button
+                      aria-label="Remove file"
                       className="text-red-400 hover:text-red-600"
                       type="button"
                       onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}

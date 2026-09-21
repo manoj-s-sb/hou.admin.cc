@@ -187,6 +187,7 @@ const ScheduleCard: React.FC<Props> = ({
               >
                 📎 {f.name.length > 12 ? `${f.name.slice(0, 12)}…` : f.name}
                 <button
+                  aria-label="Remove file"
                   className="text-red-400 hover:text-red-600"
                   type="button"
                   onClick={() => setFiles(files.filter((_, j) => j !== i))}
