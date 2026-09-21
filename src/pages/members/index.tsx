@@ -6,7 +6,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
-import { getFacilityCode } from '../../constants/user';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
 import { getMembers, getMembersCount } from '../../store/members/api';
 import { MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -69,6 +69,9 @@ const Members = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { membersList: membersListData, isLoading, membersCount } = useSelector((state: RootState) => state.members);
+  // Scope to the centre in the URL (opened from Centre Management) for every role;
+  // falls back to the role default / token on the global Members page.
+  const facilityCode = useScopedFacilityCode() || decodeToken()?.facilityCode || '';
 
   const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
 
@@ -223,7 +226,7 @@ const Members = () => {
               onClick={e => {
                 e.stopPropagation();
                 navigate(buildRoute.viewMembers(params.row.userId), {
-                  state: { listSearch: location.search, facilityCode: getFacilityCode() },
+                  state: { listSearch: location.search, facilityCode },
                 });
               }}
             >
@@ -233,7 +236,7 @@ const Members = () => {
         },
       },
     ],
-    [membersListData.skip, navigate, location.search]
+    [membersListData.skip, navigate, location.search, facilityCode]
   );
 
   const currentLimit = membersListData.limit || 20;
@@ -244,7 +247,7 @@ const Members = () => {
       const payload: MemberRequest = {
         skip: overrides?.skip ?? 0,
         limit,
-        facilityCode: getFacilityCode(),
+        facilityCode,
       };
 
       const trimmedSearch = appliedFilters.search.trim();
@@ -263,10 +266,8 @@ const Members = () => {
 
       return payload;
     },
-    [filters, membersListData.limit]
+    [filters, membersListData.limit, facilityCode]
   );
-
-  const facilityCode = getFacilityCode() || decodeToken()?.facilityCode;
 
   useEffect(() => {
     setFilters(parseFiltersFromSearchParams(searchParams));
@@ -287,7 +288,7 @@ const Members = () => {
     const payload: MemberRequest = {
       skip: 0,
       limit: currentLimit,
-      facilityCode: getFacilityCode(),
+      facilityCode,
     };
     const trimmedSearch = applied.search.trim();
     if (trimmedSearch) payload.search = trimmedSearch;
@@ -551,7 +552,7 @@ const Members = () => {
           }}
           onRowClick={row => {
             navigate(buildRoute.viewMembers(row.userId), {
-              state: { listSearch: location.search, facilityCode: getFacilityCode() },
+              state: { listSearch: location.search, facilityCode },
             });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {

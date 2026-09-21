@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
-import { getFacilityCode } from '../../constants/user';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
 import { fetchNamedPermissions, getNamedPermission } from '../../rbac/namedPermissions';
 import {
   addLeadNote,
@@ -598,7 +598,7 @@ const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdde
 
 const WaitlistLeads = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const facilityCode = getFacilityCode();
+  const facilityCode = useScopedFacilityCode();
   const { waitlist, waitlistLoading, waitlistError, leads, leadsLoading, leadsError } = useSelector(
     (state: RootState) => state.centres
   );

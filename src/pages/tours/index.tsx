@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
-import { getFacilityCode } from '../../constants/user';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
 import { inductionList, updateTourStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
@@ -38,7 +38,7 @@ const Tours = () => {
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending');
   const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
-  const facilityCode = getFacilityCode();
+  const facilityCode = useScopedFacilityCode();
 
   const currentLimit = inductionListData.limit || 20;
 

@@ -8,7 +8,7 @@ import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
-import { getFacilityCode } from '../../constants/user';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
 import { inductionList, updateInductionBookingStatus } from '../../store/induction/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { formatDateAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
@@ -83,7 +83,7 @@ const Induction = () => {
   } | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
   const [cancelReason, setCancelReason] = useState('');
-  const facilityCode = getFacilityCode();
+  const facilityCode = useScopedFacilityCode();
 
   const applyFilters = () => {
     const params = filtersToSearchParams(filters);
