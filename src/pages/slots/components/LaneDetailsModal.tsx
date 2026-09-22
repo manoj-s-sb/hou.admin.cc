@@ -15,11 +15,24 @@ const BLOCK_REASONS = [
 
 interface LaneDetailsModalProps {
   lane: Lanes;
+  /** Every lane for the day — used only to find same-time, same-type,
+   * available slots in OTHER lanes as "Shift" targets for a booking here. */
+  allLanes: Lanes[];
   isOpen: boolean;
   onClose: () => void;
   onLaneClick: (reason?: string, blockLaneApp?: boolean, blockedByName?: string) => void;
   onCancelBooking: (slotCode: string, reason: string) => void;
+  /** Moves a booking in this lane to a different lane's slot at the same
+   * time. Leaves the vacated slot merely "available" — this lane is about to
+   * be blocked wholesale, so there's no separate slot to block here. */
+  onShiftBooking: (bookingCode: string, targetSlotCode: string, reason: string) => void;
   isLoading?: boolean;
+}
+
+interface ShiftTarget {
+  laneNo: number;
+  laneCode: string;
+  slotCode: string;
 }
 
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
@@ -32,25 +45,34 @@ const getBookedName = (slot: Lanes['slots'][number]): string => {
 
 const LaneDetailsModal = ({
   lane,
+  allLanes,
   isOpen,
   onClose,
   onLaneClick,
   onCancelBooking,
+  onShiftBooking,
   isLoading = false,
 }: LaneDetailsModalProps) => {
   const [selectedReason, setSelectedReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [blockLaneApp] = useState(false);
-  // One shared reason for cancelling bookings in this lane — with several bookings
-  // possibly needing to be cleared to block the whole lane, typing a separate reason
-  // for each one isn't practical, so a single reason applies to all of them.
+  // One shared reason for cancelling OR shifting bookings in this lane — with
+  // several bookings possibly needing to be cleared to block the whole lane,
+  // typing a separate reason for each one isn't practical.
   const [cancelReason, setCancelReason] = useState('');
   // Pre-filled from the logged-in user, but editable — e.g. for a shared/generic
   // login used by different physical staff. Resets each time the modal opens.
   const [blockedByName, setBlockedByName] = useState('');
+  // Which booking's row currently has its "Shift" target picker open.
+  const [shiftingSlotCode, setShiftingSlotCode] = useState<string | null>(null);
+  const [shiftTargetSlotCode, setShiftTargetSlotCode] = useState('');
 
   useEffect(() => {
     if (isOpen) setBlockedByName(getLocalUser().name);
+    if (!isOpen) {
+      setShiftingSlotCode(null);
+      setShiftTargetSlotCode('');
+    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -66,6 +88,31 @@ const LaneDetailsModal = ({
   const handleCancelOne = (slotCode: string) => {
     if (!window.confirm('Cancel this booking? This frees up the slot immediately.')) return;
     onCancelBooking(slotCode, cancelReason.trim());
+  };
+
+  // Same-time, same-type, available slots in OTHER lanes — indexed by
+  // position rather than start time since every lane's slots array is
+  // aligned to the same shared time-slot list.
+  const getShiftTargets = (slot: Lanes['slots'][number]): ShiftTarget[] => {
+    const index = lane.slots.findIndex(s => s.slotCode === slot.slotCode);
+    if (index === -1) return [];
+    return allLanes
+      .filter(l => l.laneCode !== lane.laneCode && l.laneType === lane.laneType)
+      .map(l => {
+        const candidate = l.slots[index];
+        return candidate && candidate.status?.toLowerCase() === 'available' && !candidate.isBooked
+          ? { laneNo: l.laneNo, laneCode: l.laneCode, slotCode: candidate.slotCode }
+          : null;
+      })
+      .filter((option): option is ShiftTarget => option !== null);
+  };
+
+  const handleConfirmShift = (slot: Lanes['slots'][number]) => {
+    const bookingCode = slot.booking?.bookingCode;
+    if (!bookingCode || !shiftTargetSlotCode) return;
+    onShiftBooking(bookingCode, shiftTargetSlotCode, cancelReason.trim());
+    setShiftingSlotCode(null);
+    setShiftTargetSlotCode('');
   };
 
   const handleCancelAll = () => {
@@ -177,37 +224,89 @@ const LaneDetailsModal = ({
                 Bookings in this lane <span className="font-normal text-gray-400">({bookedSlots.length})</span>
               </h3>
               <div className="mb-3 space-y-2">
-                {bookedSlots.map(slot => (
-                  <div
-                    key={slot.slotCode}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-[#E5F0F0] bg-gradient-to-br from-[#F8FAFA] to-[#FFFFFF] p-3.5 shadow-sm"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-semibold text-[#21295A]">
-                        {formatSlotTime(slot.startTime)} - {formatSlotTime(slot.endTime)}
-                      </div>
-                      <div className="truncate text-[12px] text-gray-500">{getBookedName(slot)}</div>
-                    </div>
-                    <button
-                      className="flex-none rounded-lg border-2 border-red-200 px-3 py-1.5 text-[12.5px] font-medium text-red-600 transition-all hover:bg-red-50"
-                      type="button"
-                      onClick={() => handleCancelOne(slot.slotCode)}
+                {bookedSlots.map(slot => {
+                  const shiftTargets = getShiftTargets(slot);
+                  const isShiftingThis = shiftingSlotCode === slot.slotCode;
+                  return (
+                    <div
+                      key={slot.slotCode}
+                      className="rounded-xl border border-[#E5F0F0] bg-gradient-to-br from-[#F8FAFA] to-[#FFFFFF] p-3.5 shadow-sm"
                     >
-                      Cancel
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-semibold text-[#21295A]">
+                            {formatSlotTime(slot.startTime)} - {formatSlotTime(slot.endTime)}
+                          </div>
+                          <div className="truncate text-[12px] text-gray-500">{getBookedName(slot)}</div>
+                        </div>
+                        <div className="flex flex-none gap-2">
+                          <button
+                            className="rounded-lg border-2 border-[#21295A]/20 px-3 py-1.5 text-[12.5px] font-medium text-[#21295A] transition-all hover:bg-[#21295A]/5"
+                            type="button"
+                            onClick={() => {
+                              setShiftingSlotCode(isShiftingThis ? null : slot.slotCode);
+                              setShiftTargetSlotCode('');
+                            }}
+                          >
+                            Shift
+                          </button>
+                          <button
+                            className="rounded-lg border-2 border-red-200 px-3 py-1.5 text-[12.5px] font-medium text-red-600 transition-all hover:bg-red-50"
+                            type="button"
+                            onClick={() => handleCancelOne(slot.slotCode)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                      {isShiftingThis && (
+                        <div className="mt-3 border-t border-[#E5F0F0] pt-3">
+                          {shiftTargets.length === 0 ? (
+                            <p className="text-[12.5px] text-gray-500">
+                              No other lane of the same type is available at this time.
+                            </p>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <select
+                                className="min-w-0 flex-1 rounded-lg border border-[#B3DADA] bg-white px-3 py-2 text-[13px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                                value={shiftTargetSlotCode}
+                                onChange={e => setShiftTargetSlotCode(e.target.value)}
+                              >
+                                <option value="">Select a lane</option>
+                                {shiftTargets.map(target => (
+                                  <option key={target.slotCode} value={target.slotCode}>
+                                    Lane {target.laneNo}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                className="flex-none rounded-lg bg-[#21295A] px-3 py-2 text-[12.5px] font-medium text-white transition-all hover:bg-[#2d3570] disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={!shiftTargetSlotCode}
+                                type="button"
+                                onClick={() => handleConfirmShift(slot)}
+                              >
+                                Move
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <div>
                 <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="lane-cancel-reason">
-                  Cancellation Reason{' '}
-                  <span className="font-normal text-gray-400">(optional — applies to any booking cancelled above)</span>
+                  Reason{' '}
+                  <span className="font-normal text-gray-400">
+                    (optional — applies to any booking cancelled or shifted above)
+                  </span>
                 </label>
                 <textarea
                   className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
                   id="lane-cancel-reason"
                   maxLength={500}
-                  placeholder="e.g. Facility maintenance — applies to all bookings cancelled in this lane"
+                  placeholder="e.g. Facility maintenance — applies to all bookings cancelled/shifted in this lane"
                   rows={2}
                   value={cancelReason}
                   onChange={e => setCancelReason(e.target.value)}

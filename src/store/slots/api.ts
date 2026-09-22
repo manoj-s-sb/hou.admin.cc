@@ -4,7 +4,13 @@ import endpoints from '../../constants/endpoints';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
-import { CoachSlotsRequest, CreateBookingRequest, GetSlotsRequest, UpdateLaneStatusRequest } from './types';
+import {
+  CoachSlotsRequest,
+  CreateBookingRequest,
+  EditBookingRequest,
+  GetSlotsRequest,
+  UpdateLaneStatusRequest,
+} from './types';
 
 export const getSlots = createAsyncThunk(
   'slots/getSlots',
@@ -97,6 +103,19 @@ export const createBooking = createAsyncThunk(
       return response.data?.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to create booking'));
+    }
+  }
+);
+
+/** "Shift Lane" — moves an existing booking to a different lane's slot. */
+export const editBooking = createAsyncThunk(
+  'slots/editBooking',
+  async (request: EditBookingRequest, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.slots.editBooking, request);
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to shift booking'));
     }
   }
 );

@@ -105,6 +105,27 @@ export interface CreateBookingResponse {
   alreadyExisted: boolean;
 }
 
+/** "Shift Lane" — moves an existing booking to a different lane's slot at the
+ * same time (e.g. the current lane has an issue). Keeps the same booking
+ * code, PINs and guests — only the lane/slot changes. */
+export interface EditBookingRequest {
+  bookingCode: string;
+  slotCode: string;
+  reason?: string;
+}
+
+export interface EditBookingResponse {
+  bookingCode: string;
+  bookingId: string;
+  userId: string;
+  previousSlotCode: string;
+  slotCode: string;
+  date?: string;
+  startTime?: string;
+  status: string;
+  notified: boolean;
+}
+
 export interface CoachSlotsRequest {
   startDate: string;
   endDate: string;

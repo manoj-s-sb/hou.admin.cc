@@ -28,6 +28,14 @@ export interface BookForSomeonePayload {
   notes: string;
 }
 
+/** A same-type lane with an available slot at this booking's time — a valid
+ * "Shift Lane" target. */
+export interface ShiftLaneOption {
+  laneNo: number;
+  laneCode: string;
+  slotCode: string;
+}
+
 interface SlotDetailsModalProps {
   slot: Slot | null;
   laneNo: number;
@@ -38,6 +46,13 @@ interface SlotDetailsModalProps {
   onCancelBooking: (reason: string) => void;
   /** "Book for someone" — an available slot only. */
   onBookForSomeone: (payload: BookForSomeonePayload) => void;
+  /** "Shift Lane" — a booked slot only. Moves the booking to `targetSlotCode`
+   * (one of `availableLanesToShift`), and the caller is expected to also block
+   * the vacated slot — this lane is being moved off of because it has an issue. */
+  onShiftLane: (targetSlotCode: string, reason: string) => void;
+  /** Same-type lanes with a genuinely available slot at this exact time — the
+   * only valid "Shift Lane" targets. Empty when none exist. */
+  availableLanesToShift: ShiftLaneOption[];
   isLoading?: boolean;
   /** The calendar's selected day (YYYY-MM-DD) — combined with the slot's start time
    * to gate the cancel-booking cutoff. */
@@ -55,6 +70,8 @@ const SlotDetailsModal = ({
   onUnblockSlot,
   onCancelBooking,
   onBookForSomeone,
+  onShiftLane,
+  availableLanesToShift,
   isLoading = false,
   date,
   timeSlot,
@@ -72,6 +89,9 @@ const SlotDetailsModal = ({
   const [blockedByName, setBlockedByName] = useState('');
   const [showCancelReason, setShowCancelReason] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [showShiftPicker, setShowShiftPicker] = useState(false);
+  const [selectedShiftSlotCode, setSelectedShiftSlotCode] = useState('');
+  const [shiftReason, setShiftReason] = useState('');
 
   // "Block Slot" vs "Book for Someone" — only relevant while the slot is available.
   const [availableAction, setAvailableAction] = useState<'block' | 'book'>('block');
@@ -86,6 +106,9 @@ const SlotDetailsModal = ({
       setBlockedByName(getLocalUser().name);
       setShowCancelReason(false);
       setCancelReason('');
+      setShowShiftPicker(false);
+      setSelectedShiftSlotCode('');
+      setShiftReason('');
       setAvailableAction('block');
       setBookFirstName('');
       setBookLastName('');
@@ -148,6 +171,9 @@ const SlotDetailsModal = ({
     isBooked && slot.booking?.bookingStatus?.toLowerCase() !== 'completed' && !!sessionStart
       ? Date.now() < sessionStart.getTime() - CANCEL_CUTOFF_MINUTES * 60_000
       : false;
+  // Same eligibility as cancelling — a booking already in progress or
+  // completed, or one within the cutoff, shouldn't be moved either.
+  const canShiftLane = canCancelBooking;
 
   const handleConfirmCancel = () => {
     onCancelBooking(cancelReason.trim());
@@ -528,6 +554,47 @@ const SlotDetailsModal = ({
             </div>
           )}
 
+          {/* Shift Lane picker - shown after "Shift Lane" is clicked, in place of the action buttons */}
+          {showShiftPicker && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Shift to Another Lane</h3>
+              {availableLanesToShift.length === 0 ? (
+                <p className="rounded-xl border border-[#B3DADA] bg-gray-50 px-4 py-3 text-[13px] text-gray-500">
+                  No other lane of the same type is available at this time.
+                </p>
+              ) : (
+                <div className="mb-3 grid grid-cols-3 gap-2">
+                  {availableLanesToShift.map(option => (
+                    <button
+                      key={option.slotCode}
+                      className={`rounded-xl border px-3 py-2.5 text-[13px] font-semibold transition-all ${
+                        selectedShiftSlotCode === option.slotCode
+                          ? 'border-[#21295A] bg-[#21295A] text-white'
+                          : 'border-[#B3DADA] bg-white text-[#21295A] hover:bg-gray-50'
+                      }`}
+                      type="button"
+                      onClick={() => setSelectedShiftSlotCode(option.slotCode)}
+                    >
+                      Lane {option.laneNo}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="shift-reason">
+                Reason *
+              </label>
+              <textarea
+                className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                id="shift-reason"
+                maxLength={500}
+                placeholder="Why is this booking being shifted? (e.g. Lane 3 has an issue)"
+                rows={3}
+                value={shiftReason}
+                onChange={e => setShiftReason(e.target.value)}
+              />
+            </div>
+          )}
+
           {/* Action Buttons - Only show for StanceBeam admins */}
           <div className="flex justify-center gap-3">
             {showCancelReason ? (
@@ -555,6 +622,34 @@ const SlotDetailsModal = ({
                   }}
                 >
                   Keep Booking
+                </button>
+              </>
+            ) : showShiftPicker ? (
+              <>
+                <button
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={isLoading || !selectedShiftSlotCode || !shiftReason.trim()}
+                  onClick={() => onShiftLane(selectedShiftSlotCode, shiftReason.trim())}
+                >
+                  {isLoading ? (
+                    <>
+                      <LoaderSpinner className="text-white" size="sm" />
+                      Shifting...
+                    </>
+                  ) : (
+                    'Confirm Shift'
+                  )}
+                </button>
+                <button
+                  className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setShowShiftPicker(false);
+                    setSelectedShiftSlotCode('');
+                    setShiftReason('');
+                  }}
+                >
+                  Back
                 </button>
               </>
             ) : (
@@ -640,6 +735,25 @@ const SlotDetailsModal = ({
                         Unblock Slot
                       </>
                     )}
+                  </button>
+                )}
+
+                {canShiftLane && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-[#21295A]/20 px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:bg-[#21295A]/5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading}
+                    title="Shift is available until 6 minutes before the session starts"
+                    onClick={() => setShowShiftPicker(true)}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                      />
+                    </svg>
+                    Shift Lane
                   </button>
                 )}
 

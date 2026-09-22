@@ -1,9 +1,10 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { createBooking, getSlots, updateLaneStatus } from '../../../store/slots/api';
+import { getLocalUser } from '../../../constants/user';
+import { createBooking, editBooking, getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { cancelBookingLocally } from '../../../store/slots/reducers';
 import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
@@ -11,7 +12,7 @@ import { AppDispatch, RootState } from '../../../store/store';
 import BlockTimeSlotModal from './BlockTimeSlotModal';
 import LaneDetailsModal from './LaneDetailsModal';
 import MultiBlockModal from './MultiBlockModal';
-import SlotDetailsModal, { BookForSomeonePayload } from './SlotDetailsModal';
+import SlotDetailsModal, { BookForSomeonePayload, ShiftLaneOption } from './SlotDetailsModal';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
@@ -228,6 +229,21 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
     toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
   };
 
+  // Moves one booking out of the lane the admin is about to block wholesale.
+  // Unlike the single-slot "Shift Lane" flow, the vacated slot is NOT blocked
+  // here on its own -- it's simply left "available", and the lane-wide Block
+  // Lane action (which already skips confirmed slots) picks it up along with
+  // every other slot once the admin actually blocks the lane.
+  const handleShiftBookingInLane = async (bookingCode: string, targetSlotCode: string, reason: string) => {
+    try {
+      await dispatch(editBooking({ bookingCode, slotCode: targetSlotCode, reason })).unwrap();
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success('Booking shifted to the new lane.', { duration: 4000 });
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to shift booking.', { duration: 5000 });
+    }
+  };
+
   const handleBlockSlot = async (reason: string, blockedByName: string) => {
     if (selectedSlot) {
       try {
@@ -288,6 +304,56 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
       setSelectedSlot(null);
     } catch (error) {
       toast.error((error as Error)?.message || 'Failed to book slot.', { duration: 5000 });
+    }
+  };
+
+  // Other lanes of the same type with a genuinely available slot at the
+  // selected booking's exact time — the only valid "Shift Lane" targets.
+  // Indexed by slotIndex rather than start time since every lane's slots
+  // array is aligned to the shared timeSlots list.
+  const shiftTargetLanes: ShiftLaneOption[] = useMemo(() => {
+    if (!selectedSlot) return [];
+    const currentLane = lanes.find(l => l.laneNo === selectedSlot.laneNo);
+    if (!currentLane) return [];
+    return lanes
+      .filter(l => l.laneNo !== selectedSlot.laneNo && l.laneType === currentLane.laneType)
+      .map(l => {
+        const candidate = l.slots[selectedSlot.slotIndex];
+        return candidate && candidate.status?.toLowerCase() === 'available' && !candidate.isBooked
+          ? { laneNo: l.laneNo, laneCode: l.laneCode, slotCode: candidate.slotCode }
+          : null;
+      })
+      .filter((option): option is ShiftLaneOption => option !== null);
+  }, [lanes, selectedSlot]);
+
+  const handleShiftLane = async (targetSlotCode: string, reason: string) => {
+    if (!selectedSlot) return;
+    const bookingCode = selectedSlot.slot.booking?.bookingCode;
+    if (!bookingCode) return;
+    try {
+      await dispatch(editBooking({ bookingCode, slotCode: targetSlotCode, reason })).unwrap();
+      // The booking has already moved at this point — the old slot's lane has
+      // an issue, which is why it's being blocked (not left available) now
+      // that nobody holds it.
+      try {
+        await dispatch(
+          updateLaneStatus({
+            action: 'disable',
+            reason: reason || 'Lane issue — booking shifted to another lane',
+            slotCode: selectedSlot.slot.slotCode,
+            blockedByName: getLocalUser().name,
+          })
+        ).unwrap();
+      } catch {
+        toast.error('Booking shifted, but the vacated slot could not be blocked — block it manually.', {
+          duration: 6000,
+        });
+      }
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success('Booking shifted to the new lane.', { duration: 4000 });
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to shift booking.', { duration: 5000 });
     }
   };
 
@@ -585,6 +651,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
 
       {selectedLane && (
         <LaneDetailsModal
+          allLanes={lanes}
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedLane}
           // Re-derived from the live `lanes` prop (not the stale click-time snapshot)
@@ -593,11 +660,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           onCancelBooking={handleCancelBookingInLane}
           onClose={handleCloseModal}
           onLaneClick={handleUnblockLane}
+          onShiftBooking={handleShiftBookingInLane}
         />
       )}
 
       {selectedSlot && (
         <SlotDetailsModal
+          availableLanesToShift={shiftTargetLanes}
           date={date}
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedSlot}
@@ -609,6 +678,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           onBookForSomeone={handleBookForSomeone}
           onCancelBooking={handleCancelBooking}
           onClose={handleCloseSlotModal}
+          onShiftLane={handleShiftLane}
           onUnblockSlot={handleUnblockSlot}
         />
       )}

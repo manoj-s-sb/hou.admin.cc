@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { coachSlots, createBooking, getSlots, updateLaneStatus } from './api';
+import { coachSlots, createBooking, editBooking, getSlots, updateLaneStatus } from './api';
 import { initialState } from './types';
 
 const slotsSlice = createSlice({
@@ -58,6 +58,18 @@ const slotsSlice = createSlice({
       state.error = null;
     });
     builder.addCase(createBooking.rejected, (state, action) => {
+      state.isBlockLaneLoading = false;
+      state.error = (action.payload as string) ?? null;
+    });
+    builder.addCase(editBooking.pending, state => {
+      state.isBlockLaneLoading = true;
+      state.error = null;
+    });
+    builder.addCase(editBooking.fulfilled, state => {
+      state.isBlockLaneLoading = false;
+      state.error = null;
+    });
+    builder.addCase(editBooking.rejected, (state, action) => {
       state.isBlockLaneLoading = false;
       state.error = (action.payload as string) ?? null;
     });

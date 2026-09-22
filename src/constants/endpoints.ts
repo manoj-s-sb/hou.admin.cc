@@ -11,6 +11,8 @@ const endpoints = {
     updateCoachSlots: `${API_PREFIX}/admin/coach/status/update`,
     // "Book for someone" — admin books a lane slot for a walk-in/phone caller.
     createBooking: `${API_PREFIX}/admin/bookings/create`,
+    // "Shift Lane" — moves an existing booking to another lane's slot at the same time.
+    editBooking: `${API_PREFIX}/admin/bookings/edit`,
   },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,
