@@ -61,10 +61,20 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
   const currentDateIndex = displayedDates.findIndex(
     date => date.day === selectedDate?.day && date.month === selectedDate?.month
   );
-  const isPrevDisabled = currentDateIndex <= 0;
+  // Disabled purely on "is today selected" (a real calendar floor), not on the
+  // selected tile's position within the current 7-day window — that used to
+  // disable this on first load (today always starts as the window's first
+  // tile), permanently, since a disabled button can never be clicked to shift
+  // the window and escape its own disabled state.
+  const isPrevDisabled = isTodaySelected;
   const isNextDisabled = currentDateIndex === -1 || currentDateIndex >= displayedDates.length - 1;
 
   const handleNavigatePrevious = () => {
+    if (isPrevDisabled || !selectedDate?.fullDate) return;
+
+    const previousDate = new Date(selectedDate.fullDate);
+    previousDate.setDate(previousDate.getDate() - 1);
+
     setDateOffset(prev => prev - 1);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
@@ -72,12 +82,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
         behavior: 'smooth',
       });
     }
-    if (isPrevDisabled) return;
-
-    const previousDate = displayedDates[currentDateIndex - 1];
-    if (previousDate) {
-      setSelectedDate({ day: previousDate.day, month: previousDate.month, fullDate: previousDate.fullDate });
-    }
+    setSelectedDate({ day: previousDate.getDate(), month: previousDate.getMonth(), fullDate: previousDate });
   };
 
   const handleNavigateNext = () => {
