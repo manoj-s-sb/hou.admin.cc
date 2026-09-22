@@ -6,6 +6,7 @@ import { getLocalUser } from '../../../constants/user';
 import { ACCESS_SCOPES, PermissionGate } from '../../../rbac';
 import api from '../../../services';
 import { Slot } from '../../../store/slots/types';
+import { isValidEmail } from '../../../utils/validation';
 import { formatSlotTime, parseSlotDateTime } from '../utils/timeFormat';
 
 const BLOCK_REASONS = [
@@ -19,6 +20,14 @@ const BLOCK_REASONS = [
 // A booking can only be cancelled up until this many minutes before its session starts.
 const CANCEL_CUTOFF_MINUTES = 6;
 
+export interface BookForSomeonePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  dateOfBirth: string;
+  notes: string;
+}
+
 interface SlotDetailsModalProps {
   slot: Slot | null;
   laneNo: number;
@@ -27,6 +36,8 @@ interface SlotDetailsModalProps {
   onBlockSlot: (reason: string, blockedByName: string) => void;
   onUnblockSlot: () => void;
   onCancelBooking: (reason: string) => void;
+  /** "Book for someone" — an available slot only. */
+  onBookForSomeone: (payload: BookForSomeonePayload) => void;
   isLoading?: boolean;
   /** The calendar's selected day (YYYY-MM-DD) — combined with the slot's start time
    * to gate the cancel-booking cutoff. */
@@ -43,6 +54,7 @@ const SlotDetailsModal = ({
   onBlockSlot,
   onUnblockSlot,
   onCancelBooking,
+  onBookForSomeone,
   isLoading = false,
   date,
   timeSlot,
@@ -61,13 +73,40 @@ const SlotDetailsModal = ({
   const [showCancelReason, setShowCancelReason] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
+  // "Block Slot" vs "Book for Someone" — only relevant while the slot is available.
+  const [availableAction, setAvailableAction] = useState<'block' | 'book'>('block');
+  const [bookFirstName, setBookFirstName] = useState('');
+  const [bookLastName, setBookLastName] = useState('');
+  const [bookEmail, setBookEmail] = useState('');
+  const [bookDob, setBookDob] = useState('');
+  const [bookNotes, setBookNotes] = useState('');
+
   useEffect(() => {
     if (isOpen) {
       setBlockedByName(getLocalUser().name);
       setShowCancelReason(false);
       setCancelReason('');
+      setAvailableAction('block');
+      setBookFirstName('');
+      setBookLastName('');
+      setBookEmail('');
+      setBookDob('');
+      setBookNotes('');
     }
   }, [isOpen]);
+
+  const canSubmitBooking = bookFirstName.trim().length > 0 && isValidEmail(bookEmail) && !!bookDob;
+
+  const handleSubmitBooking = () => {
+    if (!canSubmitBooking) return;
+    onBookForSomeone({
+      firstName: bookFirstName.trim(),
+      lastName: bookLastName.trim(),
+      email: bookEmail.trim(),
+      dateOfBirth: bookDob,
+      notes: bookNotes.trim(),
+    });
+  };
 
   const isBooked = !!slot?.isBooked && slot?.status?.toLowerCase() === 'confirmed';
   const userId = slot?.booking?.user?.userId;
@@ -269,6 +308,12 @@ const SlotDetailsModal = ({
                       <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.lanePin}</span>
                     </div>
                   )}
+                  {slot?.booking?.bookedByName && (
+                    <div className="flex justify-between">
+                      <span className="text-[14px] text-gray-600">Booked By:</span>
+                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.bookedByName}</span>
+                    </div>
+                  )}
                   {slot?.booking?.coach?.name && (
                     <div className="flex justify-between">
                       <span className="text-[14px] text-gray-600">Coach:</span>
@@ -313,8 +358,105 @@ const SlotDetailsModal = ({
             </div>
           </div>
 
-          {/* Block Reason Selection - Only show for available slots */}
+          {/* Available slot: choose between blocking it or booking it for someone */}
           {isAvailable && (
+            <div className="mb-5 flex overflow-hidden rounded-xl border border-[#B3DADA]">
+              <button
+                className={`flex-1 px-4 py-2.5 text-[13px] font-semibold transition-all ${
+                  availableAction === 'block' ? 'bg-[#21295A] text-white' : 'bg-white text-[#21295A] hover:bg-gray-50'
+                }`}
+                type="button"
+                onClick={() => setAvailableAction('block')}
+              >
+                Block Slot
+              </button>
+              <button
+                className={`flex-1 px-4 py-2.5 text-[13px] font-semibold transition-all ${
+                  availableAction === 'book' ? 'bg-[#21295A] text-white' : 'bg-white text-[#21295A] hover:bg-gray-50'
+                }`}
+                type="button"
+                onClick={() => setAvailableAction('book')}
+              >
+                Book for Someone
+              </button>
+            </div>
+          )}
+
+          {/* Book for Someone — first name, email, DOB are mandatory; last name/notes optional. */}
+          {isAvailable && availableAction === 'book' && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Book for Someone</h3>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-first-name">
+                      First Name *
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                      id="book-first-name"
+                      type="text"
+                      value={bookFirstName}
+                      onChange={e => setBookFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-last-name">
+                      Last Name
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                      id="book-last-name"
+                      type="text"
+                      value={bookLastName}
+                      onChange={e => setBookLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-email">
+                    Email *
+                  </label>
+                  <input
+                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    id="book-email"
+                    type="email"
+                    value={bookEmail}
+                    onChange={e => setBookEmail(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-dob">
+                    Date of Birth *
+                  </label>
+                  <input
+                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    id="book-dob"
+                    max={new Date().toISOString().slice(0, 10)}
+                    type="date"
+                    value={bookDob}
+                    onChange={e => setBookDob(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-notes">
+                    Notes <span className="font-normal text-gray-400">(optional)</span>
+                  </label>
+                  <textarea
+                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    id="book-notes"
+                    maxLength={500}
+                    rows={3}
+                    value={bookNotes}
+                    onChange={e => setBookNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Block Reason Selection */}
+          {isAvailable && availableAction === 'block' && (
             <div className="mb-5">
               <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
               <div className="space-y-3">
@@ -417,7 +559,7 @@ const SlotDetailsModal = ({
               </>
             ) : (
               <PermissionGate module={ACCESS_SCOPES.slots}>
-                {isAvailable && (
+                {isAvailable && availableAction === 'block' && (
                   <button
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                     disabled={isLoading || !selectedReason || !customReason.trim() || customReason.length > 500}
@@ -442,6 +584,33 @@ const SlotDetailsModal = ({
                           />
                         </svg>
                         Block Slot
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {isAvailable && availableAction === 'book' && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading || !canSubmitBooking}
+                    onClick={handleSubmitBooking}
+                  >
+                    {isLoading ? (
+                      <>
+                        <LoaderSpinner className="text-white" size="sm" />
+                        Booking...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                        Book Slot
                       </>
                     )}
                   </button>

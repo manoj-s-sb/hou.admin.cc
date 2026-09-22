@@ -98,6 +98,21 @@ const Members = () => {
     });
   }, []);
   const selectedMembers = useMemo(() => Array.from(selectedUserIds.values()), [selectedUserIds]);
+  // "Select all" only ever affects the members currently loaded on this page —
+  // selections made on other pages (already in the map) are left untouched.
+  const pageMemberIds = membersListData.members.map(m => m.userId);
+  const allOnPageSelected = pageMemberIds.length > 0 && pageMemberIds.every(id => selectedUserIds.has(id));
+  const toggleSelectAllOnPage = useCallback(() => {
+    setSelectedUserIds(prev => {
+      const next = new Map(prev);
+      const allSelected = membersListData.members.length > 0 && membersListData.members.every(m => next.has(m.userId));
+      membersListData.members.forEach(m => {
+        if (allSelected) next.delete(m.userId);
+        else next.set(m.userId, { userId: m.userId, name: `${m.firstName} ${m.lastName}`.trim(), email: m.email });
+      });
+      return next;
+    });
+  }, [membersListData.members]);
 
   const membersColumns: ColumnDef[] = useMemo(
     () => [
@@ -562,27 +577,38 @@ const Members = () => {
         </div>
       </div>
 
-      {canBulkEmail && selectedUserIds.size > 0 && (
-        <div className="mb-3 flex items-center justify-between rounded-lg border border-[#21295A]/20 bg-[#21295A]/5 px-4 py-2.5">
-          <span className="text-[13px] font-medium text-[#21295A]">
-            {selectedUserIds.size} member{selectedUserIds.size === 1 ? '' : 's'} selected
-          </span>
-          <div className="flex items-center gap-3">
-            <button
-              className="text-[12px] font-medium text-gray-500 hover:text-gray-700"
-              type="button"
-              onClick={() => setSelectedUserIds(new Map())}
-            >
-              Clear
-            </button>
-            <button
-              className="rounded-lg bg-[#21295A] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d3570]"
-              type="button"
-              onClick={() => setShowBulkEmail(true)}
-            >
-              Email Selected ({selectedUserIds.size})
-            </button>
-          </div>
+      {canBulkEmail && pageMemberIds.length > 0 && (
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-2">
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-gray-600">
+            <input
+              checked={allOnPageSelected}
+              className="h-4 w-4 rounded border-gray-300 text-[#21295A] focus:ring-[#21295A]"
+              type="checkbox"
+              onChange={toggleSelectAllOnPage}
+            />
+            Select all {pageMemberIds.length} on this page
+          </label>
+          {selectedUserIds.size > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="text-[13px] font-medium text-[#21295A]">
+                {selectedUserIds.size} member{selectedUserIds.size === 1 ? '' : 's'} selected
+              </span>
+              <button
+                className="text-[12px] font-medium text-gray-500 hover:text-gray-700"
+                type="button"
+                onClick={() => setSelectedUserIds(new Map())}
+              >
+                Clear
+              </button>
+              <button
+                className="rounded-lg bg-[#21295A] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d3570]"
+                type="button"
+                onClick={() => setShowBulkEmail(true)}
+              >
+                Email Selected ({selectedUserIds.size})
+              </button>
+            </div>
+          )}
         </div>
       )}
 

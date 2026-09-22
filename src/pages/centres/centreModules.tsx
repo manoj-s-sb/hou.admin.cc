@@ -4,7 +4,9 @@ import { ACCESS_SCOPES } from '../../rbac/constants';
 import CoachSchedule from '../coach';
 import Induction from '../induction';
 import Members from '../members';
-import Notifications from '../notifications';
+// Notifications: import kept alongside its commented-out module entry below —
+// re-enable both together once a real spec exists.
+// import Notifications from '../notifications';
 import SlotBookings from '../slots';
 import Tailgate from '../tailgate';
 import Tickets from '../tickets';
@@ -194,22 +196,24 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
           </>
         ),
       },
-      {
-        // UI only — bulk push/email composer + history, no API wiring yet
-        // (backend module not registered, so ACCESS_SCOPES.notifications only
-        // resolves true for superadmins until then — see rbac/constants.ts).
-        key: 'notifications',
-        label: 'Notifications',
-        slug: 'notifications',
-        component: Notifications,
-        scope: ACCESS_SCOPES.notifications,
-        icon: I(
-          <>
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </>
-        ),
-      },
+      // Notifications: pulled from the sidebar/routes for now — it's a UI-only
+      // mockup (no backend, no real send) built before the actual audience/
+      // channel rules and design were settled. Left commented rather than
+      // deleted so the Push/Email toggle + real-member-search work already
+      // done isn't lost — re-enable this entry once a real spec exists.
+      // {
+      //   key: 'notifications',
+      //   label: 'Notifications',
+      //   slug: 'notifications',
+      //   component: Notifications,
+      //   scope: ACCESS_SCOPES.notifications,
+      //   icon: I(
+      //     <>
+      //       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      //       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      //     </>
+      //   ),
+      // },
     ],
   },
   {

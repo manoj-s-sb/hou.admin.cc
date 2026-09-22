@@ -9,6 +9,8 @@ const endpoints = {
     updateLaneStatus: `${API_PREFIX}/admin/slots/status/update`,
     coachSlots: `${API_PREFIX}/admin/coach/calendar`,
     updateCoachSlots: `${API_PREFIX}/admin/coach/status/update`,
+    // "Book for someone" — admin books a lane slot for a walk-in/phone caller.
+    createBooking: `${API_PREFIX}/admin/bookings/create`,
   },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,

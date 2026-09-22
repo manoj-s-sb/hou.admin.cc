@@ -3,7 +3,7 @@ import { Fragment, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { getSlots, updateLaneStatus } from '../../../store/slots/api';
+import { createBooking, getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { cancelBookingLocally } from '../../../store/slots/reducers';
 import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
@@ -11,7 +11,7 @@ import { AppDispatch, RootState } from '../../../store/store';
 import BlockTimeSlotModal from './BlockTimeSlotModal';
 import LaneDetailsModal from './LaneDetailsModal';
 import MultiBlockModal from './MultiBlockModal';
-import SlotDetailsModal from './SlotDetailsModal';
+import SlotDetailsModal, { BookForSomeonePayload } from './SlotDetailsModal';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
@@ -264,6 +264,30 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
       } catch (error) {
         toast.error((error as Error)?.message || 'Failed to unblock slot.', { duration: 5000 });
       }
+    }
+  };
+
+  const handleBookForSomeone = async (payload: BookForSomeonePayload) => {
+    if (!selectedSlot) return;
+    try {
+      const result = await dispatch(
+        createBooking({
+          slotCode: selectedSlot.slot.slotCode,
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+          email: payload.email,
+          dateOfBirth: payload.dateOfBirth,
+          notes: payload.notes,
+        })
+      ).unwrap();
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success(
+        result?.bookingCode ? `Slot booked! Booking code: ${result.bookingCode}` : 'Slot booked successfully!',
+        { duration: 6000 }
+      );
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to book slot.', { duration: 5000 });
     }
   };
 
@@ -582,6 +606,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           slot={selectedSlot.slot}
           timeSlot={timeSlots[selectedSlot.slotIndex]}
           onBlockSlot={handleBlockSlot}
+          onBookForSomeone={handleBookForSomeone}
           onCancelBooking={handleCancelBooking}
           onClose={handleCloseSlotModal}
           onUnblockSlot={handleUnblockSlot}

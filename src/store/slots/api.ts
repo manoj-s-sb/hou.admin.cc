@@ -4,7 +4,7 @@ import endpoints from '../../constants/endpoints';
 import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
-import { CoachSlotsRequest, GetSlotsRequest, UpdateLaneStatusRequest } from './types';
+import { CoachSlotsRequest, CreateBookingRequest, GetSlotsRequest, UpdateLaneStatusRequest } from './types';
 
 export const getSlots = createAsyncThunk(
   'slots/getSlots',
@@ -84,6 +84,19 @@ export const updateCoachSlots = createAsyncThunk(
       return response.data?.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to update coach slots'));
+    }
+  }
+);
+
+/** "Book for someone" — books a lane slot on a walk-in/phone caller's behalf. */
+export const createBooking = createAsyncThunk(
+  'slots/createBooking',
+  async (request: CreateBookingRequest, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.slots.createBooking, request);
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to create booking'));
     }
   }
 );

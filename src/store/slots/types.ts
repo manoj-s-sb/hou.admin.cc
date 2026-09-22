@@ -26,6 +26,9 @@ export interface BookingDetails {
   coach: {
     name: string;
   };
+  // Set only when an admin booked this on someone's behalf via "Book for
+  // Someone" — absent for a member's own self-booking.
+  bookedByName?: string;
 }
 
 export interface Slot {
@@ -75,6 +78,31 @@ export interface UpdateLaneStatusRequest {
   startTime?: string;
   // Display name of who is blocking the slot — see Slot.disabledByName.
   blockedByName?: string;
+}
+
+/** "Book for someone" — an admin books a lane slot on a walk-in/phone
+ * caller's behalf. Always free/comp; no payment fields exist on this
+ * request. */
+export interface CreateBookingRequest {
+  slotCode: string;
+  firstName: string;
+  lastName?: string;
+  email: string;
+  dateOfBirth: string; // YYYY-MM-DD
+  notes?: string;
+}
+
+export interface CreateBookingResponse {
+  bookingCode: string;
+  bookingId: string;
+  userId: string;
+  userCreated: boolean;
+  slotCode: string;
+  status: string;
+  date: string;
+  startTime: string;
+  notified: boolean;
+  alreadyExisted: boolean;
 }
 
 export interface CoachSlotsRequest {

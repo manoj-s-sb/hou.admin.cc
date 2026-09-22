@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-import { coachSlots, getSlots, updateLaneStatus } from './api';
+import { coachSlots, createBooking, getSlots, updateLaneStatus } from './api';
 import { initialState } from './types';
 
 const slotsSlice = createSlice({
@@ -44,6 +44,20 @@ const slotsSlice = createSlice({
       state.error = null;
     });
     builder.addCase(updateLaneStatus.rejected, (state, action) => {
+      state.isBlockLaneLoading = false;
+      state.error = (action.payload as string) ?? null;
+    });
+    builder.addCase(createBooking.pending, state => {
+      // Same flag Block/Unblock/Cancel already share as the modal's generic
+      // "an action is in flight" indicator.
+      state.isBlockLaneLoading = true;
+      state.error = null;
+    });
+    builder.addCase(createBooking.fulfilled, state => {
+      state.isBlockLaneLoading = false;
+      state.error = null;
+    });
+    builder.addCase(createBooking.rejected, (state, action) => {
       state.isBlockLaneLoading = false;
       state.error = (action.payload as string) ?? null;
     });
