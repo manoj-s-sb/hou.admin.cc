@@ -133,6 +133,12 @@ const SlotDetailsModal = ({
 
   const isBooked = !!slot?.isBooked && slot?.status?.toLowerCase() === 'confirmed';
   const userId = slot?.booking?.user?.userId;
+  // An admin-made booking is owned by the admin, not the player -- the player
+  // is stored as guests[0]. `bookedByName` only gets set on that path, so it
+  // doubles as the signal to swap which identity is shown as "the booking".
+  const isAdminBooking = !!slot?.booking?.bookedByName;
+  const primaryGuest = isAdminBooking ? slot?.booking?.guests?.[0] : undefined;
+  const additionalGuests = isAdminBooking ? (slot?.booking?.guests ?? []).slice(1) : [];
 
   // The slots list doesn't carry the member's plan — fetch it separately via
   // the same member-details lookup the Members page uses, keyed off the
@@ -294,90 +300,186 @@ const SlotDetailsModal = ({
               {/* Booking Details - Show if slot is booked */}
               {isBooked && slot.booking?.user && (
                 <>
-                  {slot.booking.user.firstName && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Name:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">
-                        {slot.booking.user.firstName} {slot.booking.user.lastName || ''}
-                      </span>
-                    </div>
-                  )}
-                  {slot.booking.user.email && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Email:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.email}</span>
-                    </div>
-                  )}
-                  {slot.booking.user.phone && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Phone:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.phone}</span>
-                    </div>
-                  )}
-                  {(isPlanLoading || membershipPlan) && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Membership Plan:</span>
-                      <span className="text-[14px] font-medium capitalize text-[#21295A]">
-                        {isPlanLoading ? 'Loading…' : membershipPlan}
-                      </span>
-                    </div>
-                  )}
-                  {slot?.booking?.facilityPin && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Facility Pin:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.facilityPin}</span>
-                    </div>
-                  )}
-                  {slot?.booking?.lanePin && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Lane Pin:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.lanePin}</span>
-                    </div>
-                  )}
-                  {slot?.booking?.bookedByName && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Booked By:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.bookedByName}</span>
-                    </div>
-                  )}
-                  {slot?.booking?.coach?.name && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Coach:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.coach.name}</span>
-                    </div>
-                  )}
-                  {slot?.booking?.guests && slot.booking.guests.length > 0 && (
-                    <div className="mt-3 border-t border-[#E5F0F0] pt-3">
-                      <div className="mb-2">
-                        <span className="text-[14px] font-semibold text-[#F97316]">
-                          Guest{slot.booking.guests.length > 1 ? 's' : ''} ({slot.booking.guests.length})
+                  {isAdminBooking ? (
+                    <>
+                      {/* This booking is owned by the admin who created it (so the
+                          existing guest-invite flow works unmodified) — the actual
+                          player is `guests[0]`, not `booking.user`. Surfacing
+                          `booking.user`'s own name/email/phone here would show the
+                          admin's own login details as if they were the player, so
+                          they're deliberately left out of this branch. */}
+                      <div className="flex justify-between">
+                        <span className="text-[14px] text-gray-600">Booked By:</span>
+                        <span className="text-[14px] font-medium text-[#21295A]">
+                          {slot.booking.bookedByName} <span className="font-normal text-gray-400">(Admin)</span>
                         </span>
                       </div>
-                      <div className="space-y-2">
-                        {slot.booking.guests.map((guest, index) => (
-                          <div key={index} className="rounded-lg bg-orange-50 p-3">
-                            <div className="flex justify-between">
-                              <span className="text-[13px] text-gray-600">Name:</span>
-                              <span className="text-[13px] font-medium text-[#21295A]">{guest.name}</span>
-                            </div>
-                            {guest.email && (
-                              <div className="flex justify-between">
-                                <span className="text-[13px] text-gray-600">Email:</span>
-                                <span className="text-[13px] font-medium text-[#21295A]">{guest.email}</span>
-                              </div>
-                            )}
-                            <div className="flex justify-between">
-                              <span className="text-[13px] text-gray-600">Member:</span>
-                              <span
-                                className={`text-[13px] font-medium ${guest.isMember ? 'text-green-600' : 'text-gray-500'}`}
-                              >
-                                {guest.isMember ? 'Yes' : 'No'}
-                              </span>
-                            </div>
+                      {slot?.booking?.facilityPin && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Facility Pin:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.facilityPin}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.lanePin && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Lane Pin:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.lanePin}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.coach?.name && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Coach:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.coach.name}</span>
+                        </div>
+                      )}
+
+                      {/* The actual person who'll show up — this is the primary
+                          content of the card for an admin-made booking, not a
+                          secondary "guest" tagging along. */}
+                      {primaryGuest && (
+                        <div className="mt-3 border-t border-[#E5F0F0] pt-3">
+                          <div className="mb-2">
+                            <span className="text-[14px] font-semibold text-[#21295A]">Booked For</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          <div className="flex justify-between">
+                            <span className="text-[14px] text-gray-600">Name:</span>
+                            <span className="text-[14px] font-medium text-[#21295A]">{primaryGuest.name}</span>
+                          </div>
+                          {primaryGuest.email && (
+                            <div className="flex justify-between">
+                              <span className="text-[14px] text-gray-600">Email:</span>
+                              <span className="text-[14px] font-medium text-[#21295A]">{primaryGuest.email}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-[14px] text-gray-600">Existing Member:</span>
+                            <span
+                              className={`text-[14px] font-medium ${primaryGuest.isMember ? 'text-green-600' : 'text-gray-500'}`}
+                            >
+                              {primaryGuest.isMember ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Anyone beyond the primary booked-for person is a genuine
+                          extra guest — same styling the self-booking path below uses. */}
+                      {additionalGuests.length > 0 && (
+                        <div className="mt-3 border-t border-[#E5F0F0] pt-3">
+                          <div className="mb-2">
+                            <span className="text-[14px] font-semibold text-[#F97316]">
+                              Guest{additionalGuests.length > 1 ? 's' : ''} ({additionalGuests.length})
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {additionalGuests.map((guest, index) => (
+                              <div key={index} className="rounded-lg bg-orange-50 p-3">
+                                <div className="flex justify-between">
+                                  <span className="text-[13px] text-gray-600">Name:</span>
+                                  <span className="text-[13px] font-medium text-[#21295A]">{guest.name}</span>
+                                </div>
+                                {guest.email && (
+                                  <div className="flex justify-between">
+                                    <span className="text-[13px] text-gray-600">Email:</span>
+                                    <span className="text-[13px] font-medium text-[#21295A]">{guest.email}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between">
+                                  <span className="text-[13px] text-gray-600">Member:</span>
+                                  <span
+                                    className={`text-[13px] font-medium ${guest.isMember ? 'text-green-600' : 'text-gray-500'}`}
+                                  >
+                                    {guest.isMember ? 'Yes' : 'No'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {slot.booking.user.firstName && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Name:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">
+                            {slot.booking.user.firstName} {slot.booking.user.lastName || ''}
+                          </span>
+                        </div>
+                      )}
+                      {slot.booking.user.email && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Email:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.email}</span>
+                        </div>
+                      )}
+                      {slot.booking.user.phone && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Phone:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.phone}</span>
+                        </div>
+                      )}
+                      {(isPlanLoading || membershipPlan) && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Membership Plan:</span>
+                          <span className="text-[14px] font-medium capitalize text-[#21295A]">
+                            {isPlanLoading ? 'Loading…' : membershipPlan}
+                          </span>
+                        </div>
+                      )}
+                      {slot?.booking?.facilityPin && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Facility Pin:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.facilityPin}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.lanePin && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Lane Pin:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.lanePin}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.coach?.name && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Coach:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.coach.name}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.guests && slot.booking.guests.length > 0 && (
+                        <div className="mt-3 border-t border-[#E5F0F0] pt-3">
+                          <div className="mb-2">
+                            <span className="text-[14px] font-semibold text-[#F97316]">
+                              Guest{slot.booking.guests.length > 1 ? 's' : ''} ({slot.booking.guests.length})
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {slot.booking.guests.map((guest, index) => (
+                              <div key={index} className="rounded-lg bg-orange-50 p-3">
+                                <div className="flex justify-between">
+                                  <span className="text-[13px] text-gray-600">Name:</span>
+                                  <span className="text-[13px] font-medium text-[#21295A]">{guest.name}</span>
+                                </div>
+                                {guest.email && (
+                                  <div className="flex justify-between">
+                                    <span className="text-[13px] text-gray-600">Email:</span>
+                                    <span className="text-[13px] font-medium text-[#21295A]">{guest.email}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between">
+                                  <span className="text-[13px] text-gray-600">Member:</span>
+                                  <span
+                                    className={`text-[13px] font-medium ${guest.isMember ? 'text-green-600' : 'text-gray-500'}`}
+                                  >
+                                    {guest.isMember ? 'Yes' : 'No'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
