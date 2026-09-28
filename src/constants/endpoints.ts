@@ -146,6 +146,12 @@ const endpoints = {
   // period, startDate, endDate) are passed as query params; the `tab` selects the
   // response shape (overview | membership | utilisation | sessions | capacity).
   reports: `${API_PREFIX}/admin/reports`,
+  wallets: {
+    // POST — every filter optional; {} returns the newest page across all members.
+    transactionsList: `${API_PREFIX}/admin/wallets/transactions/list`,
+    // POST — superadmin only (403 for every other role). { userId | email, amount, reason }.
+    credit: `${API_PREFIX}/admin/wallets/credit`,
+  },
 };
 
 export default endpoints;

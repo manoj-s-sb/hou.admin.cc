@@ -22,13 +22,18 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
+import CreditWalletModal from '../../components/wallet/CreditWalletModal';
 import countries from '../../constants/countries.json';
+import endpoints from '../../constants/endpoints';
 import { getRelationshipLabel } from '../../constants/relationship';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getFacilityCode } from '../../constants/user';
+import { isSuperAdmin } from '../../rbac';
+import api from '../../services';
 import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
+import { WalletTransactionListResponse } from '../../store/wallet/types';
 
 import AdminNotesSection from './components/AdminNotesSection';
 import SendEmailSection from './components/SendEmailSection';
@@ -73,8 +78,31 @@ const ViewMembers = () => {
   const [expandedCycles, setExpandedCycles] = useState<number[]>([]);
   const [showAllCycles, setShowAllCycles] = useState(false);
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
+  // No dedicated "get balance" endpoint exists — derived from this member's
+  // most recent wallet transaction (the list endpoint's newest-first row's
+  // `balanceAfter`). null while unresolved, 0 once confirmed no wallet yet.
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [isWalletLoading, setIsWalletLoading] = useState(false);
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+  const canCreditWallet = isSuperAdmin();
 
   const { userId } = useParams();
+
+  const refreshWalletBalance = () => {
+    if (!userId) return;
+    setIsWalletLoading(true);
+    // Called directly (not via the `wallet` Redux slice's listWalletTransactions
+    // thunk) — that slice is shared with the Wallet Transactions list page, and
+    // this lookup's limit:1 would overwrite its pagination state if dispatched.
+    api
+      .post(endpoints.wallets.transactionsList, { userId, page: 1, limit: 1 })
+      .then(res => {
+        const response: WalletTransactionListResponse = res.data?.data;
+        setWalletBalance(response.transactions[0]?.balanceAfter ?? 0);
+      })
+      .catch(() => setWalletBalance(null))
+      .finally(() => setIsWalletLoading(false));
+  };
 
   const getCountryDialCode = (countryCode: string | undefined) => {
     if (!countryCode) return '';
@@ -110,6 +138,11 @@ const ViewMembers = () => {
   useEffect(() => {
     dispatch(getSingleMemberDetails({ userId: userId as string }));
   }, [dispatch, userId]);
+
+  useEffect(() => {
+    refreshWalletBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) {
@@ -228,6 +261,27 @@ const ViewMembers = () => {
                   </button>
                 </div> */}
               </div>
+            </div>
+          </div>
+
+          {/* Wallet Card */}
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="flex flex-col items-start justify-between gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-6">
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase text-gray-500">Wallet Balance</p>
+                <p className="text-xl font-semibold text-green-600">
+                  {isWalletLoading || walletBalance === null ? '—' : `$${walletBalance.toFixed(2)}`}
+                </p>
+              </div>
+              <button
+                className="rounded-lg bg-[#21295A] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!canCreditWallet}
+                title={canCreditWallet ? undefined : 'Only a superadmin can credit a wallet'}
+                type="button"
+                onClick={() => canCreditWallet && setIsCreditModalOpen(true)}
+              >
+                + Add Wallet
+              </button>
             </div>
           </div>
 
@@ -1074,6 +1128,17 @@ const ViewMembers = () => {
           </div>
         </div>
       )}
+
+      <CreditWalletModal
+        isOpen={isCreditModalOpen}
+        presetMember={{
+          userId: memberDetails.userId,
+          name: `${memberDetails.firstName} ${memberDetails.lastName}`.trim(),
+          email: memberDetails.email,
+        }}
+        onClose={() => setIsCreditModalOpen(false)}
+        onCredited={refreshWalletBalance}
+      />
     </div>
   );
 };

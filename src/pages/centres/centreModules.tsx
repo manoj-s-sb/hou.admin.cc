@@ -12,6 +12,7 @@ import Tailgate from '../tailgate';
 import Tickets from '../tickets';
 import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
+import WalletTransactions from '../wallet';
 
 import Facilities from './facilities';
 import PlansPricing from './plans';
@@ -65,6 +66,26 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
           <>
             <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
             <circle cx="9" cy="7" r="4" />
+          </>
+        ),
+      },
+      {
+        // Backend maps every /admin/wallets/* route to the "members" module
+        // (see shared/menu_permissions.py) — there's no separate wallet scope,
+        // so this reuses ACCESS_SCOPES.members rather than inventing one the
+        // backend wouldn't actually recognize. Crediting is separately
+        // hard-gated to superadmin only, checked directly (isSuperAdmin()),
+        // independent of this module scope.
+        key: 'wallet',
+        label: 'Wallet Transactions',
+        slug: 'wallet',
+        component: WalletTransactions,
+        scope: ACCESS_SCOPES.members,
+        icon: I(
+          <>
+            <rect height="16" rx="2" width="20" x="2" y="4" />
+            <path d="M2 9h20" />
+            <circle cx="17" cy="14.5" fill="currentColor" r="1.5" stroke="none" />
           </>
         ),
       },
