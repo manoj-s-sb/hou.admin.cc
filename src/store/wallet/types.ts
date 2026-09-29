@@ -8,6 +8,8 @@ export interface WalletTransactionListRequest {
   limit?: number;
   userId?: string;
   email?: string;
+  /** Centre-scopes the list to this facility's members. */
+  facilityCode?: string;
   transactionType?: 'credit' | 'debit';
   sourceType?: string;
   startDate?: string;
@@ -19,6 +21,8 @@ export interface WalletTransactionItem {
   userId: string;
   userName: string;
   email: string;
+  /** "" for a walk-in/no-subscription member (or a deleted account). */
+  subscriptionCode: string;
   amount: number;
   currency: string;
   transactionType: string;
@@ -36,6 +40,21 @@ export interface WalletTransactionListResponse {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+/** Max 100 per call — a page of members already resolved elsewhere (the Members list). */
+export interface WalletBalancesRequest {
+  userIds: string[];
+}
+
+export interface WalletBalanceItem {
+  userId: string;
+  balance: number;
+  currency: string;
+}
+
+export interface WalletBalancesResponse {
+  balances: WalletBalanceItem[];
 }
 
 /** Either `userId` or `email` identifies the member — `userId` wins when both are sent. */

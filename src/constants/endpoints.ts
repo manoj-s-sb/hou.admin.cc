@@ -149,6 +149,9 @@ const endpoints = {
   wallets: {
     // POST — every filter optional; {} returns the newest page across all members.
     transactionsList: `${API_PREFIX}/admin/wallets/transactions/list`,
+    // POST { userIds: string[] } (max 100) — real balances for a page of members
+    // already resolved elsewhere (the Members list), not a search of its own.
+    balances: `${API_PREFIX}/admin/wallets/balances`,
     // POST — superadmin only (403 for every other role). { userId | email, amount, reason }.
     credit: `${API_PREFIX}/admin/wallets/credit`,
   },

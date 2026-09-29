@@ -94,6 +94,10 @@ const ViewMembers = () => {
     // Called directly (not via the `wallet` Redux slice's listWalletTransactions
     // thunk) — that slice is shared with the Wallet Transactions list page, and
     // this lookup's limit:1 would overwrite its pagination state if dispatched.
+    // No facilityCode here on purpose: userId alone already scopes this to
+    // exactly one member, and combining it with a facilityCode ANDs both
+    // conditions server-side — if backFacilityCode ever mismatched this
+    // member's actual centre, the balance would silently come back empty.
     api
       .post(endpoints.wallets.transactionsList, { userId, page: 1, limit: 1 })
       .then(res => {

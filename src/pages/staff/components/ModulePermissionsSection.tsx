@@ -62,6 +62,7 @@ export const mergeDualScope = (grid: PermGrid, moduleId: string): { view: boolea
 
 const CENTRE_SUB_MODULE_ORDER = [
   'members',
+  'wallettransactions',
   'slotbooking',
   'induction',
   'tour',

@@ -17,6 +17,7 @@ export const SUPER_ADMIN_ONLY = '__superadmin__';
 // below) until every backend environment is on the same schema.
 export const MODULES = {
   MEMBERS: 'members',
+  WALLET_TRANSACTIONS: 'wallettransactions',
   SLOT_BOOKING: 'slotbooking',
   COACH_SCHEDULE: 'coachschedule',
   REPORTS: 'reports',
@@ -48,6 +49,7 @@ export const MODULES = {
 // required action on ANY of the modules listed here.
 export const ACCESS_SCOPES = {
   members: [MODULES.MEMBERS],
+  walletTransactions: [MODULES.WALLET_TRANSACTIONS],
   slots: [MODULES.SLOT_BOOKING],
   coaches: [MODULES.COACH_SCHEDULE],
   reports: [MODULES.REPORTS],

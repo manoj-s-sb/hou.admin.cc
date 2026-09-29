@@ -70,26 +70,6 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         ),
       },
       {
-        // Backend maps every /admin/wallets/* route to the "members" module
-        // (see shared/menu_permissions.py) — there's no separate wallet scope,
-        // so this reuses ACCESS_SCOPES.members rather than inventing one the
-        // backend wouldn't actually recognize. Crediting is separately
-        // hard-gated to superadmin only, checked directly (isSuperAdmin()),
-        // independent of this module scope.
-        key: 'wallet',
-        label: 'Wallet Transactions',
-        slug: 'wallet',
-        component: WalletTransactions,
-        scope: ACCESS_SCOPES.members,
-        icon: I(
-          <>
-            <rect height="16" rx="2" width="20" x="2" y="4" />
-            <path d="M2 9h20" />
-            <circle cx="17" cy="14.5" fill="currentColor" r="1.5" stroke="none" />
-          </>
-        ),
-      },
-      {
         key: 'bookings',
         label: 'Slot Bookings',
         slug: 'slot-bookings',
@@ -214,6 +194,26 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
             <line x1="8" x2="8" y1="2" y2="6" />
             <line x1="3" x2="21" y1="10" y2="10" />
             <rect fill="currentColor" height="4" stroke="none" width="4" x="7" y="13" />
+          </>
+        ),
+      },
+      {
+        // Its own grantable module (see shared/menu_permissions.py's
+        // /admin/wallets -> "wallettransactions" mapping, and the live
+        // menupermission doc, which now carries this id too) — a staff
+        // member's Role & Access grid controls who can even reach this page.
+        // Crediting is separately hard-gated to superadmin only, checked
+        // directly (isSuperAdmin()), independent of this module scope.
+        key: 'wallet',
+        label: 'Wallet Transactions',
+        slug: 'wallet',
+        component: WalletTransactions,
+        scope: ACCESS_SCOPES.walletTransactions,
+        icon: I(
+          <>
+            <rect height="16" rx="2" width="20" x="2" y="4" />
+            <path d="M2 9h20" />
+            <circle cx="17" cy="14.5" fill="currentColor" r="1.5" stroke="none" />
           </>
         ),
       },

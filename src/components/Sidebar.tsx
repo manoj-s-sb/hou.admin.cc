@@ -307,7 +307,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   <GroupLabel>{g.group}</GroupLabel>
                   {visibleItems.map(m => {
                     const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
-                    const isActive = location.pathname === modulePath;
+                    // Member Details (/members/:userId) is a standalone route outside
+                    // the centre-module shell (see ROUTES.VIEW_MEMBERS) — an exact-path
+                    // match alone leaves the Members item unhighlighted while viewing
+                    // it, exactly the gap the OTHER nav branch below already closes for
+                    // its own '/view-members' route.
+                    const isActive =
+                      location.pathname === modulePath ||
+                      (m.key === 'members' && location.pathname.startsWith('/members/'));
                     return (
                       <button
                         key={m.key}
