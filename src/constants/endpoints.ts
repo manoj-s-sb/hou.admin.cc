@@ -9,6 +9,10 @@ const endpoints = {
     updateLaneStatus: `${API_PREFIX}/admin/slots/status/update`,
     coachSlots: `${API_PREFIX}/admin/coach/calendar`,
     updateCoachSlots: `${API_PREFIX}/admin/coach/status/update`,
+    // "Book for someone" — admin books a lane slot for a walk-in/phone caller.
+    createBooking: `${API_PREFIX}/admin/bookings/create`,
+    // "Shift Lane" — moves an existing booking to another lane's slot at the same time.
+    editBooking: `${API_PREFIX}/admin/bookings/edit`,
   },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,
@@ -26,6 +30,7 @@ const endpoints = {
     notesDelete: `${API_PREFIX}/admin/member/notes/delete`,
     emailsList: `${API_PREFIX}/admin/member/emails/list`,
     emailsSend: `${API_PREFIX}/admin/member/emails/send`,
+    emailsBulkSend: `${API_PREFIX}/admin/members/email/bulk-send`,
     emailUploadUrl: `${API_PREFIX}/admin/members/email/upload-url`,
   },
   tour: {
@@ -64,6 +69,11 @@ const endpoints = {
     updateBookingStatus: `${API_PREFIX}/admin/induction/bookingstatus/update`,
     activateSubscription: `${API_PREFIX}/subscription/admin/activate`,
     userInductionDetails: `${API_PREFIX}/admin/induction/details`,
+    // POST { userId } — records which admin activated this member's subscription
+    // after induction (attribution only; doesn't change booking status, which
+    // already auto-completes when the member finishes onboarding). Shown on the
+    // Calendar's induction event as "Completed By".
+    markActivated: `${API_PREFIX}/admin/induction/activated`,
   },
   centres: {
     // New doc-bundle model (live backend) — all POST.
@@ -136,6 +146,15 @@ const endpoints = {
   // period, startDate, endDate) are passed as query params; the `tab` selects the
   // response shape (overview | membership | utilisation | sessions | capacity).
   reports: `${API_PREFIX}/admin/reports`,
+  wallets: {
+    // POST — every filter optional; {} returns the newest page across all members.
+    transactionsList: `${API_PREFIX}/admin/wallets/transactions/list`,
+    // POST { userIds: string[] } (max 100) — real balances for a page of members
+    // already resolved elsewhere (the Members list), not a search of its own.
+    balances: `${API_PREFIX}/admin/wallets/balances`,
+    // POST — superadmin only (403 for every other role). { userId | email, amount, reason }.
+    credit: `${API_PREFIX}/admin/wallets/credit`,
+  },
 };
 
 export default endpoints;

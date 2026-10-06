@@ -7,6 +7,7 @@ import NumberInput from '../../../components/NumberInput';
 import { createCentre, updateCentre } from '../../../store/centres/api';
 import { getMemberships } from '../../../store/memberships/api';
 import { AppDispatch, RootState } from '../../../store/store';
+import { EMAIL_RE } from '../../../utils/validation';
 import {
   COUNTRIES,
   COUNTRY_DIAL_CODES,
@@ -171,7 +172,6 @@ const dialCodeOf = (phone: string): string => /^\+\d{1,3}/.exec(phone.trim())?.[
 const stripDialCode = (phone: string): string => phone.trim().replace(/^\+\d{1,3}\s*/, '');
 
 const SHORT_CODE_RE = /^[A-Z0-9]{3,6}$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const toNum = (v: number | '') => (v === '' ? 0 : Number(v));
 
 // "HH:mm" → minutes since 00:00. Returns NaN on bad input.

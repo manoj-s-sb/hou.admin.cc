@@ -104,7 +104,25 @@ const toWizardHours = (hours: OperatingHoursMap | undefined): OperatingHoursDay[
   });
 
 const is24x7Hours = (hours: OperatingHoursMap | undefined): boolean =>
-  !!hours && DAY_KEYS.every(k => (hours[k] ?? [])[0] === '00:00-23:59');
+  !!hours &&
+  DAY_KEYS.every(k => {
+    const [range] = hours[k] ?? [];
+    return range === '00:00-24:00' || range === '00:00-23:59';
+  });
+
+/** Inverse of buildCreatePayload.ts's COUNTRY_ISO_ALPHA3 — maps a stored ISO
+ * alpha-3 code (either case) back to the wizard dropdown's short code so the
+ * Country <select> shows the right option when editing an existing centre. */
+const COUNTRY_ALPHA3_TO_WIZARD: Record<string, string> = {
+  AUS: 'AU',
+  USA: 'US',
+  GBR: 'UK',
+  ARE: 'UAE',
+  IND: 'IN',
+  NZL: 'NZ',
+  ZAF: 'ZA',
+};
+const fromIso3 = (code: string): string => COUNTRY_ALPHA3_TO_WIZARD[code.toUpperCase()] ?? code;
 
 const guestRulesOf = (m: ApiMembership): Record<string, unknown> =>
   (m.bookingRules?.guestBookingRules as Record<string, unknown>) ?? {};
@@ -153,7 +171,10 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
       fortnightlyPrice: num(regular.fortnightly),
       annualPrice: num(regular.annual),
       allocatedSlots,
-      joiningFee: num(m.registrationFee),
+      // registrationFee is an object on real docs ({enabled, amount, ...}, see
+      // buildCreatePayload.ts's buildMemberships) — a bare number is only ever a
+      // legacy/malformed doc, tolerated as a fallback.
+      joiningFee: num((m.registrationFee as { amount?: unknown })?.amount ?? m.registrationFee),
       memberCap: allocatedSlots,
       // Not carried on ApiMembership — best-effort default; user can re-set in step 4.
       isFoundationEligible: false,
@@ -187,7 +208,7 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     city: addr?.city ?? facility.cityCode ?? '',
     state: addr?.state ?? facility.stateCode ?? '',
     postcode: addr?.postcode ?? '',
-    country: addr?.country ?? facility.countryCode ?? '',
+    country: fromIso3(addr?.country || facility.countryCode || ''),
     timezone: facility.timezone ?? '',
     phone: facility.contact?.phones?.[0]?.phone ?? '',
     email: facility.contact?.email ?? '',

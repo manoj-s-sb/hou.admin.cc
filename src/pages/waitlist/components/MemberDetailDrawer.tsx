@@ -3,23 +3,8 @@ import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 
 import { AdminNote, ContactStatus, StatusHistoryEntry } from '../../../store/centres/types';
+import { avatarColor, initials } from '../../../utils/avatar';
 import { formatDate } from '../../../utils/dateUtils';
-
-const AVATAR_COLORS = ['#21295A', '#008482', '#d97706', '#7c3aed', '#0891b2', '#d42b2b'];
-
-const initials = (text: string): string =>
-  text
-    .split(/[\s@._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(p => Array.from(p)[0]?.toUpperCase() ?? '')
-    .join('') || '—';
-
-const avatarColor = (seed: string): string => {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash + seed.charCodeAt(i)) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[hash];
-};
 
 const noteTimestamp = (value: string): string =>
   formatDate(value, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }, 'en-GB');

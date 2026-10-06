@@ -58,13 +58,27 @@ const MetaFields = ({ event }: { event: CalendarEvent }) => {
   if (event.type === 'induction' || event.type === 'tour') {
     const name = `${meta.firstName ?? ''} ${meta.lastName ?? ''}`.trim();
     const timeSlot = meta.timeSlot as { startTime?: string; endTime?: string } | undefined;
+    const status = meta.status as string | undefined;
+    // Which admin last changed this booking's status (completed/noshow/cancelled) —
+    // stored as updatedByName on the booking doc; absent for bookings that have
+    // never had an admin action, or that predate this field being added.
+    const updatedByName = meta.updatedByName as string | undefined;
+    const attributionLabel =
+      status === 'completed'
+        ? 'Completed By'
+        : status === 'noshow'
+          ? 'Marked No Show By'
+          : status === 'cancelled'
+            ? 'Cancelled By'
+            : 'Updated By';
     return (
       <>
         <DetailRow label="Name" value={name || undefined} />
         <DetailRow label="Email" value={meta.email as string | undefined} />
         <DetailRow label="Phone" value={meta.phone as string | undefined} />
         <DetailRow label="Facility" value={meta.facilityCode as string | undefined} />
-        <DetailRow label="Status" value={meta.status as string | undefined} />
+        <DetailRow label="Status" value={status} />
+        <DetailRow label={attributionLabel} value={updatedByName} />
         {timeSlot?.startTime && timeSlot?.endTime && (
           <DetailRow label="Time" value={formatTimeRangeAsAuthored(timeSlot.startTime, timeSlot.endTime)} />
         )}

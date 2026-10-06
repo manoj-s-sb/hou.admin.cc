@@ -9,6 +9,7 @@
  * supplied — is localized to this file.
  */
 import type {
+  AdditionalFacilityType,
   ApiFacility,
   ApiLane,
   ApiMembership,
@@ -16,6 +17,7 @@ import type {
   ApiProductInput,
   CentreBundle,
   CentreCreateRequest,
+  FacilityAddonsMap,
   OperatingHoursDay,
   OperatingHoursMap,
   WizardState,
@@ -29,6 +31,21 @@ const num = (v: number | string | ''): number => {
 
 /** Tolerate either a clean IANA value or a "America/Chicago (CT)" label. */
 const stripTz = (tz: string): string => tz.replace(/\s*\(.*\)\s*$/, '').trim();
+
+/** The wizard's country dropdown (constants.ts's COUNTRIES) uses short, partly
+ * non-standard codes (UK/UAE, not ISO GB/AE). Maps them to real ISO 3166-1
+ * alpha-3 so `facility.countryCode` (lowercase) / `address.country` (uppercase)
+ * match the DB's actual shape. Unknown codes fall through to ''. */
+const COUNTRY_ISO_ALPHA3: Record<string, string> = {
+  AU: 'aus',
+  US: 'usa',
+  UK: 'gbr',
+  UAE: 'are',
+  IN: 'ind',
+  NZ: 'nzl',
+  ZA: 'zaf',
+};
+const toIso3 = (code: string): string => COUNTRY_ISO_ALPHA3[code.toUpperCase()] ?? '';
 
 const DAY_KEYS: (keyof OperatingHoursMap)[] = [
   'monday',
@@ -45,7 +62,7 @@ const toOperatingHours = (days: OperatingHoursDay[], is24x7: boolean): Operating
   const map = {} as OperatingHoursMap;
   DAY_KEYS.forEach((key, idx) => {
     if (is24x7) {
-      map[key] = ['00:00-23:59'];
+      map[key] = ['00:00-24:00'];
       return;
     }
     const row = days.find(d => d.day === idx);
@@ -95,26 +112,69 @@ const buildLanes = (state: WizardState): ApiLane[] => {
   return lanes;
 };
 
-/** Enabled plan rows → membership docs. Guest charges go under bookingRules. */
-const buildMemberships = (state: WizardState, catalogue: PlanMeta[]): ApiMembership[] =>
-  state.plans
+/**
+ * Enabled plan rows → membership docs, matching the real doc shape (see a live
+ * plan like BLR01's "premium" for reference). Only fields the wizard actually
+ * collects get real values (pricing, registration fee amount, guest pricing,
+ * location/facility codes); everything else the wizard has no UI for yet
+ * (transitionPolicy, membershipPolicies' cancellation/hold/violations detail,
+ * memberTypes, door/lane accessControl timing, benefits copy) is left as an
+ * empty placeholder rather than guessed — most critically `stripe`, which must
+ * NEVER be fabricated (a wrong product/price id would misroute real payments).
+ */
+const buildMemberships = (state: WizardState, catalogue: PlanMeta[]): ApiMembership[] => {
+  const facilityCode = state.shortCode.toUpperCase();
+  const countryCode = toIso3(state.country);
+  const stateCode = (state.state || '').toLowerCase();
+
+  return state.plans
     .filter(p => p.enabled)
     .map(p => {
       const meta = catalogue.find(c => c.id === p.planId);
       return {
         type: 'membership',
         code: p.planId,
+        status: 'active',
         // Persist the proper display label + access hours so the centre's Plans &
         // Pricing page reads them from the API (not a frontend lookup).
         name: meta?.name ?? p.planId.charAt(0).toUpperCase() + p.planId.slice(1),
         isPopular: p.planId === 'premium',
+        // Mirrors the facility's own location codes (same derivation, same gaps —
+        // no city-code source in the wizard yet).
+        cityCode: '',
+        countryCode,
+        stateCode,
+        facilityCode,
         pricing: {
           billingCycles: ['fortnightly', 'annual'],
-          regular: { fortnightly: p.fortnightlyPrice, annual: p.annualPrice },
+          regular: {
+            fortnightly: p.fortnightlyPrice,
+            annual: p.annualPrice,
+            currency: 'usd',
+            // Not computed — the real annual/fortnightly relationship isn't a
+            // fixed multiplier, so a guessed % would likely be wrong.
+            savings: {},
+          },
+          // No promo-pricing step in the wizard today.
           promo: {},
         },
-        registrationFee: p.joiningFee,
-        access: { hours: meta?.access ?? '' },
+        registrationFee: {
+          enabled: p.joiningFee > 0,
+          amount: p.joiningFee,
+          currency: 'usd',
+          appliesOn: 'initial-purchase',
+          // Never fabricated — a wrong Stripe id would misroute a real charge.
+          stripeProductId: '',
+          stripePriceId: '',
+          description: '',
+          earlyBirdCutoffDate: '',
+        },
+        access: {
+          type: meta?.access ?? '',
+          mainDoorAccess: '',
+          laneAccess: '',
+          restrictions: {},
+        },
         bookingRules: {
           ...DEFAULT_BOOKING_RULES,
           // Only persist guest-pricing fields that were actually set — blank stays absent
@@ -126,15 +186,29 @@ const buildMemberships = (state: WizardState, catalogue: PlanMeta[]): ApiMembers
               : {}),
             ...(p.extraSessionCost !== null ? { extraSessionCost: p.extraSessionCost } : {}),
           },
+          roomSlotRules: {},
         },
-        memberTypes: [],
-        accessControl: { availableCountries: p.availableCountries },
+        memberTypes: {},
+        accessControl: {
+          // Wizard-only bookkeeping (which countries this plan is offered in) —
+          // round-tripped by bundleToWizardState, not part of the real door/lane
+          // accessControl shape, but harmless alongside it (backend is permissive).
+          availableCountries: p.availableCountries,
+          mainDoor: {},
+          lane: {},
+        },
         membershipPolicies: {},
-        description: '',
-        stripe: { regular: null, promo: null, texRateId: null, taxRate: 0 },
+        description: { fortnightly: '', annual: '' },
+        stripe: {
+          regular: { productId: '', fortnightlyPriceId: '', annualPriceId: '' },
+          promo: { productId: '', fortnightlyPriceId: '', annualPriceId: '' },
+          texRateId: '',
+          taxRate: 0,
+        },
         benefits: [],
       };
     });
+};
 
 /** Capacity + foundation → sales-flow doc. */
 const buildSalesFlow = (state: WizardState): ApiMembershipSalesFlow => {
@@ -201,15 +275,64 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
     });
 };
 
+// Additional-facility type → the addon key + display label the real DB docs use
+// (matches productCodeFor's naming for podcast/meeting).
+const ADDON_KEY: Record<AdditionalFacilityType, string> = {
+  gym: 'gym',
+  podcast: 'podcastroom',
+  meeting: 'meetingroom',
+  gaming: 'gaming',
+  custom: 'custom',
+};
+const ADDON_LABEL: Record<AdditionalFacilityType, string> = {
+  gym: 'Gym',
+  podcast: 'Podcast Room',
+  meeting: 'Meeting Room',
+  gaming: 'Gaming',
+  custom: 'Custom',
+};
+
+/**
+ * `facility.addons` — tab-config metadata (which tabs show on the centre page,
+ * in what order), distinct from the `product` docs (buildProducts) which carry
+ * the actual pricing/booking rules for the same feature. Lane is always a tab;
+ * the rest mirror whichever "Additional Facilities" the wizard has enabled.
+ */
+const buildAddons = (state: WizardState): FacilityAddonsMap[] => {
+  const map: FacilityAddonsMap = {
+    lane: { status: 'active', isTab: true, group: 'tab', order: 1, label: 'Lane' },
+  };
+  let order = 2;
+  state.additionalFacilities
+    .filter(f => f.enabled)
+    .forEach(f => {
+      map[ADDON_KEY[f.type]] = {
+        status: 'active',
+        isTab: true,
+        group: 'tab',
+        order: order++,
+        label: f.name || ADDON_LABEL[f.type],
+      };
+    });
+  return [map];
+};
+
 const buildFacility = (state: WizardState): ApiFacility => ({
   type: 'facility',
   code: state.shortCode.toUpperCase(),
   name: state.name,
-  cityCode: state.city, // TODO: backend may expect a code, not a name
-  countryCode: state.country,
-  stateCode: state.state,
+  // No city-code source in the wizard today (free-text city name only) — send
+  // empty rather than the name itself, which isn't a valid code.
+  cityCode: '',
+  countryCode: toIso3(state.country),
+  // Not collected by the wizard (no region picker) — empty until one exists.
+  regionCode: '',
+  // Best-effort: the wizard's State field is free text (often postcode-lookup
+  // filled with a short code like "KA"), lowercased to match the DB convention.
+  stateCode: (state.state || '').toLowerCase(),
   timezone: stripTz(state.timezone),
   status: state.status,
+  // Not collected by the wizard (no map/coordinate picker) yet.
   latitude: 0,
   longitude: 0,
   freeSolts: num(state.foundationPool),
@@ -224,19 +347,27 @@ const buildFacility = (state: WizardState): ApiFacility => ({
   amenities: state.facilities,
   address: {
     street: [state.addressLine1, state.addressLine2].filter(Boolean).join(', '),
+    // No suburb field in the wizard today.
     suburb: '',
     city: state.city,
     state: state.state,
     postcode: state.postcode,
-    country: state.country,
+    country: toIso3(state.country).toUpperCase(),
   },
   contact: {
     email: state.email,
-    phones: [{ type: 'regular', supportTime: '', phone: state.phone }],
+    // The wizard collects one phone number — reused for both channels, since
+    // there's no separate WhatsApp number field. supportTime isn't collected.
+    phones: [
+      { type: 'regular', supportTime: '', phone: state.phone },
+      { type: 'whatsapp', supportTime: '', phone: state.phone },
+    ],
   },
   operatingHours: toOperatingHours(state.operatingHours, state.is24x7),
+  // Not collected by the wizard yet (no holiday-dates step).
   holidays: [],
-  // Not collected by the wizard yet — refine when the sample JSON is available.
+  addons: buildAddons(state),
+  // Not collected by the wizard yet — refine when a real UI step lands for these.
   security: {},
   // Additional bookable facilities are written as `product` docs (see buildProducts
   // below), not here — this field is unused dead weight kept only for back-compat.

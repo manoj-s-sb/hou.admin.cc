@@ -4,12 +4,15 @@ import { ACCESS_SCOPES } from '../../rbac/constants';
 import CoachSchedule from '../coach';
 import Induction from '../induction';
 import Members from '../members';
-import Notifications from '../notifications';
+// Notifications: import kept alongside its commented-out module entry below —
+// re-enable both together once a real spec exists.
+// import Notifications from '../notifications';
 import SlotBookings from '../slots';
 import Tailgate from '../tailgate';
 import Tickets from '../tickets';
 import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
+import WalletTransactions from '../wallet';
 
 import Facilities from './facilities';
 import PlansPricing from './plans';
@@ -195,21 +198,43 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         ),
       },
       {
-        // UI only — bulk push/email composer + history, no API wiring yet
-        // (backend module not registered, so ACCESS_SCOPES.notifications only
-        // resolves true for superadmins until then — see rbac/constants.ts).
-        key: 'notifications',
-        label: 'Notifications',
-        slug: 'notifications',
-        component: Notifications,
-        scope: ACCESS_SCOPES.notifications,
+        // Its own grantable module (see shared/menu_permissions.py's
+        // /admin/wallets -> "wallettransactions" mapping, and the live
+        // menupermission doc, which now carries this id too) — a staff
+        // member's Role & Access grid controls who can even reach this page.
+        // Crediting is separately hard-gated to superadmin only, checked
+        // directly (isSuperAdmin()), independent of this module scope.
+        key: 'wallet',
+        label: 'Wallet Transactions',
+        slug: 'wallet',
+        component: WalletTransactions,
+        scope: ACCESS_SCOPES.walletTransactions,
         icon: I(
           <>
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            <rect height="16" rx="2" width="20" x="2" y="4" />
+            <path d="M2 9h20" />
+            <circle cx="17" cy="14.5" fill="currentColor" r="1.5" stroke="none" />
           </>
         ),
       },
+      // Notifications: pulled from the sidebar/routes for now — it's a UI-only
+      // mockup (no backend, no real send) built before the actual audience/
+      // channel rules and design were settled. Left commented rather than
+      // deleted so the Push/Email toggle + real-member-search work already
+      // done isn't lost — re-enable this entry once a real spec exists.
+      // {
+      //   key: 'notifications',
+      //   label: 'Notifications',
+      //   slug: 'notifications',
+      //   component: Notifications,
+      //   scope: ACCESS_SCOPES.notifications,
+      //   icon: I(
+      //     <>
+      //       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      //       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      //     </>
+      //   ),
+      // },
     ],
   },
   {

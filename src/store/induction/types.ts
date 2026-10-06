@@ -55,6 +55,9 @@ export interface Induction {
   profileImageUrl: string;
   subscriptionCode?: string;
   members: InductionMember[];
+  /** First name of the admin who last changed this booking's status
+   * (completed/noshow/cancelled) — empty/absent if never admin-changed. */
+  updatedByName?: string;
 }
 
 export interface InductionResponse {

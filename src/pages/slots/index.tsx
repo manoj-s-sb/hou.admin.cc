@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import LoaderComponent from '../../components/Loader';
 import endpoints from '../../constants/endpoints';
-import { getFacilityCode } from '../../constants/user';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
 import api from '../../services';
 import { getSlots } from '../../store/slots/api';
 import { AppDispatch, RootState } from '../../store/store';
@@ -63,7 +63,7 @@ const statCards = [
 const SlotBookings: React.FC = () => {
   const { slots, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
-  const facilityCode = getFacilityCode();
+  const facilityCode = useScopedFacilityCode();
 
   const nextSevenDates = useMemo(() => getNextSevenDates(), []);
   const [selectedDate, setSelectedDate] = useState<{ day: number; month: number; fullDate?: Date }>({

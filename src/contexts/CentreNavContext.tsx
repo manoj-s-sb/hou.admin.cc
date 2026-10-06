@@ -17,6 +17,7 @@ export type CentreModuleKey =
   | 'waitlist'
   | 'tickets'
   | 'calendar'
+  | 'wallet'
   | 'notifications'
   // Centre config
   | 'facilities'

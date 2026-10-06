@@ -8,6 +8,7 @@ import store from '../store';
 
 import {
   ActivateSubscriptionRequest,
+  BulkMemberEmailResponse,
   MemberEmailAttachment,
   MemberEmailItem,
   MemberNoteItem,
@@ -205,6 +206,29 @@ export const sendMemberEmail = createAsyncThunk(
       return response.data as { data: MemberEmailItem };
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to send email'));
+    }
+  }
+);
+
+/** Compose-and-send the same email to several selected members at once (row
+ * selection on the Members grid) — same request shape as sendMemberEmail,
+ * just userIds instead of a single userId. */
+export const bulkSendMemberEmail = createAsyncThunk(
+  'members/bulkSendMemberEmail',
+  async (
+    {
+      userIds,
+      subject,
+      body,
+      attachments,
+    }: { userIds: string[]; subject: string; body: string; attachments: MemberEmailAttachment[] },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.post(endpoints.members.emailsBulkSend, { userIds, subject, body, attachments });
+      return response.data as { data: BulkMemberEmailResponse };
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to send bulk email'));
     }
   }
 );

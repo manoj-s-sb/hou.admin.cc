@@ -453,7 +453,7 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           {/* Eligibility */}
           <div className="text-xs font-bold uppercase tracking-[0.06em] text-sub">Member Eligibility</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-            {(['adult', 'junior', 'family'] as const).map(key => (
+            {(['adult', 'junior'] as const).map(key => (
               <label
                 key={key}
                 className={`inline-flex cursor-pointer select-none items-center gap-1.5 rounded-[7px] border px-2.5 py-1.5 text-xs font-medium transition-all ${form.eligibility[key] ? 'border-[#9096be] bg-cmx-blue-light text-cmx-blue' : 'border-cmx-border bg-white text-sub'}`}
@@ -464,14 +464,14 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
                   type="checkbox"
                   onChange={e => set('eligibility', { ...form.eligibility, [key]: e.target.checked })}
                 />
-                {key === 'adult' ? 'Adult (16+)' : key === 'junior' ? 'Junior (under 16)' : 'Family plan'}
+                {key === 'adult' ? 'Adult (16+)' : 'Junior (under 16)'}
               </label>
             ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-                Additional Member Fee (Family)
+                Additional Guest Fees
               </span>
               <input
                 className={FIELD}

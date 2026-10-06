@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,8 +9,6 @@ import { getReport } from '../../store/reports/api';
 import { AppDispatch, RootState } from '../../store/store';
 
 import FilterBar, { type CentreOption } from './components/FilterBar';
-import { fetchReportData } from './pdf/exportMembershipPdf';
-import PdfPreviewModal from './pdf/PdfPreviewModal';
 import CapacityTab from './tabs/CapacityTab';
 import MembershipTab from './tabs/MembershipTab';
 import OverviewTab from './tabs/OverviewTab';
@@ -28,6 +26,10 @@ import type {
   SessionsData,
   UtilisationData,
 } from '../../store/reports/types';
+
+// The PDF engine (@react-pdf/renderer) is heavy, so the preview modal — and the
+// export module it uses — are loaded on demand, only when the user exports.
+const PdfPreviewModal = lazy(() => import('./pdf/PdfPreviewModal'));
 
 const TABS: { key: ReportTab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -52,6 +54,7 @@ const Reports: React.FC = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
+      const { fetchReportData } = await import('./pdf/exportMembershipPdf');
       const reportData = await fetchReportData(applied, exportedBy);
       setPreviewData(reportData);
     } catch (e) {
@@ -143,7 +146,11 @@ const Reports: React.FC = () => {
 
       {renderTab()}
 
-      {previewData && <PdfPreviewModal data={previewData} onClose={() => setPreviewData(null)} />}
+      {previewData && (
+        <Suspense fallback={null}>
+          <PdfPreviewModal data={previewData} onClose={() => setPreviewData(null)} />
+        </Suspense>
+      )}
     </div>
   );
 };

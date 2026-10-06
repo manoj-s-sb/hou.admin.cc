@@ -14,6 +14,7 @@ import slotsReducer from './slots/reducers';
 import staffReducer from './staff/reducers';
 import tailgateReducer from './tailgate/reducers';
 import ticketsReducer from './tickets/reducers';
+import walletReducer from './wallet/reducers';
 
 const rootReducer = combineReducers({
   auth: persistReducer(authPersistConfig, authReducer),
@@ -28,6 +29,7 @@ const rootReducer = combineReducers({
   staff: staffReducer,
   tailgate: tailgateReducer,
   tickets: ticketsReducer,
+  wallet: walletReducer,
 });
 
 const store = configureStore({

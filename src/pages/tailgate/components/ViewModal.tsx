@@ -44,6 +44,7 @@ const ViewModal = ({ log, onClose }: ViewModalProps) => {
             </p>
           </div>
           <button
+            aria-label="Close"
             className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"
             type="button"
             onClick={onClose}

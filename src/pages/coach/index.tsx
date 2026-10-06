@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
-import { getFacilityCode } from '../../constants/user';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
 import { coachSlots } from '../../store/slots/api';
 import { CoachSlotsResponse } from '../../store/slots/types';
 import { AppDispatch, RootState } from '../../store/store';
@@ -13,6 +13,7 @@ import CoachScheduleGrid from './components/CoachScheduleGrid';
 const CoachSchedule: React.FC = () => {
   const { coachSlotsList, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
+  const facilityCode = useScopedFacilityCode();
 
   const formatDateInChicago = useCallback((date: Date): string => {
     const options: Intl.DateTimeFormatOptions = {
@@ -27,9 +28,9 @@ const CoachSchedule: React.FC = () => {
 
   const fetchCoachSlots = useCallback(
     (startDate: string, endDate: string) => {
-      dispatch(coachSlots({ startDate, endDate, facilityCode: getFacilityCode() }));
+      dispatch(coachSlots({ startDate, endDate, facilityCode }));
     },
-    [dispatch]
+    [dispatch, facilityCode]
   );
 
   useEffect(() => {

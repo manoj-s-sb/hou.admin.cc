@@ -10,33 +10,32 @@ import { Loader } from './components/Loader';
 import SessionExpiredModal from './components/SessionExpiredModal';
 import menus, { MENU_ITEM_BY_MODULE } from './constants/menus';
 import { ROUTES } from './constants/routes';
-import {
-  Login,
-  ForgotPassword,
-  UserList,
-  Induction,
-  ViewInduction,
-  Tours,
-  Members,
-  ViewMembers,
-  SlotBookings,
-  CoachSchedule,
-  Tailgate,
-  StaffManagement,
-  AddStaffMember,
-  ViewStaffMember,
-  CentreManagement,
-  CentreModuleRoute,
-  MembershipPlans,
-  Tickets,
-} from './pages';
+import ForgotPassword from './pages/forgotPassword';
+import Login from './pages/login';
 import { ACCESS_SCOPES, canRead, PermissionRoute, RestrictedAccess, sidebarItems } from './rbac';
 import { setSessionExpiredCallback } from './services';
 import { fetchMe } from './store/auth/api';
 import store, { persistor, AppDispatch, RootState } from './store/store';
 
-// Heavy routes split into their own chunks — Reports pulls in recharts (~300 KB),
-// Maintenance is a 900+ LOC page. Keeps the initial bundle lean for everyone else.
+// Route pages are code-split so the initial bundle stays small — each page (and any
+// heavy libs it pulls in) downloads only when the user first navigates to it. Login
+// and ForgotPassword stay eager above: they're the entry screens, needed immediately.
+const UserList = lazy(() => import('./pages/users'));
+const Induction = lazy(() => import('./pages/induction'));
+const ViewInduction = lazy(() => import('./pages/induction/viewInduction'));
+const Tours = lazy(() => import('./pages/tours'));
+const Members = lazy(() => import('./pages/members'));
+const ViewMembers = lazy(() => import('./pages/members/viewMembers'));
+const SlotBookings = lazy(() => import('./pages/slots'));
+const CoachSchedule = lazy(() => import('./pages/coach'));
+const Tailgate = lazy(() => import('./pages/tailgate'));
+const StaffManagement = lazy(() => import('./pages/staff'));
+const AddStaffMember = lazy(() => import('./pages/staff/AddStaffMember'));
+const ViewStaffMember = lazy(() => import('./pages/staff/ViewStaffMember'));
+const CentreManagement = lazy(() => import('./pages/centres'));
+const CentreModuleRoute = lazy(() => import('./pages/centres/CentreModuleRoute'));
+const MembershipPlans = lazy(() => import('./pages/membership'));
+const Tickets = lazy(() => import('./pages/tickets'));
 const Reports = lazy(() => import('./pages/reports'));
 const Maintenance = lazy(() => import('./pages/maintenance'));
 
