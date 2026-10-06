@@ -8,7 +8,8 @@ import React, { useEffect, useState } from 'react';
  * editing and normalises to `emptyValue` (default = min ?? 0) on blur.
  */
 interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
-  value: number;
+  /** `null` means "not yet entered" — shown blank, same as an empty draft. */
+  value: number | null;
   onValueChange: (n: number) => void;
   min?: number;
   max?: number;
@@ -25,7 +26,7 @@ const NumberInput: React.FC<Props> = ({ value, onValueChange, min, max, emptyVal
   // has intentionally cleared the field.
   useEffect(() => {
     if (draft === '') return;
-    if (Number(draft) !== value) setDraft(Number.isFinite(value) ? String(value) : '');
+    if (value === null || Number(draft) !== value) setDraft(Number.isFinite(value) ? String(value) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
