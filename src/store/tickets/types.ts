@@ -142,6 +142,9 @@ export interface ListTicketsRequest {
   category?: TicketCategory;
   priority?: TicketPriority;
   search?: string;
+  /** Restricts to tickets past their SLA deadline and not yet closed — same
+   * definition as TicketCounts.overdue. Independent of `status`/`view`. */
+  overdueOnly?: boolean;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   page?: number;

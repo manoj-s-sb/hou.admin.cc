@@ -7,9 +7,13 @@ import type { TicketStatus, TicketCategory, TicketPriority, TicketRole } from '.
 
 export const TICKET_STATUSES: TicketStatus[] = ['open', 'noc', 'inprogress', 'verify', 'closed'];
 // Simplified status set surfaced in the filter dropdown and the in-ticket status
-// selector: Open → In Progress → Closed. Legacy 'noc'/'verify' tickets still
-// render via STATUS_META but are no longer offered as manual choices.
-export const SELECTABLE_STATUSES: TicketStatus[] = ['open', 'inprogress', 'closed'];
+// selector: In Progress → Closed. 'open' is deliberately NOT repeated here — it
+// already has its own summary chip at the top of the list (Open/In Progress/
+// Closed), so offering it a second time in this dropdown under the same name
+// was just two different controls doing the same thing. Legacy 'noc'/'verify'
+// tickets still render via STATUS_META but are no longer offered as manual
+// choices.
+export const SELECTABLE_STATUSES: TicketStatus[] = ['inprogress', 'closed'];
 export const TICKET_CATEGORIES: TicketCategory[] = ['customer_support', 'maintenance', 'general', 'suggestion'];
 export const TICKET_PRIORITIES: TicketPriority[] = ['high', 'medium', 'low'];
 export const TICKET_ROLES: TicketRole[] = ['noc', 'centre_staff', 'admin', 'others'];

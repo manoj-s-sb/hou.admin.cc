@@ -43,12 +43,16 @@ const MetaFields = ({ event }: { event: CalendarEvent }) => {
   if (event.type === 'booking') {
     const user = meta.user as { firstName?: string; lastName?: string; email?: string; phone?: string } | undefined;
     const name = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+    const coach = meta.coach as { name?: string } | undefined;
     return (
       <>
         <DetailRow label="Name" value={name || undefined} />
         <DetailRow label="Email" value={user?.email} />
         <DetailRow label="Phone" value={user?.phone} />
         <DetailRow label="Lane" value={laneLabel(meta.laneCode as string | undefined)} />
+        {/* A coach-assisted booking is a single event here (no separate Coach
+            Booking card) — see normalize.ts's dedupe against coach events. */}
+        <DetailRow label="Coach" value={coach?.name} />
         <DetailRow label="Status" value={meta.bookingStatus as string | undefined} />
         <DetailRow label="Time" value={formatTimeRangeAsAuthored(event.start, event.end)} />
       </>
@@ -111,10 +115,13 @@ const EventDetailModal = ({ event, onClose }: EventDetailModalProps) => {
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div className="flex items-center gap-2">
+            {/* event.color, not typeConfig.color — a coach-assisted Slot Booking
+                overrides its color to the Coach Booking orange (see normalize.ts)
+                while staying type 'booking', so the dot must follow the event. */}
             <span
               aria-hidden
               className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: typeConfig.color }}
+              style={{ backgroundColor: event.color }}
             />
             <h3 className="text-[15px] font-bold text-[#21295A]">{typeConfig.label}</h3>
           </div>

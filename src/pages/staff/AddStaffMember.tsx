@@ -200,8 +200,17 @@ const AddStaffMember: React.FC = () => {
     setModulePermError(null);
   };
 
-  // custompermission = { moduleId: verbs } from the grid's final state. Only sent
-  // when the feature is active; modules with neither box checked are omitted.
+  // custompermission = { moduleId: verbs } from the grid's final state. Sent
+  // for EVERY known module, including an explicit [] for an unchecked one —
+  // never omitted. The backend's diff_overrides only turns this into a real
+  // stored override when it actually differs from the role's own default, so
+  // a module that matches its role default (checked because the role grants
+  // it, or left unchecked because the role doesn't) is dropped and keeps
+  // tracking that role automatically. But when the role itself grants a
+  // module by default and the admin deliberately unchecks it for this one
+  // person, omitting the key here would tell the backend "no opinion, use
+  // the role default" — right back to granted — instead of "explicitly deny
+  // it for this person." Sending [] makes that denial unambiguous.
   const buildCustomPermission = (): Record<string, string[]> | undefined => {
     if (!modulePermMenus?.length) return undefined;
     const out: Record<string, string[]> = {};
@@ -211,6 +220,7 @@ const AddStaffMember: React.FC = () => {
       const row = mergeDualScope(modulePerms, m.id);
       if (row.edit) out[m.id] = ['read', 'write'];
       else if (row.view) out[m.id] = ['read'];
+      else out[m.id] = [];
     });
     return out;
   };
@@ -352,6 +362,17 @@ const AddStaffMember: React.FC = () => {
 
   const activeIndex = STEPS.findIndex(s => s.key === activeStep);
 
+  // The Profile step's *-marked fields (First Name, Last Name, Email, Date of
+  // Birth) were previously never actually enforced — a step could be left
+  // blank and the wizard would silently advance anyway, only to fail (or
+  // worse, succeed with missing data) at the very end. This blocks leaving
+  // Profile — via Next or by clicking straight to a later step — until they're
+  // filled, same four fields validateForSubmit already requires at save time.
+  const isProfileValid = Boolean(
+    profile.firstName.trim() && profile.lastName.trim() && profile.email.trim() && profile.dob.trim()
+  );
+  const [showProfileErrors, setShowProfileErrors] = useState(false);
+
   const updateProfile = <K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) => {
     setProfile(prev => ({ ...prev, [key]: value }));
   };
@@ -479,6 +500,7 @@ const AddStaffMember: React.FC = () => {
     if (!profile.firstName.trim()) return 'First name is required';
     if (!profile.lastName.trim()) return 'Last name is required';
     if (!profile.email.trim()) return 'Email is required';
+    if (!profile.dob.trim()) return 'Date of birth is required';
     if (draft) return null;
     if (buildSelectedRoleIds().length === 0) return 'Select at least one role';
     if (!accessLevel) return 'Select an access level';
@@ -650,6 +672,11 @@ const AddStaffMember: React.FC = () => {
   };
 
   const handleNext = () => {
+    if (activeStep === 'profile' && !isProfileValid) {
+      setShowProfileErrors(true);
+      toast.error('Fill in every required field (First Name, Last Name, Email, Date of Birth) to continue');
+      return;
+    }
     const next = STEPS[activeIndex + 1];
     if (next) setActiveStep(next.key);
   };
@@ -657,6 +684,17 @@ const AddStaffMember: React.FC = () => {
   const handleBack = () => {
     const prev = STEPS[activeIndex - 1];
     if (prev) setActiveStep(prev.key);
+  };
+
+  // Clicking a step pill jumps anywhere, unguarded — except off an invalid
+  // Profile step, which gets the same block as the Next button above.
+  const handleStepSelect = (key: StepKey) => {
+    if (activeStep === 'profile' && key !== 'profile' && !isProfileValid) {
+      setShowProfileErrors(true);
+      toast.error('Fill in every required field (First Name, Last Name, Email, Date of Birth) to continue');
+      return;
+    }
+    setActiveStep(key);
   };
 
   const nextStepLabel = STEPS[activeIndex + 1]?.key === 'account' ? 'Account Setup' : STEPS[activeIndex + 1]?.label;
@@ -699,7 +737,7 @@ const AddStaffMember: React.FC = () => {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        <StepIndicator activeKey={activeStep} steps={STEPS} onSelect={setActiveStep} />
+        <StepIndicator activeKey={activeStep} steps={STEPS} onSelect={handleStepSelect} />
 
         <div className="px-6 py-5">
           {activeStep === 'profile' && (
@@ -711,6 +749,7 @@ const AddStaffMember: React.FC = () => {
               profile={profile}
               profileImage={profileImage}
               qualifications={qualifications}
+              showErrors={showProfileErrors}
               onChange={updateProfile}
               onPhotoRemove={() => setProfileImage('')}
               onPhotoSelect={handleProfileImageSelect}

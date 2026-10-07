@@ -168,12 +168,14 @@ const StaffManagement: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  // Defaults to "active" so the screen opens showing only active staff — switch
-  // to Inactive/All to see everyone else. "Inactive" covers suspended staff too:
-  // the backend only ever writes 'active' or 'suspended' (see handleToggleStatus),
-  // and normalizeStatus already collapses 'suspended' into the same "Inactive"
-  // bucket the Status column displays — so there's no separate "Suspended" option.
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'invited' | 'inactive'>('active');
+  // Defaults to "All Statuses" so a newly-created staff member (Invited, or
+  // Draft via "Save as Draft") is never silently hidden the moment you land
+  // back on this screen — narrow to a specific status deliberately instead.
+  // "Inactive" covers suspended staff too: the backend only ever writes
+  // 'active' or 'suspended' (see handleToggleStatus), and normalizeStatus
+  // already collapses 'suspended' into the same "Inactive" bucket the Status
+  // column displays — so there's no separate "Suspended" option.
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'invited' | 'draft' | 'inactive'>('all');
   const { staffList, isListLoading, listError, staffConfig, isConfigLoading, configError } = useSelector(
     (state: RootState) => state.staff
   );
@@ -547,10 +549,11 @@ const StaffManagement: React.FC = () => {
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}
             >
+              <option value="all">All Statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="invited">Invited</option>
-              <option value="all">All Statuses</option>
+              <option value="draft">Draft</option>
             </select>
           </div>
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">

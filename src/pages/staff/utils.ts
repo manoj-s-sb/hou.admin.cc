@@ -99,6 +99,13 @@ export const LABEL_CLASS = 'mb-1 block text-[11px] font-semibold uppercase track
 export const INPUT_CLASS =
   'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-800 outline-none transition focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10';
 
+// Phone number stores the dial code as a plain prefix on one string (e.g.
+// "+91 98765 43210") — same convention the New Centre wizard already uses for
+// its own phone field, rather than a separate country-code field on the model.
+/** Dial code prefix already on a phone string (e.g. "+1" from "+1 555 000 0000"). */
+export const dialCodeOf = (phone: string): string => /^\+\d{1,3}/.exec(phone.trim())?.[0] ?? '';
+export const stripDialCode = (phone: string): string => phone.trim().replace(/^\+\d{1,3}\s*/, '');
+
 // Centre names are resolved dynamically from Centre Management via useCentreLookup —
 // no hard-coded code→name mapping lives here.
 

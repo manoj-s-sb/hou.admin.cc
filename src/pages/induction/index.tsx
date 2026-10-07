@@ -43,7 +43,7 @@ function parseFiltersFromSearchParams(searchParams: URLSearchParams): FilterStat
   return {
     date: searchParams.get('date') ?? '',
     search: searchParams.get('search') ?? '',
-    status: searchParams.get('status') ?? 'pending',
+    status: searchParams.get('status') ?? 'all',
   };
 }
 

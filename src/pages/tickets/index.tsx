@@ -26,7 +26,6 @@ import {
 import type { ListTicketsRequest, TicketCategory, TicketPriority, TicketStatus } from '../../store/tickets/types';
 
 type Tab = 'all' | 'mine';
-type View = '' | 'active' | 'closed';
 
 const Tickets: React.FC = () => {
   // Centre context provides :facilityCode; the global /tickets route does not.
@@ -41,8 +40,13 @@ const Tickets: React.FC = () => {
   const canEdit = canEditModule(isCentreScoped ? MODULES.MAINTENANCE : MODULES.TICKETS);
 
   const [tab, setTab] = useState<Tab>('all');
-  const [view, setView] = useState<View>('');
   const [status, setStatus] = useState<'' | TicketStatus>('');
+  // "Total" in the status dropdown — every non-closed ticket (open/with-NOC/
+  // in-progress/needs-verification), same definition as the Total chip. Distinct
+  // from the dropdown's own "All Statuses" (status === ''), which also includes
+  // Closed. Sent as the existing (till now unused) `view: 'active'` param.
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [category, setCategory] = useState<'' | TicketCategory>('');
   const [priority, setPriority] = useState<'' | TicketPriority>('');
   const [centreFilter, setCentreFilter] = useState('');
@@ -81,8 +85,9 @@ const Tickets: React.FC = () => {
     const params: ListTicketsRequest = {
       facilityCode,
       mine: tab === 'mine' ? true : undefined,
-      view: view || undefined,
       status: status || undefined,
+      view: activeOnly ? 'active' : undefined,
+      overdueOnly: overdueOnly || undefined,
       category: category || undefined,
       priority: priority || undefined,
       search: search || undefined,
@@ -90,7 +95,7 @@ const Tickets: React.FC = () => {
       limit: PAGE_LIMIT,
     };
     dispatch(getTickets(params));
-  }, [dispatch, facilityCode, tab, view, status, category, priority, search, currentPage]);
+  }, [dispatch, facilityCode, tab, status, activeOnly, overdueOnly, category, priority, search, currentPage]);
 
   useEffect(() => {
     loadList();
@@ -112,31 +117,43 @@ const Tickets: React.FC = () => {
   const onTab = (next: Tab) => {
     setTab(next);
     setStatus('');
-    setView('');
+    setActiveOnly(false);
     resetToFirstPage();
   };
 
-  // Coarse Active/Closed filter (mutually exclusive with a specific status).
-  const selectView = (next: 'active' | 'closed') => {
-    setView(prev => (prev === next ? '' : next));
-    setStatus('');
-    resetToFirstPage();
-  };
-
-  // Specific status filter (clears the coarse Active/Closed view).
+  // One status filter drives everything — the three summary chips below AND
+  // the dropdown (In Progress / Closed) are just different ways to set the
+  // exact same `status` value. There used to be a separate "Active" bucket
+  // (meaning "not closed", overlapping with In Progress) alongside a narrower
+  // "Open" dropdown option of the same name — two different things sharing
+  // one word was confusing, so now there's exactly one "Open" (a specific
+  // status, same as In Progress/Closed), not a broader catch-all.
   const selectStatus = (next: TicketStatus) => {
     setStatus(prev => (prev === next ? '' : next));
-    setView('');
+    setActiveOnly(false);
+    resetToFirstPage();
+  };
+
+  // Overdue composes with (doesn't replace) the status filter above — a ticket
+  // overdue on its SLA can be in any non-closed status, so this is its own
+  // independent toggle, not another option in the same status chip group.
+  const toggleOverdue = () => {
+    setOverdueOnly(prev => !prev);
     resetToFirstPage();
   };
 
   const mineCount = counts?.mine ?? 0;
-  const activeCount = counts ? counts.total - counts.closed : 0;
-  const closedCount = counts?.closed ?? 0;
+  // All currently-active tickets (every non-closed status — open, with-NOC,
+  // in-progress, needs-verification) so a legacy noc/verify ticket is never
+  // missing from this number even though it has no chip of its own above.
+  const totalActiveCount = Math.max(0, (counts?.total ?? 0) - (counts?.closed ?? 0));
+  const overdueCount = counts?.overdue ?? 0;
 
   // Summary chips — all rendered in one uniform format (dot · label · count).
-  // Each count matches exactly what its filter shows; "Needs Verification" stays
-  // available via the status dropdown.
+  // Each count matches exactly what its filter shows; "With NOC"/"Needs
+  // Verification" stay available via the status dropdown... no wait, they're
+  // not selectable there either (see SELECTABLE_STATUSES) — those two statuses
+  // currently have no manual filter at all, by existing design.
   const summaryChips: {
     key: string;
     label: string;
@@ -146,12 +163,12 @@ const Tickets: React.FC = () => {
     onClick: () => void;
   }[] = [
     {
-      key: 'active',
-      label: 'Active',
+      key: 'open',
+      label: 'Open',
       dot: 'bg-[#21295A]',
-      count: activeCount,
-      selected: view === 'active',
-      onClick: () => selectView('active'),
+      count: counts?.open ?? 0,
+      selected: status === 'open',
+      onClick: () => selectStatus('open'),
     },
     {
       key: 'inprogress',
@@ -165,9 +182,9 @@ const Tickets: React.FC = () => {
       key: 'closed',
       label: 'Closed',
       dot: 'bg-emerald-500',
-      count: closedCount,
-      selected: view === 'closed',
-      onClick: () => selectView('closed'),
+      count: counts?.closed ?? 0,
+      selected: status === 'closed',
+      onClick: () => selectStatus('closed'),
     },
   ];
 
@@ -175,8 +192,11 @@ const Tickets: React.FC = () => {
     'rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[13px] text-gray-700 outline-none focus:border-[#21295A]';
 
   const hasFilters = useMemo(
-    () => Boolean(view || status || category || priority || search || (!isCentreScoped && centreFilter)),
-    [view, status, category, priority, search, centreFilter, isCentreScoped]
+    () =>
+      Boolean(
+        status || activeOnly || overdueOnly || category || priority || search || (!isCentreScoped && centreFilter)
+      ),
+    [status, activeOnly, overdueOnly, category, priority, search, centreFilter, isCentreScoped]
   );
 
   return (
@@ -202,8 +222,18 @@ const Tickets: React.FC = () => {
         )}
       </div>
 
-      {/* Summary bar — every item in one uniform chip format (dot · label · count) */}
+      {/* Summary bar — every item in one uniform chip format (dot · label · count).
+          Total is informational only (all non-closed tickets, across every status,
+          not just the three chips below) — it never acts as a filter itself, the
+          Open/In Progress/Closed chips still do that. Overdue is its own toggle: an
+          overdue ticket can be in any non-closed status, so it composes with
+          whichever status chip (if any) is selected rather than replacing it. */}
       <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium text-gray-600">
+          <span className="h-2 w-2 rounded-full bg-gray-400" />
+          Total
+          <span className="font-bold text-[#21295A]">{totalActiveCount}</span>
+        </div>
         {summaryChips.map(c => (
           <button
             key={c.key}
@@ -218,6 +248,17 @@ const Tickets: React.FC = () => {
             <span className="font-bold text-[#21295A]">{c.count}</span>
           </button>
         ))}
+        <button
+          className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium transition ${
+            overdueOnly ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50'
+          }`}
+          type="button"
+          onClick={toggleOverdue}
+        >
+          <span className="h-2 w-2 rounded-full bg-red-500" />
+          Overdue
+          <span className={`font-bold ${overdueOnly ? 'text-red-700' : 'text-[#21295A]'}`}>{overdueCount}</span>
+        </button>
       </div>
 
       {/* Tabs + filters */}
@@ -264,19 +305,43 @@ const Tickets: React.FC = () => {
           )}
           <select
             className={selectFieldClass}
-            value={status}
+            // A native <select> can only represent one of these three independent
+            // filter dimensions at a time (status / activeOnly / overdueOnly) — the
+            // summary chips above let you combine them, this dropdown is a
+            // single-choice shortcut onto the same underlying state.
+            value={overdueOnly ? 'overdue' : activeOnly ? 'total' : status}
             onChange={e => {
-              setStatus(e.target.value as '' | TicketStatus);
-              setView('');
+              const v = e.target.value;
+              if (v === 'total') {
+                setActiveOnly(true);
+                setOverdueOnly(false);
+                setStatus('');
+              } else if (v === 'overdue') {
+                setOverdueOnly(true);
+                setActiveOnly(false);
+                setStatus('');
+              } else {
+                setActiveOnly(false);
+                setOverdueOnly(false);
+                setStatus(v as '' | TicketStatus);
+              }
               resetToFirstPage();
             }}
           >
             <option value="">All Statuses</option>
-            {SELECTABLE_STATUSES.map(s => (
+            {/* Every non-closed ticket (open/with-NOC/in-progress/needs-verification)
+                — same definition as the Total chip, distinct from "All Statuses"
+                which also includes Closed. */}
+            <option value="total">Total</option>
+            {/* Filter dropdown also offers 'open' (unlike SELECTABLE_STATUSES, which
+                is just the manual status-change choices in the ticket detail view —
+                you can't manually set a ticket back to 'open', but you can filter by it). */}
+            {(['open', ...SELECTABLE_STATUSES] as TicketStatus[]).map(s => (
               <option key={s} value={s}>
                 {STATUS_META[s].label}
               </option>
             ))}
+            <option value="overdue">Overdue</option>
           </select>
           <select
             className={selectFieldClass}

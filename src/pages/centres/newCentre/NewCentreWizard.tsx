@@ -18,6 +18,7 @@ import {
   PLAN_COUNTRY_CHIPS,
   SLOT_DURATIONS,
   TIMEZONES,
+  timezonesForCountry,
   WIZARD_STEPS,
   type PlanMeta,
 } from '../constants';
@@ -139,15 +140,25 @@ interface ZippopotamResponse {
   places?: ZippopotamPlace[];
 }
 
+// Our original 7 markets — the blind-guess fallback below is capped to just
+// these rather than all ~250 world countries now in COUNTRY_ISO_CODES, since
+// sequentially querying every country in the world against a free, unauthed
+// API when nothing's been picked yet would be impractically slow.
+const PRIMARY_MARKET_CODES = ['AU', 'US', 'UK', 'UAE', 'IN', 'NZ', 'ZA'];
+
 // Tries the already-selected country first (fast path + avoids surprising a
-// deliberate choice), then the rest of our supported countries as a fallback —
-// there's no country-less reverse lookup on this API, so this is how we can still
-// fill Country from just a postcode.
+// deliberate choice), then our original markets as a fallback — there's no
+// country-less reverse lookup on this API, so this is how we can still fill
+// Country from just a postcode when nothing's picked yet.
 const lookupPostcode = async (postcode: string, preferredCountryCode: string) => {
   const entries = Object.entries(COUNTRY_ISO_CODES);
+  const fallbackCodes = new Set(PRIMARY_MARKET_CODES);
   const ordered = preferredCountryCode
-    ? [...entries.filter(([c]) => c === preferredCountryCode), ...entries.filter(([c]) => c !== preferredCountryCode)]
-    : entries;
+    ? [
+        ...entries.filter(([c]) => c === preferredCountryCode),
+        ...entries.filter(([c]) => c !== preferredCountryCode && fallbackCodes.has(c)),
+      ]
+    : entries.filter(([c]) => fallbackCodes.has(c));
   for (const [code, iso] of ordered) {
     try {
       const res = await fetch(`https://api.zippopotam.us/${iso}/${encodeURIComponent(postcode)}`);
@@ -402,6 +413,20 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     onClose();
   }, [onClose, isEdit]);
 
+  // New-centre flow only — wipes the autosaved draft and resets every field
+  // back to blank, so the next time this wizard opens it starts fresh instead
+  // of auto-filling whatever was last typed.
+  const handleClearDraft = useCallback(() => {
+    if (!window.confirm('Clear your saved draft? This empties every field on this form — it cannot be undone.')) return;
+    clearDraft();
+    restoredDraftRef.current = false;
+    dirtyRef.current = false;
+    setS(initialState());
+    setStep(1);
+    setMaxStepReached(1);
+    toast('Draft cleared', { icon: '🗑️' });
+  }, []);
+
   // Autofocus the first field on open.
   useEffect(() => {
     firstFieldRef.current?.focus();
@@ -636,23 +661,43 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 : 'Complete all steps to create and activate the centre'}
             </div>
           </div>
-          <button
-            aria-label="Close"
-            style={{
-              width: 32,
-              height: 32,
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              background: '#fff',
-              cursor: 'pointer',
-              color: 'var(--sub)',
-              fontSize: 18,
-            }}
-            type="button"
-            onClick={requestClose}
-          >
-            ×
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!isEdit && (
+              <button
+                style={{
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  background: '#fff',
+                  cursor: 'pointer',
+                  color: 'var(--sub)',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  padding: '7px 12px',
+                }}
+                type="button"
+                onClick={handleClearDraft}
+              >
+                Clear Draft
+              </button>
+            )}
+            <button
+              aria-label="Close"
+              style={{
+                width: 32,
+                height: 32,
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                background: '#fff',
+                cursor: 'pointer',
+                color: 'var(--sub)',
+                fontSize: 18,
+              }}
+              type="button"
+              onClick={requestClose}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Step pills */}
@@ -825,19 +870,16 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Country *</span>
-                  <select
-                    className="cmx-field"
-                    style={err(!s.country)}
+                  <CountrySearchSelect
+                    hasError={!!err(!s.country)}
                     value={s.country}
-                    onChange={e => set({ country: e.target.value })}
-                  >
-                    <option value="">Select country…</option>
-                    {COUNTRIES.map(c => (
-                      <option key={c.code} value={c.code}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={code => {
+                      // Changing country invalidates a timezone that belonged to
+                      // the old one — never silently leave a mismatched pair.
+                      const stillValid = timezonesForCountry(code).some(tz => tz.value === s.timezone);
+                      set({ country: code, timezone: stillValid ? s.timezone : '' });
+                    }}
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Time Zone *</span>
@@ -847,8 +889,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     value={s.timezone}
                     onChange={e => set({ timezone: e.target.value })}
                   >
-                    <option value="">Select timezone…</option>
-                    {TIMEZONES.map(tz => (
+                    <option value="">{s.country ? 'Select timezone…' : 'Select a country first…'}</option>
+                    {(s.country ? timezonesForCountry(s.country) : TIMEZONES).map(tz => (
                       <option key={tz.value} value={tz.value}>
                         {tz.label}
                       </option>
@@ -2192,6 +2234,97 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               {isEdit ? 'Back to Centre' : 'Back to Centres'}
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Searchable Country select (Details step) — a text input that filters
+   COUNTRIES as you type, instead of a plain native <select>. COUNTRIES now
+   covers every real-world country (see constants.ts), so search is what
+   makes the list usable rather than a nice-to-have. ── */
+const CountrySearchSelect: React.FC<{
+  value: string;
+  onChange: (code: string) => void;
+  hasError?: boolean;
+}> = ({ value, onChange, hasError }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
+  const selected = COUNTRIES.find(c => c.code === value);
+  const filtered = COUNTRIES.filter(c => c.label.toLowerCase().includes(query.trim().toLowerCase()));
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input
+        autoComplete="off"
+        className="cmx-field"
+        placeholder="Search country…"
+        style={hasError ? { borderColor: '#dc2626' } : undefined}
+        type="text"
+        value={open ? query : (selected?.label ?? '')}
+        onChange={e => setQuery(e.target.value)}
+        onFocus={() => {
+          setOpen(true);
+          setQuery('');
+        }}
+      />
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            zIndex: 20,
+            background: '#fff',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            maxHeight: 220,
+            overflowY: 'auto',
+            boxShadow: '0 8px 20px rgba(0,0,0,.1)',
+          }}
+        >
+          {filtered.length === 0 && (
+            <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--sub)' }}>No matching country</div>
+          )}
+          {filtered.map(c => (
+            <button
+              key={c.code}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '9px 12px',
+                background: c.code === value ? 'rgba(37,99,235,0.06)' : '#fff',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                color: 'var(--navy)',
+              }}
+              type="button"
+              onClick={() => {
+                onChange(c.code);
+                setOpen(false);
+                setQuery('');
+              }}
+            >
+              {c.label}
+            </button>
+          ))}
         </div>
       )}
     </div>
