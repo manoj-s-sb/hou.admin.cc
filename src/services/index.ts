@@ -5,7 +5,7 @@ import { isTokenExpired } from '../utils/tokenUtils';
 
 // Create axios instance with default configuration
 const api = create({
-  baseURL: process.env.REACT_APP_API_BASE_URL,
+  baseURL: import.meta.env.REACT_APP_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -113,7 +113,7 @@ api.interceptors.response.use(
       if (status === 400) {
         // Bad Request — never log request body (may contain credentials/PII).
         // Dev: include response body for debugging. Prod: status only.
-        if (process.env.NODE_ENV !== 'production') {
+        if (!import.meta.env.PROD) {
           console.error('Bad Request (400):', {
             url: error.config?.url,
             method: error.config?.method,

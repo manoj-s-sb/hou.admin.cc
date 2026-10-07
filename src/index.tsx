@@ -17,7 +17,7 @@ root.render(
 );
 
 // Dev: surface Core Web Vitals in the console. Prod: wire up a real sink (Sentry, GA, Datadog) here.
-if (process.env.NODE_ENV !== 'production') {
+if (!import.meta.env.PROD) {
   // eslint-disable-next-line no-console
   reportWebVitals(metric => console.log('[web-vitals]', metric.name, metric.value, metric));
 } else {
