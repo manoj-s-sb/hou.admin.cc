@@ -57,6 +57,40 @@ const SUBSCRIPTION_STATUS_META: Record<string, { label: string; cls: string }> =
 const subscriptionStatusMeta = (status?: string): { label: string; cls: string } =>
   SUBSCRIPTION_STATUS_META[(status || '').toLowerCase()] || { label: 'Inactive', cls: 'bg-gray-100 text-gray-600' };
 
+/** Collapsed-by-default section card — click the header to expand, same
+ * accordion pattern (chevron + max-height transition) already used by the
+ * Slot Usage & Cycle Details / Additional Members lists further down this
+ * page, just for a single section instead of a list of rows. */
+const CollapsibleCard: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}> = ({ icon, title, children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <button
+        className="flex w-full items-center justify-between bg-white px-4 py-2 text-left transition-colors hover:bg-gray-50 sm:px-6 sm:py-3"
+        type="button"
+        onClick={() => setIsOpen(v => !v)}
+      >
+        <div className="flex items-center">
+          {icon}
+          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        </div>
+        {isOpen ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+      </button>
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isOpen ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="border-t border-gray-200 px-4 py-3 sm:px-6 sm:py-4">{children}</div>
+      </div>
+    </div>
+  );
+};
+
 const ViewMembers = () => {
   const { memberDetails, isLoading } = useSelector((state: RootState) => state.members) as {
     memberDetails: MemberDetailsResponse | null;
@@ -290,61 +324,53 @@ const ViewMembers = () => {
           </div>
 
           {/* Subscription Details Card */}
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-              <div className="flex items-center">
-                <CreditCard className="mr-2 h-5 w-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Subscription Details</h2>
+          <CollapsibleCard icon={<CreditCard className="mr-2 h-5 w-5 text-blue-600" />} title="Subscription Details">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Status</p>
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).cls}`}
+                >
+                  {subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).label}
+                </span>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Subscription Code</p>
+                <p className="text-base font-semibold capitalize text-gray-900">
+                  {memberDetails.subscription.subscriptionCode}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Billing Cycle</p>
+                <p className="text-base font-semibold capitalize text-gray-900">
+                  {memberDetails.subscription.billingCycle}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period Start</p>
+                <p className="text-base font-semibold text-gray-900">
+                  {formatDate(memberDetails.subscription.currentPeriodStart)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period End</p>
+                <p className="text-base font-semibold text-gray-900">
+                  {formatDate(memberDetails.subscription.currentPeriodEnd)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Next Billing Date</p>
+                <p className="text-base font-semibold text-gray-900">
+                  {formatDate(memberDetails.subscription.currentPeriodEnd)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Pricing</p>
+                <p className="text-base font-semibold text-green-600">$ {memberDetails.pricing.totalPrice} USD</p>
+                <p className="mt-1 text-xs text-gray-500">{memberDetails.subscription.billingCycle}</p>
               </div>
             </div>
-            <div className="px-4 py-3 sm:px-6 sm:py-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Status</p>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).cls}`}
-                  >
-                    {subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).label}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Subscription Code</p>
-                  <p className="text-base font-semibold capitalize text-gray-900">
-                    {memberDetails.subscription.subscriptionCode}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Billing Cycle</p>
-                  <p className="text-base font-semibold capitalize text-gray-900">
-                    {memberDetails.subscription.billingCycle}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period Start</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {formatDate(memberDetails.subscription.currentPeriodStart)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period End</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {formatDate(memberDetails.subscription.currentPeriodEnd)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Next Billing Date</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {formatDate(memberDetails.subscription.currentPeriodEnd)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Pricing</p>
-                  <p className="text-base font-semibold text-green-600">$ {memberDetails.pricing.totalPrice} USD</p>
-                  <p className="mt-1 text-xs text-gray-500">{memberDetails.subscription.billingCycle}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          </CollapsibleCard>
 
           {/* Slot Usage & Cycle Details - Accordion Style */}
           {memberDetails.slotUsageTable?.cycles &&
@@ -554,239 +580,213 @@ const ViewMembers = () => {
 
           {/* Player Profile Section */}
           {memberDetails.playerProfile && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-                <div className="flex items-center">
-                  <User className="mr-2 h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Player Profile</h2>
+            <CollapsibleCard icon={<User className="mr-2 h-5 w-5 text-blue-600" />} title="Player Profile">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Status</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.playerStatus || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Experience Level</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.experienceLevel || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.battingHand || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.batsmanType || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Hand</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.bowlingHand || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Role</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.bowlerRole || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Type</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.bowlerType || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 sm:col-span-2">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Cricketing Goal</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.cricketingGoal || 'N/A'}
+                  </p>
                 </div>
               </div>
-              <div className="px-4 py-3 sm:px-6 sm:py-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Status</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.playerStatus || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Experience Level</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.experienceLevel || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.battingHand || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.batsmanType || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Hand</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.bowlingHand || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Role</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.bowlerRole || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Type</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.bowlerType || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 sm:col-span-2">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Cricketing Goal</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.cricketingGoal || 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </CollapsibleCard>
           )}
 
           {/* Personal & Health Profile Section */}
           {memberDetails.userProfile && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-                <div className="flex items-center">
-                  <Shield className="mr-2 h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Personal & Health Profile</h2>
+            <CollapsibleCard icon={<Shield className="mr-2 h-5 w-5 text-blue-600" />} title="Personal & Health Profile">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Gender</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.userProfile.gender || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Phone</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {(() => {
+                      const { countryCode } = memberDetails;
+                      const dialCode = getCountryDialCode(countryCode);
+                      const { phone } = memberDetails.userProfile;
+
+                      if (!dialCode && !phone) {
+                        return 'N/A';
+                      }
+
+                      const formatted = `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim();
+                      return formatted || 'N/A';
+                    })()}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {memberDetails.userProfile.dateOfBirth ? formatDate(memberDetails.userProfile.dateOfBirth) : 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Height</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {memberDetails.userProfile.height?.value
+                      ? `${memberDetails.userProfile.height.value} ${memberDetails.userProfile.height.unit || ''}`
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Weight</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {memberDetails.userProfile.weight?.value
+                      ? `${memberDetails.userProfile.weight.value} ${memberDetails.userProfile.weight.unit || ''}`
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Units of Measure</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.userProfile.unitsOfMeasure || 'N/A'}
+                  </p>
                 </div>
               </div>
-              <div className="px-4 py-3 sm:px-6 sm:py-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Gender</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.userProfile.gender || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Phone</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {(() => {
-                        const { countryCode } = memberDetails;
-                        const dialCode = getCountryDialCode(countryCode);
-                        const { phone } = memberDetails.userProfile;
 
-                        if (!dialCode && !phone) {
-                          return 'N/A';
-                        }
-
-                        const formatted = `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim();
-                        return formatted || 'N/A';
-                      })()}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {memberDetails.userProfile.dateOfBirth
-                        ? formatDate(memberDetails.userProfile.dateOfBirth)
-                        : 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Height</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {memberDetails.userProfile.height?.value
-                        ? `${memberDetails.userProfile.height.value} ${memberDetails.userProfile.height.unit || ''}`
-                        : 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Weight</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {memberDetails.userProfile.weight?.value
-                        ? `${memberDetails.userProfile.weight.value} ${memberDetails.userProfile.weight.unit || ''}`
-                        : 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Units of Measure</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.userProfile.unitsOfMeasure || 'N/A'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Health Declaration */}
-                {memberDetails.userProfile.healthDeclaration && (
-                  <div className="mt-4 border-t border-gray-200 pt-4">
-                    <h3 className="mb-3 text-sm font-semibold uppercase text-gray-700">Health Declaration</h3>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Conditions</p>
-                        <p className="text-base font-semibold capitalize text-gray-900">
-                          {getHealthDeclarationValue('healthConditions')}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Condition Details</p>
-                        <p className="text-base font-semibold text-gray-900">
-                          {(() => {
-                            const value = getHealthDeclarationValue('healthConditionDetails');
-                            if (!value || value === 'N/A') return 'N/A';
-                            if (Array.isArray(value)) return value.join(', ');
-                            return value;
-                          })()}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Doctor Advice</p>
-                        <p className="text-base font-semibold capitalize text-gray-900">
-                          {getHealthDeclarationValue('doctorAdvice')}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Injuries</p>
-                        <p className="text-base font-semibold capitalize text-gray-900">
-                          {getHealthDeclarationValue('currentInjuries')}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Injury Details</p>
-                        <p className="text-base font-semibold text-gray-900">
-                          {getHealthDeclarationValue('injuryDetails') || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Allergies</p>
-                        <p className="text-base font-semibold capitalize text-gray-900">
-                          {getHealthDeclarationValue('allergies')}
-                        </p>
-                      </div>
+              {/* Health Declaration */}
+              {memberDetails.userProfile.healthDeclaration && (
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                  <h3 className="mb-3 text-sm font-semibold uppercase text-gray-700">Health Declaration</h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Conditions</p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {getHealthDeclarationValue('healthConditions')}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Condition Details</p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {(() => {
+                          const value = getHealthDeclarationValue('healthConditionDetails');
+                          if (!value || value === 'N/A') return 'N/A';
+                          if (Array.isArray(value)) return value.join(', ');
+                          return value;
+                        })()}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Doctor Advice</p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {getHealthDeclarationValue('doctorAdvice')}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Injuries</p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {getHealthDeclarationValue('currentInjuries')}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Injury Details</p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {getHealthDeclarationValue('injuryDetails') || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Allergies</p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {getHealthDeclarationValue('allergies')}
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              )}
+            </CollapsibleCard>
           )}
 
           {/* Emergency Details Section */}
           {memberDetails.emergencyContacts && memberDetails.emergencyContacts.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-                <div className="flex items-center">
-                  <Phone className="mr-2 h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Emergency Details</h2>
-                </div>
+            <CollapsibleCard icon={<Phone className="mr-2 h-5 w-5 text-blue-600" />} title="Emergency Details">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {memberDetails.emergencyContacts.flatMap((contact, index: number) => [
+                  <div key={`${index}-name`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                      {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Name` : 'Name'}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {contact.firstName && contact.lastName
+                        ? `${contact.firstName} ${contact.lastName}`
+                        : contact.firstName || contact.lastName || 'N/A'}
+                    </p>
+                  </div>,
+                  <div key={`${index}-relationship`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                      {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Relationship` : 'Relationship'}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {getRelationshipLabel(contact.relationship)}
+                    </p>
+                  </div>,
+                  <div key={`${index}-phone`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                      {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Phone` : 'Phone'}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {(() => {
+                        const { countryCode, phone } = contact || {};
+                        const dialCode = getCountryDialCode(countryCode);
+                        return `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim() || 'N/A';
+                      })()}
+                    </p>
+                  </div>,
+                  <div key={`${index}-email`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                      {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Email` : 'Email'}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900">{contact.email || 'N/A'}</p>
+                  </div>,
+                ])}
               </div>
-              <div className="px-4 py-3 sm:px-6 sm:py-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {memberDetails.emergencyContacts.flatMap((contact, index: number) => [
-                    <div key={`${index}-name`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Name` : 'Name'}
-                      </p>
-                      <p className="text-base font-semibold text-gray-900">
-                        {contact.firstName && contact.lastName
-                          ? `${contact.firstName} ${contact.lastName}`
-                          : contact.firstName || contact.lastName || 'N/A'}
-                      </p>
-                    </div>,
-                    <div key={`${index}-relationship`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Relationship` : 'Relationship'}
-                      </p>
-                      <p className="text-base font-semibold text-gray-900">
-                        {getRelationshipLabel(contact.relationship)}
-                      </p>
-                    </div>,
-                    <div key={`${index}-phone`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Phone` : 'Phone'}
-                      </p>
-                      <p className="text-base font-semibold text-gray-900">
-                        {(() => {
-                          const { countryCode, phone } = contact || {};
-                          const dialCode = getCountryDialCode(countryCode);
-                          return `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim() || 'N/A';
-                        })()}
-                      </p>
-                    </div>,
-                    <div key={`${index}-email`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Email` : 'Email'}
-                      </p>
-                      <p className="text-base font-semibold text-gray-900">{contact.email || 'N/A'}</p>
-                    </div>,
-                  ])}
-                </div>
-              </div>
-            </div>
+            </CollapsibleCard>
           )}
 
           {/* Send Email Section */}

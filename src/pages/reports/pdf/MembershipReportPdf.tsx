@@ -2,7 +2,7 @@ import React from 'react';
 
 import { Circle, Document, Page, Path, Rect, StyleSheet, Svg, Text, View } from '@react-pdf/renderer';
 
-import type { PdfCountry, PdfReportData } from './reportPdfData';
+import type { PdfCentre, PdfReportData } from './reportPdfData';
 
 const C = {
   headerBlue: '#0C447C',
@@ -148,8 +148,8 @@ const s = StyleSheet.create({
   },
 });
 
-// column widths (spec): Country 22, counts 10 each (×5=50), Active Rate 14, Plan Mix 8, Trend 6
-const W = { country: '22%', count: '10%', rate: '14%', mix: '8%', trend: '6%' };
+// column widths (spec): Centre 22, counts 10 each (×5=50), Active Rate 14, Plan Mix 8, Trend 6
+const W = { centre: '22%', count: '10%', rate: '14%', mix: '8%', trend: '6%' };
 
 const Delta: React.FC<{ delta: number }> = ({ delta }) => {
   const color = delta > 0 ? C.green : delta < 0 ? C.red : C.gray;
@@ -215,12 +215,12 @@ const Badge: React.FC<{ label: string; color: string }> = ({ label, color }) => 
   <Text style={[s.badge, { color, borderColor: color, backgroundColor: `${color}18` }]}>{label}</Text>
 );
 
-const CountRow: React.FC<{ c: PdfCountry; alt: boolean; bold?: boolean }> = ({ c, alt, bold }) => {
+const CountRow: React.FC<{ c: PdfCentre; alt: boolean; bold?: boolean }> = ({ c, alt, bold }) => {
   const font = bold ? 'Helvetica-Bold' : 'Helvetica';
   return (
     <View style={[s.tr, alt ? s.trAlt : {}]}>
-      <View style={[{ width: W.country, flexDirection: 'row', alignItems: 'center', padding: 6 }]}>
-        {!bold && <Text style={s.codeChip}>{c.name.slice(0, 2).toUpperCase()}</Text>}
+      <View style={[{ width: W.centre, flexDirection: 'row', alignItems: 'center', padding: 6 }]}>
+        {!bold && <Text style={s.codeChip}>{c.code.toUpperCase()}</Text>}
         <Text style={[{ fontSize: 11, fontFamily: font, color: C.ink }]}>{c.name}</Text>
       </View>
       <Text style={[s.td, { width: W.count, fontFamily: font }]}>{c.total.toLocaleString()}</Text>
@@ -251,14 +251,14 @@ const CountRow: React.FC<{ c: PdfCountry; alt: boolean; bold?: boolean }> = ({ c
 };
 
 const MembershipReportPdf: React.FC<{ data: PdfReportData }> = ({ data }) => {
-  const totalsRow: PdfCountry = {
-    flag: '',
-    name: 'All Regions',
-    total: data.countries.reduce((a, c) => a + c.total, 0),
-    active: data.countries.reduce((a, c) => a + c.active, 0),
-    inactive: data.countries.reduce((a, c) => a + c.inactive, 0),
-    suspended: data.countries.reduce((a, c) => a + c.suspended, 0),
-    expired: data.countries.reduce((a, c) => a + c.expired, 0),
+  const totalsRow: PdfCentre = {
+    code: '',
+    name: 'All Centres',
+    total: data.centres.reduce((a, c) => a + c.total, 0),
+    active: data.centres.reduce((a, c) => a + c.active, 0),
+    inactive: data.centres.reduce((a, c) => a + c.inactive, 0),
+    suspended: data.centres.reduce((a, c) => a + c.suspended, 0),
+    expired: data.centres.reduce((a, c) => a + c.expired, 0),
     activeRate: 0,
     planMix: { label: '—', color: C.gray },
     trend: [],
@@ -337,7 +337,7 @@ const MembershipReportPdf: React.FC<{ data: PdfReportData }> = ({ data }) => {
             ))}
           </View>
           <View style={s.card}>
-            <Text style={s.cardTitle}>Members by Region</Text>
+            <Text style={s.cardTitle}>Members by Centre</Text>
             <View style={s.donutWrap}>
               <Donut regions={data.regions} />
               <View style={s.legendCol}>
@@ -353,10 +353,10 @@ const MembershipReportPdf: React.FC<{ data: PdfReportData }> = ({ data }) => {
           </View>
         </View>
 
-        {/* 5. country summary table */}
+        {/* 5. centre summary table */}
         <View style={s.table}>
           <View style={s.thead}>
-            <Text style={[s.th, { width: W.country }]}>COUNTRY</Text>
+            <Text style={[s.th, { width: W.centre }]}>CENTRE</Text>
             <Text style={[s.th, { width: W.count }]}>TOTAL</Text>
             <Text style={[s.th, { width: W.count }]}>ACTIVE</Text>
             <Text style={[s.th, { width: W.count }]}>INACTIVE</Text>
@@ -366,8 +366,8 @@ const MembershipReportPdf: React.FC<{ data: PdfReportData }> = ({ data }) => {
             <Text style={[s.th, { width: W.mix }]}>PLAN</Text>
             <Text style={[s.th, { width: W.trend }]}>TREND</Text>
           </View>
-          {data.countries.map((c, i) => (
-            <CountRow key={c.name} alt={i % 2 === 1} c={c} />
+          {data.centres.map((c, i) => (
+            <CountRow key={c.code} alt={i % 2 === 1} c={c} />
           ))}
           <CountRow bold alt={false} c={totalsRow} />
         </View>

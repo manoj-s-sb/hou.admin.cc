@@ -280,3 +280,13 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
 
 /** Flat list of live modules — the generic centre route resolves a slug against this. */
 export const LIVE_CENTRE_MODULES: CentreModuleDef[] = CENTRE_MODULE_GROUPS.flatMap(g => g.items);
+
+/**
+ * Modules gated behind the centre itself being Active — every "Operations" module
+ * (real bookings/tickets/tasks/assignments). A Draft/Staging/Suspended centre can
+ * still reach "Centre Config" (Facilities, Plans & Pricing) to finish setup, but
+ * nothing operational — see CentreModuleRoute (route guard) and Sidebar (nav).
+ */
+export const ACTIVE_ONLY_MODULE_KEYS: ReadonlySet<CentreModuleKey> = new Set(
+  CENTRE_MODULE_GROUPS.find(g => g.group === 'Operations')?.items.map(m => m.key) ?? []
+);

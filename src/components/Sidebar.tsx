@@ -322,6 +322,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             </div>
 
             {CENTRE_MODULE_GROUPS.map(g => {
+              // Operations modules require the centre itself to be Active — a
+              // Draft/Staging/Suspended centre can still reach Centre Config
+              // (Facilities, Plans & Pricing) to finish setup, nothing else. See
+              // CentreModuleRoute's matching route guard.
+              if (g.group === 'Operations' && activeCentre.status !== 'active') return null;
               const visibleItems = g.items.filter(m => !m.scope || canRead(m.scope));
               if (!visibleItems.length) return null;
               return (

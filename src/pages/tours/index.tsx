@@ -36,7 +36,7 @@ const Tours = () => {
 
   const [selectedDate, setSelectedDate] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('pending');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
   const facilityCode = useScopedFacilityCode();
 

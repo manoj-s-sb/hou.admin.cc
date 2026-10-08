@@ -58,9 +58,11 @@ const Tickets: React.FC = () => {
   const [centres, setCentres] = useState<{ code: string; name: string }[]>([]);
 
   // Centre catalogue (global view only) — powers the filter + create-modal picker.
+  // Active only: a Draft/Staging/Suspended centre isn't operable yet, so it can't be
+  // filtered to or picked as a ticket's centre (see CentreModuleRoute's matching gate).
   useEffect(() => {
     if (isCentreScoped) return;
-    dispatch(getCentres({ skip: 0, limit: 200 }))
+    dispatch(getCentres({ status: 'active', skip: 0, limit: 200 }))
       .unwrap()
       .then(res => setCentres((res.facilities ?? []).map(f => ({ code: f.code, name: f.name }))))
       .catch(() => setCentres([]));

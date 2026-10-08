@@ -19,6 +19,7 @@ import type {
   CentreListRequest,
   CentreListResponse,
   ContactStatus,
+  FacilitiesPatchRequest,
   FacilitySummary,
   LeadEntry,
   WaitlistEntry,
@@ -145,6 +146,24 @@ export const updateCentre = createAsyncThunk<
     return rejectWithValue(handleApiError(error, 'Could not save the centre. Please try again.'));
   }
 });
+
+/**
+ * POST /admin/centres/update — the Facilities page's own, narrower edits
+ * (General Amenities, add/edit a bookable facility). Same endpoint `updateCentre`
+ * uses, but this page never touches lanes/memberships/sales-flow, so it sends
+ * only the parts it actually changed rather than the full wizard bundle shape.
+ */
+export const updateCentreFacilities = createAsyncThunk<CentreBundle, FacilitiesPatchRequest, { rejectValue: string }>(
+  'centres/updateCentreFacilities',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await api.post<{ data: CentreBundle }>(endpoints.centres.centreUpdate, payload);
+      return unwrap<CentreBundle>(res);
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not save. Please try again.'));
+    }
+  }
+);
 
 /**
  * POST /admin/centres/waitlist — paginated waitlist (promo) entries for a centre.

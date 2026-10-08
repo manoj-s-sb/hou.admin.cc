@@ -70,9 +70,10 @@ const Tailgate = () => {
   const showCentreFilter = isGlobalScope() && !isCentreScoped;
   const effectiveFacilityCode = isCentreScoped ? routeFacility : centreCode || undefined;
 
+  // Active only — a Draft/Staging/Suspended centre has no tailgate activity yet.
   useEffect(() => {
     if (!showCentreFilter) return;
-    dispatch(getCentres({ skip: 0, limit: 200 }))
+    dispatch(getCentres({ status: 'active', skip: 0, limit: 200 }))
       .unwrap()
       .then(res => setCentres(res.facilities ?? []))
       .catch(() => setCentres([]));

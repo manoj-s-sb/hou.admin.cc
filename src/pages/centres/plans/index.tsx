@@ -83,8 +83,22 @@ const PlansPricing: React.FC = () => {
   const share = (slots: number): number => (totalSlots > 0 ? Math.round((slots / totalSlots) * 100) : 0);
 
   // Guest / extra-session pricing is stored per plan; the centre view surfaces the
-  // first plan's rules (they're set network-wide in the wizard).
-  const guest = (memberships[0]?.bookingRules?.guestBookingRules ?? {}) as Record<string, unknown>;
+  // first plan's rules (they're set network-wide in the wizard). Real membership
+  // docs nest guest pricing under guestBookingRules.pricing (firstGuest /
+  // additionalGuests.discount) rather than flat fields — same shape the
+  // Membership Plans "Guest Charges" tab and mapApiPlan.ts already read.
+  const bookingRules = (memberships[0]?.bookingRules ?? {}) as {
+    guestBookingRules?: {
+      pricing?: { firstGuest?: number; additionalGuests?: { type?: string; discount?: number } };
+    };
+    slotPurchaseRules?: { price?: number };
+  };
+  const guestPricing = bookingRules.guestBookingRules?.pricing ?? {};
+  const additionalGuests = guestPricing.additionalGuests ?? {};
+  const firstGuestFee = guestPricing.firstGuest;
+  const additionalGuestDiscount = additionalGuests.discount;
+  const additionalGuestIsPct = additionalGuests.type === 'percentage';
+  const extraSessionCost = bookingRules.slotPurchaseRules?.price;
 
   return (
     <div>
@@ -202,17 +216,24 @@ const PlansPricing: React.FC = () => {
         {[
           {
             label: 'First Guest Fee',
-            value: has(guest.firstGuestFee) ? money(guest.firstGuestFee) : '—',
+            value: has(firstGuestFee) ? money(firstGuestFee) : '—',
+            suffix: '',
             note: 'Network default',
           },
           {
             label: 'Additional Guest Discount',
-            value: has(guest.additionalGuestDiscountPct) ? `${num(guest.additionalGuestDiscountPct)}%` : '—',
+            value: has(additionalGuestDiscount)
+              ? additionalGuestIsPct
+                ? `${num(additionalGuestDiscount)}%`
+                : money(additionalGuestDiscount)
+              : '—',
+            suffix: has(additionalGuestDiscount) && additionalGuestIsPct ? 'off' : '',
             note: 'Network default',
           },
           {
             label: 'Extra Session Cost',
-            value: has(guest.extraSessionCost) ? money(guest.extraSessionCost) : '—',
+            value: has(extraSessionCost) ? money(extraSessionCost) : '—',
+            suffix: '',
             note: 'Centre-specific',
           },
         ].map(c => (
@@ -221,7 +242,12 @@ const PlansPricing: React.FC = () => {
             style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}
           >
             <div style={{ fontSize: 12, color: 'var(--sub)' }}>{c.label}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)', margin: '4px 0 2px' }}>{c.value}</div>
+            <div style={{ margin: '4px 0 2px' }}>
+              <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)' }}>{c.value}</span>
+              {c.suffix && (
+                <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--sub)', marginLeft: 4 }}>{c.suffix}</span>
+              )}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--sub)' }}>{c.note}</div>
           </div>
         ))}

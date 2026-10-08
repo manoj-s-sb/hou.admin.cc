@@ -232,10 +232,12 @@ const AddStaffMember: React.FC = () => {
 
   // Load the real centre catalogue. On error/empty the picker shows an empty state
   // (plus the "Other" manual option) — we never substitute seed centres here.
+  // Active only — a Draft/Staging/Suspended centre isn't operable yet, so a staff
+  // member can't be assigned to it (see CentreModuleRoute's matching gate).
   useEffect(() => {
     let cancelled = false;
     setCentresLoading(true);
-    dispatch(getCentres({ skip: 0, limit: 200 }))
+    dispatch(getCentres({ status: 'active', skip: 0, limit: 200 }))
       .unwrap()
       .then(res => {
         if (!cancelled) setCentres(res.facilities ?? []);
