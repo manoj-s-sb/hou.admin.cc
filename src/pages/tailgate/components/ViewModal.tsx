@@ -18,7 +18,7 @@ const ViewModal = ({ log, onClose }: ViewModalProps) => {
   const status = getLogStatus(log);
   const sc = statusConfig[status] || statusConfig.pending;
   const memberName = getEffectiveName(log);
-  const memberId = log.review?.reviewed ? (log.review.memberId ?? null) : (log.actor?.id ?? null);
+  const memberId = log.review?.reviewed ? (log.review.memberId ?? null) : (log.actor?.userId ?? null);
 
   return (
     <div

@@ -26,18 +26,26 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
   const evType = getEventDisplayType(log.eventType);
 
   const initMemberType = (): 'Member' | 'Non-Member' | '' => {
-    const mt = log.review?.memberType;
+    // Prefill from the admin review if it exists, else from the detection's actor
+    // (which already carries the matched member's type).
+    const mt = (log.review?.memberType ?? log.actor?.memberType ?? '').toLowerCase();
     if (mt === 'member') return 'Member';
     if (mt === 'non-member') return 'Non-Member';
     return '';
+  };
+  const initSubscription = (): string => {
+    const s = log.review?.subscription || log.actor?.subscription || '';
+    // Normalise to the dropdown's casing (e.g. "standard" -> "Standard") so it shows selected.
+    return s ? (SUBSCRIPTIONS.find(opt => opt.toLowerCase() === s.toLowerCase()) ?? s) : '';
   };
 
   const [isViolation, setIsViolation] = useState(currentStatus === 'violation' || (isPending && evType === 'Tailgate'));
   const [notes, setNotes] = useState(log.review?.comment || '');
   const [memberName, setMemberName] = useState(log.review?.memberName || log.actor?.name || '');
   const [memberType, setMemberType] = useState<'Member' | 'Non-Member' | ''>(initMemberType());
-  const [memberId, setMemberId] = useState(log.review?.memberId || log.actor?.id || '');
-  const [subscription, setSubscription] = useState(log.review?.subscription || '');
+  const [memberId, setMemberId] = useState(log.review?.memberId || log.actor?.userId || '');
+  const [subscription, setSubscription] = useState(initSubscription());
+  const [email, setEmail] = useState(log.review?.email || log.actor?.email || '');
   const initActualEventType = (): 'Entry' | 'Exit' | '' => {
     const saved = log.review?.actualEventType?.toLowerCase();
     if (saved === 'entry') return 'Entry';
@@ -60,6 +68,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
         memberName: memberName.trim() || null,
         memberType: memberType ? memberType.toLowerCase() : null,
         memberId: isMember ? memberId.trim() || null : null,
+        email: email.trim() || null,
         subscription: isMember ? subscription || null : null,
         isViolation,
         actualEventType: !isViolation ? (actualEventType ? actualEventType.toUpperCase() : null) : null,
@@ -197,6 +206,21 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
                     <option value="Non-Member">Non-Member</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className={labelCls} htmlFor="rv-email">
+                  Email
+                </label>
+                <input
+                  className={inputCls}
+                  id="rv-email"
+                  placeholder="name@example.com"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                />
               </div>
 
               {/* Conditional: Member ID + Subscription */}

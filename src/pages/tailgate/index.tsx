@@ -222,8 +222,10 @@ const Tailgate = () => {
   logs.forEach(l => {
     const isReviewed = l.review?.reviewed === true;
     const displayName = isReviewed ? (l.review?.memberName ?? null) : (l.actor?.name ?? null);
-    const displayId = isReviewed ? (l.review?.memberId ?? null) : (l.actor?.id ?? null);
-    const k = isReviewed ? l.review?.memberId || `__rev__${l.review?.memberName ?? ''}` : l.actor?.id || '__unknown__';
+    const displayId = isReviewed ? (l.review?.memberId ?? null) : (l.actor?.userId ?? null);
+    const k = isReviewed
+      ? l.review?.memberId || `__rev__${l.review?.memberName ?? ''}`
+      : l.actor?.userId || l.actor?.id || '__unknown__';
     if (!byActor[k]) {
       const { ini, ab, ac } = getAvatarData(displayName);
       byActor[k] = {

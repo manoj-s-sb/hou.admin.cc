@@ -2,6 +2,16 @@ export interface TailgateActor {
   id: string;
   name: string;
   type: string;
+  /** The member's user id — this is the real "Member ID" shown in the UI (NOT `id`,
+   *  which is the detection/actor id). Present on newer events; absent on older ones. */
+  userId?: string;
+  bookingId?: string;
+  email?: string;
+  doorType?: string;
+  /** Prefill sources for the review form — the detection already knows the member's
+   *  type ("Member"/"Non-Member") and subscription tier when it matched a valid PIN. */
+  memberType?: string;
+  subscription?: string;
 }
 
 export interface TailgateDoor {
@@ -31,6 +41,7 @@ export interface TailgateReview {
   memberName: string | null;
   memberType: string | null;
   memberId: string | null;
+  email: string | null;
   isViolation: boolean | null;
   subscription: string | null;
   actualEventType: string | null;
