@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-import ct from 'countries-and-timezones';
+import { getAllTimezones, getCountry, getTimezone } from 'countries-and-timezones';
 import worldCountries from 'world-countries';
 
 import type { AdditionalFacilityType, CentreApiStatus, OperatingHoursMap, PlanId } from '../../store/centres/types';
@@ -102,13 +102,13 @@ const toRealIso2 = (code: string): string => {
 };
 
 const tzLabel = (name: string): string => {
-  const tz = ct.getTimezone(name);
+  const tz = getTimezone(name);
   return tz ? `${name} (UTC${tz.utcOffsetStr})` : name;
 };
 
 /** Every real-world IANA timezone — the Time Zone dropdown's full list before
  * a country has been picked yet (or for a country with no curated mapping). */
-export const TIMEZONES: { value: string; label: string }[] = Object.values(ct.getAllTimezones())
+export const TIMEZONES: { value: string; label: string }[] = Object.values(getAllTimezones())
   .filter(tz => !tz.aliasOf)
   .map(tz => ({ value: tz.name, label: tzLabel(tz.name) }))
   .sort((a, b) => a.value.localeCompare(b.value));
@@ -117,7 +117,7 @@ export const TIMEZONES: { value: string; label: string }[] = Object.values(ct.ge
  * dropdown filters down to these once a country is selected, instead of
  * showing all ~340 global zones regardless of country. */
 export const timezonesForCountry = (code: string): { value: string; label: string }[] => {
-  const country = ct.getCountry(toRealIso2(code));
+  const country = getCountry(toRealIso2(code));
   return country ? country.timezones.map(name => ({ value: name, label: tzLabel(name) })) : [];
 };
 
