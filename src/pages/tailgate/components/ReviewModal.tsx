@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useDispatch } from 'react-redux';
 
+import endpoints from '../../../constants/endpoints';
+import { getFacilityCode } from '../../../constants/user';
+import api from '../../../services';
 import { AppDispatch } from '../../../store/store';
 import { submitTailgateReview } from '../../../store/tailgate/api';
 import { TailgateLog } from '../../../store/tailgate/types';
 import { getEventDisplayType, getLogDate, getLogStatus, getLogTime } from '../utils';
+
+import type { Member } from '../../../store/members/types';
 
 interface ReviewModalProps {
   log: TailgateLog;
@@ -39,13 +44,81 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     return s ? (SUBSCRIPTIONS.find(opt => opt.toLowerCase() === s.toLowerCase()) ?? s) : '';
   };
 
+  // The form's default values (from the review, else the detection's actor). Used both to
+  // seed the fields and to restore them when the admin clears a searched selection.
+  const defaultName = log.review?.memberName || log.actor?.name || '';
+  const defaultMemberId = log.review?.memberId || log.actor?.userId || '';
+  const defaultEmail = log.review?.email || log.actor?.email || '';
+
   const [isViolation, setIsViolation] = useState(currentStatus === 'violation' || (isPending && evType === 'Tailgate'));
   const [notes, setNotes] = useState(log.review?.comment || '');
-  const [memberName, setMemberName] = useState(log.review?.memberName || log.actor?.name || '');
+  const [memberName, setMemberName] = useState(defaultName);
   const [memberType, setMemberType] = useState<'Member' | 'Non-Member' | ''>(initMemberType());
-  const [memberId, setMemberId] = useState(log.review?.memberId || log.actor?.userId || '');
+  const [memberId, setMemberId] = useState(defaultMemberId);
   const [subscription, setSubscription] = useState(initSubscription());
-  const [email, setEmail] = useState(log.review?.email || log.actor?.email || '');
+  const [email, setEmail] = useState(defaultEmail);
+
+  // ── Member search typeahead — type a name/email/id, pick a match, auto-fill. ──
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberResults, setMemberResults] = useState<Member[]>([]);
+  const [searchingMembers, setSearchingMembers] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [memberSelected, setMemberSelected] = useState(false);
+
+  useEffect(() => {
+    const q = memberQuery.trim();
+    if (q.length < 2) {
+      setMemberResults([]);
+      setShowResults(false);
+      return;
+    }
+    let cancelled = false;
+    setSearchingMembers(true);
+    setShowResults(true); // open the dropdown now so the loader is visible while searching
+    const t = setTimeout(() => {
+      api
+        .post(endpoints.members.list, { facilityCode: getFacilityCode(), search: q, skip: 0, limit: 8 })
+        .then(res => {
+          if (cancelled) return;
+          setMemberResults((res.data?.data?.members as Member[]) ?? []);
+        })
+        .catch(() => {
+          if (!cancelled) setMemberResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setSearchingMembers(false);
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [memberQuery]);
+
+  const selectMember = (m: Member) => {
+    const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
+    setMemberName(fullName);
+    setEmail(m.email ?? '');
+    setMemberId(m.userId ?? '');
+    setMemberType('Member');
+    const sub = m.subscription?.subscriptionCode ?? '';
+    setSubscription(sub ? (SUBSCRIPTIONS.find(opt => opt.toLowerCase() === sub.toLowerCase()) ?? sub) : '');
+    setMemberQuery(''); // clear the search box so it doesn't re-trigger a search / reopen
+    setShowResults(false);
+    setMemberSelected(true);
+  };
+
+  // Undo a searched selection — put every field back to its default (pre-search) value.
+  const clearSelection = () => {
+    setMemberName(defaultName);
+    setMemberType(initMemberType());
+    setMemberId(defaultMemberId);
+    setSubscription(initSubscription());
+    setEmail(defaultEmail);
+    setMemberQuery('');
+    setShowResults(false);
+    setMemberSelected(false);
+  };
   const initActualEventType = (): 'Entry' | 'Exit' | '' => {
     const saved = log.review?.actualEventType?.toLowerCase();
     if (saved === 'entry') return 'Entry';
@@ -176,6 +249,62 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
             </div>
 
             <div className="space-y-3">
+              {/* Member search — type a name, email or ID to auto-fill the fields below */}
+              <div className="relative">
+                <div className="mb-1 flex items-center justify-between">
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                    htmlFor="rv-search"
+                  >
+                    Find member
+                  </label>
+                  {memberSelected && (
+                    <button
+                      className="text-[11px] font-semibold text-[#21295A] hover:underline"
+                      type="button"
+                      onClick={clearSelection}
+                    >
+                      Clear selection
+                    </button>
+                  )}
+                </div>
+                <input
+                  className={inputCls}
+                  id="rv-search"
+                  placeholder="Search by name, email or ID…"
+                  type="text"
+                  value={memberQuery}
+                  onChange={e => setMemberQuery(e.target.value)}
+                  onFocus={() => memberQuery.trim().length >= 2 && setShowResults(true)}
+                />
+                {showResults && (
+                  <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                    {searchingMembers ? (
+                      <p className="flex items-center gap-2 px-3 py-2 text-[12px] text-gray-400">
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-[#21295A]" />
+                        Searching…
+                      </p>
+                    ) : memberResults.length > 0 ? (
+                      memberResults.map(m => (
+                        <button
+                          key={m.userId}
+                          className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-gray-50"
+                          type="button"
+                          onClick={() => selectMember(m)}
+                        >
+                          <span className="text-[13px] font-semibold text-[#21295A]">
+                            {`${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() || '(no name)'}
+                          </span>
+                          <span className="text-[11px] text-gray-400">{m.email || m.userId}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-3 py-2 text-[12px] text-gray-400">No users found</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Name + Type row */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
