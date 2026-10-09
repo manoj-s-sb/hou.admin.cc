@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import endpoints from '../../../constants/endpoints';
-import { getFacilityCode } from '../../../constants/user';
 import api from '../../../services';
 import { AppDispatch } from '../../../store/store';
 import { submitTailgateReview } from '../../../store/tailgate/api';
@@ -32,10 +31,19 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
 
   const initMemberType = (): 'Member' | 'Non-Member' | '' => {
     // Prefill from the admin review if it exists, else from the detection's actor
-    // (which already carries the matched member's type).
+    // (which already carries the matched member's type, when the upstream event
+    // sends it — most don't yet).
     const mt = (log.review?.memberType ?? log.actor?.memberType ?? '').toLowerCase();
     if (mt === 'member') return 'Member';
     if (mt === 'non-member') return 'Non-Member';
+    // No explicit memberType on the event (the common case today) — infer it
+    // instead: a userId or bookingId on the actor means the door/camera system
+    // matched a real member who booked through the app, so default to "Member";
+    // a bare name/visitor entry (or nothing at all) defaults to "Non-Member".
+    // The admin can still change it manually either way.
+    if (!log.review?.reviewed) {
+      return log.actor?.userId || log.actor?.bookingId ? 'Member' : 'Non-Member';
+    }
     return '';
   };
   const initSubscription = (): string => {
@@ -76,8 +84,12 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     setSearchingMembers(true);
     setShowResults(true); // open the dropdown now so the loader is visible while searching
     const t = setTimeout(() => {
+      // No facilityCode — a member can walk into a door at a centre that isn't
+      // their home/registered one, so this must search network-wide, not just
+      // this centre's roster (a centre-scoped search silently found nothing for
+      // a real member whose account was registered at a different centre).
       api
-        .post(endpoints.members.list, { facilityCode: getFacilityCode(), search: q, skip: 0, limit: 8 })
+        .post(endpoints.members.list, { search: q, skip: 0, limit: 8 })
         .then(res => {
           if (cancelled) return;
           setMemberResults((res.data?.data?.members as Member[]) ?? []);
@@ -95,7 +107,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     };
   }, [memberQuery]);
 
-  const selectMember = (m: Member) => {
+  const applyMember = (m: Member) => {
     const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
     setMemberName(fullName);
     setEmail(m.email ?? '');
@@ -103,10 +115,66 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     setMemberType('Member');
     const sub = m.subscription?.subscriptionCode ?? '';
     setSubscription(sub ? (SUBSCRIPTIONS.find(opt => opt.toLowerCase() === sub.toLowerCase()) ?? sub) : '');
-    setMemberQuery(''); // clear the search box so it doesn't re-trigger a search / reopen
-    setShowResults(false);
     setMemberSelected(true);
   };
+
+  const selectMember = (m: Member) => {
+    applyMember(m);
+    setAutoMatched(false); // a manual pick overrides any earlier auto-match hint
+    setMemberQuery(''); // clear the search box so it doesn't re-trigger a search / reopen
+    setShowResults(false);
+  };
+
+  // ── Auto-lookup: the detection didn't resolve a userId/bookingId (so
+  // initMemberType() defaulted to "Non-Member"), but the actor may still carry a
+  // name or email — check the real members database before trusting that default.
+  // Email is an exact-match, unambiguous signal; a bare name only auto-applies when
+  // it resolves to exactly one member (ambiguous name matches are left for the
+  // admin to resolve via the search box above, rather than guessing). */
+  const [autoLookupLoading, setAutoLookupLoading] = useState(false);
+  const [autoMatched, setAutoMatched] = useState(false);
+  useEffect(() => {
+    if (log.review?.reviewed) return; // already reviewed — don't second-guess a saved review
+    if (log.actor?.userId || log.actor?.bookingId) return; // detection already resolved a real member
+    const actorEmail = (log.actor?.email || '').trim();
+    const actorName = (log.actor?.name || '').trim();
+    if (!actorEmail && !actorName) return; // nothing to search with
+
+    let cancelled = false;
+    setAutoLookupLoading(true);
+    // No facilityCode — same reason as the manual search above: a real member can
+    // enter through a door at a centre that isn't their registered home centre.
+    api
+      .post(endpoints.members.list, {
+        search: actorEmail || actorName,
+        skip: 0,
+        limit: 8,
+      })
+      .then(res => {
+        if (cancelled) return;
+        const results = (res.data?.data?.members as Member[]) ?? [];
+        const match = actorEmail
+          ? results.find(m => (m.email || '').toLowerCase() === actorEmail.toLowerCase())
+          : results.length === 1
+            ? results[0]
+            : undefined;
+        if (match) {
+          applyMember(match);
+          setAutoMatched(true);
+        }
+      })
+      .catch(() => {
+        /* no match found / lookup failed — keep the inferred "Non-Member" default */
+      })
+      .finally(() => {
+        if (!cancelled) setAutoLookupLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Runs once when the modal opens for this log — not on every keystroke/search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [log.id]);
 
   // Undo a searched selection — put every field back to its default (pre-search) value.
   const clearSelection = () => {
@@ -118,6 +186,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     setMemberQuery('');
     setShowResults(false);
     setMemberSelected(false);
+    setAutoMatched(false);
   };
   const initActualEventType = (): 'Entry' | 'Exit' | '' => {
     const saved = log.review?.actualEventType?.toLowerCase();
@@ -268,6 +337,12 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
                     </button>
                   )}
                 </div>
+                {autoLookupLoading && <p className="mb-1 text-[11px] text-gray-400">Checking membership records…</p>}
+                {autoMatched && !autoLookupLoading && (
+                  <p className="mb-1 text-[11px] font-medium text-emerald-600">
+                    ✓ Auto-matched to a member record from the detection&apos;s name/email.
+                  </p>
+                )}
                 <input
                   className={inputCls}
                   id="rv-search"
