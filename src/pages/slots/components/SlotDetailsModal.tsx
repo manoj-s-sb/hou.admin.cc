@@ -6,6 +6,8 @@ import { getLocalUser } from '../../../constants/user';
 import { ACCESS_SCOPES, PermissionGate } from '../../../rbac';
 import api from '../../../services';
 import { Slot } from '../../../store/slots/types';
+import { isValidEmail } from '../../../utils/validation';
+import { formatSlotTime, parseSlotDateTime } from '../utils/timeFormat';
 
 const BLOCK_REASONS = [
   { value: '', label: 'Select a reason' },
@@ -15,6 +17,25 @@ const BLOCK_REASONS = [
   { value: 'Other', label: 'Other' },
 ];
 
+// A booking can only be cancelled up until this many minutes before its session starts.
+const CANCEL_CUTOFF_MINUTES = 6;
+
+export interface BookForSomeonePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  dateOfBirth: string;
+  notes: string;
+}
+
+/** A same-type lane with an available slot at this booking's time — a valid
+ * "Shift Lane" target. */
+export interface ShiftLaneOption {
+  laneNo: number;
+  laneCode: string;
+  slotCode: string;
+}
+
 interface SlotDetailsModalProps {
   slot: Slot | null;
   laneNo: number;
@@ -22,7 +43,20 @@ interface SlotDetailsModalProps {
   onClose: () => void;
   onBlockSlot: (reason: string, blockedByName: string) => void;
   onUnblockSlot: () => void;
+  onCancelBooking: (reason: string) => void;
+  /** "Book for someone" — an available slot only. */
+  onBookForSomeone: (payload: BookForSomeonePayload) => void;
+  /** "Shift Lane" — a booked slot only. Moves the booking to `targetSlotCode`
+   * (one of `availableLanesToShift`), and the caller is expected to also block
+   * the vacated slot — this lane is being moved off of because it has an issue. */
+  onShiftLane: (targetSlotCode: string, reason: string) => void;
+  /** Same-type lanes with a genuinely available slot at this exact time — the
+   * only valid "Shift Lane" targets. Empty when none exist. */
+  availableLanesToShift: ShiftLaneOption[];
   isLoading?: boolean;
+  /** The calendar's selected day (YYYY-MM-DD) — combined with the slot's start time
+   * to gate the cancel-booking cutoff. */
+  date: string;
   timeSlot: string;
   nextTimeSlot: string | null;
 }
@@ -34,7 +68,12 @@ const SlotDetailsModal = ({
   onClose,
   onBlockSlot,
   onUnblockSlot,
+  onCancelBooking,
+  onBookForSomeone,
+  onShiftLane,
+  availableLanesToShift,
   isLoading = false,
+  date,
   timeSlot,
   nextTimeSlot,
 }: SlotDetailsModalProps) => {
@@ -48,13 +87,89 @@ const SlotDetailsModal = ({
   // retype their own name here. Resets to the current user's name each time the
   // modal opens (not just on first mount).
   const [blockedByName, setBlockedByName] = useState('');
+  const [showCancelReason, setShowCancelReason] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [showShiftPicker, setShowShiftPicker] = useState(false);
+  const [selectedShiftSlotCode, setSelectedShiftSlotCode] = useState('');
+  const [shiftReason, setShiftReason] = useState('');
+
+  // "Block Slot" vs "Book for Someone" — only relevant while the slot is available.
+  const [availableAction, setAvailableAction] = useState<'block' | 'book'>('block');
+  const [bookFirstName, setBookFirstName] = useState('');
+  const [bookLastName, setBookLastName] = useState('');
+  const [bookEmail, setBookEmail] = useState('');
+  const [bookDob, setBookDob] = useState('');
+  const [bookNotes, setBookNotes] = useState('');
+  // Live "is this email already a member?" check as the admin types it in —
+  // purely informational (never blocks submission either way).
+  const [memberCheck, setMemberCheck] = useState<'idle' | 'checking' | 'yes' | 'no'>('idle');
 
   useEffect(() => {
-    if (isOpen) setBlockedByName(getLocalUser().name);
+    if (isOpen) {
+      setBlockedByName(getLocalUser().name);
+      setShowCancelReason(false);
+      setCancelReason('');
+      setShowShiftPicker(false);
+      setSelectedShiftSlotCode('');
+      setShiftReason('');
+      setAvailableAction('block');
+      setBookFirstName('');
+      setBookLastName('');
+      setBookEmail('');
+      setBookDob('');
+      setBookNotes('');
+      setMemberCheck('idle');
+    }
   }, [isOpen]);
+
+  useEffect(() => {
+    const email = bookEmail.trim();
+    if (!isValidEmail(email)) {
+      setMemberCheck('idle');
+      return;
+    }
+    let cancelled = false;
+    setMemberCheck('checking');
+    const t = setTimeout(() => {
+      api
+        .post(endpoints.members.list, { skip: 0, limit: 5, search: email })
+        .then(res => {
+          if (cancelled) return;
+          const members: { email?: string }[] = res.data?.data?.members || [];
+          const isMember = members.some(m => (m.email || '').toLowerCase() === email.toLowerCase());
+          setMemberCheck(isMember ? 'yes' : 'no');
+        })
+        .catch(() => {
+          if (!cancelled) setMemberCheck('idle');
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [bookEmail]);
+
+  const canSubmitBooking = bookFirstName.trim().length > 0 && isValidEmail(bookEmail) && !!bookDob;
+
+  const handleSubmitBooking = () => {
+    if (!canSubmitBooking) return;
+    onBookForSomeone({
+      firstName: bookFirstName.trim(),
+      lastName: bookLastName.trim(),
+      email: bookEmail.trim(),
+      dateOfBirth: bookDob,
+      notes: bookNotes.trim(),
+    });
+  };
 
   const isBooked = !!slot?.isBooked && slot?.status?.toLowerCase() === 'confirmed';
   const userId = slot?.booking?.user?.userId;
+  // An admin-made booking is owned by the admin, not the player -- the player
+  // is stored as guests[0]. `bookedByName` only gets set on that path, so it
+  // doubles as the signal to swap which identity is shown as "the booking".
+  const isAdminBooking = !!slot?.booking?.bookedByName;
+  const primaryGuest = isAdminBooking ? slot?.booking?.guests?.[0] : undefined;
+  const additionalGuests = isAdminBooking ? (slot?.booking?.guests ?? []).slice(1) : [];
 
   // The slots list doesn't carry the member's plan — fetch it separately via
   // the same member-details lookup the Members page uses, keyed off the
@@ -87,6 +202,21 @@ const SlotDetailsModal = ({
 
   const isAvailable = slot.status?.toLowerCase() === 'available';
   const isBlocked = !slot.isBooked && slot.status?.toLowerCase() === 'disabled';
+
+  const sessionStart = parseSlotDateTime(date, slot.startTime || timeSlot);
+  const canCancelBooking =
+    isBooked && slot.booking?.bookingStatus?.toLowerCase() !== 'completed' && !!sessionStart
+      ? Date.now() < sessionStart.getTime() - CANCEL_CUTOFF_MINUTES * 60_000
+      : false;
+  // Same eligibility as cancelling — a booking already in progress or
+  // completed, or one within the cutoff, shouldn't be moved either.
+  const canShiftLane = canCancelBooking;
+
+  const handleConfirmCancel = () => {
+    onCancelBooking(cancelReason.trim());
+    setShowCancelReason(false);
+    setCancelReason('');
+  };
 
   const getStatusBadge = () => {
     // Check if booking status is completed
@@ -138,7 +268,8 @@ const SlotDetailsModal = ({
               <div className="flex justify-between">
                 <span className="text-[14px] text-gray-600">Time:</span>
                 <span className="text-[14px] font-medium text-[#21295A]">
-                  {timeSlot} - {nextTimeSlot}
+                  {formatSlotTime(timeSlot)}
+                  {nextTimeSlot ? ` - ${formatSlotTime(nextTimeSlot)}` : ''}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -200,92 +331,298 @@ const SlotDetailsModal = ({
               {/* Booking Details - Show if slot is booked */}
               {isBooked && slot.booking?.user && (
                 <>
-                  {slot.booking.user.firstName && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Name:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">
-                        {slot.booking.user.firstName} {slot.booking.user.lastName || ''}
-                      </span>
-                    </div>
-                  )}
-                  {slot.booking.user.email && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Email:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.email}</span>
-                    </div>
-                  )}
-                  {slot.booking.user.phone && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Phone:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.phone}</span>
-                    </div>
-                  )}
-                  {(isPlanLoading || membershipPlan) && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Membership Plan:</span>
-                      <span className="text-[14px] font-medium capitalize text-[#21295A]">
-                        {isPlanLoading ? 'Loading…' : membershipPlan}
-                      </span>
-                    </div>
-                  )}
-                  {slot?.booking?.facilityPin && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Facility Pin:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.facilityPin}</span>
-                    </div>
-                  )}
-                  {slot?.booking?.lanePin && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Lane Pin:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.lanePin}</span>
-                    </div>
-                  )}
-                  {slot?.booking?.coach?.name && (
-                    <div className="flex justify-between">
-                      <span className="text-[14px] text-gray-600">Coach:</span>
-                      <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.coach.name}</span>
-                    </div>
-                  )}
-                  {slot?.booking?.guests && slot.booking.guests.length > 0 && (
-                    <div className="mt-3 border-t border-[#E5F0F0] pt-3">
-                      <div className="mb-2">
-                        <span className="text-[14px] font-semibold text-[#F97316]">
-                          Guest{slot.booking.guests.length > 1 ? 's' : ''} ({slot.booking.guests.length})
+                  {isAdminBooking ? (
+                    <>
+                      {/* This booking is owned by the admin who created it (so the
+                          existing guest-invite flow works unmodified) — the actual
+                          player is `guests[0]`, not `booking.user`. Surfacing
+                          `booking.user`'s own name/email/phone here would show the
+                          admin's own login details as if they were the player, so
+                          they're deliberately left out of this branch. */}
+                      <div className="flex justify-between">
+                        <span className="text-[14px] text-gray-600">Booked By:</span>
+                        <span className="text-[14px] font-medium text-[#21295A]">
+                          {slot.booking.bookedByName} <span className="font-normal text-gray-400">(Admin)</span>
                         </span>
                       </div>
-                      <div className="space-y-2">
-                        {slot.booking.guests.map((guest, index) => (
-                          <div key={index} className="rounded-lg bg-orange-50 p-3">
-                            <div className="flex justify-between">
-                              <span className="text-[13px] text-gray-600">Name:</span>
-                              <span className="text-[13px] font-medium text-[#21295A]">{guest.name}</span>
-                            </div>
-                            {guest.email && (
-                              <div className="flex justify-between">
-                                <span className="text-[13px] text-gray-600">Email:</span>
-                                <span className="text-[13px] font-medium text-[#21295A]">{guest.email}</span>
-                              </div>
-                            )}
-                            <div className="flex justify-between">
-                              <span className="text-[13px] text-gray-600">Member:</span>
-                              <span
-                                className={`text-[13px] font-medium ${guest.isMember ? 'text-green-600' : 'text-gray-500'}`}
-                              >
-                                {guest.isMember ? 'Yes' : 'No'}
-                              </span>
-                            </div>
+                      {slot?.booking?.facilityPin && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Facility Pin:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.facilityPin}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.lanePin && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Lane Pin:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.lanePin}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.coach?.name && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Coach:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.coach.name}</span>
+                        </div>
+                      )}
+
+                      {/* The actual person who'll show up — this is the primary
+                          content of the card for an admin-made booking, not a
+                          secondary "guest" tagging along. */}
+                      {primaryGuest && (
+                        <div className="mt-3 border-t border-[#E5F0F0] pt-3">
+                          <div className="mb-2">
+                            <span className="text-[14px] font-semibold text-[#21295A]">Booked For</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          <div className="flex justify-between">
+                            <span className="text-[14px] text-gray-600">Name:</span>
+                            <span className="text-[14px] font-medium text-[#21295A]">{primaryGuest.name}</span>
+                          </div>
+                          {primaryGuest.email && (
+                            <div className="flex justify-between">
+                              <span className="text-[14px] text-gray-600">Email:</span>
+                              <span className="text-[14px] font-medium text-[#21295A]">{primaryGuest.email}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-[14px] text-gray-600">Existing Member:</span>
+                            <span
+                              className={`text-[14px] font-medium ${primaryGuest.isMember ? 'text-green-600' : 'text-gray-500'}`}
+                            >
+                              {primaryGuest.isMember ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Anyone beyond the primary booked-for person is a genuine
+                          extra guest — same styling the self-booking path below uses. */}
+                      {additionalGuests.length > 0 && (
+                        <div className="mt-3 border-t border-[#E5F0F0] pt-3">
+                          <div className="mb-2">
+                            <span className="text-[14px] font-semibold text-[#F97316]">
+                              Guest{additionalGuests.length > 1 ? 's' : ''} ({additionalGuests.length})
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {additionalGuests.map((guest, index) => (
+                              <div key={index} className="rounded-lg bg-orange-50 p-3">
+                                <div className="flex justify-between">
+                                  <span className="text-[13px] text-gray-600">Name:</span>
+                                  <span className="text-[13px] font-medium text-[#21295A]">{guest.name}</span>
+                                </div>
+                                {guest.email && (
+                                  <div className="flex justify-between">
+                                    <span className="text-[13px] text-gray-600">Email:</span>
+                                    <span className="text-[13px] font-medium text-[#21295A]">{guest.email}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between">
+                                  <span className="text-[13px] text-gray-600">Member:</span>
+                                  <span
+                                    className={`text-[13px] font-medium ${guest.isMember ? 'text-green-600' : 'text-gray-500'}`}
+                                  >
+                                    {guest.isMember ? 'Yes' : 'No'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {slot.booking.user.firstName && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Name:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">
+                            {slot.booking.user.firstName} {slot.booking.user.lastName || ''}
+                          </span>
+                        </div>
+                      )}
+                      {slot.booking.user.email && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Email:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.email}</span>
+                        </div>
+                      )}
+                      {slot.booking.user.phone && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Phone:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.user.phone}</span>
+                        </div>
+                      )}
+                      {(isPlanLoading || membershipPlan) && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Membership Plan:</span>
+                          <span className="text-[14px] font-medium capitalize text-[#21295A]">
+                            {isPlanLoading ? 'Loading…' : membershipPlan}
+                          </span>
+                        </div>
+                      )}
+                      {slot?.booking?.facilityPin && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Facility Pin:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.facilityPin}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.lanePin && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Lane Pin:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.lanePin}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.coach?.name && (
+                        <div className="flex justify-between">
+                          <span className="text-[14px] text-gray-600">Coach:</span>
+                          <span className="text-[14px] font-medium text-[#21295A]">{slot.booking.coach.name}</span>
+                        </div>
+                      )}
+                      {slot?.booking?.guests && slot.booking.guests.length > 0 && (
+                        <div className="mt-3 border-t border-[#E5F0F0] pt-3">
+                          <div className="mb-2">
+                            <span className="text-[14px] font-semibold text-[#F97316]">
+                              Guest{slot.booking.guests.length > 1 ? 's' : ''} ({slot.booking.guests.length})
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {slot.booking.guests.map((guest, index) => (
+                              <div key={index} className="rounded-lg bg-orange-50 p-3">
+                                <div className="flex justify-between">
+                                  <span className="text-[13px] text-gray-600">Name:</span>
+                                  <span className="text-[13px] font-medium text-[#21295A]">{guest.name}</span>
+                                </div>
+                                {guest.email && (
+                                  <div className="flex justify-between">
+                                    <span className="text-[13px] text-gray-600">Email:</span>
+                                    <span className="text-[13px] font-medium text-[#21295A]">{guest.email}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between">
+                                  <span className="text-[13px] text-gray-600">Member:</span>
+                                  <span
+                                    className={`text-[13px] font-medium ${guest.isMember ? 'text-green-600' : 'text-gray-500'}`}
+                                  >
+                                    {guest.isMember ? 'Yes' : 'No'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
             </div>
           </div>
 
-          {/* Block Reason Selection - Only show for available slots */}
+          {/* Available slot: choose between blocking it or booking it for someone */}
           {isAvailable && (
+            <div className="mb-5 flex overflow-hidden rounded-xl border border-[#B3DADA]">
+              <button
+                className={`flex-1 px-4 py-2.5 text-[13px] font-semibold transition-all ${
+                  availableAction === 'block' ? 'bg-[#21295A] text-white' : 'bg-white text-[#21295A] hover:bg-gray-50'
+                }`}
+                type="button"
+                onClick={() => setAvailableAction('block')}
+              >
+                Block Slot
+              </button>
+              <button
+                className={`flex-1 px-4 py-2.5 text-[13px] font-semibold transition-all ${
+                  availableAction === 'book' ? 'bg-[#21295A] text-white' : 'bg-white text-[#21295A] hover:bg-gray-50'
+                }`}
+                type="button"
+                onClick={() => setAvailableAction('book')}
+              >
+                Book for Someone
+              </button>
+            </div>
+          )}
+
+          {/* Book for Someone — first name, email, DOB are mandatory; last name/notes optional. */}
+          {isAvailable && availableAction === 'book' && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Book for Someone</h3>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-first-name">
+                      First Name *
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                      id="book-first-name"
+                      type="text"
+                      value={bookFirstName}
+                      onChange={e => setBookFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-last-name">
+                      Last Name
+                    </label>
+                    <input
+                      className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                      id="book-last-name"
+                      type="text"
+                      value={bookLastName}
+                      onChange={e => setBookLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-email">
+                    Email *
+                  </label>
+                  <input
+                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    id="book-email"
+                    type="email"
+                    value={bookEmail}
+                    onChange={e => setBookEmail(e.target.value)}
+                  />
+                  {memberCheck === 'checking' && <p className="mt-1 text-[12px] text-gray-400">Checking…</p>}
+                  {memberCheck === 'yes' && (
+                    <p className="mt-1 text-[12px] font-medium text-emerald-600">Existing Member: Yes</p>
+                  )}
+                  {memberCheck === 'no' && (
+                    <p className="mt-1 text-[12px] font-medium text-gray-500">Existing Member: No</p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-dob">
+                    Date of Birth *
+                  </label>
+                  <input
+                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    id="book-dob"
+                    max={new Date().toISOString().slice(0, 10)}
+                    type="date"
+                    value={bookDob}
+                    onChange={e => setBookDob(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-notes">
+                    Notes <span className="font-normal text-gray-400">(optional)</span>
+                  </label>
+                  <textarea
+                    className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                    id="book-notes"
+                    maxLength={500}
+                    rows={3}
+                    value={bookNotes}
+                    onChange={e => setBookNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Block Reason Selection */}
+          {isAvailable && availableAction === 'block' && (
             <div className="mb-5">
               <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Block Reason</h3>
               <div className="space-y-3">
@@ -342,66 +679,239 @@ const SlotDetailsModal = ({
             </div>
           )}
 
+          {/* Cancellation Reason - shown after "Cancel Booking" is clicked, in place of the action buttons */}
+          {showCancelReason && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Cancellation Reason</h3>
+              <textarea
+                className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                maxLength={500}
+                placeholder="Why is this booking being cancelled? (optional)"
+                rows={3}
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* Shift Lane picker - shown after "Shift Lane" is clicked, in place of the action buttons */}
+          {showShiftPicker && (
+            <div className="mb-5">
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Shift to Another Lane</h3>
+              {availableLanesToShift.length === 0 ? (
+                <p className="rounded-xl border border-[#B3DADA] bg-gray-50 px-4 py-3 text-[13px] text-gray-500">
+                  No other lane of the same type is available at this time.
+                </p>
+              ) : (
+                <div className="mb-3 grid grid-cols-3 gap-2">
+                  {availableLanesToShift.map(option => (
+                    <button
+                      key={option.slotCode}
+                      className={`rounded-xl border px-3 py-2.5 text-[13px] font-semibold transition-all ${
+                        selectedShiftSlotCode === option.slotCode
+                          ? 'border-[#21295A] bg-[#21295A] text-white'
+                          : 'border-[#B3DADA] bg-white text-[#21295A] hover:bg-gray-50'
+                      }`}
+                      type="button"
+                      onClick={() => setSelectedShiftSlotCode(option.slotCode)}
+                    >
+                      Lane {option.laneNo}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="shift-reason">
+                Reason *
+              </label>
+              <textarea
+                className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                id="shift-reason"
+                maxLength={500}
+                placeholder="Why is this booking being shifted? (e.g. Lane 3 has an issue)"
+                rows={3}
+                value={shiftReason}
+                onChange={e => setShiftReason(e.target.value)}
+              />
+            </div>
+          )}
+
           {/* Action Buttons - Only show for StanceBeam admins */}
           <div className="flex justify-center gap-3">
-            <PermissionGate module={ACCESS_SCOPES.slots}>
-              {isAvailable && (
+            {showCancelReason ? (
+              <>
                 <button
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                  disabled={isLoading || !selectedReason || !customReason.trim() || customReason.length > 500}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-red-600/20 transition-all hover:scale-[1.02] hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={isLoading}
+                  onClick={handleConfirmCancel}
+                >
+                  {isLoading ? (
+                    <>
+                      <LoaderSpinner className="text-white" size="sm" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Confirm Cancellation'
+                  )}
+                </button>
+                <button
+                  className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={isLoading}
                   onClick={() => {
-                    const reason = `${selectedReason}: ${customReason.trim()}`;
-                    onBlockSlot(reason, blockedByName.trim());
+                    setShowCancelReason(false);
+                    setCancelReason('');
                   }}
                 >
-                  {isLoading ? (
-                    <>
-                      <LoaderSpinner className="text-white" size="sm" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                      Block Slot
-                    </>
-                  )}
+                  Keep Booking
                 </button>
-              )}
-
-              {isBlocked && (
+              </>
+            ) : showShiftPicker ? (
+              <>
                 <button
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                  disabled={isLoading}
-                  onClick={onUnblockSlot}
+                  disabled={isLoading || !selectedShiftSlotCode || !shiftReason.trim()}
+                  onClick={() => onShiftLane(selectedShiftSlotCode, shiftReason.trim())}
                 >
                   {isLoading ? (
                     <>
                       <LoaderSpinner className="text-white" size="sm" />
-                      Processing...
+                      Shifting...
                     </>
                   ) : (
-                    <>
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                      Unblock Slot
-                    </>
+                    'Confirm Shift'
                   )}
                 </button>
-              )}
-            </PermissionGate>
+                <button
+                  className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setShowShiftPicker(false);
+                    setSelectedShiftSlotCode('');
+                    setShiftReason('');
+                  }}
+                >
+                  Back
+                </button>
+              </>
+            ) : (
+              <PermissionGate module={ACCESS_SCOPES.slots}>
+                {isAvailable && availableAction === 'block' && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading || !selectedReason || !customReason.trim() || customReason.length > 500}
+                    onClick={() => {
+                      const reason = `${selectedReason}: ${customReason.trim()}`;
+                      onBlockSlot(reason, blockedByName.trim());
+                    }}
+                  >
+                    {isLoading ? (
+                      <>
+                        <LoaderSpinner className="text-white" size="sm" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                        Block Slot
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {isAvailable && availableAction === 'book' && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading || !canSubmitBooking}
+                    onClick={handleSubmitBooking}
+                  >
+                    {isLoading ? (
+                      <>
+                        <LoaderSpinner className="text-white" size="sm" />
+                        Booking...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                        Book Slot
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {isBlocked && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading}
+                    onClick={onUnblockSlot}
+                  >
+                    {isLoading ? (
+                      <>
+                        <LoaderSpinner className="text-white" size="sm" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                        </svg>
+                        Unblock Slot
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {canShiftLane && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-[#21295A]/20 px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:bg-[#21295A]/5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading}
+                    title="Shift is available until 6 minutes before the session starts"
+                    onClick={() => setShowShiftPicker(true)}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                      />
+                    </svg>
+                    Shift Lane
+                  </button>
+                )}
+
+                {canCancelBooking && (
+                  <button
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 px-4 py-3 text-[14px] font-medium text-red-600 transition-all hover:scale-[1.02] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    disabled={isLoading}
+                    title="Cancel is available until 6 minutes before the session starts"
+                    onClick={() => setShowCancelReason(true)}
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                    </svg>
+                    Cancel Booking
+                  </button>
+                )}
+              </PermissionGate>
+            )}
 
             <button
               className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"

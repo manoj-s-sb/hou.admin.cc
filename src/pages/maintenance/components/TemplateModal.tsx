@@ -60,6 +60,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
   const [equipment, setEquipment] = useState(initialEquip);
   const [equipmentCustom, setEquipmentCustom] = useState(template?.equipmentCustom ?? '');
   const [taskType, setTaskType] = useState<TaskType>(template?.taskType ?? 'mech');
+  const [taskTypeCustom, setTaskTypeCustom] = useState(template?.taskTypeCustom ?? '');
   const [freqN, setFreqN] = useState<number>(template?.freqN ?? 1);
   const [freqUnit, setFreqUnit] = useState<FreqUnit>(template?.freqUnit ?? 'week');
   const [stepRows, setStepRows] = useState<StepRow[]>(
@@ -82,10 +83,12 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
   const isCustomEquip = equipment === EQUIPMENT_CUSTOM_SENTINEL;
   const isCustomCat = category === 'other';
+  const isCustomType = taskType === 'other';
   const errors = {
     title: !title.trim() ? 'Title is required' : '',
     categoryCustom: isCustomCat && !categoryCustom.trim() ? 'Enter the category' : '',
     equipmentCustom: isCustomEquip && !equipmentCustom.trim() ? 'Enter the equipment name' : '',
+    taskTypeCustom: isCustomType && !taskTypeCustom.trim() ? 'Enter the type name' : '',
   };
   const hasErrors = Object.values(errors).some(Boolean);
 
@@ -141,6 +144,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
       equipment: isCustomEquip ? EQUIPMENT_CUSTOM_SENTINEL : equipment,
       equipmentCustom: isCustomEquip ? equipmentCustom.trim() : null,
       taskType,
+      taskTypeCustom: isCustomType ? taskTypeCustom.trim() : null,
       freqN: Math.max(1, freqN || 1),
       freqUnit,
       steps: stepPayload,
@@ -247,6 +251,21 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
               />
               {tried && errors.categoryCustom && (
                 <p className="mt-1 text-[11px] text-red-500">{errors.categoryCustom}</p>
+              )}
+            </div>
+          )}
+
+          {isCustomType && (
+            <div>
+              <span className={labelCls}>Custom Type *</span>
+              <input
+                className={`${inputCls}${errRing(errors.taskTypeCustom)}`}
+                placeholder="Enter type name"
+                value={taskTypeCustom}
+                onChange={e => setTaskTypeCustom(e.target.value)}
+              />
+              {tried && errors.taskTypeCustom && (
+                <p className="mt-1 text-[11px] text-red-500">{errors.taskTypeCustom}</p>
               )}
             </div>
           )}

@@ -27,9 +27,13 @@ export interface MembershipPlan {
   /** Brand colour (hex) used for the column accent + pills. */
   colour: string;
 
-  // ── Pricing (network reference, USD base) ──
+  // ── Pricing ──
   fortnightlyPrice: number;
   annualPrice: number;
+  /** Currency these prices are stored in (upper-case, e.g. 'USD'/'AUD'). Usually
+   *  'USD', but the API can return another — the UI must convert FROM this, not
+   *  assume USD. Defaults to 'USD' when the API omits it. */
+  currency: string;
 
   // ── Access ──
   accessType: AccessType;

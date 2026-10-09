@@ -65,8 +65,16 @@ const isReadRequest = (config: AxiosError['config']): boolean => {
 // Request interceptor - Add auth token to requests and check expiration
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Skip token check for login endpoint
-    if (config.url?.includes('/login')) {
+    // Skip token check for endpoints that are unauthenticated by design — login,
+    // and every step of the forgot-password flow (there is no session yet at
+    // any of these; a leftover expired token from a previous session must never
+    // block them).
+    const isPublicAuthEndpoint =
+      config.url?.includes('/login') ||
+      config.url?.includes('/forgot-password') ||
+      config.url?.includes('/verify-reset-otp') ||
+      config.url?.includes('/reset-password');
+    if (isPublicAuthEndpoint) {
       return config;
     }
 
@@ -116,10 +124,20 @@ api.interceptors.response.use(
         }
       } else if (status === 401) {
         console.error('Unauthorized (401) - Token may be invalid or expired');
-        // Server rejected the token (e.g. expired server-side but still passed the
-        // client-side expiry check) — surface the session-expired modal so the user
-        // re-logs in, instead of bubbling up a cryptic per-feature error.
-        triggerSessionExpired();
+        // A 401 from login/forgot-password/etc. means "wrong credentials or bad
+        // OTP", not "your session expired" — there's no session yet. Let it
+        // propagate to the caller's own error handling instead of popping the
+        // global modal. Only a 401 on an authenticated (protected) request means
+        // the server rejected the token (e.g. expired server-side but still
+        // passed the client-side expiry check).
+        const isPublicAuthEndpoint =
+          error.config?.url?.includes('/login') ||
+          error.config?.url?.includes('/forgot-password') ||
+          error.config?.url?.includes('/verify-reset-otp') ||
+          error.config?.url?.includes('/reset-password');
+        if (!isPublicAuthEndpoint) {
+          triggerSessionExpired();
+        }
       } else if (status === 403) {
         // Forbidden — the user is authenticated but lacks access. Only surface a toast
         // for a blocked user ACTION (create/update/…); stay silent for passive

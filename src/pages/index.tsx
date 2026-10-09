@@ -3,6 +3,7 @@
 import CentreManagement from './centres';
 import CentreModuleRoute from './centres/CentreModuleRoute';
 import CoachSchedule from './coach/index';
+import ForgotPassword from './forgotPassword';
 import Induction from './induction';
 import ViewInduction from './induction/viewInduction';
 import Login from './login';
@@ -21,6 +22,7 @@ import UserList from './users';
 export {
   Induction,
   Login,
+  ForgotPassword,
   UserList,
   ViewInduction,
   Tours,

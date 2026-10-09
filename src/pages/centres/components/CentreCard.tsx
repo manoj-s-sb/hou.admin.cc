@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 import { centreColour, countryFlag } from '../constants';
 
@@ -28,9 +28,9 @@ const getTzAbbr = (tz: string): string => {
   }
 };
 
-const getLocalTime = (tz: string): string => {
+const getLocalTime = (tz: string, now: Date): string => {
   try {
-    return new Date().toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
+    return now.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
   } catch {
     return '';
   }
@@ -68,16 +68,12 @@ interface Props {
   onOpen: (centre: FacilitySummary) => void;
   /** Open the wizard in edit mode (Review step) to edit the centre and change its status. */
   onEdit?: (centre: FacilitySummary) => void;
+  /** Shared clock tick from the list, so N cards don't each run their own 1s interval. */
+  now: Date;
 }
 
-const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
-  const [localTime, setLocalTime] = useState(() => getLocalTime(centre.timezone));
-
-  // Live local clock — tick every second like the reference design.
-  useEffect(() => {
-    const t = setInterval(() => setLocalTime(getLocalTime(centre.timezone)), 1000);
-    return () => clearInterval(t);
-  }, [centre.timezone]);
+const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit, now }) => {
+  const localTime = getLocalTime(centre.timezone, now);
 
   const status = STATUS_META[centre.status] ?? STATUS_META.draft;
   const accent = centreColour(centre.code);

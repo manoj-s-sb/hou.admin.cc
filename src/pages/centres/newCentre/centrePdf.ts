@@ -3,7 +3,7 @@
  * it in the browser's print dialog (where the user can "Save as PDF"). No PDF
  * dependency required — mirrors the Review step's content.
  */
-import { COUNTRIES, DAYS, PLAN_CATALOGUE, TIMEZONES } from '../constants';
+import { COUNTRIES, DAYS, TIMEZONES, type PlanMeta } from '../constants';
 
 import type { WizardState } from '../../../store/centres/types';
 
@@ -21,7 +21,7 @@ const toNum = (v: number | string | ''): number => {
 const row = (k: string, v: unknown): string =>
   `<tr><td class="k">${esc(k)}</td><td class="v">${esc(v) || '—'}</td></tr>`;
 
-export function downloadCentrePdf(s: WizardState): boolean {
+export function downloadCentrePdf(s: WizardState, catalogue: PlanMeta[]): boolean {
   const capacity = toNum(s.overallCapacity);
   const foundation = toNum(s.foundationPool);
   const country = COUNTRIES.find(c => c.code === s.country)?.label || s.country;
@@ -36,7 +36,7 @@ export function downloadCentrePdf(s: WizardState): boolean {
   const planRows = s.plans
     .filter(p => p.enabled)
     .map(p => {
-      const meta = PLAN_CATALOGUE.find(m => m.id === p.planId);
+      const meta = catalogue.find(m => m.id === p.planId);
       return `<tr>
         <td>${esc(meta?.name ?? p.planId)}</td>
         <td>$${esc(p.fortnightlyPrice)}</td>

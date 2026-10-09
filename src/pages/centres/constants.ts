@@ -1,13 +1,9 @@
 import type { CSSProperties } from 'react';
 
-import type {
-  AdditionalFacilityType,
-  CentreApiStatus,
-  CentreBooking,
-  CentreMember,
-  OperatingHoursMap,
-  PlanId,
-} from '../../store/centres/types';
+import { getAllTimezones, getCountry, getTimezone } from 'countries-and-timezones';
+import worldCountries from 'world-countries';
+
+import type { AdditionalFacilityType, CentreApiStatus, OperatingHoursMap, PlanId } from '../../store/centres/types';
 
 export const PLAN_COLORS: Record<PlanId, string> = {
   premium: '#21295A',
@@ -18,7 +14,8 @@ export const PLAN_COLORS: Record<PlanId, string> = {
 };
 
 export interface PlanMeta {
-  id: PlanId;
+  /** Plan code — one of the fixed catalogue ids, or any live global plan's code. */
+  id: PlanId | string;
   name: string;
   colour: string;
   access: string;
@@ -28,65 +25,6 @@ export interface PlanMeta {
   defaultFoundation: boolean;
   demographics: string[];
 }
-
-/** Global plan catalogue — the network-wide plans a centre can opt into. */
-export const PLAN_CATALOGUE: PlanMeta[] = [
-  {
-    id: 'premium',
-    name: 'Premium',
-    colour: '#21295A',
-    access: '24/7',
-    fortnightly: 59.95,
-    annual: 2493.92,
-    defaultSlots: 50,
-    defaultFoundation: true,
-    demographics: ['adult', 'professional'],
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    colour: '#008482',
-    access: '24/7',
-    fortnightly: 39.95,
-    annual: 1661.92,
-    defaultSlots: 200,
-    defaultFoundation: true,
-    demographics: ['adult', 'youth', 'senior'],
-  },
-  {
-    id: 'offpeak',
-    name: 'Off Peak',
-    colour: '#d97706',
-    access: '9am–3pm & 11pm–6am',
-    fortnightly: 19.95,
-    annual: 829.92,
-    defaultSlots: 50,
-    defaultFoundation: false,
-    demographics: ['senior', 'student'],
-  },
-  {
-    id: 'nightowl',
-    name: 'Night Owl',
-    colour: '#0891b2',
-    access: '11pm–6am',
-    fortnightly: 13.95,
-    annual: 580.32,
-    defaultSlots: 100,
-    defaultFoundation: false,
-    demographics: ['student', 'professional'],
-  },
-  {
-    id: 'family',
-    name: 'Family',
-    colour: '#7c3aed',
-    access: '24/7',
-    fortnightly: 39.95,
-    annual: 1661.92,
-    defaultSlots: 50,
-    defaultFoundation: true,
-    demographics: ['family'],
-  },
-];
 
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -100,51 +38,88 @@ export const DEMOGRAPHICS = [
   { key: 'professional', label: '💼 Professional' },
 ];
 
-export const COUNTRIES = [
-  { code: 'AU', label: 'Australia' },
-  { code: 'US', label: 'United States' },
-  { code: 'UK', label: 'United Kingdom' },
-  { code: 'UAE', label: 'United Arab Emirates' },
-  { code: 'IN', label: 'India' },
-  { code: 'NZ', label: 'New Zealand' },
-  { code: 'ZA', label: 'South Africa' },
-];
+// ── World country data (name/dial-code/ISO/flag), sourced from the
+// `world-countries` package instead of a short hand-picked list — every real
+// country is selectable, not just the handful the business originally
+// launched in. Two codes are deliberately kept non-standard (UK, not ISO GB;
+// UAE, not ISO AE) because they're the exact values this app — and the
+// backend's own alpha-3 mapping — already used before this list was widened;
+// every other country uses its real ISO-2 code. ──
+const LEGACY_CODE_ALIASES: Record<string, string> = { GB: 'UK', AE: 'UAE' };
 
-// Phone dial code for each supported country — keyed on the same (non-ISO) `code`
-// values as COUNTRIES/COUNTRY_FLAGS above.
-export const COUNTRY_DIAL_CODES: Record<string, string> = {
-  AU: '+61',
-  US: '+1',
-  UK: '+44',
-  UAE: '+971',
-  IN: '+91',
-  NZ: '+64',
-  ZA: '+27',
-};
+interface WorldCountryEntry {
+  code: string; // this app's code: real ISO-2, except the two aliases above
+  label: string;
+  iso2: string; // always the real ISO-2
+  iso3: string; // always the real ISO-3
+  dialCode: string;
+  flag: string;
+}
+
+const ALL_COUNTRIES: WorldCountryEntry[] = worldCountries
+  .filter(c => c.cca2 && c.cca3 && c.name?.common)
+  .map(c => ({
+    code: LEGACY_CODE_ALIASES[c.cca2] ?? c.cca2,
+    label: c.name.common,
+    iso2: c.cca2,
+    iso3: c.cca3,
+    dialCode: c.idd?.root ? `${c.idd.root}${c.idd.suffixes?.[0] ?? ''}` : '',
+    flag: c.flag,
+  }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
+export const COUNTRIES = ALL_COUNTRIES.map(({ code, label }) => ({ code, label }));
+
+// Phone dial code for every country — keyed on the same (non-ISO for UK/UAE)
+// `code` values as COUNTRIES/COUNTRY_FLAGS above.
+export const COUNTRY_DIAL_CODES: Record<string, string> = Object.fromEntries(
+  ALL_COUNTRIES.map(c => [c.code, c.dialCode])
+);
 
 // ISO-3166 alpha-2 codes for the postcode-lookup API (zippopotam.us), which needs
 // real ISO codes — our own COUNTRIES.code values aren't all standard (UK/UAE).
-export const COUNTRY_ISO_CODES: Record<string, string> = {
-  AU: 'au',
-  US: 'us',
-  UK: 'gb',
-  UAE: 'ae',
-  IN: 'in',
-  NZ: 'nz',
-  ZA: 'za',
+export const COUNTRY_ISO_CODES: Record<string, string> = Object.fromEntries(
+  ALL_COUNTRIES.map(c => [c.code, c.iso2.toLowerCase()])
+);
+
+// ISO-3166 alpha-3 (lowercase) for the backend's facility.countryCode/
+// address.country fields — this app's code -> real alpha-3.
+export const COUNTRY_ISO3_CODES: Record<string, string> = Object.fromEntries(
+  ALL_COUNTRIES.map(c => [c.code, c.iso3.toLowerCase()])
+);
+
+// Inverse of COUNTRY_ISO3_CODES — a stored alpha-3 code (either case) back to
+// this app's own country code, for displaying an existing centre's country.
+export const COUNTRY_ISO3_TO_CODE: Record<string, string> = Object.fromEntries(
+  ALL_COUNTRIES.map(c => [c.iso3.toUpperCase(), c.code])
+);
+
+// A stored country `code` -> the real ISO-2 the timezone library understands
+// (undoes the UK/UAE aliasing above).
+const toRealIso2 = (code: string): string => {
+  const upper = (code || '').toUpperCase();
+  return upper === 'UK' ? 'GB' : upper === 'UAE' ? 'AE' : upper;
 };
 
-export const TIMEZONES: { value: string; label: string }[] = [
-  { value: 'America/Chicago', label: 'America/Chicago (CT)' },
-  { value: 'America/New_York', label: 'America/New_York (ET)' },
-  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PT)' },
-  { value: 'America/Denver', label: 'America/Denver (MT)' },
-  { value: 'Australia/Sydney', label: 'Australia/Sydney (AEST)' },
-  { value: 'Australia/Melbourne', label: 'Australia/Melbourne (AEST)' },
-  { value: 'Europe/London', label: 'Europe/London (GMT/BST)' },
-  { value: 'Asia/Dubai', label: 'Asia/Dubai (GST)' },
-  { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST)' },
-];
+const tzLabel = (name: string): string => {
+  const tz = getTimezone(name);
+  return tz ? `${name} (UTC${tz.utcOffsetStr})` : name;
+};
+
+/** Every real-world IANA timezone — the Time Zone dropdown's full list before
+ * a country has been picked yet (or for a country with no curated mapping). */
+export const TIMEZONES: { value: string; label: string }[] = Object.values(getAllTimezones())
+  .filter(tz => !tz.aliasOf)
+  .map(tz => ({ value: tz.name, label: tzLabel(tz.name) }))
+  .sort((a, b) => a.value.localeCompare(b.value));
+
+/** Just the timezones that actually apply to one country — the Time Zone
+ * dropdown filters down to these once a country is selected, instead of
+ * showing all ~340 global zones regardless of country. */
+export const timezonesForCountry = (code: string): { value: string; label: string }[] => {
+  const country = getCountry(toRealIso2(code));
+  return country ? country.timezones.map(name => ({ value: name, label: tzLabel(name) })) : [];
+};
 
 export const FACILITY_OPTIONS = [
   'Batting Lanes',
@@ -169,22 +144,18 @@ export const ADDITIONAL_FACILITY_META: Record<string, { label: string; multiInst
   gaming: { label: 'Gaming Area', multiInstance: false },
 };
 
-/** Emoji flag for a country code (used on the centre cards). */
-const COUNTRY_FLAGS: Record<string, string> = {
-  US: '🇺🇸',
-  USA: '🇺🇸',
-  AU: '🇦🇺',
-  UK: '🇬🇧',
-  GB: '🇬🇧',
-  UAE: '🇦🇪',
-  AE: '🇦🇪',
-  IN: '🇮🇳',
-  IND: '🇮🇳',
-  NZ: '🇳🇿',
-  ZA: '🇿🇦',
-};
+/** Emoji flag for every country, keyed the same way as COUNTRIES (code ->
+ * flag). A few legacy 3-letter/alternate codes already seen on real centre
+ * records (USA, IND, plus the real ISO GB/AE before this app started
+ * aliasing them to UK/UAE) are kept mapped to the same flag. */
+const FLAG_BY_CODE: Record<string, string> = Object.fromEntries(ALL_COUNTRIES.map(c => [c.code, c.flag]));
+const LEGACY_FLAG_ALIASES: Record<string, string> = { USA: 'US', IND: 'IN', GB: 'UK', AE: 'UAE' };
 
-export const countryFlag = (countryCode: string): string => COUNTRY_FLAGS[(countryCode || '').toUpperCase()] ?? '🏟️';
+export const countryFlag = (countryCode: string): string => {
+  const raw = (countryCode || '').toUpperCase();
+  const code = LEGACY_FLAG_ALIASES[raw] ?? raw;
+  return FLAG_BY_CODE[code] ?? '🏟️';
+};
 
 /** Deterministic accent colour for a centre's card stripe, derived from its code. */
 const CENTRE_PALETTE = ['#21295A', '#008482', '#d97706', '#0891b2', '#7c3aed', '#d42b2b'];
@@ -215,21 +186,6 @@ export const CENTRE_STATUS: Record<CentreApiStatus, { label: string; tone: strin
   staging: { label: 'Staging', tone: 'blue' },
   suspended: { label: 'Suspended', tone: 'red' },
 };
-export const MEMBER_STATUS_TONE: Record<CentreMember['status'], string> = {
-  Active: 'green',
-  'On Hold': 'amber',
-  Suspended: 'red',
-};
-export const BOOKING_STATUS_TONE: Record<CentreBooking['status'], string> = {
-  Confirmed: 'blue',
-  Completed: 'green',
-  'No-show': 'red',
-  Cancelled: 'gray',
-  Waitlisted: 'amber',
-};
-
-/* ── Members tab ── */
-export const AVATAR_COLORS = ['#21295A', '#008482', '#d97706', '#7c3aed', '#0891b2', '#d42b2b'];
 
 /* ── Ops view: tabs + per-tab placeholders ── */
 export type OpsTab =
@@ -310,7 +266,6 @@ export const WIZARD_STATUS_LABEL: Record<string, string> = {
   suspended: 'Suspended',
 };
 export const SHORT_CODE_RE = /^[A-Z0-9]{3,6}$/;
-export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /* ── Additional facilities step ── */
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;

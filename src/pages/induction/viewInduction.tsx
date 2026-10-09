@@ -8,7 +8,12 @@ import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getFacilityCode } from '../../constants/user';
-import { getInductionStepsDetails, updateInductionSteps, userInductionDetails } from '../../store/induction/api';
+import {
+  getInductionStepsDetails,
+  markInductionActivated,
+  updateInductionSteps,
+  userInductionDetails,
+} from '../../store/induction/api';
 import { Induction, SubStep } from '../../store/induction/types';
 import { activateUserSubscription } from '../../store/members/api';
 import { RootState, AppDispatch } from '../../store/store';
@@ -121,6 +126,15 @@ const ViewInduction = () => {
         toast.success('Subscription activated successfully!');
         // Refresh induction details to get updated subscription status
         dispatch(userInductionDetails({ userId }));
+        // Attribute the activation to this admin for the Calendar's "Completed
+        // By" — best-effort: the activation itself already succeeded above, so
+        // a failure here (e.g. no induction booking on file) must not surface
+        // as an error to the admin.
+        dispatch(markInductionActivated({ userId }))
+          .unwrap()
+          .catch(() => {
+            /* non-fatal — see comment above */
+          });
       })
       .catch(error => {
         // Display the error message from the API

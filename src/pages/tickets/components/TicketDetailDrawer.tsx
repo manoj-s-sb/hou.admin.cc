@@ -22,7 +22,6 @@ import {
   ROLE_LABELS,
   SELECTABLE_STATUSES,
   STATUS_META,
-  TICKET_ROLES,
 } from '../constants';
 
 import EmailTagInput from './EmailTagInput';
@@ -64,14 +63,20 @@ const laneLabel = (lanes: number[] | null): string => {
 };
 
 // Translate raw role IDs in assignment activities into friendly labels and
-// append the actor's name, e.g. "Assigned to Centre Staff by Uday Reddy" —
+// append the actor's name, e.g. "Reassigned to Centre Staff by Uday Reddy" —
 // mirrors the maintenance issue timeline. Other actions already carry a
 // human-readable backend label ("Raised by …", "Closed", …).
+//
+// 'assigned' only ever happens once, at ticket creation (the backend's own
+// reassign() always emits 'reassigned' instead) — same actor and timestamp as
+// the "Raised by" step right above it, so appending "by X" here is always a
+// redundant repeat of that step, not new information. 'reassigned' is always
+// a genuinely later, separate action, so it keeps the "by X" attribution.
 const resolveActivityLabel = (act: TicketActivity): string => {
   if ((act.action === 'assigned' || act.action === 'reassigned') && (act.toId || act.toName)) {
     const verb = act.action === 'reassigned' ? 'Reassigned' : 'Assigned';
     const target = act.toName || ROLE_LABELS[act.toId as TicketRole] || act.toId || '';
-    const by = act.byName ? ` by ${act.byName}` : '';
+    const by = act.action === 'reassigned' && act.byName ? ` by ${act.byName}` : '';
     return `${verb} to ${target}${by}`;
   }
   return act.label || (ACTION_LABELS[act.action] ?? act.action);
@@ -199,7 +204,6 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
   const dispatch = useDispatch<AppDispatch>();
   const { current, detailLoading, saving } = useSelector((state: RootState) => state.tickets);
   const [comment, setComment] = useState('');
-  const [reassignRole, setReassignRole] = useState<TicketRole>('noc');
   const [reassignees, setReassignees] = useState<SelectedStaff[]>([]);
   const [reassignRecipients, setReassignRecipients] = useState<string[]>([]);
   // In-page image preview (lightbox) — clicking an attachment shows it here
@@ -250,28 +254,29 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
   };
 
   const handleReassign = async () => {
-    if (reassignRole === 'others' && reassignees.length === 0) {
+    if (reassignees.length === 0) {
       toast.error('Select at least one assignee');
       return;
     }
     // The backend only has one official assignee (assignedToId/assignedToName) — the
     // first person picked becomes that; anyone picked after that is CC'd via
     // additionalRecipients so they're still notified. See StaffAssigneeSelect.
+    // assignedTo is a backend role-bucket enum ('noc'/'centre_staff'/'admin'/'others')
+    // used only to special-case the NOC queue's initial status — picking a specific
+    // person here always goes through 'others'.
     const [primaryAssignee, ...extraAssignees] = reassignees;
     const recipients = [...reassignRecipients, ...extraAssignees.map(a => a.email)];
     try {
       const updated = await dispatch(
         reassignTicket({
           ticketId,
-          assignedTo: reassignRole,
-          assignedToId: reassignRole === 'others' && primaryAssignee ? primaryAssignee.staffId : undefined,
-          assignedToName: reassignRole === 'others' && primaryAssignee ? primaryAssignee.name : undefined,
+          assignedTo: 'others',
+          assignedToId: primaryAssignee?.staffId,
+          assignedToName: primaryAssignee?.name,
           additionalRecipients: recipients.length ? recipients : undefined,
         })
       ).unwrap();
-      afterMutation(
-        `Reassigned to ${reassignRole === 'others' && primaryAssignee ? primaryAssignee.name : ROLE_LABELS[reassignRole]}`
-      );
+      afterMutation(`Reassigned to ${primaryAssignee?.name ?? ''}`);
       notifyEmailOutcome(updated);
     } catch (e) {
       toast.error(typeof e === 'string' ? e : 'Could not reassign');
@@ -559,25 +564,12 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 border-t border-gray-50 pt-3">
-                    <select
+                    <StaffAssigneeSelect
                       className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[12px] outline-none focus:border-[#21295A]"
-                      value={reassignRole}
-                      onChange={e => setReassignRole(e.target.value as TicketRole)}
-                    >
-                      {TICKET_ROLES.map(r => (
-                        <option key={r} value={r}>
-                          {ROLE_LABELS[r]}
-                        </option>
-                      ))}
-                    </select>
-                    {reassignRole === 'others' && (
-                      <StaffAssigneeSelect
-                        className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[12px] outline-none focus:border-[#21295A]"
-                        facilityCode={ticket?.facilityCode}
-                        value={reassignees}
-                        onChange={setReassignees}
-                      />
-                    )}
+                      facilityCode={ticket?.facilityCode}
+                      value={reassignees}
+                      onChange={setReassignees}
+                    />
                     <button
                       className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
                       disabled={saving}
@@ -613,13 +605,24 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
         )}
       </div>
 
-      {/* In-page media preview — opens over the drawer, click the backdrop to close. */}
+      {/* In-page media preview — opens over the drawer; click the backdrop or the
+          × button (top right) to close. */}
       {preview && (
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <div
           className="fixed inset-0 z-[700] flex items-center justify-center bg-black/80 p-6"
           onClick={() => setPreview(null)}
         >
+          <button
+            aria-label="Close preview"
+            className="fixed right-5 top-5 z-[701] flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            type="button"
+            onClick={() => setPreview(null)}
+          >
+            <svg fill="none" height={18} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={18}>
+              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
           {isVideoSrc(preview) ? (
             // eslint-disable-next-line jsx-a11y/media-has-caption
             <video

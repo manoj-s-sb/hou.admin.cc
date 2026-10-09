@@ -5,7 +5,9 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import NumberInput from '../../../components/NumberInput';
 import { createCentre, updateCentre } from '../../../store/centres/api';
+import { getMemberships } from '../../../store/memberships/api';
 import { AppDispatch, RootState } from '../../../store/store';
+import { EMAIL_RE } from '../../../utils/validation';
 import {
   COUNTRIES,
   COUNTRY_DIAL_CODES,
@@ -13,11 +15,12 @@ import {
   DAYS,
   DEMOGRAPHICS,
   FACILITY_OPTIONS,
-  PLAN_CATALOGUE,
   PLAN_COUNTRY_CHIPS,
   SLOT_DURATIONS,
   TIMEZONES,
+  timezonesForCountry,
   WIZARD_STEPS,
+  type PlanMeta,
 } from '../constants';
 
 import AdditionalFacilitiesStep from './AdditionalFacilitiesStep';
@@ -25,6 +28,7 @@ import AllocationBar from './AllocationBar';
 import { buildCreatePayload } from './buildCreatePayload';
 import { bundleToWizardState } from './bundleToWizardState';
 import { downloadCentrePdf } from './centrePdf';
+import { defaultPlanRow, toPlanCatalogue } from './liveCatalogue';
 
 import type {
   CentreApiStatus,
@@ -50,23 +54,6 @@ const normalizePlanCountryCode = (code: string): string => {
   const upper = (code || '').toUpperCase();
   return COUNTRY_CODE_ALIASES[upper] ?? upper;
 };
-
-const makePlanRows = (): WizardPlanRow[] =>
-  PLAN_CATALOGUE.map(p => ({
-    planId: p.id,
-    enabled: false,
-    fortnightlyPrice: p.fortnightly,
-    annualPrice: p.annual,
-    allocatedSlots: p.defaultSlots,
-    joiningFee: 0,
-    memberCap: p.defaultSlots,
-    isFoundationEligible: p.defaultFoundation,
-    availableCountries: ['all'],
-    // Guest / extra-session pricing is blank until explicitly set (no hardcoded default).
-    firstGuestFee: null,
-    additionalGuestDiscountPct: null,
-    extraSessionCost: null,
-  }));
 
 const initialState = (): WizardState => ({
   wizardId: null,
@@ -98,7 +85,8 @@ const initialState = (): WizardState => ({
   slotDurationMinutes: 45,
   advanceBookingWindowDays: 7,
   additionalFacilities: [],
-  plans: makePlanRows(),
+  // Seeded once the live global-plan catalogue loads — see the merge effect below.
+  plans: [],
   firstGuestFee: null,
   additionalGuestDiscountPct: null,
   extraSessionCost: null,
@@ -152,15 +140,25 @@ interface ZippopotamResponse {
   places?: ZippopotamPlace[];
 }
 
+// Our original 7 markets — the blind-guess fallback below is capped to just
+// these rather than all ~250 world countries now in COUNTRY_ISO_CODES, since
+// sequentially querying every country in the world against a free, unauthed
+// API when nothing's been picked yet would be impractically slow.
+const PRIMARY_MARKET_CODES = ['AU', 'US', 'UK', 'UAE', 'IN', 'NZ', 'ZA'];
+
 // Tries the already-selected country first (fast path + avoids surprising a
-// deliberate choice), then the rest of our supported countries as a fallback —
-// there's no country-less reverse lookup on this API, so this is how we can still
-// fill Country from just a postcode.
+// deliberate choice), then our original markets as a fallback — there's no
+// country-less reverse lookup on this API, so this is how we can still fill
+// Country from just a postcode when nothing's picked yet.
 const lookupPostcode = async (postcode: string, preferredCountryCode: string) => {
   const entries = Object.entries(COUNTRY_ISO_CODES);
+  const fallbackCodes = new Set(PRIMARY_MARKET_CODES);
   const ordered = preferredCountryCode
-    ? [...entries.filter(([c]) => c === preferredCountryCode), ...entries.filter(([c]) => c !== preferredCountryCode)]
-    : entries;
+    ? [
+        ...entries.filter(([c]) => c === preferredCountryCode),
+        ...entries.filter(([c]) => c !== preferredCountryCode && fallbackCodes.has(c)),
+      ]
+    : entries.filter(([c]) => fallbackCodes.has(c));
   for (const [code, iso] of ordered) {
     try {
       const res = await fetch(`https://api.zippopotam.us/${iso}/${encodeURIComponent(postcode)}`);
@@ -185,7 +183,6 @@ const dialCodeOf = (phone: string): string => /^\+\d{1,3}/.exec(phone.trim())?.[
 const stripDialCode = (phone: string): string => phone.trim().replace(/^\+\d{1,3}\s*/, '');
 
 const SHORT_CODE_RE = /^[A-Z0-9]{3,6}$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const toNum = (v: number | '') => (v === '' ? 0 : Number(v));
 
 // "HH:mm" → minutes since 00:00. Returns NaN on bad input.
@@ -328,6 +325,15 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     // into this wizard before the list page's own fetch has run).
     return real.length > 1 ? real : PLAN_COUNTRY_CHIPS;
   }, [existingCentres]);
+  // Live global plan templates (Membership Plans page) — replaces the old hardcoded
+  // PLAN_CATALOGUE so a plan created there is selectable here without a redeploy.
+  useEffect(() => {
+    dispatch(getMemberships());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
+  const membershipPlans = useSelector((state: RootState) => state.memberships.plans);
+  const catalogue: PlanMeta[] = useMemo(() => toPlanCatalogue(membershipPlans), [membershipPlans]);
+
   const isEdit = Boolean(initialBundle);
   // Edit mode jumps straight to Review (step 6) with all steps already unlocked.
   const [step, setStep] = useState(isEdit ? 6 : 1);
@@ -377,6 +383,23 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     });
   };
 
+  // Seed a default (disabled) row for any live catalogue plan not already present
+  // in s.plans — additive only, never touches an existing row. Covers: a brand-new
+  // wizard (starts with plans: []), a resumed draft, and editing an existing centre
+  // (bundleToWizardState only returns rows for plans it actually has — this adds
+  // the rest of the catalogue as selectable-but-off, including any plan created
+  // after the centre was originally set up).
+  useEffect(() => {
+    if (!catalogue.length) return;
+    setS(prev => {
+      const existingIds = new Set(prev.plans.map(p => p.planId));
+      const missing = catalogue.filter(c => !existingIds.has(c.id)).map(defaultPlanRow);
+      if (!missing.length) return prev;
+      return { ...prev, plans: [...prev.plans, ...missing] };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogue]);
+
   const requestClose = useCallback(() => {
     if (
       dirtyRef.current &&
@@ -389,6 +412,20 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
       return;
     onClose();
   }, [onClose, isEdit]);
+
+  // New-centre flow only — wipes the autosaved draft and resets every field
+  // back to blank, so the next time this wizard opens it starts fresh instead
+  // of auto-filling whatever was last typed.
+  const handleClearDraft = useCallback(() => {
+    if (!window.confirm('Clear your saved draft? This empties every field on this form — it cannot be undone.')) return;
+    clearDraft();
+    restoredDraftRef.current = false;
+    dirtyRef.current = false;
+    setS(initialState());
+    setStep(1);
+    setMaxStepReached(1);
+    toast('Draft cleared', { icon: '🗑️' });
+  }, []);
 
   // Autofocus the first field on open.
   useEffect(() => {
@@ -489,8 +526,32 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   const setHour = (day: number, patch: Partial<{ openTime: string; closeTime: string; isOpen: boolean }>) =>
     set({ operatingHours: s.operatingHours.map(h => (h.day === day ? { ...h, ...patch } : h)) });
 
+  // Upserts so a click is never dropped on the rare race where the catalogue's
+  // merge effect (above) hasn't run yet for a given plan.
   const setPlan = (planId: string, patch: Partial<WizardPlanRow>) =>
-    set({ plans: s.plans.map(p => (p.planId === planId ? { ...p, ...patch } : p)) });
+    set({
+      plans: s.plans.some(p => p.planId === planId)
+        ? s.plans.map(p => (p.planId === planId ? { ...p, ...patch } : p))
+        : [
+            ...s.plans,
+            {
+              ...defaultPlanRow(
+                catalogue.find(c => c.id === planId) ?? {
+                  id: planId,
+                  name: planId,
+                  colour: '#9ca3af',
+                  access: '',
+                  fortnightly: 0,
+                  annual: 0,
+                  defaultSlots: 0,
+                  defaultFoundation: false,
+                  demographics: [],
+                }
+              ),
+              ...patch,
+            },
+          ],
+    });
 
   const addDiscount = () => {
     const d: CentreDiscount = {
@@ -505,9 +566,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   };
 
   const visiblePlans = useMemo(() => {
-    if (demo === 'all') return PLAN_CATALOGUE;
-    return PLAN_CATALOGUE.filter(p => p.demographics.includes(demo));
-  }, [demo]);
+    if (demo === 'all') return catalogue;
+    return catalogue.filter(p => p.demographics.includes(demo));
+  }, [demo, catalogue]);
 
   const save = async () => {
     if (!stepValid(4)) {
@@ -517,7 +578,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     }
     setSaving(true);
     const finalState: WizardState = { ...s, status: saveStatus };
-    const payload = buildCreatePayload(finalState, initialBundle);
+    const payload = buildCreatePayload(finalState, catalogue, initialBundle);
     // Centres are addressed by their (uppercase) short code everywhere in this API
     // — /details is fetched by code, and the lookup is case-sensitive — so the
     // update endpoint's centreId is the facility code, not the facility doc id
@@ -540,7 +601,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   };
 
   const onDownloadPdf = () => {
-    if (!downloadCentrePdf(s)) {
+    if (!downloadCentrePdf(s, catalogue)) {
       toast.error('Could not open the PDF — please allow pop-ups for this site.');
     }
   };
@@ -600,23 +661,43 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 : 'Complete all steps to create and activate the centre'}
             </div>
           </div>
-          <button
-            aria-label="Close"
-            style={{
-              width: 32,
-              height: 32,
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              background: '#fff',
-              cursor: 'pointer',
-              color: 'var(--sub)',
-              fontSize: 18,
-            }}
-            type="button"
-            onClick={requestClose}
-          >
-            ×
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!isEdit && (
+              <button
+                style={{
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  background: '#fff',
+                  cursor: 'pointer',
+                  color: 'var(--sub)',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  padding: '7px 12px',
+                }}
+                type="button"
+                onClick={handleClearDraft}
+              >
+                Clear Draft
+              </button>
+            )}
+            <button
+              aria-label="Close"
+              style={{
+                width: 32,
+                height: 32,
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                background: '#fff',
+                cursor: 'pointer',
+                color: 'var(--sub)',
+                fontSize: 18,
+              }}
+              type="button"
+              onClick={requestClose}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Step pills */}
@@ -789,19 +870,16 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Country *</span>
-                  <select
-                    className="cmx-field"
-                    style={err(!s.country)}
+                  <CountrySearchSelect
+                    hasError={!!err(!s.country)}
                     value={s.country}
-                    onChange={e => set({ country: e.target.value })}
-                  >
-                    <option value="">Select country…</option>
-                    {COUNTRIES.map(c => (
-                      <option key={c.code} value={c.code}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={code => {
+                      // Changing country invalidates a timezone that belonged to
+                      // the old one — never silently leave a mismatched pair.
+                      const stillValid = timezonesForCountry(code).some(tz => tz.value === s.timezone);
+                      set({ country: code, timezone: stillValid ? s.timezone : '' });
+                    }}
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Time Zone *</span>
@@ -811,8 +889,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     value={s.timezone}
                     onChange={e => set({ timezone: e.target.value })}
                   >
-                    <option value="">Select timezone…</option>
-                    {TIMEZONES.map(tz => (
+                    <option value="">{s.country ? 'Select timezone…' : 'Select a country first…'}</option>
+                    {(s.country ? timezonesForCountry(s.country) : TIMEZONES).map(tz => (
                       <option key={tz.value} value={tz.value}>
                         {tz.label}
                       </option>
@@ -1372,7 +1450,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
 
               {/* Plan rows */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                {PLAN_CATALOGUE.map(meta => {
+                {catalogue.map(meta => {
                   const row = s.plans.find(p => p.planId === meta.id);
                   const visible = visiblePlans.some(p => p.id === meta.id);
                   if (!visible || !row) return null;
@@ -1586,7 +1664,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
 
               {/* Live allocation bar */}
               <div style={{ marginBottom: 20 }}>
-                <AllocationBar capacity={capacity} plans={s.plans} />
+                <AllocationBar capacity={capacity} catalogue={catalogue} plans={s.plans} />
               </div>
 
               <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
@@ -1916,7 +1994,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     {s.plans
                       .filter(p => p.enabled)
                       .map(p => {
-                        const meta = PLAN_CATALOGUE.find(m => m.id === p.planId) ?? {
+                        const meta = catalogue.find(m => m.id === p.planId) ?? {
                           name: p.planId,
                           colour: '#9ca3af',
                         };
@@ -2156,6 +2234,97 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               {isEdit ? 'Back to Centre' : 'Back to Centres'}
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Searchable Country select (Details step) — a text input that filters
+   COUNTRIES as you type, instead of a plain native <select>. COUNTRIES now
+   covers every real-world country (see constants.ts), so search is what
+   makes the list usable rather than a nice-to-have. ── */
+const CountrySearchSelect: React.FC<{
+  value: string;
+  onChange: (code: string) => void;
+  hasError?: boolean;
+}> = ({ value, onChange, hasError }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
+  const selected = COUNTRIES.find(c => c.code === value);
+  const filtered = COUNTRIES.filter(c => c.label.toLowerCase().includes(query.trim().toLowerCase()));
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input
+        autoComplete="off"
+        className="cmx-field"
+        placeholder="Search country…"
+        style={hasError ? { borderColor: '#dc2626' } : undefined}
+        type="text"
+        value={open ? query : (selected?.label ?? '')}
+        onChange={e => setQuery(e.target.value)}
+        onFocus={() => {
+          setOpen(true);
+          setQuery('');
+        }}
+      />
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            zIndex: 20,
+            background: '#fff',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            maxHeight: 220,
+            overflowY: 'auto',
+            boxShadow: '0 8px 20px rgba(0,0,0,.1)',
+          }}
+        >
+          {filtered.length === 0 && (
+            <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--sub)' }}>No matching country</div>
+          )}
+          {filtered.map(c => (
+            <button
+              key={c.code}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '9px 12px',
+                background: c.code === value ? 'rgba(37,99,235,0.06)' : '#fff',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                color: 'var(--navy)',
+              }}
+              type="button"
+              onClick={() => {
+                onChange(c.code);
+                setOpen(false);
+                setQuery('');
+              }}
+            >
+              {c.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

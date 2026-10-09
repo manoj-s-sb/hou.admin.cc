@@ -38,7 +38,7 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
   const [lane, setLane] = useState<string>(
     existing ? (existing.laneNo ? String(existing.laneNo) : '') : defaultLane ? String(defaultLane) : ''
   ); // '' = facility-wide
-  const type = taskTypeMeta(template.taskType);
+  const type = taskTypeMeta(template.taskType, template.taskTypeCustom);
   const prio = priorityMeta(template.priority);
   // For a done/recurred task, default to its next occurrence date (not the past
   // completed date); otherwise use the current scheduled date.

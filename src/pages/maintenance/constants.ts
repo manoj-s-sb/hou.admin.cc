@@ -4,7 +4,7 @@
  * frontend-only. Keep the enum arrays in sync with the backend.
  */
 import { getFacilityCode, getLocalUser } from '../../constants/user';
-import { getRole } from '../../rbac/permissions';
+import { getRole, isSuperAdmin } from '../../rbac/permissions';
 
 import type { FreqUnit, TaskType, TemplatePriority, TaskTemplate, TemplateEnrich } from '../../store/maintenance/types';
 
@@ -12,9 +12,14 @@ export { getFacilityCode, getLocalUser };
 
 export const ALL_LANES = [1, 2, 3, 4, 5, 6, 7];
 
-// Template CRUD + scheduling are admin-only server-side (ADMIN_ROLES). Mirror that
-// gate in the UI so non-admins don't see actions the backend would 403.
-export const canManageTasks = (): boolean => ['superadmin', 'super_admin', 'admin'].includes(getRole().toLowerCase());
+// Template CRUD + scheduling are admin-only server-side (ADMIN_ROLES: superadmin,
+// super_admin, admin) — a role-identity gate, distinct from the module read/write
+// permission system. Route the superadmin half through the canonical isSuperAdmin()
+// (checks userType[] as well as role, unlike a raw string match) so a superadmin whose
+// `role` field doesn't literally say "superadmin" isn't incorrectly denied here.
+const MAINTENANCE_EXTRA_ADMIN_ROLES = ['super_admin', 'admin'];
+export const canManageTasks = (): boolean =>
+  isSuperAdmin() || MAINTENANCE_EXTRA_ADMIN_ROLES.includes(getRole().toLowerCase());
 
 export const EQUIPMENT_CUSTOM_SENTINEL = 'Other (custom)';
 export const EQUIPMENT_OPTIONS: string[] = [
@@ -40,7 +45,13 @@ export const TASK_TYPES: { value: TaskType; label: string; icon: string; badge: 
   { value: 'other', label: 'Other', icon: '📋', badge: 'bg-gray-100 text-gray-600 border border-gray-200' },
 ];
 
-export const taskTypeMeta = (t: TaskType) => TASK_TYPES.find(x => x.value === t) ?? TASK_TYPES[2];
+/** Type badge meta. When `t` is 'other' and a custom name was entered, that name
+ * replaces the generic "Other" label so the badge reads e.g. "Camera" instead. */
+export const taskTypeMeta = (t: TaskType, custom?: string | null) => {
+  const meta = TASK_TYPES.find(x => x.value === t) ?? TASK_TYPES[2];
+  if (t === 'other' && custom?.trim()) return { ...meta, label: custom.trim() };
+  return meta;
+};
 
 export const FREQ_UNITS: { value: FreqUnit; label: string }[] = [
   { value: 'day', label: 'Day(s)' },
@@ -122,14 +133,15 @@ export const freqBadgeCls = (freqN: number, freqUnit: FreqUnit): string => {
 
 /* ── Frequency buckets (tab filters) ── */
 
-export type GlobalBucket = 'daily' | 'weekly' | 'monthly' | 'quarterly';
-export type CentreBucket = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly';
+export type GlobalBucket = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+export type CentreBucket = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export const GLOBAL_BUCKETS: { key: GlobalBucket; label: string }[] = [
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'monthly', label: 'Monthly' },
-  { key: 'quarterly', label: 'Quarterly+' },
+  { key: 'quarterly', label: 'Quarterly' },
+  { key: 'yearly', label: 'Yearly' },
 ];
 
 export const CENTRE_BUCKETS: { key: CentreBucket; label: string }[] = [
@@ -138,6 +150,7 @@ export const CENTRE_BUCKETS: { key: CentreBucket; label: string }[] = [
   { key: 'biweekly', label: 'Bi-Weekly' },
   { key: 'monthly', label: 'Monthly' },
   { key: 'quarterly', label: 'Quarterly' },
+  { key: 'yearly', label: 'Yearly' },
 ];
 
 type FreqSource = Pick<TaskTemplate, 'freqN' | 'freqUnit'> | Pick<TemplateEnrich, 'freqN' | 'freqUnit'>;
@@ -145,14 +158,15 @@ type FreqSource = Pick<TaskTemplate, 'freqN' | 'freqUnit'> | Pick<TemplateEnrich
 export const globalBucket = (t: FreqSource): GlobalBucket => {
   if (t.freqUnit === 'day') return 'daily';
   if (t.freqUnit === 'week') return 'weekly';
+  if (t.freqUnit === 'year') return 'yearly';
   if (t.freqUnit === 'month' && t.freqN < 3) return 'monthly';
-  return 'quarterly'; // month>=3 or year
+  return 'quarterly'; // month>=3 (incl. half-yearly)
 };
 
 export const centreBucket = (t: FreqSource): CentreBucket => {
   if (t.freqUnit === 'day') return 'daily';
   if (t.freqUnit === 'week') return t.freqN === 2 ? 'biweekly' : 'weekly';
-  if (t.freqUnit === 'year') return 'quarterly';
+  if (t.freqUnit === 'year') return 'yearly';
   return t.freqN >= 3 ? 'quarterly' : 'monthly'; // month
 };
 

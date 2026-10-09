@@ -1,5 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+import { logger } from '../../utils/logger';
+
 import {
   inductionList,
   getInductionStepsDetails,
@@ -59,9 +61,8 @@ const inductionSlice = createSlice({
     builder.addCase(updateInductionSteps.rejected, (state, action) => {
       state.isLoading = false;
 
-      console.error('Update Induction Steps Failed:', {
+      logger.error('Update Induction Steps Failed', action.error, {
         payload: action.payload,
-        error: action.error,
         meta: action.meta,
       });
       state.error = (action.payload as string) || 'Failed to update induction steps. Please try again.';
@@ -78,16 +79,16 @@ const inductionSlice = createSlice({
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to update tour status. Please try again.';
     });
-    builder.addCase(updateInductionBookingStatus.pending, state => {
-      state.isLoading = true;
+    builder.addCase(updateInductionBookingStatus.pending, (state, action) => {
+      state.updatingBookingCode = action.meta.arg.bookingCode;
       state.error = '';
     });
     builder.addCase(updateInductionBookingStatus.fulfilled, state => {
-      state.isLoading = false;
+      state.updatingBookingCode = null;
       state.error = '';
     });
     builder.addCase(updateInductionBookingStatus.rejected, (state, action) => {
-      state.isLoading = false;
+      state.updatingBookingCode = null;
       state.error = (action.payload as string) || 'Failed to update induction booking status. Please try again.';
     });
     builder.addCase(userInductionDetails.pending, state => {

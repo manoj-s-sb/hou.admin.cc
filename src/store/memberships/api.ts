@@ -33,7 +33,19 @@ export const getMemberships = createAsyncThunk<MembershipPlan[], string | undefi
       });
       const payload = res.data?.data ?? (res.data as unknown as ApiMembershipsPayload);
       const memberships = payload?.memberships;
-      return Array.isArray(memberships) ? memberships.map(mapApiMembership) : [];
+      if (!Array.isArray(memberships)) return [];
+      // The backend's no-facilityCode query deliberately unions global templates
+      // with every per-centre instance across the whole network (see
+      // list_memberships's "full catalogue" comment — it's a performance choice,
+      // reading all three doc-type partitions concurrently, not a "global only"
+      // guarantee). A plan assigned to any centre shares its name with the
+      // global template it came from, so without this filter the same plan
+      // appears to be listed twice. Keep only the two global-scope types here,
+      // matching this function's own "global templates" contract above.
+      const globalOnly = facilityCode
+        ? memberships
+        : memberships.filter(m => !m.type || m.type === 'membership_global' || m.type === 'membership_plan');
+      return globalOnly.map(mapApiMembership);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch memberships'));
     }

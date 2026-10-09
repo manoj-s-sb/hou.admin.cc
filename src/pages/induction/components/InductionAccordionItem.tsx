@@ -8,6 +8,7 @@ import { getInductionStepsDetails } from '../../../store/induction/api';
 import { Induction, SubStep } from '../../../store/induction/types';
 import { AppDispatch } from '../../../store/store';
 import { formatDateTimeChicago } from '../../../utils/dateUtils';
+import { logger } from '../../../utils/logger';
 
 import ButtonLoader from './ButtonLoader';
 import ConfirmationModal from './ConfirmationModal';
@@ -77,7 +78,7 @@ const InductionAccordionItem = ({
           }
         })
         .catch(error => {
-          console.error(`Error fetching induction steps for user ${userId}:`, error);
+          logger.error(`Error fetching induction steps for user ${userId}`, error);
         })
         .finally(() => {
           setIsLoadingSteps(false);
@@ -99,7 +100,7 @@ const InductionAccordionItem = ({
           }
         })
         .catch(error => {
-          console.error(`Error fetching induction steps for user ${userId}:`, error);
+          logger.error(`Error fetching induction steps for user ${userId}`, error);
         })
         .finally(() => {
           setIsLoadingSteps(false);

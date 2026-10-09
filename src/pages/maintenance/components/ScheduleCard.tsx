@@ -37,7 +37,7 @@ const ScheduleCard: React.FC<Props> = ({
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const t = schedule.template;
-  const type = taskTypeMeta(t.taskType);
+  const type = taskTypeMeta(t.taskType, t.taskTypeCustom);
   const prio = priorityMeta(t.priority);
   const isDone = schedule.status === 'done';
   const isOverdue = schedule.status === 'overdue';
@@ -187,6 +187,7 @@ const ScheduleCard: React.FC<Props> = ({
               >
                 📎 {f.name.length > 12 ? `${f.name.slice(0, 12)}…` : f.name}
                 <button
+                  aria-label="Remove file"
                   className="text-red-400 hover:text-red-600"
                   type="button"
                   onClick={() => setFiles(files.filter((_, j) => j !== i))}

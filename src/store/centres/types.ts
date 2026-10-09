@@ -3,7 +3,7 @@
  *
  * Three layers live here:
  *   1. Backend contract (doc-bundle API): FacilitySummary, CentreBundle, …
- *   2. Domain / wizard models the UI speaks: Centre, WizardState, CentreMember, …
+ *   2. Domain / wizard models the UI speaks: Centre, WizardState, PlanMeta, …
  *   3. The Redux slice state shape (CentresInitialState + initialState).
  *
  * Spellings are kept verbatim from the backend spec (note `freeSolts`).
@@ -139,12 +139,30 @@ export interface FacilityHoliday {
   name: string;
 }
 
+/** One entry of `facility.addons[0]` — tab config for a bookable area (lane/gym/
+ * podcastroom/meetingroom/...), distinct from the `product` docs which carry the
+ * actual pricing/booking rules for the same feature. */
+export interface FacilityAddonEntry {
+  status: string;
+  isTab: boolean;
+  group: string;
+  order: number;
+  label: string;
+  equipmentCount?: number;
+  areaSqm?: number;
+}
+
+/** `facility.addons` is an array containing ONE object keyed by addon id
+ * ("lane" | "gym" | "podcastroom" | "meetingroom" | ...) — matches the real DB shape. */
+export type FacilityAddonsMap = Record<string, FacilityAddonEntry>;
+
 export interface ApiFacility {
   type: 'facility';
   code: string; // 3–10, UPPER, unique
   name: string;
   cityCode: string;
   countryCode: string;
+  regionCode: string;
   stateCode: string;
   timezone: string;
   status: CentreApiStatus;
@@ -162,6 +180,9 @@ export interface ApiFacility {
   contact: FacilityContact;
   operatingHours: OperatingHoursMap;
   holidays: FacilityHoliday[];
+  // Tab config for bookable areas (lane always present, plus whichever
+  // additional facilities are enabled) — see FacilityAddonsMap.
+  addons: FacilityAddonsMap[];
   // Collected partially / not at all by the wizard today — refine on real JSON.
   security?: Record<string, unknown>;
   features?: Record<string, unknown>;
@@ -212,15 +233,20 @@ export interface ApiMembership {
   type: 'membership';
   code: string; // premium | standard | offpeak | nightowl | family
   name: string;
+  status?: string;
   isPopular: boolean;
+  cityCode?: string;
+  countryCode?: string;
+  stateCode?: string;
+  facilityCode?: string;
   pricing: MembershipPricing;
-  registrationFee: number;
+  registrationFee: Record<string, unknown>;
   access: Record<string, unknown>;
   bookingRules: Record<string, unknown>;
-  memberTypes: unknown[];
+  memberTypes: Record<string, unknown>;
   accessControl: Record<string, unknown>;
   membershipPolicies: Record<string, unknown>;
-  description: string;
+  description: Record<string, unknown>;
   stripe: Record<string, unknown>;
   benefits: string[];
   id?: string;
@@ -309,10 +335,54 @@ export interface ApiProductInput {
   seatingCapacity?: number;
   slotDuration?: string;
   freeGuestVisits?: number;
+  // Already-nested shape (matches the real docs) — sent as-is instead of the
+  // flat wizard fields above when the caller already has the real structure
+  // (e.g. the Facilities page's "Add New" form). See ProductInput (backend).
+  slotPricing?: { default?: { price?: number; currency?: string } };
+  sessionRules?: {
+    durationMinutes?: number;
+    slotCapacity?: number;
+    maxBookingsPerDay?: number;
+    advanceBookingDays?: number;
+  };
+  guestPolicy?: { maxGuestsPerSlot?: number; additionalGuestPrice?: number };
 }
 
 /** Create/update body — same bundle shape, but `products` is the write-side (flatter) shape. */
 export type CentreCreateRequest = Omit<CentreBundle, 'products'> & { products?: ApiProductInput[] };
+
+/**
+ * Partial edit of an EXISTING product (Facilities page's per-product "Edit"
+ * action) → /admin/centres/update's `productUpdates`. Only the fields actually
+ * set are sent; the backend merges them into the stored doc's real nested
+ * shape, leaving anything unset exactly as it was. Distinct from
+ * `ApiProductInput`/`products` (create-only, bulk, wizard-driven).
+ */
+export interface ApiProductUpdateInput {
+  code: string;
+  name?: string;
+  status?: string;
+  price?: number;
+  currency?: string;
+  durationMinutes?: number;
+  slotCapacity?: number;
+  maxBookingsPerDay?: number;
+  advanceBookingDays?: number;
+  maxGuestsPerSlot?: number;
+  additionalGuestPrice?: number;
+}
+
+/**
+ * Lightweight body for the Facilities page's own edits (amenities, add/edit a
+ * bookable facility) — a narrow slice of /admin/centres/update's full bundle
+ * shape, since this page never touches lanes/memberships/sales-flow.
+ */
+export interface FacilitiesPatchRequest {
+  centreId: string;
+  facility?: { amenities?: string[] };
+  products?: ApiProductInput[];
+  productUpdates?: ApiProductUpdateInput[];
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
  *  2. Domain / wizard models
@@ -387,27 +457,6 @@ export interface CentreKPISnapshot {
 /** A centre row joined with its latest KPI snapshot — what the card grid renders. */
 export interface CentreWithKPI extends Centre {
   kpi: CentreKPISnapshot;
-}
-
-export interface CentreMember {
-  id: string;
-  name: string;
-  email: string;
-  plan: string;
-  memberType: string;
-  joinDate: string;
-  bookings: number;
-  status: 'Active' | 'On Hold' | 'Suspended';
-}
-
-export interface CentreBooking {
-  id: string;
-  member: string;
-  lane: string;
-  date: string;
-  time: string;
-  sessionType: string;
-  status: 'Confirmed' | 'Completed' | 'No-show' | 'Cancelled' | 'Waitlisted';
 }
 
 /** An admin-authored note attached to a waitlist or lead entry. */
@@ -522,7 +571,8 @@ export interface CentreDiscount {
 }
 
 export interface WizardPlanRow {
-  planId: PlanId;
+  /** Plan code — one of the fixed catalogue ids, or any live global plan's code. */
+  planId: PlanId | string;
   enabled: boolean;
   fortnightlyPrice: number;
   annualPrice: number;
@@ -658,12 +708,6 @@ export interface CentresInitialState {
   // ── Create / update ──
   saving: boolean;
 
-  // ── Ops dashboard ──
-  members: CentreMember[];
-  membersLoading: boolean;
-  bookings: CentreBooking[];
-  bookingsLoading: boolean;
-
   // ── Waitlist / Leads ──
   waitlist: WaitlistEntry[];
   waitlistLoading: boolean;
@@ -691,11 +735,6 @@ export const initialState: CentresInitialState = {
   detailsError: null,
 
   saving: false,
-
-  members: [],
-  membersLoading: false,
-  bookings: [],
-  bookingsLoading: false,
 
   waitlist: [],
   waitlistLoading: false,

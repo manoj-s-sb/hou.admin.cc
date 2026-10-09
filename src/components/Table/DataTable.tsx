@@ -1,18 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic table boundary: row shapes are intentionally dynamic */
-import { useState, useMemo } from 'react';
-
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  Paper,
-  Box,
-  Typography,
-} from '@mui/material';
+import { useState, useMemo, CSSProperties } from 'react';
 
 import { LoaderSpinner } from '../Loader';
 
@@ -120,119 +107,101 @@ function DataTable<T = any>({
     return value ?? '';
   };
 
-  const tableContainerSx = {
-    maxHeight: maxHeight || 'auto',
-    overflowX: 'auto',
-    '&::-webkit-scrollbar': { height: '6px' },
-    '&::-webkit-scrollbar-track': { backgroundColor: 'rgba(0,0,0,0.03)' },
-    '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: '4px' },
-  };
+  // Cell padding mirrors the previous MUI `size` prop (small = denser).
+  const cellPadding = size === 'small' ? '8px 12px' : '14px 16px';
+
+  const headCellStyle = (column: TableColumn<T>): CSSProperties => ({
+    textAlign: column.align || 'left',
+    backgroundColor: '#ffffff',
+    color: '#111827',
+    fontWeight: 600,
+    fontSize: '0.8125rem',
+    padding: cellPadding,
+    whiteSpace: 'nowrap',
+    borderBottom: '1px solid #e5e7eb',
+    minWidth: column.minWidth,
+    width: column.width,
+    ...(stickyHeader ? { position: 'sticky', top: 0, zIndex: 1 } : {}),
+  });
+
+  const bodyCellStyle = (column: TableColumn<T>, isSelected: boolean): CSSProperties => ({
+    textAlign: column.align || 'left',
+    fontSize: '0.875rem',
+    padding: cellPadding,
+    color: '#374151',
+    borderBottom: '1px solid #f3f4f6',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    ...(isSelected ? { backgroundColor: '#f0f4ff' } : {}),
+  });
 
   const renderEmptyState = () => (
-    <TableRow>
-      <TableCell align="center" colSpan={columns.length} sx={{ py: 8, border: 'none' }}>
-        <Box alignItems="center" display="flex" flexDirection="column" gap={2}>
+    <tr>
+      <td colSpan={columns.length} style={{ textAlign: 'center', padding: '64px 16px', border: 'none' }}>
+        <div className="flex flex-col items-center gap-2">
           {emptyState?.icon || (
-            <Box
-              component="svg"
+            <svg
+              className="h-16 w-16 text-gray-300"
               fill="none"
               stroke="currentColor"
-              sx={{ width: 64, height: 64, color: 'grey.300' }}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
               viewBox="0 0 24 24"
             >
-              <path
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-              />
-            </Box>
+              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
           )}
-          <Typography color="text.secondary" variant="body1">
-            {emptyState?.title || 'No data available'}
-          </Typography>
-          {emptyState?.subtitle && (
-            <Typography color="text.secondary" variant="body2">
-              {emptyState.subtitle}
-            </Typography>
-          )}
-        </Box>
-      </TableCell>
-    </TableRow>
+          <p className="text-sm text-gray-500">{emptyState?.title || 'No data available'}</p>
+          {emptyState?.subtitle && <p className="text-xs text-gray-500">{emptyState.subtitle}</p>}
+        </div>
+      </td>
+    </tr>
   );
 
   const renderLoadingState = () => (
-    <TableRow>
-      <TableCell align="center" colSpan={columns.length} sx={{ py: 8, border: 'none' }}>
-        <Box alignItems="center" display="flex" flexDirection="column" gap={2}>
+    <tr>
+      <td colSpan={columns.length} style={{ textAlign: 'center', padding: '64px 16px', border: 'none' }}>
+        <div className="flex flex-col items-center gap-2">
           <LoaderSpinner className="text-blue-600" size="lg" />
-          <Typography color="text.secondary" variant="body2">
-            Loading...
-          </Typography>
-        </Box>
-      </TableCell>
-    </TableRow>
+          <p className="text-xs text-gray-500">Loading...</p>
+        </div>
+      </td>
+    </tr>
   );
 
   const pageNumbers = getPageNumbers(page, totalPages);
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        width: '100%',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        border: '1px solid #e5e7eb',
-        borderRadius: '12px',
-      }}
-    >
-      <TableContainer sx={tableContainerSx}>
-        <Table size={size} stickyHeader={stickyHeader}>
+    <div className="flex w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-x-auto" style={{ maxHeight: maxHeight || undefined }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           {!hideHeader && (
-            <TableHead>
-              <TableRow>
+            <thead>
+              <tr>
                 {columns.map(column => (
-                  <TableCell
-                    key={column.id}
-                    align={column.align || 'left'}
-                    style={{ minWidth: column.minWidth, width: column.width }}
-                    sx={{
-                      backgroundColor: '#ffffff',
-                      color: '#111827',
-                      fontWeight: 600,
-                      fontSize: '0.8125rem',
-                      padding: '14px 16px',
-                      whiteSpace: 'nowrap',
-                      borderBottom: '1px solid #e5e7eb',
-                      '&:first-of-type': { borderTopLeftRadius: '12px' },
-                      '&:last-of-type': { borderTopRightRadius: '12px' },
-                    }}
-                  >
+                  <th key={column.id} style={headCellStyle(column)}>
                     {column.sortable !== false && sortable ? (
-                      <TableSortLabel
-                        active={sortField === column.id}
-                        direction={sortField === column.id ? sortDirection : 'asc'}
-                        sx={{
-                          color: '#111827 !important',
-                          fontSize: '0.8125rem',
-                          '&.Mui-active': { color: '#111827 !important' },
-                          '& .MuiTableSortLabel-icon': { color: '#111827 !important' },
-                        }}
+                      <button
+                        className="inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-[0.8125rem] font-semibold text-[#111827]"
+                        type="button"
                         onClick={() => handleSort(column.id, column.sortable)}
                       >
                         {column.label}
-                      </TableSortLabel>
+                        {sortField === column.id && (
+                          <span aria-hidden="true">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </button>
                     ) : (
                       <span>{column.label}</span>
                     )}
-                  </TableCell>
+                  </th>
                 ))}
-              </TableRow>
-            </TableHead>
+              </tr>
+            </thead>
           )}
-          <TableBody>
+          <tbody>
             {loading
               ? renderLoadingState()
               : paginatedData.length === 0
@@ -240,47 +209,25 @@ function DataTable<T = any>({
                 : paginatedData.map((row, index) => {
                     const rowId = getRowId(row);
                     const isSelected = selectedRowId !== undefined && selectedRowId === rowId;
-                    const className = rowClassName ? rowClassName(row, index) : '';
+                    const extraClass = rowClassName ? rowClassName(row, index) : '';
                     return (
-                      <TableRow
+                      <tr
                         key={rowId}
-                        className={className}
-                        selected={isSelected}
-                        sx={{
-                          cursor: onRowClick ? 'pointer' : 'default',
-                          backgroundColor: '#ffffff',
-                          '&:hover': {
-                            backgroundColor: onRowClick ? '#f9fafb' : '#ffffff',
-                          },
-                          '&:last-child td': { borderBottom: 'none' },
-                          ...(isSelected && { backgroundColor: '#f0f4ff' }),
-                        }}
+                        className={`${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''} ${extraClass}`}
+                        style={isSelected ? { backgroundColor: '#f0f4ff' } : { backgroundColor: '#ffffff' }}
                         onClick={() => onRowClick?.(row, index)}
                       >
                         {columns.map(column => (
-                          <TableCell
-                            key={column.id}
-                            align={column.align || 'left'}
-                            sx={{
-                              fontSize: '0.875rem',
-                              padding: '14px 16px',
-                              color: '#374151',
-                              borderBottom: '1px solid #f3f4f6',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              ...(isSelected && { backgroundColor: '#f0f4ff' }),
-                            }}
-                          >
+                          <td key={column.id} style={bodyCellStyle(column, isSelected)}>
                             {getCellValue(row, column, index)}
-                          </TableCell>
+                          </td>
                         ))}
-                      </TableRow>
+                      </tr>
                     );
                   })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          </tbody>
+        </table>
+      </div>
 
       {pagination && totalPages > 0 && (
         <div className="flex items-center justify-between border-t border-gray-100 bg-white px-4 py-3">
@@ -316,6 +263,7 @@ function DataTable<T = any>({
             <button
               className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={page === 0}
+              type="button"
               onClick={() => handlePageChange(page - 1)}
             >
               ← Previous
@@ -333,6 +281,7 @@ function DataTable<T = any>({
                     className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
                       p === page ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
                     }`}
+                    type="button"
                     onClick={() => handlePageChange(p as number)}
                   >
                     {(p as number) + 1}
@@ -344,6 +293,7 @@ function DataTable<T = any>({
             <button
               className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={page >= totalPages - 1}
+              type="button"
               onClick={() => handlePageChange(page + 1)}
             >
               Next →
@@ -351,7 +301,7 @@ function DataTable<T = any>({
           </div>
         </div>
       )}
-    </Paper>
+    </div>
   );
 }
 

@@ -55,6 +55,9 @@ export interface Induction {
   profileImageUrl: string;
   subscriptionCode?: string;
   members: InductionMember[];
+  /** First name of the admin who last changed this booking's status
+   * (completed/noshow/cancelled) — empty/absent if never admin-changed. */
+  updatedByName?: string;
 }
 
 export interface InductionResponse {
@@ -92,10 +95,16 @@ export interface UpdateTourStatusRequest {
   userId: string;
   bookingCode: string;
   status: string;
+  /** Optional free-text reason — used when status is 'cancelled'. */
+  reason?: string;
 }
 
 export interface InductionState {
   isLoading: boolean;
+  /** bookingCode of the row whose status update is currently in flight (No Show /
+   * Cancel / Undo), or null when none — lets the UI show a per-row spinner instead
+   * of blanking the whole table via the shared `isLoading` flag. */
+  updatingBookingCode: string | null;
   error: string | null;
   inductionList: InductionResponse;
   selectedInduction: Induction | null;
@@ -105,6 +114,7 @@ export interface InductionState {
 
 export const initialState: InductionState = {
   isLoading: false,
+  updatingBookingCode: null,
   error: '',
   inductionList: {
     bookings: [],

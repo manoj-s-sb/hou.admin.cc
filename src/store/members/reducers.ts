@@ -9,6 +9,9 @@ import {
   addMemberNote,
   updateMemberNote,
   deleteMemberNote,
+  getMemberEmails,
+  sendMemberEmail,
+  bulkSendMemberEmail,
 } from './api';
 import { initialState } from './types';
 
@@ -116,6 +119,48 @@ const membersSlice = createSlice({
     });
     builder.addCase(deleteMemberNote.rejected, (state, action) => {
       state.memberNotesError = (action.payload as string) || 'Failed to delete note';
+    });
+
+    // Custom emails sent to a member — same separate loading/error pair
+    // reasoning as Admin Notes above.
+    builder.addCase(getMemberEmails.pending, state => {
+      state.memberEmailsLoading = true;
+      state.memberEmailsError = null;
+    });
+    builder.addCase(getMemberEmails.fulfilled, (state, action) => {
+      state.memberEmailsLoading = false;
+      state.memberEmails = action.payload?.data?.emails || [];
+    });
+    builder.addCase(getMemberEmails.rejected, (state, action) => {
+      state.memberEmailsLoading = false;
+      state.memberEmailsError = (action.payload as string) || 'Failed to fetch sent emails';
+    });
+
+    builder.addCase(sendMemberEmail.pending, state => {
+      state.memberEmailSending = true;
+      state.memberEmailsError = null;
+    });
+    builder.addCase(sendMemberEmail.fulfilled, (state, action) => {
+      state.memberEmailSending = false;
+      const email = action.payload?.data;
+      if (email) state.memberEmails = [email, ...state.memberEmails];
+    });
+    builder.addCase(sendMemberEmail.rejected, (state, action) => {
+      state.memberEmailSending = false;
+      state.memberEmailsError = (action.payload as string) || 'Failed to send email';
+    });
+
+    builder.addCase(bulkSendMemberEmail.pending, state => {
+      state.memberEmailBulkSending = true;
+      state.memberEmailsError = null;
+    });
+    builder.addCase(bulkSendMemberEmail.fulfilled, (state, action) => {
+      state.memberEmailBulkSending = false;
+      state.memberEmailBulkResult = action.payload?.data || null;
+    });
+    builder.addCase(bulkSendMemberEmail.rejected, (state, action) => {
+      state.memberEmailBulkSending = false;
+      state.memberEmailsError = (action.payload as string) || 'Failed to send bulk email';
     });
   },
 });

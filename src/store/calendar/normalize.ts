@@ -58,13 +58,24 @@ export const normalizeTourEvent = (item: Induction): CalendarEvent | null => {
  * non-bookable 'disabled' placeholder slots (e.g. off-hours), which would
  * otherwise flood the calendar with fake "Booked" entries every day. Only
  * status === 'confirmed' (equivalently, bookingId being set) is a real booking.
+ *
+ * A coach session is always booked on top of a regular lane slot (same
+ * bookingId) — see slot_calendar_service.py's `_lane_no_from_slot_code` — so
+ * every coach booking already shows up once as a Slot Booking event. Pass that
+ * event set's booking ids in `excludeBookingIds` so the same booking isn't
+ * rendered twice; the coach's name is already carried in the Slot Booking
+ * event's own `meta.coach`.
  */
-export const extractCoachBookingEvents = (coaches: Coach[]): CalendarEvent[] => {
+export const extractCoachBookingEvents = (
+  coaches: Coach[],
+  excludeBookingIds: Set<string> = new Set()
+): CalendarEvent[] => {
   const events: CalendarEvent[] = [];
   for (const coach of coaches ?? []) {
     for (const day of coach.availability ?? []) {
       for (const slot of day.slots ?? []) {
         if (slot.status !== 'confirmed' && !slot.bookingId) continue; // only real bookings are "events"
+        if (slot.bookingId && excludeBookingIds.has(slot.bookingId)) continue; // already shown as a Slot Booking event
         if (!isValidTimeSlot(slot.startTime, slot.endTime)) continue;
         events.push({
           id: `coach-${slot.coachSlotCode}`,
@@ -109,13 +120,17 @@ export const extractSlotBookingEvents = (days: GetSlotsResponse[]): CalendarEven
         if (!isValidTimeSlot(slot.startTime, slot.endTime)) continue;
         const { user } = slot.booking;
         const name = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+        // A coach-assisted booking stays a single merged event (see mergeCalendarEvents'
+        // dedupe against the Coach Booking feed) but is colored like one, so it's
+        // still visually flagged as involving a coach on the calendar grid.
+        const hasCoach = Boolean(slot.booking.coach?.name);
         events.push({
           id: `booking-${slot.booking.bookingCode || slot.slotCode}`,
           title: name || 'Slot Booking',
           start: slot.startTime,
           end: slot.endTime,
           type: 'booking',
-          color: EVENT_TYPE_CONFIG.booking.color,
+          color: hasCoach ? EVENT_TYPE_CONFIG.coach_booking.color : EVENT_TYPE_CONFIG.booking.color,
           meta: { ...slot.booking, slotCode: slot.slotCode, laneCode: lane.laneCode, date: day.date },
         });
       }
@@ -131,11 +146,16 @@ export const mergeCalendarEvents = (
   coaches: Coach[],
   slotBookingDays: GetSlotsResponse[] = []
 ): CalendarEvent[] => {
+  const slotBookingEvents = extractSlotBookingEvents(slotBookingDays);
+  const slotBookingIds = new Set(
+    slotBookingEvents.map(e => e.meta?.bookingId).filter((id): id is string => Boolean(id))
+  );
+
   const events: CalendarEvent[] = [
     ...(inductions ?? []).map(normalizeInductionEvent),
     ...(tours ?? []).map(normalizeTourEvent),
-    ...extractCoachBookingEvents(coaches),
-    ...extractSlotBookingEvents(slotBookingDays),
+    ...extractCoachBookingEvents(coaches, slotBookingIds),
+    ...slotBookingEvents,
   ].filter((e): e is CalendarEvent => e !== null);
 
   // Cross-day order stays purely chronological. WITHIN the same day, Coach
