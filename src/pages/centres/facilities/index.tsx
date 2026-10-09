@@ -1,23 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-import { toast } from 'react-hot-toast';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
+import { getCentreDetails } from '../../../store/centres/api';
+import { AppDispatch, RootState } from '../../../store/store';
 import { has } from '../../../utils/format';
 import { DEFAULT_AMENITIES } from '../constants';
 
-import type { ApiProduct } from '../../../store/centres/types';
-import type { RootState } from '../../../store/store';
+import AmenitiesEditModal from './AmenitiesEditModal';
+import FacilityProductModal from './FacilityProductModal';
+import { featureMetaFor } from './productMeta';
 
-/** Icon + display label + icon tint, matched against a product's `code` (mirrors the wizard's types). */
-const FEATURE_META: { match: (code: string) => boolean; icon: string; label: string; bg: string }[] = [
-  { match: c => c.includes('gym'), icon: '🏋️', label: 'Gym / Fitness Area', bg: '#fef9c3' },
-  { match: c => c.includes('podcast'), icon: '🎙', label: 'Podcast Room', bg: '#ecedf4' },
-  { match: c => c.includes('meeting'), icon: '🗂', label: 'Meeting Room', bg: '#d0f0f0' },
-  { match: c => c.includes('gaming') || c.includes('game'), icon: '🎮', label: 'Gaming Zone', bg: '#eeedfe' },
-];
-const featureMetaFor = (code: string): { icon: string; label: string; bg: string } =>
-  FEATURE_META.find(m => m.match(code.toLowerCase())) ?? { icon: '📦', label: code, bg: '#f3f4f6' };
+import type { ApiProduct } from '../../../store/centres/types';
 
 /** Products already surfaced via the Lanes section — skip them here to avoid double-listing. */
 const LANE_PRODUCT_CODES = new Set(['batting', 'bowling', 'hybrid', 'multipurpose']);
@@ -84,9 +78,11 @@ const sectionLabel: React.CSSProperties = {
  * CentreDetailView fetches for the open centre — no extra request.
  */
 const Facilities: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const bundle = useSelector((s: RootState) => s.centres.details);
   const lanes = bundle?.lanes ?? [];
   const laneCount = (type: string): number => lanes.filter(l => l.laneType === type).length;
+  const centreCode = bundle?.facility?.code ?? '';
 
   // Amenities come from the centre's saved "Facilities Available" selection; the
   // default list is only a fallback for centres created before it was persisted.
@@ -95,6 +91,17 @@ const Facilities: React.FC = () => {
   // Bookable facility products (podcast room, meeting room, gym, ...) — real `type: "product"`
   // docs linked to this centre via facilityCode, returned alongside facility/lanes/memberships.
   const products = (bundle?.products ?? []).filter(p => !LANE_PRODUCT_CODES.has((p.code ?? '').toLowerCase()));
+
+  const [editingAmenities, setEditingAmenities] = useState(false);
+  // Product modal: closed when null; { product: null } to add a new one,
+  // { product: <existing> } to edit it.
+  const [productModal, setProductModal] = useState<{ product: ApiProduct | null } | null>(null);
+
+  // Re-pulls the live bundle after a save so every section (amenities, the
+  // product just added/edited) reflects the DB immediately, not stale redux state.
+  const refreshBundle = () => {
+    if (centreCode) dispatch(getCentreDetails(centreCode));
+  };
 
   return (
     <div>
@@ -116,14 +123,15 @@ const Facilities: React.FC = () => {
         </div>
         <button
           className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
+          disabled={!centreCode}
           type="button"
-          onClick={() => toast('Edit facilities from Centre Management → Edit')}
+          onClick={() => setEditingAmenities(true)}
         >
           <svg fill="none" height={13} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={13}>
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
-          Edit Facilities
+          Edit Amenities
         </button>
       </div>
 
@@ -191,7 +199,17 @@ const Facilities: React.FC = () => {
       </div>
 
       {/* Additional bookable facilities */}
-      <div style={sectionLabel}>Additional Bookable Facilities</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ ...sectionLabel, marginBottom: 0 }}>Additional Bookable Facilities</div>
+        <button
+          className="cmx-btn cmx-btn-outline"
+          disabled={!centreCode}
+          type="button"
+          onClick={() => setProductModal({ product: null })}
+        >
+          + Add New
+        </button>
+      </div>
       {products.length === 0 ? (
         <div
           style={{
@@ -205,9 +223,6 @@ const Facilities: React.FC = () => {
           }}
         >
           No additional facilities configured for this centre yet.
-          <div style={{ fontSize: 11, marginTop: 4 }}>
-            Add them from the New Centre wizard or the Facilities editor.
-          </div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
@@ -265,7 +280,7 @@ const Facilities: React.FC = () => {
                   <button
                     className="shrink-0 cursor-pointer self-start rounded-full border border-cmx-border bg-white px-3.5 py-1.5 text-[12px] font-semibold text-sub transition-all hover:bg-gray-50"
                     type="button"
-                    onClick={() => toast(`Edit "${p.name || meta.label}" from Centre Management → Edit`)}
+                    onClick={() => setProductModal({ product: p })}
                   >
                     Edit
                   </button>
@@ -284,6 +299,25 @@ const Facilities: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {editingAmenities && centreCode && (
+        <AmenitiesEditModal
+          centreCode={centreCode}
+          current={amenities}
+          onClose={() => setEditingAmenities(false)}
+          onSaved={refreshBundle}
+        />
+      )}
+
+      {productModal && centreCode && (
+        <FacilityProductModal
+          centreCode={centreCode}
+          existingCodes={products.map(p => (p.code ?? '').toLowerCase())}
+          product={productModal.product}
+          onClose={() => setProductModal(null)}
+          onSaved={refreshBundle}
+        />
       )}
     </div>
   );

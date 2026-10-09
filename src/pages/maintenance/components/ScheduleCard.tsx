@@ -37,7 +37,7 @@ const ScheduleCard: React.FC<Props> = ({
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const t = schedule.template;
-  const type = taskTypeMeta(t.taskType);
+  const type = taskTypeMeta(t.taskType, t.taskTypeCustom);
   const prio = priorityMeta(t.priority);
   const isDone = schedule.status === 'done';
   const isOverdue = schedule.status === 'overdue';

@@ -70,15 +70,8 @@ const ticketsSlice = createSlice({
       state.detailError = action.payload ?? 'Failed to load the ticket';
     });
 
-    // ── Mutations (all return the updated ticket) ──
-    [
-      createTicket,
-      updateTicketStatus,
-      acknowledgeTicket,
-      addTicketComment,
-      addTicketAttachment,
-      reassignTicket,
-    ].forEach(thunk => {
+    // ── Mutations on an already-open ticket (all return the updated ticket) ──
+    [updateTicketStatus, acknowledgeTicket, addTicketComment, addTicketAttachment, reassignTicket].forEach(thunk => {
       builder.addCase(thunk.pending, state => {
         state.saving = true;
       });
@@ -88,6 +81,19 @@ const ticketsSlice = createSlice({
       builder.addCase(thunk.rejected, state => {
         state.saving = false;
       });
+    });
+
+    // ── Create ── doesn't touch `current`/`items` — unlike the mutations above,
+    // this isn't changing whatever ticket is currently open in the detail drawer
+    // (if any); the list/counts are refreshed separately by the caller.
+    builder.addCase(createTicket.pending, state => {
+      state.saving = true;
+    });
+    builder.addCase(createTicket.fulfilled, state => {
+      state.saving = false;
+    });
+    builder.addCase(createTicket.rejected, state => {
+      state.saving = false;
     });
   },
 });

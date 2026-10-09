@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
+import NumberInput from '../../../components/NumberInput';
 import { createMembership, updateMembership } from '../../../store/memberships/api';
 import { AppDispatch } from '../../../store/store';
 
@@ -14,6 +15,25 @@ interface Props {
   onClose: () => void;
   onSaved: (plan: MembershipPlan) => void;
 }
+
+/**
+ * The in-progress form only — fields with a "0 = …" meaning start genuinely
+ * blank instead of pre-filled with 0 (previously indistinguishable from a
+ * deliberately-typed 0). Coerced back to real numbers in `handleSave` before
+ * the rest of the app (API payload, the Redux list, etc.) ever sees this plan,
+ * so `MembershipPlan` itself stays plain `number` everywhere else.
+ */
+type DraftPlan = Omit<
+  MembershipPlan,
+  'fortnightlyPrice' | 'annualPrice' | 'slotsPerCycle' | 'carryover' | 'carryCap' | 'memberCap'
+> & {
+  fortnightlyPrice: number | null;
+  annualPrice: number | null;
+  slotsPerCycle: number | null;
+  carryover: number | null;
+  carryCap: number | null;
+  memberCap: number | null;
+};
 
 const ACCESS_LABELS: Record<AccessType, string> = {
   '24/7': '24/7',
@@ -37,29 +57,29 @@ const parseCustomHours = (plan: MembershipPlan | null): { start: string; end: st
   return CUSTOM_HOURS_DEFAULT;
 };
 
-const blankPlan: MembershipPlan = {
+const blankPlan: DraftPlan = {
   id: '',
   name: '',
   code: '',
   description: '',
   colour: '#21295A',
-  fortnightlyPrice: 0,
-  annualPrice: 0,
+  fortnightlyPrice: null,
+  annualPrice: null,
   currency: 'USD',
   accessType: '24/7',
   accessHours: '24/7',
   peakAccess: true,
-  slotsPerCycle: 0,
+  slotsPerCycle: null,
   dailyBookingLimit: 1,
   maxFutureBookings: 2,
-  carryover: 0,
-  carryCap: 0,
+  carryover: null,
+  carryCap: null,
   advanceWindowDays: 7,
   extraSessionEnabled: true,
   extraSessionPrice: 30,
   eligibility: { adult: true, junior: false, family: false },
   additionalMemberFee: null,
-  memberCap: 0,
+  memberCap: null,
   centresActive: 0,
   regions: ['all'],
   status: 'active',
@@ -70,16 +90,13 @@ const FIELD =
 
 const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const [form, setForm] = useState<MembershipPlan>(plan ?? blankPlan);
+  const [form, setForm] = useState<DraftPlan>(plan ?? blankPlan);
   const [customStart, setCustomStart] = useState(() => parseCustomHours(plan).start);
   const [customEnd, setCustomEnd] = useState(() => parseCustomHours(plan).end);
   const [saving, setSaving] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
 
-  const set = <K extends keyof MembershipPlan>(key: K, value: MembershipPlan[K]) =>
-    setForm(prev => ({ ...prev, [key]: value }));
-
-  const num = (v: string) => (v === '' ? 0 : Number(v));
+  const set = <K extends keyof DraftPlan>(key: K, value: DraftPlan[K]) => setForm(prev => ({ ...prev, [key]: value }));
 
   const isValid = useMemo(() => form.name.trim() !== '' && form.code.trim() !== '', [form.name, form.code]);
 
@@ -93,6 +110,14 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
       code: form.code.trim().toLowerCase(),
       id: form.id || form.code.trim().toLowerCase().replace(/\s+/g, '-'),
       accessHours,
+      // Fields left blank (null) read as their "0 = …" meaning once saved —
+      // only the form itself shows them blank until the admin types a value.
+      fortnightlyPrice: form.fortnightlyPrice ?? 0,
+      annualPrice: form.annualPrice ?? 0,
+      slotsPerCycle: form.slotsPerCycle ?? 0,
+      carryover: form.carryover ?? 0,
+      carryCap: form.carryCap ?? 0,
+      memberCap: form.memberCap ?? 0,
     };
 
     if (mode === 'create') {
@@ -258,26 +283,24 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Fortnightly Price (USD) *
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="e.g. 59.95"
                 step="0.01"
-                type="number"
-                value={form.fortnightlyPrice || ''}
-                onChange={e => set('fortnightlyPrice', num(e.target.value))}
+                value={form.fortnightlyPrice}
+                onValueChange={n => set('fortnightlyPrice', n)}
               />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Annual Price (USD)</span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="e.g. 2493.92"
                 step="0.01"
-                type="number"
-                value={form.annualPrice || ''}
-                onChange={e => set('annualPrice', num(e.target.value))}
+                value={form.annualPrice}
+                onValueChange={n => set('annualPrice', n)}
               />
             </div>
           </div>
@@ -333,13 +356,12 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Slots per Cycle *</span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="0 = unlimited"
-                type="number"
-                value={form.slotsPerCycle || ''}
-                onChange={e => set('slotsPerCycle', num(e.target.value))}
+                value={form.slotsPerCycle}
+                onValueChange={n => set('slotsPerCycle', n)}
               />
               <div className="mt-[3px] text-[11px] text-sub">0 = unlimited (e.g. Off Peak)</div>
             </div>
@@ -347,24 +369,22 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Daily Booking Limit
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={1}
-                type="number"
                 value={form.dailyBookingLimit}
-                onChange={e => set('dailyBookingLimit', num(e.target.value))}
+                onValueChange={n => set('dailyBookingLimit', n)}
               />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Max Active Future Bookings
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={1}
-                type="number"
                 value={form.maxFutureBookings}
-                onChange={e => set('maxFutureBookings', num(e.target.value))}
+                onValueChange={n => set('maxFutureBookings', n)}
               />
             </div>
           </div>
@@ -373,13 +393,12 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Carryover per Cycle
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="0 = no carryover"
-                type="number"
-                value={form.carryover || ''}
-                onChange={e => set('carryover', num(e.target.value))}
+                value={form.carryover}
+                onValueChange={n => set('carryover', n)}
               />
               <div className="mt-[3px] text-[11px] text-sub">Unused slots → next cycle</div>
             </div>
@@ -387,13 +406,12 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Max Accumulated (carry cap)
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="e.g. 4"
-                type="number"
-                value={form.carryCap || ''}
-                onChange={e => set('carryCap', num(e.target.value))}
+                value={form.carryCap}
+                onValueChange={n => set('carryCap', n)}
               />
               <div className="mt-[3px] text-[11px] text-sub">Max slots that can accumulate</div>
             </div>
@@ -401,12 +419,11 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Advance Booking Window (days)
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={1}
-                type="number"
                 value={form.advanceWindowDays}
-                onChange={e => set('advanceWindowDays', num(e.target.value))}
+                onValueChange={n => set('advanceWindowDays', n)}
               />
             </div>
           </div>
@@ -438,14 +455,13 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Default Extra Session Price (USD)
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 disabled={!form.extraSessionEnabled}
                 min={0}
                 step="0.01"
-                type="number"
-                value={form.extraSessionPrice || ''}
-                onChange={e => set('extraSessionPrice', num(e.target.value))}
+                value={form.extraSessionPrice}
+                onValueChange={n => set('extraSessionPrice', n)}
               />
             </div>
           </div>
@@ -473,27 +489,25 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Additional Guest Fees
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="e.g. 10 — leave blank if N/A"
                 step="0.01"
-                type="number"
-                value={form.additionalMemberFee ?? ''}
-                onChange={e => set('additionalMemberFee', e.target.value === '' ? null : num(e.target.value))}
+                value={form.additionalMemberFee}
+                onValueChange={n => set('additionalMemberFee', n)}
               />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Network-wide Member Cap
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="0 = unlimited"
-                type="number"
-                value={form.memberCap || ''}
-                onChange={e => set('memberCap', num(e.target.value))}
+                value={form.memberCap}
+                onValueChange={n => set('memberCap', n)}
               />
               <div className="mt-[3px] text-[11px] text-sub">Per-centre cap set in Centre Management</div>
             </div>

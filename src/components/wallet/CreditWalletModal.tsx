@@ -44,6 +44,11 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // "Credit Wallet" doesn't submit directly — it first swaps to a one-more-look
+  // confirmation step (amount + who it's going to) before the real credit fires.
+  // There's no undo for a wallet credit, so this is worth the extra click.
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [showMemberList, setShowMemberList] = useState(false);
   // Belt-and-suspenders against a double-submit: this endpoint has no
   // idempotency key server-side (unlike the booking flows), so a double-click
   // before `isSubmitting` re-renders could fire two real credits.
@@ -57,10 +62,19 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
       setAmount('');
       setReason('');
       setIsSubmitting(false);
+      setIsConfirming(false);
+      setShowMemberList(false);
       submitGuardRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // Editing anything after reaching the confirm step drops back to editing —
+  // never let a stale amount/reason/member-list get waved through by a
+  // confirmation that was shown for different values.
+  useEffect(() => {
+    setIsConfirming(false);
+  }, [amount, reason, selectedMembers]);
 
   useEffect(() => {
     if (presetMember || !query.trim() || query.trim().length < 2) {
@@ -287,17 +301,50 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
           </div>
         </div>
 
+        {isConfirming && (
+          <div className="mx-6 mb-5 rounded-xl border border-[#B3DADA] bg-[#F8FAFA] px-4 py-3">
+            <p className="text-[14px] font-semibold text-[#21295A]">
+              Credit ${parsedAmount.toFixed(2)} to{' '}
+              {selectedMembers.length === 1
+                ? selectedMembers[0].name || selectedMembers[0].email
+                : `${selectedMembers.length} members`}
+              ?
+            </p>
+            {selectedMembers.length > 1 && (
+              <button
+                className="mt-1 text-[12px] font-medium text-[#21295A] underline"
+                type="button"
+                onClick={() => setShowMemberList(v => !v)}
+              >
+                {showMemberList ? 'Hide members' : 'View members'}
+              </button>
+            )}
+            {selectedMembers.length > 1 && showMemberList && (
+              <ul className="mt-2 max-h-28 space-y-0.5 overflow-y-auto text-[12px] text-gray-600">
+                {selectedMembers.map(member => (
+                  <li key={member.userId}>{member.name || member.email}</li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-[12px] text-gray-500">
+              This can&apos;t be undone automatically — double-check before confirming.
+            </p>
+          </div>
+        )}
+
         <div className="flex justify-center gap-3 border-t border-[#E5F0F0] px-6 py-5">
           <button
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
             disabled={!canSubmit || isSubmitting}
-            onClick={handleSubmit}
+            onClick={() => (isConfirming ? handleSubmit() : setIsConfirming(true))}
           >
             {isSubmitting ? (
               <>
                 <LoaderSpinner className="text-white" size="sm" />
                 Crediting...
               </>
+            ) : isConfirming ? (
+              'Confirm Credit'
             ) : (
               'Credit Wallet'
             )}
@@ -305,9 +352,9 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
           <button
             className="rounded-xl border-2 border-[#B3DADA] px-4 py-3 text-[14px] font-medium text-[#21295A] transition-all hover:scale-[1.02] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
             disabled={isSubmitting}
-            onClick={onClose}
+            onClick={() => (isConfirming ? setIsConfirming(false) : onClose())}
           >
-            Cancel
+            {isConfirming ? 'Back' : 'Cancel'}
           </button>
         </div>
       </div>

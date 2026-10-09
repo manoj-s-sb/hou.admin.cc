@@ -7,7 +7,7 @@
  * chip list, additional bookable facilities, centre discounts) fall back to
  * sensible defaults — the bundle is the source of truth for everything else.
  */
-import { DAYS } from '../constants';
+import { COUNTRY_ISO3_TO_CODE, DAYS } from '../constants';
 
 import { makeAdditionalFacility } from './AdditionalFacilitiesStep';
 
@@ -110,19 +110,10 @@ const is24x7Hours = (hours: OperatingHoursMap | undefined): boolean =>
     return range === '00:00-24:00' || range === '00:00-23:59';
   });
 
-/** Inverse of buildCreatePayload.ts's COUNTRY_ISO_ALPHA3 — maps a stored ISO
- * alpha-3 code (either case) back to the wizard dropdown's short code so the
- * Country <select> shows the right option when editing an existing centre. */
-const COUNTRY_ALPHA3_TO_WIZARD: Record<string, string> = {
-  AUS: 'AU',
-  USA: 'US',
-  GBR: 'UK',
-  ARE: 'UAE',
-  IND: 'IN',
-  NZL: 'NZ',
-  ZAF: 'ZA',
-};
-const fromIso3 = (code: string): string => COUNTRY_ALPHA3_TO_WIZARD[code.toUpperCase()] ?? code;
+/** Inverse of buildCreatePayload.ts's toIso3 — maps a stored ISO alpha-3 code
+ * (either case) back to the wizard dropdown's code so the Country <select>
+ * shows the right option when editing an existing centre. */
+const fromIso3 = (code: string): string => COUNTRY_ISO3_TO_CODE[code.toUpperCase()] ?? code;
 
 const guestRulesOf = (m: ApiMembership): Record<string, unknown> =>
   (m.bookingRules?.guestBookingRules as Record<string, unknown>) ?? {};

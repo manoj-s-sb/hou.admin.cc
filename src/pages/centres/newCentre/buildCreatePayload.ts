@@ -8,6 +8,8 @@
  * constants below so refinement — once a real CENTRE_CREATE_SAMPLE.json is
  * supplied — is localized to this file.
  */
+import { COUNTRY_ISO3_CODES, type PlanMeta } from '../constants';
+
 import type {
   AdditionalFacilityType,
   ApiFacility,
@@ -22,7 +24,6 @@ import type {
   OperatingHoursMap,
   WizardState,
 } from '../../../store/centres/types';
-import type { PlanMeta } from '../constants';
 
 const num = (v: number | string | ''): number => {
   const n = typeof v === 'number' ? v : parseFloat(String(v));
@@ -36,16 +37,7 @@ const stripTz = (tz: string): string => tz.replace(/\s*\(.*\)\s*$/, '').trim();
  * non-standard codes (UK/UAE, not ISO GB/AE). Maps them to real ISO 3166-1
  * alpha-3 so `facility.countryCode` (lowercase) / `address.country` (uppercase)
  * match the DB's actual shape. Unknown codes fall through to ''. */
-const COUNTRY_ISO_ALPHA3: Record<string, string> = {
-  AU: 'aus',
-  US: 'usa',
-  UK: 'gbr',
-  UAE: 'are',
-  IN: 'ind',
-  NZ: 'nzl',
-  ZA: 'zaf',
-};
-const toIso3 = (code: string): string => COUNTRY_ISO_ALPHA3[code.toUpperCase()] ?? '';
+const toIso3 = (code: string): string => COUNTRY_ISO3_CODES[code.toUpperCase()] ?? '';
 
 const DAY_KEYS: (keyof OperatingHoursMap)[] = [
   'monday',

@@ -45,7 +45,13 @@ export const TASK_TYPES: { value: TaskType; label: string; icon: string; badge: 
   { value: 'other', label: 'Other', icon: '📋', badge: 'bg-gray-100 text-gray-600 border border-gray-200' },
 ];
 
-export const taskTypeMeta = (t: TaskType) => TASK_TYPES.find(x => x.value === t) ?? TASK_TYPES[2];
+/** Type badge meta. When `t` is 'other' and a custom name was entered, that name
+ * replaces the generic "Other" label so the badge reads e.g. "Camera" instead. */
+export const taskTypeMeta = (t: TaskType, custom?: string | null) => {
+  const meta = TASK_TYPES.find(x => x.value === t) ?? TASK_TYPES[2];
+  if (t === 'other' && custom?.trim()) return { ...meta, label: custom.trim() };
+  return meta;
+};
 
 export const FREQ_UNITS: { value: FreqUnit; label: string }[] = [
   { value: 'day', label: 'Day(s)' },
@@ -127,14 +133,15 @@ export const freqBadgeCls = (freqN: number, freqUnit: FreqUnit): string => {
 
 /* ── Frequency buckets (tab filters) ── */
 
-export type GlobalBucket = 'daily' | 'weekly' | 'monthly' | 'quarterly';
-export type CentreBucket = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly';
+export type GlobalBucket = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+export type CentreBucket = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export const GLOBAL_BUCKETS: { key: GlobalBucket; label: string }[] = [
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'monthly', label: 'Monthly' },
-  { key: 'quarterly', label: 'Quarterly+' },
+  { key: 'quarterly', label: 'Quarterly' },
+  { key: 'yearly', label: 'Yearly' },
 ];
 
 export const CENTRE_BUCKETS: { key: CentreBucket; label: string }[] = [
@@ -143,6 +150,7 @@ export const CENTRE_BUCKETS: { key: CentreBucket; label: string }[] = [
   { key: 'biweekly', label: 'Bi-Weekly' },
   { key: 'monthly', label: 'Monthly' },
   { key: 'quarterly', label: 'Quarterly' },
+  { key: 'yearly', label: 'Yearly' },
 ];
 
 type FreqSource = Pick<TaskTemplate, 'freqN' | 'freqUnit'> | Pick<TemplateEnrich, 'freqN' | 'freqUnit'>;
@@ -150,14 +158,15 @@ type FreqSource = Pick<TaskTemplate, 'freqN' | 'freqUnit'> | Pick<TemplateEnrich
 export const globalBucket = (t: FreqSource): GlobalBucket => {
   if (t.freqUnit === 'day') return 'daily';
   if (t.freqUnit === 'week') return 'weekly';
+  if (t.freqUnit === 'year') return 'yearly';
   if (t.freqUnit === 'month' && t.freqN < 3) return 'monthly';
-  return 'quarterly'; // month>=3 or year
+  return 'quarterly'; // month>=3 (incl. half-yearly)
 };
 
 export const centreBucket = (t: FreqSource): CentreBucket => {
   if (t.freqUnit === 'day') return 'daily';
   if (t.freqUnit === 'week') return t.freqN === 2 ? 'biweekly' : 'weekly';
-  if (t.freqUnit === 'year') return 'quarterly';
+  if (t.freqUnit === 'year') return 'yearly';
   return t.freqN >= 3 ? 'quarterly' : 'monthly'; // month
 };
 

@@ -335,10 +335,54 @@ export interface ApiProductInput {
   seatingCapacity?: number;
   slotDuration?: string;
   freeGuestVisits?: number;
+  // Already-nested shape (matches the real docs) — sent as-is instead of the
+  // flat wizard fields above when the caller already has the real structure
+  // (e.g. the Facilities page's "Add New" form). See ProductInput (backend).
+  slotPricing?: { default?: { price?: number; currency?: string } };
+  sessionRules?: {
+    durationMinutes?: number;
+    slotCapacity?: number;
+    maxBookingsPerDay?: number;
+    advanceBookingDays?: number;
+  };
+  guestPolicy?: { maxGuestsPerSlot?: number; additionalGuestPrice?: number };
 }
 
 /** Create/update body — same bundle shape, but `products` is the write-side (flatter) shape. */
 export type CentreCreateRequest = Omit<CentreBundle, 'products'> & { products?: ApiProductInput[] };
+
+/**
+ * Partial edit of an EXISTING product (Facilities page's per-product "Edit"
+ * action) → /admin/centres/update's `productUpdates`. Only the fields actually
+ * set are sent; the backend merges them into the stored doc's real nested
+ * shape, leaving anything unset exactly as it was. Distinct from
+ * `ApiProductInput`/`products` (create-only, bulk, wizard-driven).
+ */
+export interface ApiProductUpdateInput {
+  code: string;
+  name?: string;
+  status?: string;
+  price?: number;
+  currency?: string;
+  durationMinutes?: number;
+  slotCapacity?: number;
+  maxBookingsPerDay?: number;
+  advanceBookingDays?: number;
+  maxGuestsPerSlot?: number;
+  additionalGuestPrice?: number;
+}
+
+/**
+ * Lightweight body for the Facilities page's own edits (amenities, add/edit a
+ * bookable facility) — a narrow slice of /admin/centres/update's full bundle
+ * shape, since this page never touches lanes/memberships/sales-flow.
+ */
+export interface FacilitiesPatchRequest {
+  centreId: string;
+  facility?: { amenities?: string[] };
+  products?: ApiProductInput[];
+  productUpdates?: ApiProductUpdateInput[];
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
  *  2. Domain / wizard models

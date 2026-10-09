@@ -100,6 +100,9 @@ const SlotDetailsModal = ({
   const [bookEmail, setBookEmail] = useState('');
   const [bookDob, setBookDob] = useState('');
   const [bookNotes, setBookNotes] = useState('');
+  // Live "is this email already a member?" check as the admin types it in —
+  // purely informational (never blocks submission either way).
+  const [memberCheck, setMemberCheck] = useState<'idle' | 'checking' | 'yes' | 'no'>('idle');
 
   useEffect(() => {
     if (isOpen) {
@@ -115,8 +118,36 @@ const SlotDetailsModal = ({
       setBookEmail('');
       setBookDob('');
       setBookNotes('');
+      setMemberCheck('idle');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const email = bookEmail.trim();
+    if (!isValidEmail(email)) {
+      setMemberCheck('idle');
+      return;
+    }
+    let cancelled = false;
+    setMemberCheck('checking');
+    const t = setTimeout(() => {
+      api
+        .post(endpoints.members.list, { skip: 0, limit: 5, search: email })
+        .then(res => {
+          if (cancelled) return;
+          const members: { email?: string }[] = res.data?.data?.members || [];
+          const isMember = members.some(m => (m.email || '').toLowerCase() === email.toLowerCase());
+          setMemberCheck(isMember ? 'yes' : 'no');
+        })
+        .catch(() => {
+          if (!cancelled) setMemberCheck('idle');
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [bookEmail]);
 
   const canSubmitBooking = bookFirstName.trim().length > 0 && isValidEmail(bookEmail) && !!bookDob;
 
@@ -552,6 +583,13 @@ const SlotDetailsModal = ({
                     value={bookEmail}
                     onChange={e => setBookEmail(e.target.value)}
                   />
+                  {memberCheck === 'checking' && <p className="mt-1 text-[12px] text-gray-400">Checking…</p>}
+                  {memberCheck === 'yes' && (
+                    <p className="mt-1 text-[12px] font-medium text-emerald-600">Existing Member: Yes</p>
+                  )}
+                  {memberCheck === 'no' && (
+                    <p className="mt-1 text-[12px] font-medium text-gray-500">Existing Member: No</p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-dob">

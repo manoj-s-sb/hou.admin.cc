@@ -16,7 +16,7 @@ export const DEFAULT_FILTERS: TailgateFilters = {
   door: '',
 };
 
-export const TABLE_HEADERS = ['S.No', 'Time', 'Video', 'Event Type', 'Identity', 'Member ID', 'Lane Door', 'Status'];
+export const TABLE_HEADERS = ['S.No', 'Time', 'Video', 'Event Type', 'Identity', 'Email', 'Lane Door', 'Status'];
 
 export const statusConfig: Record<string, { label: string; badgeCls: string; btnCls: string; btnLabel: string }> = {
   reviewed: {

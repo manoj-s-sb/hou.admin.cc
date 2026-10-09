@@ -30,6 +30,7 @@ export interface TaskTemplate {
   equipment: string | null;
   equipmentCustom: string | null;
   taskType: TaskType;
+  taskTypeCustom: string | null;
   freqN: number;
   freqUnit: FreqUnit;
   steps: TemplateStep[];
@@ -53,6 +54,7 @@ export interface TemplateEnrich {
   equipment: string | null;
   equipmentCustom: string | null;
   taskType: TaskType;
+  taskTypeCustom: string | null;
   freqN: number;
   freqUnit: FreqUnit;
   steps: TemplateStep[];
@@ -105,6 +107,7 @@ export interface CreateTemplatePayload {
   equipment?: string | null;
   equipmentCustom?: string | null;
   taskType: TaskType;
+  taskTypeCustom?: string | null;
   freqN: number;
   freqUnit: FreqUnit;
   steps?: StepInput[];

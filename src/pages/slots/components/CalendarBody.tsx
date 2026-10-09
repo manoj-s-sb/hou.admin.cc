@@ -31,6 +31,17 @@ const formatTimeSlot = (timeSlot: string): string => {
   return timeSlot;
 };
 
+// slot.startTime is a full ISO datetime carrying the FACILITY's own offset (see
+// the calendar module's doc comment on this same point) — comparing the two
+// absolute instants directly is correct regardless of either the facility's or
+// the admin's own browser timezone, unlike reconstructing a local "HH:MM".
+const isSlotStartInThePast = (startTime: string): boolean => {
+  const start = new Date(startTime);
+  return !Number.isNaN(start.getTime()) && start.getTime() < Date.now();
+};
+
+const TIME_UP_MESSAGE = "Can't book this slot — its start time has already passed.";
+
 const getDisplayName = (user?: BookingUser) => {
   const firstName = user?.firstName?.trim();
   const lastName = user?.lastName?.trim();
@@ -207,6 +218,14 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
       handleMultiSlotToggle(slot);
       return;
     }
+    // An available slot whose start time has already passed can't be booked —
+    // say so right on click instead of opening the Book for Someone form for a
+    // slot that would just fail (or silently book the wrong, already-elapsed
+    // time). A slot that's booked/disabled still opens normally (view/manage).
+    if (!slot.isBooked && slot.status?.toLowerCase() === 'available' && isSlotStartInThePast(slot.startTime)) {
+      toast.error(TIME_UP_MESSAGE, { duration: 4000 });
+      return;
+    }
     setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
   };
 
@@ -285,6 +304,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
 
   const handleBookForSomeone = async (payload: BookForSomeonePayload) => {
     if (!selectedSlot) return;
+    // Re-check at submit time too — the modal could have been left open across
+    // the slot's start time (see handleSlotClick's same guard on open).
+    if (isSlotStartInThePast(selectedSlot.slot.startTime)) {
+      toast.error(TIME_UP_MESSAGE, { duration: 4000 });
+      setSelectedSlot(null);
+      return;
+    }
     try {
       const result = await dispatch(
         createBooking({
@@ -399,27 +425,59 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
                     : 'bg-[#21295A] text-white'
             )}
           >
-            <span className="font-semibold">
-              {
+            {(() => {
+              // An admin "Book for Someone" booking is OWNED by the admin, with
+              // the actual player stored as guests[0] (see create_booking_service's
+              // doc comment) — showing `booking.user`'s name here would display
+              // the ADMIN as if they were the player. Same isAdminBooking/
+              // primaryGuest distinction SlotDetailsModal already uses.
+              const isAdminBooking = !!currentSlot?.booking?.bookedByName;
+              const primaryGuest = isAdminBooking ? currentSlot?.booking?.guests?.[0] : undefined;
+              const displayName =
+                primaryGuest?.name ||
+                getDisplayName(currentSlot?.booking?.user) ||
                 // A slot marked booked with no resolvable user means the bookingId on
                 // this slot doesn't point to any real slotbooking document (a backend
                 // data-integrity gap, logged server-side) — show that plainly instead
                 // of rendering a blank cell with no indication anything's wrong.
-                getDisplayName(currentSlot?.booking?.user) || 'Booking details unavailable'
-              }
-            </span>
-            {currentSlot?.booking?.user?.userId && planByUserId[currentSlot.booking.user.userId] && (
-              <span
-                className={composeClasses('font-medium capitalize opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}
-              >
-                {planByUserId[currentSlot.booking.user.userId]}
-              </span>
-            )}
-            {currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0 && (
-              <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
-                {currentSlot.booking.guests.length} Guest{currentSlot.booking.guests.length > 1 ? 's' : ''}
-              </span>
-            )}
+                'Booking details unavailable';
+              // Real extra guests the player/member brought along — distinct from
+              // guests[0], which (for an admin booking) IS the player, not an extra.
+              const extraGuestCount = currentSlot?.booking?.guests?.length
+                ? currentSlot.booking.guests.length - (isAdminBooking ? 1 : 0)
+                : 0;
+              return (
+                <>
+                  <span className="font-semibold">{displayName}</span>
+                  {isAdminBooking && (
+                    <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
+                      by {currentSlot?.booking?.bookedByName}
+                    </span>
+                  )}
+                  {/* planByUserId is keyed by the booking OWNER's userId — for an
+                      admin booking that's the admin, not the guest, so it would
+                      show the admin's own plan next to the guest's name. Only
+                      meaningful for a genuine self-booking. */}
+                  {!isAdminBooking &&
+                    currentSlot?.booking?.user?.userId &&
+                    planByUserId[currentSlot.booking.user.userId] && (
+                      <span
+                        className={composeClasses(
+                          'font-medium capitalize opacity-90',
+                          isMobile ? 'text-[9px]' : 'text-[11px]'
+                        )}
+                      >
+                        {planByUserId[currentSlot.booking.user.userId]}
+                      </span>
+                    )}
+                  {extraGuestCount > 0 && (
+                    <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
+                      {extraGuestCount} Guest{extraGuestCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
             {currentSlot?.booking?.coach?.name && (
               <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
                 Coach: {currentSlot.booking.coach.name}

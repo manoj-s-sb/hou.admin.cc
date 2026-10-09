@@ -9,7 +9,7 @@ import { useCentreNav } from '../contexts/CentreNavContext';
 import { CENTRE_MODULE_GROUPS } from '../pages/centres/centreModules';
 import { centreColour, countryFlag } from '../pages/centres/constants';
 import { ACCESS_SCOPES } from '../rbac/constants';
-import { canRead, isSuperAdmin, sidebarItems } from '../rbac/permissions';
+import { allowedFacilities, canRead, isGlobalScope, isSuperAdmin, scopeType, sidebarItems } from '../rbac/permissions';
 import api from '../services';
 
 /**
@@ -39,11 +39,33 @@ const CENTRE_ONLY_MODULES = new Set([
   'planspricing',
 ]);
 
+// Tickets/Incidents, Tailgate Logs, and Maintenance & Tasks each carry ONE
+// flat permission (no separate "centre" vs "all centres" grant survives to
+// storage — the Staff Management grid's two rows for these modules are
+// merged into a single value before save; see ModulePermissionsSection's
+// mergeDualScope and its own comment). So a staff member scoped to exactly
+// one centre, granted only so they can use the module inside that one
+// centre, is indistinguishable in storage from someone granted it network-
+// wide — `sidebarItems()` alone can't tell the two apart. Gate these three on
+// genuine multi-centre/country/global reach too, so a single-centre grant
+// (the only kind that login could have meant) never surfaces the global nav
+// item; a real multi-centre or country/global-scoped member still does.
+const DUAL_SCOPE_MODULES = new Set(['ticketsincidents', 'tailgate', 'maintenance']);
+
+const hasMultiCentreReach = (): boolean => {
+  if (isGlobalScope()) return true;
+  const type = scopeType();
+  if (type === 'country' || type === 'regional') return true;
+  return allowedFacilities().length > 1;
+};
+
 const groupsFromBackendSidebar = (): { group: string; items: MenuItem[] }[] => {
+  const multiCentre = hasMultiCentreReach();
   const allowedIds = new Set(
     sidebarItems()
       .map(entry => entry.id)
       .filter(id => !CENTRE_ONLY_MODULES.has(id)) // hide centre-scoped modules from global nav
+      .filter(id => multiCentre || !DUAL_SCOPE_MODULES.has(id)) // see comment above
   );
   if (allowedIds.size === 0) return [];
 
@@ -300,6 +322,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             </div>
 
             {CENTRE_MODULE_GROUPS.map(g => {
+              // Operations modules require the centre itself to be Active — a
+              // Draft/Staging/Suspended centre can still reach Centre Config
+              // (Facilities, Plans & Pricing) to finish setup, nothing else. See
+              // CentreModuleRoute's matching route guard.
+              if (g.group === 'Operations' && activeCentre.status !== 'active') return null;
               const visibleItems = g.items.filter(m => !m.scope || canRead(m.scope));
               if (!visibleItems.length) return null;
               return (

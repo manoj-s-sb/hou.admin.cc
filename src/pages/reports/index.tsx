@@ -64,9 +64,10 @@ const Reports: React.FC = () => {
     }
   };
 
-  // Centre catalogue powers the filter dropdowns.
+  // Centre catalogue powers the filter dropdowns. Active only — a Draft/Staging/
+  // Suspended centre has no real operational data to report on yet.
   useEffect(() => {
-    dispatch(getCentres({ skip: 0, limit: 200 }))
+    dispatch(getCentres({ status: 'active', skip: 0, limit: 200 }))
       .unwrap()
       .then(res => setFacilities(res.facilities ?? []))
       .catch(() => setFacilities([]));

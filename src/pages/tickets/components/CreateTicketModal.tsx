@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
@@ -11,22 +11,14 @@ import {
   CATEGORY_META,
   EQUIPMENT_LIST,
   PRIORITY_META,
-  ROLE_LABELS,
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
-  TICKET_ROLES,
 } from '../constants';
 
 import EmailTagInput from './EmailTagInput';
 import StaffAssigneeSelect, { SelectedStaff } from './StaffAssigneeSelect';
 
-import type {
-  CreateTicketRequest,
-  Ticket,
-  TicketCategory,
-  TicketPriority,
-  TicketRole,
-} from '../../../store/tickets/types';
+import type { CreateTicketRequest, Ticket, TicketCategory, TicketPriority } from '../../../store/tickets/types';
 
 interface CentreOption {
   code: string;
@@ -89,7 +81,6 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [customerEmail, setCustomerEmail] = useState('');
   const [task, setTask] = useState('');
   const [priority, setPriority] = useState<TicketPriority>('medium');
-  const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
   const [assignees, setAssignees] = useState<SelectedStaff[]>([]);
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([]);
   const [lanes, setLanes] = useState<number[]>([]);
@@ -97,6 +88,18 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [triedSubmit, setTriedSubmit] = useState(false);
+  // In-page preview for picked-but-not-yet-uploaded files (these have no server URL
+  // yet, so we preview straight from the local File via an object URL).
+  const [localPreview, setLocalPreview] = useState<number | null>(null);
+
+  // One object URL per picked file, recreated whenever the file list changes and
+  // revoked on cleanup so we don't leak blob URLs as files are added/removed.
+  const fileUrls = useMemo(() => files.map(f => URL.createObjectURL(f)), [files]);
+  useEffect(() => {
+    return () => {
+      fileUrls.forEach(u => URL.revokeObjectURL(u));
+    };
+  }, [fileUrls]);
 
   // Field-level validation surfaced inline — required inputs like Centre (dropdown)
   // and Lanes (chips) are easy to miss, so we show the reason on the field itself
@@ -107,7 +110,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
     centre: !centre ? 'Select a centre' : '',
     title: !title.trim() ? 'Title is required' : '',
     description: !description.trim() ? 'Description is required' : '',
-    assigneeName: assignedTo === 'others' && assignees.length === 0 ? 'Select at least one assignee' : '',
+    assigneeName: assignees.length === 0 ? 'Select at least one assignee' : '',
     customerEmail: isCustomerSupport
       ? !customerEmail.trim()
         ? 'Customer email is required'
@@ -155,6 +158,10 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
       // first person picked becomes that; anyone picked after that has no formal
       // "assignee" slot yet, so they're CC'd via additionalRecipients so they're still
       // notified. See StaffAssigneeSelect's doc comment.
+      // assignedTo is a backend role-bucket enum ('noc'/'centre_staff'/'admin'/'others')
+      // used only to special-case the NOC queue's initial status — picking a specific
+      // person here always goes through 'others', which also keeps new tickets 'open'
+      // until the assignee acts on them, same as any other named assignment.
       const [primaryAssignee, ...extraAssignees] = assignees;
       const recipients = [...additionalRecipients, ...extraAssignees.map(a => a.email)];
       const payload: CreateTicketRequest = {
@@ -165,9 +172,9 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         customerEmail: isCustomerSupport && customerEmail.trim() ? customerEmail.trim() : undefined,
         task: task.trim() || null,
         priority,
-        assignedTo,
-        assignedToId: assignedTo === 'others' && primaryAssignee ? primaryAssignee.staffId : undefined,
-        assignedToName: assignedTo === 'others' && primaryAssignee ? primaryAssignee.name : undefined,
+        assignedTo: 'others',
+        assignedToId: primaryAssignee?.staffId,
+        assignedToName: primaryAssignee?.name,
         laneNo: lanes.length ? lanes : null,
         equipment: equipment.length ? equipment : null,
         attachments: blobNames.length ? blobNames : undefined,
@@ -313,52 +320,34 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className={labelClass}>Assign To *</span>
-              <select
-                className={fieldClass}
-                value={assignedTo}
-                onChange={e => setAssignedTo(e.target.value as TicketRole)}
-              >
-                {TICKET_ROLES.map(r => (
-                  <option key={r} value={r}>
-                    {ROLE_LABELS[r]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <span className={labelClass}>Task</span>
-              <input
-                className={fieldClass}
-                placeholder="e.g. Cooling Fans"
-                type="text"
-                value={task}
-                onChange={e => setTask(e.target.value)}
-              />
-            </div>
+          <div>
+            <span className={labelClass}>Task</span>
+            <input
+              className={fieldClass}
+              placeholder="e.g. Cooling Fans"
+              type="text"
+              value={task}
+              onChange={e => setTask(e.target.value)}
+            />
           </div>
 
-          {assignedTo === 'others' && (
-            <div>
-              <span className={labelClass}>Assignee(s) *</span>
-              <StaffAssigneeSelect
-                className={`${fieldClass}${errClass(errors.assigneeName)}`}
-                facilityCode={centre || undefined}
-                value={assignees}
-                onChange={setAssignees}
-              />
-              {assignees.length > 1 && (
-                <p className="mt-1 text-[11px] text-gray-400">
-                  Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
-                </p>
-              )}
-              {triedSubmit && errors.assigneeName && (
-                <p className="mt-1 text-[11px] text-red-500">{errors.assigneeName}</p>
-              )}
-            </div>
-          )}
+          <div>
+            <span className={labelClass}>Assign To *</span>
+            <StaffAssigneeSelect
+              className={`${fieldClass}${errClass(errors.assigneeName)}`}
+              facilityCode={centre || undefined}
+              value={assignees}
+              onChange={setAssignees}
+            />
+            {assignees.length > 1 && (
+              <p className="mt-1 text-[11px] text-gray-400">
+                Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
+              </p>
+            )}
+            {triedSubmit && errors.assigneeName && (
+              <p className="mt-1 text-[11px] text-red-500">{errors.assigneeName}</p>
+            )}
+          </div>
 
           <EmailTagInput emails={additionalRecipients} onChange={setAdditionalRecipients} />
 
@@ -426,22 +415,46 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
             </div>
             {files.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
-                {files.map((f, i) => (
-                  <span
-                    key={`${f.name}-${i}`}
-                    className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600"
-                  >
-                    📎 {f.name.length > 20 ? `${f.name.slice(0, 20)}…` : f.name}
-                    <button
-                      aria-label="Remove file"
-                      className="text-red-400 hover:text-red-600"
-                      type="button"
-                      onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
+                {files.map((f, i) => {
+                  const isVideo = f.type.startsWith('video/');
+                  const isImage = f.type.startsWith('image/');
+                  return (
+                    <span
+                      key={`${f.name}-${i}`}
+                      className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 py-1 pl-1 pr-2 text-[11px] font-medium text-gray-600"
                     >
-                      ×
-                    </button>
-                  </span>
-                ))}
+                      {isImage || isVideo ? (
+                        <button
+                          aria-label={`Preview ${f.name}`}
+                          className="relative h-7 w-7 flex-shrink-0 overflow-hidden rounded"
+                          type="button"
+                          onClick={() => setLocalPreview(i)}
+                        >
+                          {isVideo ? (
+                            // eslint-disable-next-line jsx-a11y/media-has-caption
+                            <video muted className="h-full w-full object-cover" preload="metadata" src={fileUrls[i]} />
+                          ) : (
+                            <img alt="" className="h-full w-full object-cover" src={fileUrls[i]} />
+                          )}
+                        </button>
+                      ) : (
+                        '📎'
+                      )}
+                      {f.name.length > 20 ? `${f.name.slice(0, 20)}…` : f.name}
+                      <button
+                        aria-label="Remove file"
+                        className="text-red-400 hover:text-red-600"
+                        type="button"
+                        onClick={() => {
+                          setFiles(prev => prev.filter((_, j) => j !== i));
+                          setLocalPreview(p => (p === null ? null : p === i ? null : p > i ? p - 1 : p));
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -466,6 +479,44 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           </button>
         </div>
       </div>
+
+      {/* In-page preview for a picked-but-not-yet-uploaded file — click the
+          backdrop or the × button (top right) to close. Mirrors the ticket
+          detail drawer's attachment lightbox. */}
+      {localPreview !== null && files[localPreview] && (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+        <div
+          className="fixed inset-0 z-[700] flex items-center justify-center bg-black/80 p-6"
+          onClick={() => setLocalPreview(null)}
+        >
+          <button
+            aria-label="Close preview"
+            className="fixed right-5 top-5 z-[701] flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            type="button"
+            onClick={() => setLocalPreview(null)}
+          >
+            <svg fill="none" height={18} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={18}>
+              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {files[localPreview].type.startsWith('video/') ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              autoPlay
+              controls
+              className="max-h-full max-w-full rounded-lg"
+              src={fileUrls[localPreview]}
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <img
+              alt="attachment preview"
+              className="max-h-full max-w-full rounded-lg object-contain"
+              src={fileUrls[localPreview]}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };

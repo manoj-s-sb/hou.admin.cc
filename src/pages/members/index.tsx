@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -102,6 +102,15 @@ const Members = () => {
   // selections made on other pages (already in the map) are left untouched.
   const pageMemberIds = membersListData.members.map(m => m.userId);
   const allOnPageSelected = pageMemberIds.length > 0 && pageMemberIds.every(id => selectedUserIds.has(id));
+  const someOnPageSelected = !allOnPageSelected && pageMemberIds.some(id => selectedUserIds.has(id));
+  // Native checkbox "indeterminate" (the dash state for "some but not all") is a
+  // DOM property, not an HTML attribute React can set via JSX — has to go through
+  // a ref. Shows at a glance whether this page is fully, partly, or not selected,
+  // instead of the checkbox silently looking "off" while rows are actually selected.
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someOnPageSelected;
+  }, [someOnPageSelected]);
   const toggleSelectAllOnPage = useCallback(() => {
     setSelectedUserIds(prev => {
       const next = new Map(prev);
@@ -577,35 +586,47 @@ const Members = () => {
         </div>
       </div>
 
+      {/* One bar, one message at a time: idle = just the "select all" control;
+          the moment anything is selected, the bar itself turns navy-tinted and
+          the label switches to the count — instead of both captions competing
+          for attention side by side. */}
       {canBulkEmail && pageMemberIds.length > 0 && (
-        <div className="mb-3 flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-2">
-          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-gray-600">
+        <div
+          className={`mb-3 flex items-center justify-between rounded-xl border px-4 py-2.5 transition-colors ${
+            selectedUserIds.size > 0 ? 'border-[#21295A]/15 bg-[#21295A]/[0.04]' : 'border-gray-100 bg-gray-50'
+          }`}
+        >
+          <label className="flex cursor-pointer select-none items-center gap-2.5 text-[13px]">
             <input
+              ref={selectAllRef}
               checked={allOnPageSelected}
               className="h-4 w-4 rounded border-gray-300 text-[#21295A] focus:ring-[#21295A]"
               type="checkbox"
               onChange={toggleSelectAllOnPage}
             />
-            Select all {pageMemberIds.length} on this page
-          </label>
-          {selectedUserIds.size > 0 && (
-            <div className="flex items-center gap-3">
-              <span className="text-[13px] font-medium text-[#21295A]">
+            {selectedUserIds.size > 0 ? (
+              <span className="font-semibold text-[#21295A]">
                 {selectedUserIds.size} member{selectedUserIds.size === 1 ? '' : 's'} selected
               </span>
+            ) : (
+              <span className="font-medium text-gray-600">Select all {pageMemberIds.length} on this page</span>
+            )}
+          </label>
+          {selectedUserIds.size > 0 && (
+            <div className="flex items-center gap-2">
               <button
-                className="text-[12px] font-medium text-gray-500 hover:text-gray-700"
+                className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                 type="button"
                 onClick={() => setSelectedUserIds(new Map())}
               >
                 Clear
               </button>
               <button
-                className="rounded-lg bg-[#21295A] px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#2d3570]"
+                className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d3570]"
                 type="button"
                 onClick={() => setShowBulkEmail(true)}
               >
-                Email Selected ({selectedUserIds.size})
+                ✉ Email Selected ({selectedUserIds.size})
               </button>
             </div>
           )}
