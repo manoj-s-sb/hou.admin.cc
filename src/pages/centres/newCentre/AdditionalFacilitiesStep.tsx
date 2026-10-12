@@ -55,8 +55,17 @@ const SLOT_OPTIONS = [
   'No fixed slots (open access)',
 ];
 
+const SLOT_START_INTERVAL_OPTIONS = [15, 30, 60];
+const FREE_TRIAL_OPTIONS = [0, 1, 2] as const;
+
 const FF_INPUT =
   'w-full rounded-[7px] border border-cmx-border bg-white px-2.5 py-2 text-[13px] text-cmx-text outline-none focus:border-cmx-blue focus:shadow-[0_0_0_2px_rgba(37,99,235,0.1)] disabled:bg-gray-50 disabled:text-muted';
+const FIELD_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.04em] text-sub';
+const FIELD_ERROR = 'text-[11px] text-red-600';
+const HELPER_TEXT = 'text-[11px] text-sub';
+
+const money = (n: number): string =>
+  `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 let seq = 0;
 const uid = (type: string) => {
@@ -76,20 +85,38 @@ export const makeAdditionalFacility = (type: AdditionalFacilityType, index = 1):
         : type === 'custom'
           ? `New Facility ${index}`
           : `${type === 'podcast' ? 'Podcast' : 'Meeting'} Room ${index}`,
-  fortnightlyPrice: 0,
+  fortnightlyPrice: type === 'gym' ? 19.95 : 0,
   annualDiscountPct: 0,
   totalCapacity: type === 'gym' ? 200 : 12,
   concurrentCapacity: type === 'gym' ? 30 : 1,
   seatingCapacity: type === 'meeting' ? 12 : type === 'podcast' ? 4 : undefined,
   slotDuration: '60 minutes',
   guestSessionPrice: 0,
-  freeGuestVisits: 0,
+  freeGuestVisits: type === 'gym' ? 1 : 0,
   openTime: type === 'gaming' ? '10:00' : type === 'gym' ? '05:00' : '08:00',
   closeTime: type === 'gaming' ? '22:00' : type === 'gym' ? '22:00' : '20:00',
   psUnits: type === 'gaming' ? 4 : undefined,
   chargePerHour: type === 'gaming' ? 0 : undefined,
   minSession: type === 'gaming' ? '60 minutes' : undefined,
   maxSession: type === 'gaming' ? '120 minutes' : undefined,
+  // Gym-specific — same defaults as the Facilities page's Add/Edit form.
+  familyRate: type === 'gym' ? 10 : undefined,
+  slotStartIntervalMinutes: type === 'gym' ? 15 : undefined,
+  maxMembersPerSlot: type === 'gym' ? 10 : undefined,
+  minGapHours: type === 'gym' ? 8 : undefined,
+  freeGymEntryWithLaneBooking: type === 'gym' ? true : undefined,
+  freeTrialSlots: type === 'gym' ? 1 : undefined,
+  minimumAge: type === 'gym' ? 13 : undefined,
+  parentPresentFrom: type === 'gym' ? 13 : undefined,
+  parentPresentTo: type === 'gym' ? 14 : undefined,
+  consentFrom: type === 'gym' ? 15 : undefined,
+  consentTo: type === 'gym' ? 17 : undefined,
+  gymPinRequired: type === 'gym' ? true : undefined,
+  gymPinBefore: type === 'gym' ? 15 : undefined,
+  gymPinAfter: type === 'gym' ? 15 : undefined,
+  facilityPinBefore: type === 'gym' ? 15 : undefined,
+  facilityPinAfter: type === 'gym' ? 15 : undefined,
+  inductionRequired: type === 'gym' ? true : undefined,
 });
 
 interface Props {
@@ -303,6 +330,300 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
 
   // ── per-facility config form ──
   const renderConfig = (f: AdditionalFacility, roomLabel?: string) => {
+    if (f.type === 'gym') {
+      const minAge = f.minimumAge ?? 0;
+      const pFrom = f.parentPresentFrom ?? 0;
+      const pTo = f.parentPresentTo ?? 0;
+      const cFrom = f.consentFrom ?? 0;
+      const cTo = f.consentTo ?? 0;
+      const ageErrors: Record<string, string> = {};
+      if (minAge > pFrom) ageErrors.minimumAge = 'Minimum age must be at or below the start of the next age range.';
+      if (pFrom > pTo) ageErrors.parentPresent = '"From" must not be after "To".';
+      if (cFrom > cTo) ageErrors.parentalConsent = '"From" must not be after "To".';
+      if (pFrom <= pTo && cFrom <= cTo && pTo >= cFrom) {
+        ageErrors.ageOverlap =
+          'Age ranges overlap — the "parental consent" range must start after the "parent present" range ends.';
+      }
+      const annualGymPrice = f.fortnightlyPrice * 26 * (1 - (f.annualDiscountPct ?? 0) / 100);
+
+      return (
+        <>
+          <SectionLabel>Gym Pricing</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Fortnightly gym add-on price ($) *</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                step={0.01}
+                value={f.fortnightlyPrice}
+                onValueChange={v => patch(f.id, { fortnightlyPrice: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Annual discount (%)</span>
+              <NumberInput
+                className={FF_INPUT}
+                max={100}
+                min={0}
+                value={f.annualDiscountPct}
+                onValueChange={v => patch(f.id, { annualDiscountPct: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Annual price ($)</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                placeholder={money(annualGymPrice)}
+                step={0.01}
+                value={f.annualPrice ?? null}
+                onValueChange={v => patch(f.id, { annualPrice: v })}
+              />
+              <span className={HELPER_TEXT}>Leave blank to use the calculated price ({money(annualGymPrice)}).</span>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Family gym rate ($ per fortnight) *</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                step={0.01}
+                value={f.familyRate ?? 0}
+                onValueChange={v => patch(f.id, { familyRate: v })}
+              />
+              <span className={HELPER_TEXT}>Per member — same rate for 2 to 4 family members.</span>
+            </label>
+          </div>
+
+          <SectionLabel>Capacity &amp; Booking</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Session duration</span>
+              <select
+                className={FF_INPUT}
+                value={f.slotDuration}
+                onChange={e => patch(f.id, { slotDuration: e.target.value })}
+              >
+                {SLOT_OPTIONS.filter(o => o !== 'No fixed slots (open access)').map(o => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Slot start interval</span>
+              <select
+                className={FF_INPUT}
+                value={f.slotStartIntervalMinutes ?? 15}
+                onChange={e => patch(f.id, { slotStartIntervalMinutes: Number(e.target.value) })}
+              >
+                {SLOT_START_INTERVAL_OPTIONS.map(m => (
+                  <option key={m} value={m}>
+                    {m} minutes
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Max members per slot *</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={1}
+                value={f.maxMembersPerSlot ?? 10}
+                onValueChange={v => patch(f.id, { maxMembersPerSlot: v })}
+              />
+            </label>
+          </div>
+
+          <SectionLabel>Guest Access</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Extra guest price ($)</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                step={0.01}
+                value={f.guestSessionPrice}
+                onValueChange={v => patch(f.id, { guestSessionPrice: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Free guests per billing cycle</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.freeGuestVisits}
+                onValueChange={v => patch(f.id, { freeGuestVisits: v })}
+              />
+              <span className={HELPER_TEXT}>Billing cycle is fortnightly.</span>
+            </label>
+          </div>
+          <label className="flex items-center gap-1.5 text-[12px] font-medium" style={{ marginBottom: 12 }}>
+            <input
+              checked={f.freeGymEntryWithLaneBooking ?? true}
+              type="checkbox"
+              onChange={e => patch(f.id, { freeGymEntryWithLaneBooking: e.target.checked })}
+            />
+            Free gym entry for guests on the same day&apos;s lane booking
+          </label>
+
+          <SectionLabel>Free Trial</SectionLabel>
+          <div style={{ marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Free trial gym slots per member</span>
+              <select
+                className={FF_INPUT}
+                value={f.freeTrialSlots ?? 1}
+                onChange={e => patch(f.id, { freeTrialSlots: Number(e.target.value) as 0 | 1 | 2 })}
+              >
+                {FREE_TRIAL_OPTIONS.map(n => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <span className={HELPER_TEXT}>Once per member lifetime. Not available for guests.</span>
+            </label>
+          </div>
+
+          <SectionLabel>Age Rules</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 4 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Minimum age</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.minimumAge ?? 0}
+                onValueChange={v => patch(f.id, { minimumAge: v })}
+              />
+              {ageErrors.minimumAge && <span className={FIELD_ERROR}>{ageErrors.minimumAge}</span>}
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Parent must be present (from — to)</span>
+              <div className="flex items-center gap-2">
+                <NumberInput
+                  className={FF_INPUT}
+                  min={0}
+                  value={f.parentPresentFrom ?? 0}
+                  onValueChange={v => patch(f.id, { parentPresentFrom: v })}
+                />
+                <span>–</span>
+                <NumberInput
+                  className={FF_INPUT}
+                  min={0}
+                  value={f.parentPresentTo ?? 0}
+                  onValueChange={v => patch(f.id, { parentPresentTo: v })}
+                />
+              </div>
+              {ageErrors.parentPresent && <span className={FIELD_ERROR}>{ageErrors.parentPresent}</span>}
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Parental consent required (from — to)</span>
+              <div className="flex items-center gap-2">
+                <NumberInput
+                  className={FF_INPUT}
+                  min={0}
+                  value={f.consentFrom ?? 0}
+                  onValueChange={v => patch(f.id, { consentFrom: v })}
+                />
+                <span>–</span>
+                <NumberInput
+                  className={FF_INPUT}
+                  min={0}
+                  value={f.consentTo ?? 0}
+                  onValueChange={v => patch(f.id, { consentTo: v })}
+                />
+              </div>
+              {ageErrors.parentalConsent && <span className={FIELD_ERROR}>{ageErrors.parentalConsent}</span>}
+            </label>
+          </div>
+          {ageErrors.ageOverlap && (
+            <div className={FIELD_ERROR} style={{ marginBottom: 8 }}>
+              {ageErrors.ageOverlap}
+            </div>
+          )}
+          <p className={HELPER_TEXT} style={{ marginBottom: 12 }}>
+            Age limits for non-US centres are not yet decided — review before launch outside the US.
+          </p>
+
+          <SectionLabel>Booking Rules</SectionLabel>
+          <div style={{ marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Minimum gap between sessions (hours)</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.minGapHours ?? 0}
+                onValueChange={v => patch(f.id, { minGapHours: v })}
+              />
+              <span className={HELPER_TEXT}>For Premium members booking more than one session a day.</span>
+            </label>
+          </div>
+
+          <SectionLabel>Access &amp; PINs</SectionLabel>
+          <label className="flex items-center gap-1.5 text-[12px] font-medium" style={{ marginBottom: 10 }}>
+            <input
+              checked={f.gymPinRequired ?? true}
+              type="checkbox"
+              onChange={e => patch(f.id, { gymPinRequired: e.target.checked })}
+            />
+            Gym PIN required
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Gym PIN active — minutes before slot start</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.gymPinBefore ?? 15}
+                onValueChange={v => patch(f.id, { gymPinBefore: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Gym PIN active — minutes after slot end</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.gymPinAfter ?? 15}
+                onValueChange={v => patch(f.id, { gymPinAfter: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Facility PIN (gym-only bookings) — minutes before</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.facilityPinBefore ?? 15}
+                onValueChange={v => patch(f.id, { facilityPinBefore: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Facility PIN (gym-only bookings) — minutes after</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.facilityPinAfter ?? 15}
+                onValueChange={v => patch(f.id, { facilityPinAfter: v })}
+              />
+            </label>
+          </div>
+
+          <SectionLabel>Induction</SectionLabel>
+          <label className="flex items-center gap-1.5 text-[12px] font-medium" style={{ marginBottom: 12 }}>
+            <input
+              checked={f.inductionRequired ?? true}
+              type="checkbox"
+              onChange={e => patch(f.id, { inductionRequired: e.target.checked })}
+            />
+            Induction required before first gym booking
+          </label>
+
+          <SectionLabel>Operating Hours</SectionLabel>
+          <OperatingHours f={f} patch={patch} />
+          <PhotoUpload photos={f.photos} onChange={photos => patch(f.id, { photos })} />
+        </>
+      );
+    }
+
     if (f.type === 'gaming') {
       const minMins = Number(/^\d+/.exec(f.minSession ?? '')?.[0] ?? 0);
       const maxMins = f.maxSession === 'No limit' ? Infinity : Number(/^\d+/.exec(f.maxSession ?? '')?.[0] ?? 0);
@@ -370,7 +691,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
       );
     }
 
-    // gym / podcast / meeting
+    // podcast / meeting / custom (gym and gaming are handled above)
     return (
       <>
         {roomLabel && (
@@ -387,9 +708,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         <SectionLabel>Pricing</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              Fortnightly price ($)
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Price per slot ($)</span>
             <NumberInput
               className={FF_INPUT}
               min={0}
@@ -415,14 +734,12 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
         <SectionLabel>Capacity &amp; Access</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              {f.type === 'gym' ? 'Total capacity (members)' : 'Seating capacity'}
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Seating capacity</span>
             <NumberInput
               className={FF_INPUT}
               min={1}
-              value={f.type === 'gym' ? f.totalCapacity : (f.seatingCapacity ?? 0)}
-              onValueChange={v => patch(f.id, f.type === 'gym' ? { totalCapacity: v } : { seatingCapacity: v })}
+              value={f.seatingCapacity ?? 0}
+              onValueChange={v => patch(f.id, { seatingCapacity: v })}
             />
           </label>
           <label className="flex flex-col gap-1">

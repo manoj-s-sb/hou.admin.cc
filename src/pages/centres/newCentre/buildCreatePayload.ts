@@ -251,9 +251,58 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
     .filter(f => f.enabled)
     .map(f => {
       seen[f.type] = (seen[f.type] ?? 0) + 1;
+      const code = productCodeFor(f, seen[f.type]);
+      if (f.type === 'gym') {
+        // Membership add-on — billed with the member's plan, not paid per slot.
+        // Same shape the Facilities page's Add/Edit form writes post-creation
+        // (see FacilityProductModal.tsx), so a gym created here or afterward
+        // always ends up with one consistent doc shape.
+        return {
+          type: 'product',
+          code,
+          name: f.name,
+          status: 'active',
+          annualDiscountPct: f.annualDiscountPct,
+          openTime: f.openTime,
+          closeTime: f.closeTime,
+          isAddon: true,
+          bookingModel: 'membership_addon',
+          addonPricing: {
+            fortnightlyPrice: f.fortnightlyPrice,
+            familyRate: f.familyRate ?? 0,
+            annualPrice: f.annualPrice,
+          },
+          sessionRules: {
+            durationMinutes: parseInt(f.slotDuration, 10) || 60,
+            slotStartIntervalMinutes: f.slotStartIntervalMinutes ?? 15,
+            maxMembersPerSlot: f.maxMembersPerSlot ?? 10,
+            minGapHours: f.minGapHours ?? 8,
+            noWalkIns: true,
+          },
+          guestPolicy: {
+            maxGuestsPerSlot: f.maxMembersPerSlot ?? 10,
+            additionalGuestPrice: f.guestSessionPrice,
+            guestsCountTowardCapacity: true,
+            freeGymEntryWithLaneBooking: f.freeGymEntryWithLaneBooking ?? true,
+          },
+          freeGuestVisits: f.freeGuestVisits,
+          freeTrial: { slotsPerMember: f.freeTrialSlots ?? 1 },
+          ageRules: {
+            minimumAge: f.minimumAge ?? 0,
+            parentMustBePresent: { from: f.parentPresentFrom ?? 0, to: f.parentPresentTo ?? 0 },
+            parentalConsentRequired: { from: f.consentFrom ?? 0, to: f.consentTo ?? 0 },
+          },
+          pinRules: {
+            gymPinRequired: f.gymPinRequired ?? true,
+            gymPinWindow: { beforeMinutes: f.gymPinBefore ?? 15, afterMinutes: f.gymPinAfter ?? 15 },
+            facilityPinWindow: { beforeMinutes: f.facilityPinBefore ?? 15, afterMinutes: f.facilityPinAfter ?? 15 },
+          },
+          inductionRequired: f.inductionRequired ?? true,
+        };
+      }
       return {
         type: 'product',
-        code: productCodeFor(f, seen[f.type]),
+        code,
         name: f.name,
         status: 'active',
         fortnightlyPrice: f.fortnightlyPrice,

@@ -274,13 +274,51 @@ export interface ApiMembershipSalesFlow {
  * linked to its centre via `facilityCode`. Lives alongside facility/lane/membership docs
  * in the same bundle; the Facilities page renders these directly (see facilities/index.tsx).
  */
+/** `bookingModel: "membership_addon"` fields — the Gym, billed with the member's
+ * plan rather than paid per slot. See ProductUpdateInput (backend) for the
+ * matching shallow-merge-per-group persistence. */
+export interface ApiGymAddonPricing {
+  fortnightlyPrice?: number;
+  /** Per-member rate (same price regardless of family size — the TOTAL charge
+   * is this rate × however many family members have the add-on). */
+  familyRate?: number;
+  /** Optional override of the calculated annual price (fortnightlyPrice × 26 ×
+   * (1 - annualDiscountPct/100)) — e.g. for a promotional price that doesn't
+   * match the discount math exactly. Absent/undefined means "use calculated". */
+  annualPrice?: number;
+}
+export interface ApiGymFreeTrial {
+  slotsPerMember?: 0 | 1 | 2;
+}
+export interface ApiGymAgeRange {
+  from?: number;
+  to?: number;
+}
+export interface ApiGymAgeRules {
+  minimumAge?: number;
+  parentMustBePresent?: ApiGymAgeRange;
+  parentalConsentRequired?: ApiGymAgeRange;
+}
+export interface ApiGymPinWindow {
+  beforeMinutes?: number;
+  afterMinutes?: number;
+}
+export interface ApiGymPinRules {
+  gymPinRequired?: boolean;
+  /** PIN window for the gym's own access zone/door. */
+  gymPinWindow?: ApiGymPinWindow;
+  /** Separate general-facility entry PIN window, for a gym-only booking with no
+   * lane booking to otherwise get the member through the building's front door. */
+  facilityPinWindow?: ApiGymPinWindow;
+}
+
 export interface ApiProduct {
   type: 'product';
   id?: string;
   code: string;
   facilityCode: string;
   isAddon?: boolean;
-  bookingModel?: string;
+  bookingModel?: string; // "pay_per_slot" (default) | "membership_addon" (Gym)
   name: string;
   description?: string;
   benefits?: string[];
@@ -299,11 +337,33 @@ export interface ApiProduct {
     maxActiveBookings?: number;
     advanceBookingDays?: number;
     noWalkIns?: boolean;
+    // Gym-specific.
+    slotStartIntervalMinutes?: number;
+    maxMembersPerSlot?: number;
+    minGapHours?: number;
   };
   guestPolicy?: {
     maxGuestsPerSlot?: number;
     additionalGuestPrice?: number;
+    // Gym-specific.
+    guestsCountTowardCapacity?: boolean;
+    freeGymEntryWithLaneBooking?: boolean;
   };
+  // Stored as real top-level fields (not squeezed into the nested shapes above) —
+  // see CentreService._build_product_doc / update_centre_bundle's product-edit step.
+  annualDiscountPct?: number;
+  totalCapacity?: number;
+  concurrentCapacity?: number;
+  seatingCapacity?: number;
+  freeGuestVisits?: number;
+  openTime?: string;
+  closeTime?: string;
+  // Membership add-on (Gym) groups.
+  addonPricing?: ApiGymAddonPricing;
+  freeTrial?: ApiGymFreeTrial;
+  ageRules?: ApiGymAgeRules;
+  pinRules?: ApiGymPinRules;
+  inductionRequired?: boolean;
 }
 
 /** Grouped bundle returned by /details and /create. */
@@ -328,6 +388,7 @@ export interface ApiProductInput {
   code: string;
   name: string;
   status?: string;
+  isAddon?: boolean;
   fortnightlyPrice?: number;
   guestSessionPrice?: number;
   totalCapacity?: number;
@@ -344,8 +405,32 @@ export interface ApiProductInput {
     slotCapacity?: number;
     maxBookingsPerDay?: number;
     advanceBookingDays?: number;
+    // Gym-specific.
+    slotStartIntervalMinutes?: number;
+    maxMembersPerSlot?: number;
+    minGapHours?: number;
+    noWalkIns?: boolean;
   };
-  guestPolicy?: { maxGuestsPerSlot?: number; additionalGuestPrice?: number };
+  guestPolicy?: {
+    maxGuestsPerSlot?: number;
+    additionalGuestPrice?: number;
+    // Gym-specific.
+    guestsCountTowardCapacity?: boolean;
+    freeGymEntryWithLaneBooking?: boolean;
+  };
+  // Stored verbatim as top-level fields (not mapped into the nested shapes above).
+  annualDiscountPct?: number;
+  openTime?: string;
+  closeTime?: string;
+  // Membership add-on (Gym) — bookingModel: "membership_addon" for the Gym,
+  // omit for the default "pay_per_slot". These groups are stored verbatim,
+  // same shape as ApiProduct's.
+  bookingModel?: string;
+  addonPricing?: ApiGymAddonPricing;
+  freeTrial?: ApiGymFreeTrial;
+  ageRules?: ApiGymAgeRules;
+  pinRules?: ApiGymPinRules;
+  inductionRequired?: boolean;
 }
 
 /** Create/update body — same bundle shape, but `products` is the write-side (flatter) shape. */
@@ -370,6 +455,26 @@ export interface ApiProductUpdateInput {
   advanceBookingDays?: number;
   maxGuestsPerSlot?: number;
   additionalGuestPrice?: number;
+  annualDiscountPct?: number;
+  totalCapacity?: number;
+  concurrentCapacity?: number;
+  seatingCapacity?: number;
+  freeGuestVisits?: number;
+  openTime?: string;
+  closeTime?: string;
+  // Membership add-on (Gym) fields.
+  bookingModel?: string;
+  addonPricing?: ApiGymAddonPricing;
+  freeTrial?: ApiGymFreeTrial;
+  ageRules?: ApiGymAgeRules;
+  pinRules?: ApiGymPinRules;
+  inductionRequired?: boolean;
+  slotStartIntervalMinutes?: number;
+  maxMembersPerSlot?: number;
+  minGapHours?: number;
+  noWalkIns?: boolean;
+  guestsCountTowardCapacity?: boolean;
+  freeGymEntryWithLaneBooking?: boolean;
 }
 
 /**
@@ -674,6 +779,30 @@ export interface AdditionalFacility {
   chargePerHour?: number;
   minSession?: string;
   maxSession?: string;
+  // Gym-specific (bookingModel="membership_addon" — billed with the member's
+  // plan rather than paid per slot). `fortnightlyPrice` above doubles as the
+  // gym's fortnightly add-on price. See ApiGym*/FacilityProductModal.tsx for
+  // the matching Facilities-page fields this mirrors.
+  familyRate?: number;
+  /** Optional override of the calculated annual price — see ApiGymPricingTier. */
+  annualPrice?: number;
+  gymModel?: 'bundled' | 'standalone' | 'both';
+  slotStartIntervalMinutes?: number;
+  maxMembersPerSlot?: number;
+  minGapHours?: number;
+  freeGymEntryWithLaneBooking?: boolean;
+  freeTrialSlots?: 0 | 1 | 2;
+  minimumAge?: number;
+  parentPresentFrom?: number;
+  parentPresentTo?: number;
+  consentFrom?: number;
+  consentTo?: number;
+  gymPinRequired?: boolean;
+  gymPinBefore?: number;
+  gymPinAfter?: number;
+  facilityPinBefore?: number;
+  facilityPinAfter?: number;
+  inductionRequired?: boolean;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

@@ -69,6 +69,69 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
     if (!code || LANE_PRODUCT_CODES.has(code)) return;
     const type = facilityTypeFromCode(code);
     const base = makeAdditionalFacility(type, i + 1);
+
+    if (type === 'gym' && p.bookingModel === 'membership_addon') {
+      // Membership add-on shape (addonPricing/freeTrial/ageRules/pinRules) —
+      // distinct from the pay-per-slot mapping below. See buildProducts in
+      // buildCreatePayload.ts for the forward direction.
+      out.push({
+        ...base,
+        name: p.name || base.name,
+        annualDiscountPct: hasVal(p.annualDiscountPct) ? num(p.annualDiscountPct) : base.annualDiscountPct,
+        openTime: p.openTime ?? base.openTime,
+        closeTime: p.closeTime ?? base.closeTime,
+        fortnightlyPrice: hasVal(p.addonPricing?.fortnightlyPrice)
+          ? num(p.addonPricing?.fortnightlyPrice)
+          : base.fortnightlyPrice,
+        familyRate: hasVal(p.addonPricing?.familyRate) ? num(p.addonPricing?.familyRate) : base.familyRate,
+        annualPrice: hasVal(p.addonPricing?.annualPrice) ? num(p.addonPricing?.annualPrice) : base.annualPrice,
+        slotDuration: hasVal(p.sessionRules?.durationMinutes)
+          ? `${p.sessionRules?.durationMinutes} minutes`
+          : base.slotDuration,
+        slotStartIntervalMinutes: hasVal(p.sessionRules?.slotStartIntervalMinutes)
+          ? num(p.sessionRules?.slotStartIntervalMinutes)
+          : base.slotStartIntervalMinutes,
+        maxMembersPerSlot: hasVal(p.sessionRules?.maxMembersPerSlot)
+          ? num(p.sessionRules?.maxMembersPerSlot)
+          : base.maxMembersPerSlot,
+        minGapHours: hasVal(p.sessionRules?.minGapHours) ? num(p.sessionRules?.minGapHours) : base.minGapHours,
+        guestSessionPrice: hasVal(p.guestPolicy?.additionalGuestPrice)
+          ? num(p.guestPolicy?.additionalGuestPrice)
+          : base.guestSessionPrice,
+        freeGuestVisits: hasVal(p.freeGuestVisits) ? num(p.freeGuestVisits) : base.freeGuestVisits,
+        freeGymEntryWithLaneBooking: p.guestPolicy?.freeGymEntryWithLaneBooking ?? base.freeGymEntryWithLaneBooking,
+        freeTrialSlots: (p.freeTrial?.slotsPerMember ?? base.freeTrialSlots) as 0 | 1 | 2,
+        minimumAge: hasVal(p.ageRules?.minimumAge) ? num(p.ageRules?.minimumAge) : base.minimumAge,
+        parentPresentFrom: hasVal(p.ageRules?.parentMustBePresent?.from)
+          ? num(p.ageRules?.parentMustBePresent?.from)
+          : base.parentPresentFrom,
+        parentPresentTo: hasVal(p.ageRules?.parentMustBePresent?.to)
+          ? num(p.ageRules?.parentMustBePresent?.to)
+          : base.parentPresentTo,
+        consentFrom: hasVal(p.ageRules?.parentalConsentRequired?.from)
+          ? num(p.ageRules?.parentalConsentRequired?.from)
+          : base.consentFrom,
+        consentTo: hasVal(p.ageRules?.parentalConsentRequired?.to)
+          ? num(p.ageRules?.parentalConsentRequired?.to)
+          : base.consentTo,
+        gymPinRequired: p.pinRules?.gymPinRequired ?? base.gymPinRequired,
+        gymPinBefore: hasVal(p.pinRules?.gymPinWindow?.beforeMinutes)
+          ? num(p.pinRules?.gymPinWindow?.beforeMinutes)
+          : base.gymPinBefore,
+        gymPinAfter: hasVal(p.pinRules?.gymPinWindow?.afterMinutes)
+          ? num(p.pinRules?.gymPinWindow?.afterMinutes)
+          : base.gymPinAfter,
+        facilityPinBefore: hasVal(p.pinRules?.facilityPinWindow?.beforeMinutes)
+          ? num(p.pinRules?.facilityPinWindow?.beforeMinutes)
+          : base.facilityPinBefore,
+        facilityPinAfter: hasVal(p.pinRules?.facilityPinWindow?.afterMinutes)
+          ? num(p.pinRules?.facilityPinWindow?.afterMinutes)
+          : base.facilityPinAfter,
+        inductionRequired: p.inductionRequired ?? base.inductionRequired,
+      });
+      return;
+    }
+
     out.push({
       ...base,
       name: p.name || base.name,

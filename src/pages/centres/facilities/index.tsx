@@ -46,9 +46,35 @@ const money = (amount?: number, currency?: string): string => {
 };
 
 /** True when a value is set (not null/undefined) — so a legit 0 still renders. */
-/** Build the label/value rows for one product, skipping fields the doc doesn't set. */
+/** Build the label/value rows for one product, skipping fields the doc doesn't set.
+ * The Gym is a membership add-on (bookingModel="membership_addon"), billed with the
+ * member's plan rather than paid per slot — "Price per slot" never applied to it and
+ * showed a misleading $0.00; it gets its own distinct row set instead. */
 const detailRows = (p: ApiProduct): [string, string][] => {
   const rows: [string, string][] = [];
+
+  if (p.bookingModel === 'membership_addon') {
+    if (has(p.addonPricing?.fortnightlyPrice)) {
+      rows.push(['Fortnightly price', money(p.addonPricing?.fortnightlyPrice)]);
+    }
+    if (has(p.addonPricing?.familyRate)) {
+      rows.push(['Family rate', `${money(p.addonPricing?.familyRate)} / member`]);
+    }
+    if (has(p.sessionRules?.maxMembersPerSlot)) {
+      rows.push(['Max members / slot', `${p.sessionRules?.maxMembersPerSlot}`]);
+    }
+    if (has(p.sessionRules?.durationMinutes)) {
+      rows.push(['Session duration', `${p.sessionRules?.durationMinutes} min`]);
+    }
+    if (has(p.freeTrial?.slotsPerMember)) {
+      rows.push(['Free trial slots', `${p.freeTrial?.slotsPerMember}`]);
+    }
+    if (has(p.ageRules?.minimumAge)) {
+      rows.push(['Minimum age', `${p.ageRules?.minimumAge}`]);
+    }
+    return rows;
+  }
+
   const price = p.slotPricing?.default;
   if (has(price?.price)) rows.push(['Price per slot', money(price?.price, price?.currency)]);
   if (has(p.sessionRules?.durationMinutes)) rows.push(['Session duration', `${p.sessionRules?.durationMinutes} min`]);

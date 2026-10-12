@@ -1933,7 +1933,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                         <strong>{f.name}</strong>
                         {f.type === 'gaming'
                           ? ` — ${f.psUnits ?? 0} units · $${f.chargePerHour ?? 0}/hr · ${f.openTime}–${f.closeTime}`
-                          : ` — $${f.fortnightlyPrice}/fn · ${f.slotDuration} · ${f.openTime}–${f.closeTime}`}
+                          : ` — $${f.fortnightlyPrice}/slot · ${f.slotDuration} · ${f.openTime}–${f.closeTime}`}
                       </div>
                     ))}
                   </div>
