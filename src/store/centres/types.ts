@@ -274,42 +274,87 @@ export interface ApiMembershipSalesFlow {
  * linked to its centre via `facilityCode`. Lives alongside facility/lane/membership docs
  * in the same bundle; the Facilities page renders these directly (see facilities/index.tsx).
  */
-/** `bookingModel: "membership_addon"` fields — the Gym, billed with the member's
- * plan rather than paid per slot. See ProductUpdateInput (backend) for the
- * matching shallow-merge-per-group persistence. */
-export interface ApiGymAddonPricing {
+/** `bookingModel: "membership_addon"` WRITE (wire) shapes — what the Facilities
+ * page's Add/Edit form actually sends. CentreService transforms these into the
+ * reference-schema READ shapes below (ApiGymPricing / ApiGymAccessDoor / ...) —
+ * see _gym_pricing / _gym_access_control / _gym_free_trial / _gym_age_rules. */
+export interface ApiGymAddonPricingInput {
   fortnightlyPrice?: number;
-  /** Per-member rate (same price regardless of family size — the TOTAL charge
-   * is this rate × however many family members have the add-on). */
-  familyRate?: number;
   /** Optional override of the calculated annual price (fortnightlyPrice × 26 ×
-   * (1 - annualDiscountPct/100)) — e.g. for a promotional price that doesn't
-   * match the discount math exactly. Absent/undefined means "use calculated". */
-  annualPrice?: number;
+   * (1 - annualDiscountPct/100)). `null` (not just absent) means "use
+   * calculated" — always send this key explicitly so a cleared override
+   * actually clears, rather than the backend preserving a stale one. */
+  annualPrice?: number | null;
 }
-export interface ApiGymFreeTrial {
+export interface ApiGymFreeTrialInput {
   slotsPerMember?: 0 | 1 | 2;
 }
-export interface ApiGymAgeRange {
+export interface ApiGymAgeRangeInput {
   from?: number;
   to?: number;
 }
-export interface ApiGymAgeRules {
+export interface ApiGymAgeRulesInput {
   minimumAge?: number;
-  parentMustBePresent?: ApiGymAgeRange;
-  parentalConsentRequired?: ApiGymAgeRange;
+  parentMustBePresent?: ApiGymAgeRangeInput;
+  parentalConsentRequired?: ApiGymAgeRangeInput;
 }
-export interface ApiGymPinWindow {
+export interface ApiGymPinWindowInput {
   beforeMinutes?: number;
-  afterMinutes?: number;
 }
-export interface ApiGymPinRules {
-  gymPinRequired?: boolean;
+export interface ApiGymPinRulesInput {
   /** PIN window for the gym's own access zone/door. */
-  gymPinWindow?: ApiGymPinWindow;
+  gymPinWindow?: ApiGymPinWindowInput;
   /** Separate general-facility entry PIN window, for a gym-only booking with no
    * lane booking to otherwise get the member through the building's front door. */
-  facilityPinWindow?: ApiGymPinWindow;
+  facilityPinWindow?: ApiGymPinWindowInput;
+}
+
+/** `bookingModel: "membership_addon"` READ shapes — the reference schema real,
+ * hand-created gym docs use (see hou01-gym). Built server-side from the WRITE
+ * shapes above; never sent as-is by this form. */
+export interface ApiGymPricing {
+  billingCycles?: string[];
+  individual?: {
+    fortnightly?: number;
+    annual?: number;
+    currency?: string;
+    savings?: { annual?: { percentage?: number } };
+  };
+  /** Always null here — no separate family/bundled plan is admin-configured. */
+  bundled?: unknown;
+}
+/** Shared by both bookingModels — accessControl is always a per-door map keyed
+ * by door/room code (the room's own code, or "mainDoor" for the facility's main
+ * entrance), each holding just a minutes-before window. No on/off flag, no
+ * "minutes after" for either bookingModel. */
+export interface ApiGymAccessDoor {
+  preAccessTime?: number;
+}
+/** Pay-per-slot (podcast/meeting/gaming/custom) hourly pricing — a member picks
+ * any whole number of hours and pays perHour × hours. */
+export interface ApiPayPerSlotPricing {
+  perHour?: number;
+  currency?: string;
+}
+export interface ApiGymFreeTrialRead {
+  slotsPerMembershipLifetime?: number;
+  enabled?: boolean;
+  guestsAllowed?: unknown;
+  enforceAllTogether?: unknown;
+  consumeOn?: unknown;
+  adminOverrideAllowed?: unknown;
+}
+export interface ApiGymAgeRangeRead {
+  min?: number;
+  max?: number;
+  guardianMustAttend?: boolean;
+  documents?: unknown;
+}
+export interface ApiGymAgeRulesRead {
+  minAge?: number;
+  supervisedRange?: ApiGymAgeRangeRead;
+  consentRange?: ApiGymAgeRangeRead;
+  unrestrictedAge?: number;
 }
 
 export interface ApiProduct {
@@ -321,33 +366,41 @@ export interface ApiProduct {
   bookingModel?: string; // "pay_per_slot" (default) | "membership_addon" (Gym)
   name: string;
   description?: string;
+  /** Resolved server-side on every read (see CentreService._resolve_product_images).
+   * `blobName` is the STABLE identifier to send back unchanged in an edit that
+   * doesn't touch images — `url` is a temporary SAS read URL and expires; never
+   * send it back as if it were a blobName. */
+  images?: { blobName: string; url: string }[];
   benefits?: string[];
   status: string; // e.g. "active" | "commingsoon"
   version?: number;
-  slotPricing?: {
-    default?: { price: number; currency: string };
-    texRateId?: string;
-    taxRate?: number;
-  };
   sessionRules?: {
-    durationMinutes?: number;
-    slotIncrementMinutes?: number;
-    slotCapacity?: number;
     maxBookingsPerDay?: number;
     maxActiveBookings?: number;
     advanceBookingDays?: number;
     noWalkIns?: boolean;
-    // Gym-specific.
-    slotStartIntervalMinutes?: number;
-    maxMembersPerSlot?: number;
-    minGapHours?: number;
+    // Pay-per-slot (podcast/meeting/gaming/custom) — hourly, variable-length
+    // booking: a member picks any whole number of hours in [minHours, maxHours]
+    // and pays pricing.perHour × hours.
+    minHours?: number;
+    maxHours?: number;
+    // Gym-specific (reference field names). Gym's own "Session duration" is
+    // fixed, unlike the hourly model above — unaffected by it.
+    durationMinutes?: number;
+    slotIncrementMinutes?: number;
+    slotCapacity?: number;
+    /** Minimum gap (hours) between a member's gym sessions — per membership
+     * plan code assigned to this centre (e.g. {"premium": 4, "standard": 8}),
+     * not a fixed tier split. See FacilityProductModal.tsx's gapHoursByPlan. */
+    bookingFrequency?: Record<string, number>;
   };
   guestPolicy?: {
     maxGuestsPerSlot?: number;
     additionalGuestPrice?: number;
     // Gym-specific.
     guestsCountTowardCapacity?: boolean;
-    freeGymEntryWithLaneBooking?: boolean;
+    laneGuestFreeGymSameDay?: boolean;
+    freeGuestsPerBillingCycle?: number;
   };
   // Stored as real top-level fields (not squeezed into the nested shapes above) —
   // see CentreService._build_product_doc / update_centre_bundle's product-edit step.
@@ -355,15 +408,34 @@ export interface ApiProduct {
   totalCapacity?: number;
   concurrentCapacity?: number;
   seatingCapacity?: number;
+  /** Pay-per-slot only — gym uses guestPolicy.freeGuestsPerBillingCycle instead. */
   freeGuestVisits?: number;
   openTime?: string;
   closeTime?: string;
-  // Membership add-on (Gym) groups.
-  addonPricing?: ApiGymAddonPricing;
-  freeTrial?: ApiGymFreeTrial;
-  ageRules?: ApiGymAgeRules;
-  pinRules?: ApiGymPinRules;
+  // Membership add-on (Gym) — reference schema fields. `pricing`/`accessControl`
+  // `pricing`'s shape depends on bookingModel (ApiGymPricing vs
+  // ApiPayPerSlotPricing); `accessControl` is the SAME per-door map shape for
+  // both (see ApiGymAccessDoor) — just keyed by whichever doors that
+  // bookingModel's form configures.
+  pricing?: ApiGymPricing | ApiPayPerSlotPricing;
+  /** Admin-only override tracking — NOT part of the reference schema (see
+   * ApiGymAddonPricingInput.annualPrice). null/absent = use the calculated
+   * annual price in pricing.individual.annual. */
+  addonPricing?: { annualPriceOverride?: number | null };
+  accessControl?: Record<string, ApiGymAccessDoor>;
+  freeTrial?: ApiGymFreeTrialRead;
+  ageRules?: ApiGymAgeRulesRead;
   inductionRequired?: boolean;
+  // Outside the admin form's scope — populated by another process, read back
+  // (and round-tripped) verbatim if present, otherwise null/absent.
+  subType?: string;
+  cityCode?: string;
+  countryCode?: string;
+  stateCode?: string;
+  model?: unknown;
+  stripe?: unknown;
+  violationPolicy?: unknown;
+  inductionRules?: unknown;
 }
 
 /** Grouped bundle returned by /details and /create. */
@@ -387,6 +459,9 @@ export interface ApiProductInput {
   type: 'product';
   code: string;
   name: string;
+  description?: string;
+  /** blobNames from uploadProductImage — see ApiProduct.images for the resolved shape. */
+  images?: string[];
   status?: string;
   isAddon?: boolean;
   fortnightlyPrice?: number;
@@ -399,17 +474,22 @@ export interface ApiProductInput {
   // Already-nested shape (matches the real docs) — sent as-is instead of the
   // flat wizard fields above when the caller already has the real structure
   // (e.g. the Facilities page's "Add New" form). See ProductInput (backend).
-  slotPricing?: { default?: { price?: number; currency?: string } };
+  // Pay-per-slot (podcast/meeting/gaming/custom) hourly pricing.
+  pricing?: ApiPayPerSlotPricing;
   sessionRules?: {
-    durationMinutes?: number;
-    slotCapacity?: number;
     maxBookingsPerDay?: number;
     advanceBookingDays?: number;
+    noWalkIns?: boolean;
+    // Pay-per-slot hourly booking range.
+    minHours?: number;
+    maxHours?: number;
     // Gym-specific.
+    durationMinutes?: number;
     slotStartIntervalMinutes?: number;
     maxMembersPerSlot?: number;
-    minGapHours?: number;
-    noWalkIns?: boolean;
+    /** Per-plan minimum gap hours, keyed by this centre's own membership plan codes. */
+    bookingFrequency?: Record<string, number>;
+    slotCapacity?: number;
   };
   guestPolicy?: {
     maxGuestsPerSlot?: number;
@@ -418,6 +498,12 @@ export interface ApiProductInput {
     guestsCountTowardCapacity?: boolean;
     freeGymEntryWithLaneBooking?: boolean;
   };
+  // Door PIN windows for pay-per-slot facilities — same {beforeMinutes} shape
+  // as Gym's, no "minutes after": `doorPin` is the room's own door, `facilityPin`
+  // the building's main entrance (same two-door idea as Gym's gymPinWindow/
+  // facilityPinWindow).
+  doorPin?: ApiGymPinWindowInput;
+  facilityPin?: ApiGymPinWindowInput;
   // Stored verbatim as top-level fields (not mapped into the nested shapes above).
   annualDiscountPct?: number;
   openTime?: string;
@@ -426,10 +512,10 @@ export interface ApiProductInput {
   // omit for the default "pay_per_slot". These groups are stored verbatim,
   // same shape as ApiProduct's.
   bookingModel?: string;
-  addonPricing?: ApiGymAddonPricing;
-  freeTrial?: ApiGymFreeTrial;
-  ageRules?: ApiGymAgeRules;
-  pinRules?: ApiGymPinRules;
+  addonPricing?: ApiGymAddonPricingInput;
+  freeTrial?: ApiGymFreeTrialInput;
+  ageRules?: ApiGymAgeRulesInput;
+  pinRules?: ApiGymPinRulesInput;
   inductionRequired?: boolean;
 }
 
@@ -446,9 +532,22 @@ export type CentreCreateRequest = Omit<CentreBundle, 'products'> & { products?: 
 export interface ApiProductUpdateInput {
   code: string;
   name?: string;
+  description?: string;
+  /** blobNames — always sent as the FULL current list (even [] to clear every
+   * image), unlike every other field here where omitting means "unchanged". */
+  images?: string[];
   status?: string;
-  price?: number;
-  currency?: string;
+  // Pay-per-slot (podcast/meeting/gaming/custom) hourly pricing — replaces the
+  // old fixed price/durationMinutes model entirely.
+  pricePerHour?: number;
+  minHours?: number;
+  maxHours?: number;
+  /** Door PIN windows for these same facilities — minutes-before only, no
+   * "after". doorPin = the room's own door; facilityPin = the building's main
+   * entrance (same two-door idea as Gym's). */
+  doorPinBeforeMinutes?: number;
+  facilityPinBeforeMinutes?: number;
+  // Gym's own fixed "Session duration" — unaffected by the hourly model above.
   durationMinutes?: number;
   slotCapacity?: number;
   maxBookingsPerDay?: number;
@@ -464,14 +563,16 @@ export interface ApiProductUpdateInput {
   closeTime?: string;
   // Membership add-on (Gym) fields.
   bookingModel?: string;
-  addonPricing?: ApiGymAddonPricing;
-  freeTrial?: ApiGymFreeTrial;
-  ageRules?: ApiGymAgeRules;
-  pinRules?: ApiGymPinRules;
+  addonPricing?: ApiGymAddonPricingInput;
+  freeTrial?: ApiGymFreeTrialInput;
+  ageRules?: ApiGymAgeRulesInput;
+  pinRules?: ApiGymPinRulesInput;
   inductionRequired?: boolean;
   slotStartIntervalMinutes?: number;
   maxMembersPerSlot?: number;
-  minGapHours?: number;
+  /** Per-plan minimum gap hours, keyed by this centre's own membership plan
+   * codes — always the FULL current map (same convention as `images`). */
+  bookingFrequency?: Record<string, number>;
   noWalkIns?: boolean;
   guestsCountTowardCapacity?: boolean;
   freeGymEntryWithLaneBooking?: boolean;
@@ -782,8 +883,9 @@ export interface AdditionalFacility {
   // Gym-specific (bookingModel="membership_addon" — billed with the member's
   // plan rather than paid per slot). `fortnightlyPrice` above doubles as the
   // gym's fortnightly add-on price. See ApiGym*/FacilityProductModal.tsx for
-  // the matching Facilities-page fields this mirrors.
-  familyRate?: number;
+  // the matching Facilities-page fields this mirrors. A family's gym charge is
+  // just fortnightlyPrice × however many family members have the add-on — no
+  // separate rate is configured.
   /** Optional override of the calculated annual price — see ApiGymPricingTier. */
   annualPrice?: number;
   gymModel?: 'bundled' | 'standalone' | 'both';
@@ -803,6 +905,20 @@ export interface AdditionalFacility {
   facilityPinBefore?: number;
   facilityPinAfter?: number;
   inductionRequired?: boolean;
+  // Custom facilities only — lets "Add custom facility" choose the same two
+  // facility types the Facilities page offers: paid per booking (hourly), or
+  // a membership add-on like Gym (reuses all the gym-specific fields above).
+  bookingModel?: 'pay_per_slot' | 'membership_addon';
+  // Pay-per-slot (podcast/meeting/gaming/custom) hourly pricing — a member
+  // picks any whole number of hours from 1 up to maxBookableHours (no
+  // separate "min", it's always 1); `fortnightlyPrice` above doubles as the
+  // hourly rate for these types too.
+  maxBookableHours?: number;
+  // Door PIN windows for pay-per-slot facilities — minutes-before only, same
+  // two-door idea as Gym's gymPinBefore/facilityPinBefore: `doorPinBefore` is
+  // this room's own door, `roomFacilityPinBefore` the building's main entrance.
+  doorPinBefore?: number;
+  roomFacilityPinBefore?: number;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

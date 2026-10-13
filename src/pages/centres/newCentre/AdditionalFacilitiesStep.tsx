@@ -99,24 +99,37 @@ export const makeAdditionalFacility = (type: AdditionalFacilityType, index = 1):
   chargePerHour: type === 'gaming' ? 0 : undefined,
   minSession: type === 'gaming' ? '60 minutes' : undefined,
   maxSession: type === 'gaming' ? '120 minutes' : undefined,
-  // Gym-specific — same defaults as the Facilities page's Add/Edit form.
-  familyRate: type === 'gym' ? 10 : undefined,
-  slotStartIntervalMinutes: type === 'gym' ? 15 : undefined,
-  maxMembersPerSlot: type === 'gym' ? 10 : undefined,
-  minGapHours: type === 'gym' ? 8 : undefined,
-  freeGymEntryWithLaneBooking: type === 'gym' ? true : undefined,
-  freeTrialSlots: type === 'gym' ? 1 : undefined,
-  minimumAge: type === 'gym' ? 13 : undefined,
-  parentPresentFrom: type === 'gym' ? 13 : undefined,
-  parentPresentTo: type === 'gym' ? 14 : undefined,
-  consentFrom: type === 'gym' ? 15 : undefined,
-  consentTo: type === 'gym' ? 17 : undefined,
-  gymPinRequired: type === 'gym' ? true : undefined,
-  gymPinBefore: type === 'gym' ? 15 : undefined,
-  gymPinAfter: type === 'gym' ? 15 : undefined,
-  facilityPinBefore: type === 'gym' ? 15 : undefined,
-  facilityPinAfter: type === 'gym' ? 15 : undefined,
-  inductionRequired: type === 'gym' ? true : undefined,
+  // Gym-specific — same defaults as the Facilities page's Add/Edit form. Also
+  // defaulted for 'custom' so they're ready the moment an admin flips a custom
+  // facility's type to "Membership Add-On" (see bookingModel below).
+  slotStartIntervalMinutes: type === 'gym' || type === 'custom' ? 15 : undefined,
+  maxMembersPerSlot: type === 'gym' || type === 'custom' ? 10 : undefined,
+  minGapHours: type === 'gym' || type === 'custom' ? 8 : undefined,
+  freeGymEntryWithLaneBooking: type === 'gym' || type === 'custom' ? true : undefined,
+  freeTrialSlots: type === 'gym' || type === 'custom' ? 1 : undefined,
+  minimumAge: type === 'gym' || type === 'custom' ? 13 : undefined,
+  parentPresentFrom: type === 'gym' || type === 'custom' ? 13 : undefined,
+  parentPresentTo: type === 'gym' || type === 'custom' ? 14 : undefined,
+  consentFrom: type === 'gym' || type === 'custom' ? 15 : undefined,
+  consentTo: type === 'gym' || type === 'custom' ? 17 : undefined,
+  gymPinRequired: type === 'gym' || type === 'custom' ? true : undefined,
+  gymPinBefore: type === 'gym' || type === 'custom' ? 15 : undefined,
+  gymPinAfter: type === 'gym' || type === 'custom' ? 15 : undefined,
+  facilityPinBefore: type === 'gym' || type === 'custom' ? 15 : undefined,
+  facilityPinAfter: type === 'gym' || type === 'custom' ? 15 : undefined,
+  inductionRequired: type === 'gym' || type === 'custom' ? true : undefined,
+  // Custom facilities default to "Pay Per Booking" — the Facility type selector
+  // lets the admin flip to "Membership Add-On" (reusing the gym-style fields
+  // above) right in the panel.
+  bookingModel: type === 'custom' ? 'pay_per_slot' : undefined,
+  // Pay-per-slot hourly booking range — podcast/meeting/custom (gaming keeps
+  // its own minSession/maxSession; gym keeps its fixed slotDuration). No
+  // separate "min", it's always 1 hour.
+  maxBookableHours: type === 'podcast' || type === 'meeting' || type === 'custom' ? 2 : undefined,
+  // Door PIN windows — every non-gym type (gym has its own gymPinBefore/
+  // facilityPinBefore pair already).
+  doorPinBefore: type !== 'gym' ? 15 : undefined,
+  roomFacilityPinBefore: type !== 'gym' ? 15 : undefined,
 });
 
 interface Props {
@@ -330,7 +343,25 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
 
   // ── per-facility config form ──
   const renderConfig = (f: AdditionalFacility, roomLabel?: string) => {
-    if (f.type === 'gym') {
+    // Custom facilities can be either facility type the Facilities page
+    // offers — this selector drives which config form (below) renders.
+    const facilityTypeSelector = f.type === 'custom' && (
+      <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
+        <span className={FIELD_LABEL}>Facility type</span>
+        <select
+          className={FF_INPUT}
+          value={f.bookingModel ?? 'pay_per_slot'}
+          onChange={e => patch(f.id, { bookingModel: e.target.value as 'pay_per_slot' | 'membership_addon' })}
+        >
+          <option value="pay_per_slot">Pay Per Booking</option>
+          <option value="membership_addon">Membership Add-On</option>
+        </select>
+      </label>
+    );
+    const isAddonConfig = f.type === 'gym' || (f.type === 'custom' && f.bookingModel === 'membership_addon');
+    const addonLabel = f.type === 'gym' ? 'Gym' : 'Add-on';
+
+    if (isAddonConfig) {
       const minAge = f.minimumAge ?? 0;
       const pFrom = f.parentPresentFrom ?? 0;
       const pTo = f.parentPresentTo ?? 0;
@@ -348,26 +379,17 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
 
       return (
         <>
-          <SectionLabel>Gym Pricing</SectionLabel>
+          {facilityTypeSelector}
+          <SectionLabel>{addonLabel} Pricing</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label className="flex flex-col gap-1">
-              <span className={FIELD_LABEL}>Fortnightly gym add-on price ($) *</span>
+              <span className={FIELD_LABEL}>Fortnightly {addonLabel.toLowerCase()} price ($) *</span>
               <NumberInput
                 className={FF_INPUT}
                 min={0}
                 step={0.01}
                 value={f.fortnightlyPrice}
                 onValueChange={v => patch(f.id, { fortnightlyPrice: v })}
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className={FIELD_LABEL}>Annual discount (%)</span>
-              <NumberInput
-                className={FF_INPUT}
-                max={100}
-                min={0}
-                value={f.annualDiscountPct}
-                onValueChange={v => patch(f.id, { annualDiscountPct: v })}
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -383,15 +405,14 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               <span className={HELPER_TEXT}>Leave blank to use the calculated price ({money(annualGymPrice)}).</span>
             </label>
             <label className="flex flex-col gap-1">
-              <span className={FIELD_LABEL}>Family gym rate ($ per fortnight) *</span>
+              <span className={FIELD_LABEL}>Annual discount (%)</span>
               <NumberInput
                 className={FF_INPUT}
+                max={100}
                 min={0}
-                step={0.01}
-                value={f.familyRate ?? 0}
-                onValueChange={v => patch(f.id, { familyRate: v })}
+                value={f.annualDiscountPct}
+                onValueChange={v => patch(f.id, { annualDiscountPct: v })}
               />
-              <span className={HELPER_TEXT}>Per member — same rate for 2 to 4 family members.</span>
             </label>
           </div>
 
@@ -566,11 +587,11 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               type="checkbox"
               onChange={e => patch(f.id, { gymPinRequired: e.target.checked })}
             />
-            Gym PIN required
+            {addonLabel} PIN required
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label className="flex flex-col gap-1">
-              <span className={FIELD_LABEL}>Gym PIN active — minutes before slot start</span>
+              <span className={FIELD_LABEL}>{addonLabel} PIN active — minutes before slot start</span>
               <NumberInput
                 className={FF_INPUT}
                 min={0}
@@ -579,7 +600,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className={FIELD_LABEL}>Gym PIN active — minutes after slot end</span>
+              <span className={FIELD_LABEL}>{addonLabel} PIN active — minutes after slot end</span>
               <NumberInput
                 className={FF_INPUT}
                 min={0}
@@ -614,7 +635,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               type="checkbox"
               onChange={e => patch(f.id, { inductionRequired: e.target.checked })}
             />
-            Induction required before first gym booking
+            Induction required before first booking
           </label>
 
           <SectionLabel>Operating Hours</SectionLabel>
@@ -685,15 +706,39 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               Min session must be ≤ Max session.
             </div>
           )}
+
+          <SectionLabel>Access &amp; PINs</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Door PIN active — minutes before slot start</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.doorPinBefore ?? 15}
+                onValueChange={v => patch(f.id, { doorPinBefore: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Facility PIN (main entrance) — minutes before</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.roomFacilityPinBefore ?? 15}
+                onValueChange={v => patch(f.id, { roomFacilityPinBefore: v })}
+              />
+            </label>
+          </div>
+
           <OperatingHours f={f} patch={patch} />
           <PhotoUpload photos={f.photos} onChange={photos => patch(f.id, { photos })} />
         </>
       );
     }
 
-    // podcast / meeting / custom (gym and gaming are handled above)
+    // podcast / meeting / custom-pay-per-slot (addon config and gaming are handled above)
     return (
       <>
+        {facilityTypeSelector}
         {roomLabel && (
           <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Room name</span>
@@ -706,9 +751,9 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
           </label>
         )}
         <SectionLabel>Pricing</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Price per slot ($)</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Price per hour ($)</span>
             <NumberInput
               className={FF_INPUT}
               min={0}
@@ -717,77 +762,46 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               value={f.fortnightlyPrice}
               onValueChange={v => patch(f.id, { fortnightlyPrice: v })}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Annual discount (%)</span>
-            <NumberInput
-              className={FF_INPUT}
-              max={100}
-              min={0}
-              placeholder="e.g. 15"
-              value={f.annualDiscountPct}
-              onValueChange={v => patch(f.id, { annualDiscountPct: v })}
-            />
+            <span className={HELPER_TEXT}>Charged per hour — a 3-hour booking costs 3 × this price.</span>
           </label>
         </div>
 
         <SectionLabel>Capacity &amp; Access</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Seating capacity</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Total booking hours</span>
             <NumberInput
               className={FF_INPUT}
               min={1}
-              value={f.seatingCapacity ?? 0}
-              onValueChange={v => patch(f.id, { seatingCapacity: v })}
+              value={f.maxBookableHours ?? 2}
+              onValueChange={v => patch(f.id, { maxBookableHours: v })}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Max concurrent users</span>
-            <NumberInput
-              className={FF_INPUT}
-              min={1}
-              value={f.concurrentCapacity}
-              onValueChange={v => patch(f.id, { concurrentCapacity: v })}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Slot duration</span>
-            <select
-              className={FF_INPUT}
-              value={f.slotDuration}
-              onChange={e => patch(f.id, { slotDuration: e.target.value })}
-            >
-              {SLOT_OPTIONS.map(o => (
-                <option key={o}>{o}</option>
-              ))}
-            </select>
+            <span className={HELPER_TEXT}>A member picks any whole number of hours, from 1 up to this.</span>
           </label>
         </div>
 
-        <SectionLabel>Guest Access</SectionLabel>
+        <SectionLabel>Access &amp; PINs</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              Guest session price ($)
+              Door PIN active — minutes before slot start
             </span>
             <NumberInput
               className={FF_INPUT}
               min={0}
-              step={0.01}
-              value={f.guestSessionPrice}
-              onValueChange={v => patch(f.id, { guestSessionPrice: v })}
+              value={f.doorPinBefore ?? 15}
+              onValueChange={v => patch(f.id, { doorPinBefore: v })}
             />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              Free guest visits / month
+              Facility PIN (main entrance) — minutes before
             </span>
             <NumberInput
               className={FF_INPUT}
               min={0}
-              value={f.freeGuestVisits}
-              onValueChange={v => patch(f.id, { freeGuestVisits: v })}
+              value={f.roomFacilityPinBefore ?? 15}
+              onValueChange={v => patch(f.id, { roomFacilityPinBefore: v })}
             />
           </label>
         </div>

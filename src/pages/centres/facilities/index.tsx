@@ -20,6 +20,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; bo
   active: { label: 'Active', color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' },
   commingsoon: { label: 'Coming Soon', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
   inactive: { label: 'Inactive', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+  draft: { label: 'Draft', color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
 };
 const statusMetaFor = (status: string): { label: string; color: string; bg: string; border: string } =>
   STATUS_META[status] ?? { label: status, color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' };
@@ -54,30 +55,30 @@ const detailRows = (p: ApiProduct): [string, string][] => {
   const rows: [string, string][] = [];
 
   if (p.bookingModel === 'membership_addon') {
-    if (has(p.addonPricing?.fortnightlyPrice)) {
-      rows.push(['Fortnightly price', money(p.addonPricing?.fortnightlyPrice)]);
+    const gymPricing = p.pricing as { individual?: { fortnightly?: number } } | undefined;
+    if (has(gymPricing?.individual?.fortnightly)) {
+      rows.push(['Fortnightly price', money(gymPricing?.individual?.fortnightly)]);
     }
-    if (has(p.addonPricing?.familyRate)) {
-      rows.push(['Family rate', `${money(p.addonPricing?.familyRate)} / member`]);
-    }
-    if (has(p.sessionRules?.maxMembersPerSlot)) {
-      rows.push(['Max members / slot', `${p.sessionRules?.maxMembersPerSlot}`]);
+    if (has(p.sessionRules?.slotCapacity)) {
+      rows.push(['Max members / slot', `${p.sessionRules?.slotCapacity}`]);
     }
     if (has(p.sessionRules?.durationMinutes)) {
       rows.push(['Session duration', `${p.sessionRules?.durationMinutes} min`]);
     }
-    if (has(p.freeTrial?.slotsPerMember)) {
-      rows.push(['Free trial slots', `${p.freeTrial?.slotsPerMember}`]);
+    if (has(p.freeTrial?.slotsPerMembershipLifetime)) {
+      rows.push(['Free trial slots', `${p.freeTrial?.slotsPerMembershipLifetime}`]);
     }
-    if (has(p.ageRules?.minimumAge)) {
-      rows.push(['Minimum age', `${p.ageRules?.minimumAge}`]);
+    if (has(p.ageRules?.minAge)) {
+      rows.push(['Minimum age', `${p.ageRules?.minAge}`]);
     }
     return rows;
   }
 
-  const price = p.slotPricing?.default;
-  if (has(price?.price)) rows.push(['Price per slot', money(price?.price, price?.currency)]);
-  if (has(p.sessionRules?.durationMinutes)) rows.push(['Session duration', `${p.sessionRules?.durationMinutes} min`]);
+  const pricing = p.pricing as { perHour?: number; currency?: string } | undefined;
+  if (has(pricing?.perHour)) rows.push(['Price per hour', money(pricing?.perHour, pricing?.currency)]);
+  if (has(p.sessionRules?.minHours) && has(p.sessionRules?.maxHours)) {
+    rows.push(['Booking length', `${p.sessionRules?.minHours}–${p.sessionRules?.maxHours} hrs`]);
+  }
   if (has(p.sessionRules?.slotCapacity)) rows.push(['Capacity per slot', `${p.sessionRules?.slotCapacity}`]);
   if (has(p.sessionRules?.maxBookingsPerDay)) rows.push(['Max bookings / day', `${p.sessionRules?.maxBookingsPerDay}`]);
   if (has(p.sessionRules?.advanceBookingDays))
@@ -340,6 +341,7 @@ const Facilities: React.FC = () => {
         <FacilityProductModal
           centreCode={centreCode}
           existingCodes={products.map(p => (p.code ?? '').toLowerCase())}
+          plans={bundle?.memberships ?? []}
           product={productModal.product}
           onClose={() => setProductModal(null)}
           onSaved={refreshBundle}

@@ -166,6 +166,40 @@ export const updateCentreFacilities = createAsyncThunk<CentreBundle, FacilitiesP
 );
 
 /**
+ * Upload raw file bytes to a blob write-SAS URL. Same PUT contract the
+ * maintenance module uses (see store/maintenance/api.ts's uploadFileToBlob) —
+ * duplicated here rather than imported to keep this slice free of a
+ * cross-module dependency for one function.
+ */
+const uploadFileToBlob = async (uploadUrl: string, file: File): Promise<void> => {
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'x-ms-blob-type': 'BlockBlob' },
+    body: file,
+  });
+  if (!res.ok) {
+    throw new Error(`Image upload failed (${res.status})`);
+  }
+};
+
+/**
+ * Mint a write-SAS URL for a product image, upload the file to it, and return
+ * the raw blobName to store on the product (`images`). The backend resolves
+ * blobNames to temporary SAS read URLs on every read (see
+ * CentreService._resolve_product_images).
+ */
+export const uploadProductImage = async (facilityCode: string, file: File): Promise<string> => {
+  const res = await api.post<{ data: { uploadUrl: string; blobName: string } }>(endpoints.centres.uploadImageUrl, {
+    facilityCode,
+    fileName: file.name,
+    contentType: file.type || undefined,
+  });
+  const { uploadUrl, blobName } = unwrap<{ uploadUrl: string; blobName: string }>(res);
+  await uploadFileToBlob(uploadUrl, file);
+  return blobName;
+};
+
+/**
  * POST /admin/centres/waitlist — paginated waitlist (promo) entries for a centre.
  *
  * Body keys are validated server-side with `extra="forbid"`, so we send only the

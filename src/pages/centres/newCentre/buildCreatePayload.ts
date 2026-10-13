@@ -252,11 +252,14 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
     .map(f => {
       seen[f.type] = (seen[f.type] ?? 0) + 1;
       const code = productCodeFor(f, seen[f.type]);
-      if (f.type === 'gym') {
+      // Custom facilities can be either facility type the Facilities page
+      // offers (see AdditionalFacilitiesStep.tsx's Facility type selector).
+      const isAddonConfig = f.type === 'gym' || (f.type === 'custom' && f.bookingModel === 'membership_addon');
+      if (isAddonConfig) {
         // Membership add-on — billed with the member's plan, not paid per slot.
         // Same shape the Facilities page's Add/Edit form writes post-creation
-        // (see FacilityProductModal.tsx), so a gym created here or afterward
-        // always ends up with one consistent doc shape.
+        // (see FacilityProductModal.tsx), so a gym/custom add-on created here
+        // or afterward always ends up with one consistent doc shape.
         return {
           type: 'product',
           code,
@@ -269,14 +272,15 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
           bookingModel: 'membership_addon',
           addonPricing: {
             fortnightlyPrice: f.fortnightlyPrice,
-            familyRate: f.familyRate ?? 0,
             annualPrice: f.annualPrice,
           },
           sessionRules: {
             durationMinutes: parseInt(f.slotDuration, 10) || 60,
             slotStartIntervalMinutes: f.slotStartIntervalMinutes ?? 15,
             maxMembersPerSlot: f.maxMembersPerSlot ?? 10,
-            minGapHours: f.minGapHours ?? 8,
+            // Per-plan minimum gap hours aren't collected here (the wizard has
+            // no per-plan UI yet) — left unset; configure it via the
+            // Facilities page's Edit action after the centre is created.
             noWalkIns: true,
           },
           guestPolicy: {
@@ -293,24 +297,65 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
             parentalConsentRequired: { from: f.consentFrom ?? 0, to: f.consentTo ?? 0 },
           },
           pinRules: {
-            gymPinRequired: f.gymPinRequired ?? true,
-            gymPinWindow: { beforeMinutes: f.gymPinBefore ?? 15, afterMinutes: f.gymPinAfter ?? 15 },
-            facilityPinWindow: { beforeMinutes: f.facilityPinBefore ?? 15, afterMinutes: f.facilityPinAfter ?? 15 },
+            gymPinWindow: { beforeMinutes: f.gymPinBefore ?? 15 },
+            facilityPinWindow: { beforeMinutes: f.facilityPinBefore ?? 15 },
           },
           inductionRequired: f.inductionRequired ?? true,
         };
       }
+      if (f.type === 'gaming') {
+        // Gaming's own fields (chargePerHour/minSession/maxSession, minutes)
+        // map onto the same hourly pricing model every pay-per-slot facility
+        // uses — chargePerHour is the hourly rate, min/maxSession converts to
+        // whole hours (rounded, minimum 1).
+        const toHours = (session: string | undefined): number | undefined => {
+          const minutes = Number(/^\d+/.exec(session ?? '')?.[0] ?? '');
+          return Number.isFinite(minutes) && minutes > 0 ? Math.max(1, Math.round(minutes / 60)) : undefined;
+        };
+        return {
+          type: 'product',
+          code,
+          name: f.name,
+          status: 'active',
+          annualDiscountPct: f.annualDiscountPct,
+          openTime: f.openTime,
+          closeTime: f.closeTime,
+          pricing: { perHour: f.chargePerHour ?? 0, currency: 'usd' },
+          sessionRules: {
+            minHours: toHours(f.minSession) ?? 1,
+            maxHours: toHours(f.maxSession) ?? 2,
+          },
+          guestPolicy: {
+            maxGuestsPerSlot: f.psUnits,
+            additionalGuestPrice: f.guestSessionPrice,
+          },
+          doorPin: { beforeMinutes: f.doorPinBefore ?? 15 },
+          facilityPin: { beforeMinutes: f.roomFacilityPinBefore ?? 15 },
+          totalCapacity: f.psUnits,
+          freeGuestVisits: f.freeGuestVisits,
+        };
+      }
+      // podcast / meeting / custom-pay-per-slot — hourly pricing: a member
+      // picks any whole number of hours from 1 up to maxBookableHours (no
+      // separate "min") and pays fortnightlyPrice (the hourly rate) × hours.
       return {
         type: 'product',
         code,
         name: f.name,
         status: 'active',
-        fortnightlyPrice: f.fortnightlyPrice,
-        guestSessionPrice: f.guestSessionPrice,
+        pricing: { perHour: f.fortnightlyPrice, currency: 'usd' },
+        sessionRules: {
+          minHours: 1,
+          maxHours: f.maxBookableHours ?? 2,
+        },
+        guestPolicy: {
+          additionalGuestPrice: f.guestSessionPrice,
+        },
+        doorPin: { beforeMinutes: f.doorPinBefore ?? 15 },
+        facilityPin: { beforeMinutes: f.roomFacilityPinBefore ?? 15 },
         totalCapacity: f.totalCapacity,
         concurrentCapacity: f.concurrentCapacity,
         seatingCapacity: f.seatingCapacity,
-        slotDuration: f.slotDuration,
         freeGuestVisits: f.freeGuestVisits,
       };
     });
