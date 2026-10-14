@@ -20,6 +20,7 @@ export const MODULES = {
   WALLET_TRANSACTIONS: 'wallettransactions',
   SLOT_BOOKING: 'slotbooking',
   COACH_SCHEDULE: 'coachschedule',
+  RECURRING_BLOCKS: 'recurringblocks',
   REPORTS: 'reports',
   INDUCTION: 'induction',
   TOUR: 'tour',

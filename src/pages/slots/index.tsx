@@ -5,12 +5,16 @@ import { useDispatch, useSelector } from 'react-redux';
 import LoaderComponent from '../../components/Loader';
 import endpoints from '../../constants/endpoints';
 import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
+import { canEditModule } from '../../rbac';
+import { MODULES } from '../../rbac/constants';
 import api from '../../services';
 import { getSlots } from '../../store/slots/api';
 import { AppDispatch, RootState } from '../../store/store';
 
 import CalendarBody from './components/CalendarBody';
 import CalendarHeader from './components/CalendarHeader';
+import NewSeriesModal from './components/NewSeriesModal';
+import SeriesListModal from './components/SeriesListModal';
 
 const TIMEZONE = 'America/Chicago';
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -64,6 +68,9 @@ const SlotBookings: React.FC = () => {
   const { slots, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
   const facilityCode = useScopedFacilityCode();
+  const canCreateSeries = canEditModule(MODULES.RECURRING_BLOCKS);
+  const [showNewSeriesModal, setShowNewSeriesModal] = useState(false);
+  const [showSeriesListModal, setShowSeriesListModal] = useState(false);
 
   const nextSevenDates = useMemo(() => getNextSevenDates(), []);
   const [selectedDate, setSelectedDate] = useState<{ day: number; month: number; fullDate?: Date }>({
@@ -160,11 +167,47 @@ const SlotBookings: React.FC = () => {
   return (
     <div className="w-full">
       {/* ── Page Header ─────────────────────────────────────── */}
-      <div className="mb-5 border-b border-gray-100 pb-4">
-        <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Slot Bookings</h1>
-        <p className="mt-1 text-[12px] font-medium text-gray-400">
-          {selectedDayName}, {selectedMonthName} {selectedDate.day} · {facilityCode}
-        </p>
+      <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4">
+        <div>
+          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Slot Bookings</h1>
+          <p className="mt-1 text-[12px] font-medium text-gray-400">
+            {selectedDayName}, {selectedMonthName} {selectedDate.day} · {facilityCode}
+          </p>
+        </div>
+        {canCreateSeries && (
+          <div className="flex items-center gap-2">
+            <button
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-[#21295A]/20 px-3 py-1.5 text-[12.5px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A]/5"
+              type="button"
+              onClick={() => setShowSeriesListModal(true)}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114-3.5M19.5 15a8 8 0 01-14 3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+              Series
+            </button>
+            <button
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] bg-[#21295A] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:opacity-90"
+              type="button"
+              onClick={() => setShowNewSeriesModal(true)}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                />
+              </svg>
+              New Series
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Stats Row ───────────────────────────────────────── */}
@@ -215,6 +258,27 @@ const SlotBookings: React.FC = () => {
           />
         </div>
       </div>
+
+      {canCreateSeries && (
+        <>
+          <NewSeriesModal
+            facilityCode={facilityCode}
+            initialDate={formattedDate}
+            isOpen={showNewSeriesModal}
+            lanes={slots?.lanes || []}
+            timeSlots={slots?.timeSlots || []}
+            timezone={TIMEZONE}
+            onClose={() => setShowNewSeriesModal(false)}
+            onCreated={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
+          />
+          <SeriesListModal
+            facilityCode={facilityCode}
+            isOpen={showSeriesListModal}
+            onChanged={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
+            onClose={() => setShowSeriesListModal(false)}
+          />
+        </>
+      )}
     </div>
   );
 };

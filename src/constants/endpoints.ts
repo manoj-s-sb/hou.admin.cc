@@ -14,6 +14,28 @@ const endpoints = {
     // "Shift Lane" — moves an existing booking to another lane's slot at the same time.
     editBooking: `${API_PREFIX}/admin/bookings/edit`,
   },
+  recurringBlocks: {
+    // Conflict preview — read-only, nothing written.
+    preview: `${API_PREFIX}/admin/recurringblocks/preview`,
+    // Creates the series — idempotent on `idempotencyKey`; cancels+refunds+notifies
+    // conflicting member bookings automatically, requires coachConflictResolutions
+    // for any coach-booking conflict the preview surfaced.
+    create: `${API_PREFIX}/admin/recurringblocks/create`,
+    // Fetch one series + its current _etag — read before skip/cancel/edit.
+    getSeries: `${API_PREFIX}/admin/recurringblocks/series/get`,
+    // Skip one occurrence — frees the slot if blocked, series keeps running.
+    skip: `${API_PREFIX}/admin/recurringblocks/skip`,
+    // Stops future generation only; already-blocked dates stay blocked.
+    cancel: `${API_PREFIX}/admin/recurringblocks/cancel`,
+    // scope: 'this_one' | 'this_and_following' | 'all'.
+    edit: `${API_PREFIX}/admin/recurringblocks/edit`,
+    // Series list view — each entry's remainingBlockedDates come straight from
+    // the slot docs, not re-derived from the pattern.
+    list: `${API_PREFIX}/admin/recurringblocks/list`,
+    // Frees every date still actually blocked by one series; does not change
+    // the series' own status (Cancel is the separate action for that).
+    unblockAll: `${API_PREFIX}/admin/recurringblocks/unblock-all`,
+  },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,
   // Forgot-password (OTP-based reset) — three steps, each its own POST.

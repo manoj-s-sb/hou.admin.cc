@@ -46,6 +46,13 @@ export interface Slot {
   // logged-in user's name, editable — e.g. a shared/generic login used by
   // different physical staff). Shown in the modal as "Blocked by".
   disabledByName?: string;
+  // Set by RecurringBlocks (recurringblocks module) when this slot was blocked
+  // by an active weekly series rather than the one-off Block action. 'one_time'
+  // for an ordinary block, undefined when never blocked.
+  source?: 'one_time' | 'series';
+  seriesId?: string;
+  occurrenceDate?: string;
+  isException?: boolean;
 }
 
 export interface Lanes {

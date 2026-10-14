@@ -779,6 +779,17 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
             <span className={HELPER_TEXT}>A member picks any whole number of hours, from 1 up to this.</span>
           </label>
         </div>
+        <div style={{ marginBottom: 12 }}>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Total capacity</span>
+            <NumberInput
+              className={FF_INPUT}
+              min={0}
+              value={f.totalCapacity}
+              onValueChange={v => patch(f.id, { totalCapacity: v ?? 0 })}
+            />
+          </label>
+        </div>
 
         <SectionLabel>Access &amp; PINs</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>

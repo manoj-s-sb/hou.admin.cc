@@ -3,13 +3,17 @@ import { Fragment, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
+import endpoints from '../../../constants/endpoints';
 import { getLocalUser } from '../../../constants/user';
+import api from '../../../services';
+import { SeriesWithEtag } from '../../../store/recurringBlocks/types';
 import { createBooking, editBooking, getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { cancelBookingLocally } from '../../../store/slots/reducers';
 import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
 
 import BlockTimeSlotModal from './BlockTimeSlotModal';
+import EditSeriesModal from './EditSeriesModal';
 import LaneDetailsModal from './LaneDetailsModal';
 import MultiBlockModal from './MultiBlockModal';
 import SlotDetailsModal, { BookForSomeonePayload, ShiftLaneOption } from './SlotDetailsModal';
@@ -77,6 +81,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
     laneCode: string;
     slotIndex: number;
   } | null>(null);
+  const [editingSeries, setEditingSeries] = useState<{ seriesId: string; occurrenceDate: string } | null>(null);
+  const [seriesActionLoading, setSeriesActionLoading] = useState(false);
 
   const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(180px, 1fr))` };
   const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(140px, 1fr))` };
@@ -302,6 +308,69 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
     }
   };
 
+  // A slot blocked by a recurring series is never freed/edited through the
+  // one-time updateLaneStatus path above (it would silently desync from the
+  // series' own skippedDates, and the extension job would just re-block it
+  // next time it runs) — these go through the recurringblocks endpoints
+  // instead, fetching the series' current etag first each time.
+  const fetchSeriesEtag = async (seriesId: string): Promise<SeriesWithEtag> => {
+    const res = await api.post(endpoints.recurringBlocks.getSeries, { seriesId });
+    return res.data?.data?.series as SeriesWithEtag;
+  };
+
+  const handleSkipOccurrence = async () => {
+    const seriesId = selectedSlot?.slot.seriesId;
+    const occurrenceDate = selectedSlot?.slot.occurrenceDate;
+    if (!seriesId || !occurrenceDate) return;
+    setSeriesActionLoading(true);
+    try {
+      const series = await fetchSeriesEtag(seriesId);
+      await api.post(endpoints.recurringBlocks.skip, {
+        seriesId,
+        occurrenceDate,
+        expectedEtag: series.etag,
+      });
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success(`${occurrenceDate} skipped — the series keeps running.`, { duration: 4000 });
+      setSelectedSlot(null);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to skip this date.', { duration: 5000 });
+    } finally {
+      setSeriesActionLoading(false);
+    }
+  };
+
+  const handleCancelSeries = async () => {
+    const seriesId = selectedSlot?.slot.seriesId;
+    if (!seriesId) return;
+    if (
+      !window.confirm(
+        'Cancel this recurring series? Already-blocked dates stay blocked — only future generation stops.'
+      )
+    ) {
+      return;
+    }
+    setSeriesActionLoading(true);
+    try {
+      const series = await fetchSeriesEtag(seriesId);
+      await api.post(endpoints.recurringBlocks.cancel, { seriesId, expectedEtag: series.etag });
+      toast.success('Series cancelled — already-blocked dates stay blocked.', { duration: 4000 });
+      setSelectedSlot(null);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to cancel the series.', { duration: 5000 });
+    } finally {
+      setSeriesActionLoading(false);
+    }
+  };
+
+  const handleEditSeriesClick = () => {
+    const seriesId = selectedSlot?.slot.seriesId;
+    const occurrenceDate = selectedSlot?.slot.occurrenceDate;
+    if (!seriesId || !occurrenceDate) return;
+    setEditingSeries({ seriesId, occurrenceDate });
+    setSelectedSlot(null);
+  };
+
   const handleBookForSomeone = async (payload: BookForSomeonePayload) => {
     if (!selectedSlot) return;
     // Re-check at submit time too — the modal could have been left open across
@@ -486,9 +555,25 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           </div>
         ) : !currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'disabled' ? (
           <div
-            className="h-full w-full rounded-md bg-cover bg-center opacity-80"
+            className="relative h-full w-full rounded-md bg-cover bg-center opacity-80"
             style={{ backgroundImage: "url('/assets/svg/slot_bg.svg')" }}
-          />
+          >
+            {currentSlot?.source === 'series' && (
+              <span
+                className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#21295A] text-white opacity-100"
+                title="Blocked by a recurring series"
+              >
+                <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114-3.5M19.5 15a8 8 0 01-14 3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                  />
+                </svg>
+              </span>
+            )}
+          </div>
         ) : (
           <div className={composeClasses('h-full w-full rounded-sm', zebraBg)} />
         )}
@@ -683,6 +768,19 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           />
           <span className="text-[11px] font-medium text-gray-500">Blocked</span>
         </div>
+        <div className="flex items-center gap-1.5">
+          <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#21295A]">
+            <svg className="h-2 w-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114-3.5M19.5 15a8 8 0 01-14 3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+              />
+            </svg>
+          </span>
+          <span className="text-[11px] font-medium text-gray-500">Recurring block</span>
+        </div>
       </div>
 
       {/* ── Modals ───────────────────────────────────────────── */}
@@ -726,7 +824,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
         <SlotDetailsModal
           availableLanesToShift={shiftTargetLanes}
           date={date}
-          isLoading={isBlockLaneLoading}
+          isLoading={isBlockLaneLoading || seriesActionLoading}
           isOpen={!!selectedSlot}
           laneNo={selectedSlot.laneNo}
           nextTimeSlot={timeSlots[selectedSlot.slotIndex + 1] || null}
@@ -735,9 +833,23 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           onBlockSlot={handleBlockSlot}
           onBookForSomeone={handleBookForSomeone}
           onCancelBooking={handleCancelBooking}
+          onCancelSeries={handleCancelSeries}
           onClose={handleCloseSlotModal}
+          onEditSeries={handleEditSeriesClick}
           onShiftLane={handleShiftLane}
+          onSkipOccurrence={handleSkipOccurrence}
           onUnblockSlot={handleUnblockSlot}
+        />
+      )}
+
+      {editingSeries && (
+        <EditSeriesModal
+          isOpen={!!editingSeries}
+          occurrenceDate={editingSeries.occurrenceDate}
+          seriesId={editingSeries.seriesId}
+          timeSlots={timeSlots}
+          onClose={() => setEditingSeries(null)}
+          onDone={() => dispatch(getSlots({ date, facilityCode }))}
         />
       )}
     </div>
