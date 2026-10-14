@@ -19,15 +19,6 @@ interface WalletRosterRow {
 
 const DEFAULT_LIMIT = 20;
 
-/**
- * One row per MEMBER (not per transaction) — name, subscription, and their
- * real current wallet balance (see admin/wallets/balances). The actual
- * transaction history lives inside the "View" drill-down (MemberTransactionsModal).
- * Composed from two existing, independently-scoped endpoints rather than one
- * combined one: the Members list already owns search/pagination/facility-scoping,
- * and admin/wallets/balances only ever answers "what's in these wallets" for
- * whatever page of members is already showing.
- */
 const WalletTransactions = () => {
   const facilityCode = useScopedFacilityCode();
 
