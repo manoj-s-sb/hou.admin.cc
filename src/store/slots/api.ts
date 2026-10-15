@@ -5,6 +5,7 @@ import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
 import {
+  CancelBookingRequest,
   CoachSlotsRequest,
   CreateBookingRequest,
   EditBookingRequest,
@@ -116,6 +117,19 @@ export const editBooking = createAsyncThunk(
       return response.data?.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to shift booking'));
+    }
+  }
+);
+
+/** Cancel one booking: refund + DB write + push/email, via CancelBookingService. */
+export const cancelBooking = createAsyncThunk(
+  'slots/cancelBooking',
+  async (request: CancelBookingRequest, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.slots.cancelBooking, request);
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to cancel booking'));
     }
   }
 );

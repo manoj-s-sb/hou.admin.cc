@@ -13,6 +13,9 @@ const endpoints = {
     createBooking: `${API_PREFIX}/admin/bookings/create`,
     // "Shift Lane" — moves an existing booking to another lane's slot at the same time.
     editBooking: `${API_PREFIX}/admin/bookings/edit`,
+    // Cancel one booking: refund + DB write + push/email, via CancelBookingService.
+    // POST { bookingIds: [bookingId], reason }.
+    cancelBooking: `${API_PREFIX}/admin/bookings/cancel`,
   },
   recurringBlocks: {
     // Conflict preview — read-only, nothing written.
@@ -35,6 +38,13 @@ const endpoints = {
     // Frees every date still actually blocked by one series; does not change
     // the series' own status (Cancel is the separate action for that).
     unblockAll: `${API_PREFIX}/admin/recurringblocks/unblock-all`,
+    // Every live, currently-unresolved member/coach conflict across every
+    // ACTIVE series' upcoming occurrences — recomputed fresh on every call,
+    // never read from an old background-job log. POST { facilityCode? }.
+    conflictsList: `${API_PREFIX}/admin/recurringblocks/conflicts/list`,
+    // Act on one flagged conflict: keep (skip that date) or cancel+reason
+    // (cancel the booking, refund, notify, then block the freed slot).
+    conflictsResolve: `${API_PREFIX}/admin/recurringblocks/conflicts/resolve`,
   },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,

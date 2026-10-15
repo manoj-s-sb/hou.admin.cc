@@ -133,6 +133,31 @@ export interface EditBookingResponse {
   notified: boolean;
 }
 
+/** Cancel one booking: refund + DB write + push/email, via CancelBookingService. */
+export interface CancelBookingRequest {
+  bookingIds: string[];
+  reason?: string;
+}
+
+export interface CancelledBooking {
+  bookingCode: string;
+  userId: string;
+  refundAmount: number;
+  slotCode?: string;
+  notified: boolean;
+}
+
+export interface FailedCancellation {
+  bookingCode: string;
+  reason: string;
+}
+
+export interface CancelBookingResponse {
+  cancelled: CancelledBooking[];
+  failed: FailedCancellation[];
+  totalRefunded: number;
+}
+
 export interface CoachSlotsRequest {
   startDate: string;
   endDate: string;

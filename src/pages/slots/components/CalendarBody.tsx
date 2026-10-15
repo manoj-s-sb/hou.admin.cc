@@ -7,8 +7,7 @@ import endpoints from '../../../constants/endpoints';
 import { getLocalUser } from '../../../constants/user';
 import api from '../../../services';
 import { SeriesWithEtag } from '../../../store/recurringBlocks/types';
-import { createBooking, editBooking, getSlots, updateLaneStatus } from '../../../store/slots/api';
-import { cancelBookingLocally } from '../../../store/slots/reducers';
+import { cancelBooking, createBooking, editBooking, getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
 
@@ -237,21 +236,39 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
 
   const handleCloseSlotModal = () => setSelectedSlot(null);
 
-  // No cancel-booking endpoint exists yet — this frees the slot in the UI only
-  // (see cancelBookingLocally). A page refresh reverts it. `reason` isn't
-  // persisted anywhere yet (no backend to store it against), so it's surfaced
-  // only in the confirmation toast for now.
-  const handleCancelBooking = (reason: string) => {
-    if (!selectedSlot) return;
-    dispatch(cancelBookingLocally({ laneCode: selectedSlot.laneCode, slotCode: selectedSlot.slot.slotCode }));
-    toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
-    setSelectedSlot(null);
+  const handleCancelBooking = async (reason: string) => {
+    const bookingId = selectedSlot?.slot.booking?.bookingId;
+    if (!bookingId) return;
+    try {
+      const response = await dispatch(cancelBooking({ bookingIds: [bookingId], reason })).unwrap();
+      const failure = response?.failed?.[0];
+      if (failure) {
+        toast.error(failure.reason || 'Failed to cancel booking.', { duration: 5000 });
+        return;
+      }
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to cancel booking.', { duration: 5000 });
+    }
   };
 
-  const handleCancelBookingInLane = (slotCode: string, reason: string) => {
-    if (!selectedLane) return;
-    dispatch(cancelBookingLocally({ laneCode: selectedLane.laneCode, slotCode }));
-    toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+  const handleCancelBookingInLane = async (slotCode: string, reason: string) => {
+    const bookingId = selectedLane?.slots.find(s => s.slotCode === slotCode)?.booking?.bookingId;
+    if (!bookingId) return;
+    try {
+      const response = await dispatch(cancelBooking({ bookingIds: [bookingId], reason })).unwrap();
+      const failure = response?.failed?.[0];
+      if (failure) {
+        toast.error(failure.reason || 'Failed to cancel booking.', { duration: 5000 });
+        return;
+      }
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to cancel booking.', { duration: 5000 });
+    }
   };
 
   // Moves one booking out of the lane the admin is about to block wholesale.

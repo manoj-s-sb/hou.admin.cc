@@ -1,25 +1,12 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 
-import { coachSlots, createBooking, editBooking, getSlots, updateLaneStatus } from './api';
+import { cancelBooking, coachSlots, createBooking, editBooking, getSlots, updateLaneStatus } from './api';
 import { initialState } from './types';
 
 const slotsSlice = createSlice({
   name: 'slots',
   initialState,
-  reducers: {
-    // No cancel-booking endpoint exists yet — this frees the slot in the UI only
-    // (grid + modals) so the flow can be reviewed before the backend is wired up.
-    // A page refresh reverts it, since it re-fetches from getSlots.
-    cancelBookingLocally: (state, action: PayloadAction<{ laneCode: string; slotCode: string }>) => {
-      const lane = state.slots?.lanes.find(l => l.laneCode === action.payload.laneCode);
-      const slot = lane?.slots.find(s => s.slotCode === action.payload.slotCode);
-      if (slot) {
-        slot.isBooked = false;
-        slot.status = 'available';
-        slot.booking = undefined;
-      }
-    },
-  },
+  reducers: {},
   extraReducers: builder => {
     builder.addCase(getSlots.pending, state => {
       state.isLoading = true;
@@ -73,6 +60,18 @@ const slotsSlice = createSlice({
       state.isBlockLaneLoading = false;
       state.error = (action.payload as string) ?? null;
     });
+    builder.addCase(cancelBooking.pending, state => {
+      state.isBlockLaneLoading = true;
+      state.error = null;
+    });
+    builder.addCase(cancelBooking.fulfilled, state => {
+      state.isBlockLaneLoading = false;
+      state.error = null;
+    });
+    builder.addCase(cancelBooking.rejected, (state, action) => {
+      state.isBlockLaneLoading = false;
+      state.error = (action.payload as string) ?? null;
+    });
     builder.addCase(coachSlots.pending, state => {
       state.isLoading = true;
       state.error = null;
@@ -89,5 +88,4 @@ const slotsSlice = createSlice({
   },
 });
 
-export const { cancelBookingLocally } = slotsSlice.actions;
 export default slotsSlice.reducer;

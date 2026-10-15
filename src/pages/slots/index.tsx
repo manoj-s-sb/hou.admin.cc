@@ -13,6 +13,7 @@ import { AppDispatch, RootState } from '../../store/store';
 
 import CalendarBody from './components/CalendarBody';
 import CalendarHeader from './components/CalendarHeader';
+import ConflictsModal from './components/ConflictsModal';
 import NewSeriesModal from './components/NewSeriesModal';
 import SeriesListModal from './components/SeriesListModal';
 
@@ -71,6 +72,8 @@ const SlotBookings: React.FC = () => {
   const canCreateSeries = canEditModule(MODULES.RECURRING_BLOCKS);
   const [showNewSeriesModal, setShowNewSeriesModal] = useState(false);
   const [showSeriesListModal, setShowSeriesListModal] = useState(false);
+  const [showConflictsModal, setShowConflictsModal] = useState(false);
+  const [conflictsCount, setConflictsCount] = useState(0);
 
   const nextSevenDates = useMemo(() => getNextSevenDates(), []);
   const [selectedDate, setSelectedDate] = useState<{ day: number; month: number; fullDate?: Date }>({
@@ -95,6 +98,25 @@ const SlotBookings: React.FC = () => {
   useEffect(() => {
     dispatch(getSlots({ date: formattedDate, facilityCode }));
   }, [dispatch, formattedDate, facilityCode]);
+
+  // Live count for the Conflicts badge — recomputed fresh server-side on
+  // every call (never from an old background-job log), so this always
+  // reflects reality even if a flagged booking resolved itself elsewhere.
+  useEffect(() => {
+    if (!canCreateSeries) return;
+    let cancelled = false;
+    api
+      .post(endpoints.recurringBlocks.conflictsList, { facilityCode })
+      .then(res => {
+        if (!cancelled) setConflictsCount(res.data?.data?.totalCount || 0);
+      })
+      .catch(() => {
+        /* Badge just stays at its last known count — not worth surfacing an error for. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [facilityCode, canCreateSeries]);
 
   // Slot bookings don't carry the member's plan — look it up per booked userId via the
   // same member-details endpoint the "View" modal already uses successfully, kept out of
@@ -176,6 +198,26 @@ const SlotBookings: React.FC = () => {
         </div>
         {canCreateSeries && (
           <div className="flex items-center gap-2">
+            {conflictsCount > 0 && (
+              <button
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-red-200 bg-red-50 px-3 py-1.5 text-[12.5px] font-semibold text-red-700 transition-all hover:bg-red-100"
+                type="button"
+                onClick={() => setShowConflictsModal(true)}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+                Conflicts
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                  {conflictsCount > 99 ? '99+' : conflictsCount}
+                </span>
+              </button>
+            )}
             <button
               className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-[#21295A]/20 px-3 py-1.5 text-[12.5px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A]/5"
               type="button"
@@ -276,6 +318,13 @@ const SlotBookings: React.FC = () => {
             isOpen={showSeriesListModal}
             onChanged={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
             onClose={() => setShowSeriesListModal(false)}
+          />
+          <ConflictsModal
+            facilityCode={facilityCode}
+            isOpen={showConflictsModal}
+            onChanged={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
+            onClose={() => setShowConflictsModal(false)}
+            onCountChanged={setConflictsCount}
           />
         </>
       )}

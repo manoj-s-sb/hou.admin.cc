@@ -159,3 +159,35 @@ export interface UnblockAllResponse {
   unblockedCount: number;
   unblockedDates: string[];
 }
+
+// ───────────────────────────── Conflicts surface ─────────────────────────────
+// A live, on-demand view of every member/coach conflict an ACTIVE series'
+// upcoming occurrence currently has — recomputed fresh on every request,
+// never read from a stale old extension-job run log.
+
+export interface ConflictItem {
+  seriesId: string;
+  facilityCode: string;
+  laneCode: string;
+  occurrenceDate: string;
+  conflictType: 'member' | 'coach';
+  booking?: BookingSummary;
+  reason: string;
+}
+
+export interface ListConflictsResponse {
+  conflicts: ConflictItem[];
+  totalCount: number;
+}
+
+export interface ResolveConflictRequest {
+  seriesId: string;
+  occurrenceDate: string;
+  decision: ConflictDecision;
+  reason?: string; // required when decision='cancel'
+}
+
+export interface ResolveConflictResponse {
+  series: SeriesWithEtag;
+  occurrenceResult: OccurrenceResult;
+}
