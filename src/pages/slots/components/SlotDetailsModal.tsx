@@ -901,7 +901,7 @@ const SlotDetailsModal = ({
                       type="button"
                       onClick={onCancelSeries}
                     >
-                      Cancel series
+                      Stop blocking
                     </button>
                   </div>
                 ) : (

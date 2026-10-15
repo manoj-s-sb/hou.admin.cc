@@ -60,7 +60,7 @@ interface NewSeriesModalProps {
    * slot will ever actually start at, which would silently block nothing
    * forever. */
   timeSlots: string[];
-  initialDate?: string; // YYYY-MM-DD — prefills startDate + dayOfWeek
+  initialDate?: string; // YYYY-MM-DD — prefills startDate + daysOfWeek
   onClose: () => void;
   onCreated: () => void;
 }
@@ -87,7 +87,7 @@ const NewSeriesModal = ({
 }: NewSeriesModalProps) => {
   const [step, setStep] = useState<Step>('form');
   const [laneCodes, setLaneCodes] = useState<string[]>([]);
-  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>('sunday');
+  const [daysOfWeek, setDaysOfWeek] = useState<DayOfWeek[]>(['sunday']);
   const defaultStart = timeSlots.includes('09:00') ? '09:00' : timeSlots[0] || '09:00';
   const [startTimeLocal, setStartTimeLocal] = useState(defaultStart);
   const [endTimeLocal, setEndTimeLocal] = useState(nextGridTime(timeSlots, defaultStart));
@@ -121,7 +121,7 @@ const NewSeriesModal = ({
     if (!isOpen) return;
     setStep('form');
     setLaneCodes([]);
-    setDayOfWeek(initialDate ? dayNameFromDate(initialDate) : 'sunday');
+    setDaysOfWeek([initialDate ? dayNameFromDate(initialDate) : 'sunday']);
     const resetStart = timeSlots.includes('09:00') ? '09:00' : timeSlots[0] || '09:00';
     setStartTimeLocal(resetStart);
     setEndTimeLocal(nextGridTime(timeSlots, resetStart));
@@ -152,10 +152,14 @@ const NewSeriesModal = ({
     setLaneCodes(prev => (prev.includes(laneCode) ? prev.filter(l => l !== laneCode) : [...prev, laneCode]));
   };
 
+  const toggleDay = (day: DayOfWeek) => {
+    setDaysOfWeek(prev => (prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]));
+  };
+
   const coreFieldsFor = (laneCode: string) => ({
     facilityCode,
     laneCode,
-    dayOfWeek,
+    daysOfWeek,
     startTimeLocal,
     endTimeLocal,
     timezone,
@@ -168,6 +172,7 @@ const NewSeriesModal = ({
 
   const formValid =
     laneCodes.length > 0 &&
+    daysOfWeek.length > 0 &&
     timeSlots.length > 0 &&
     !!reason.trim() &&
     startTimeLocal < endTimeLocal &&
@@ -259,12 +264,13 @@ const NewSeriesModal = ({
     return lane ? `Lane ${lane.laneNo} (${lane.laneType})` : laneCode;
   };
 
-  const whenSummary = `every ${DAYS.find(d => d.value === dayOfWeek)?.label} at ${startTimeLocal}, from ${startDate} ${
+  const selectedDayLabels = DAYS.filter(d => daysOfWeek.includes(d.value)).map(d => d.label);
+  const whenSummary = `every ${selectedDayLabels.join('/') || '…'} at ${startTimeLocal}, from ${startDate} ${
     endType === 'never'
       ? 'with no end date'
       : endType === 'on_date'
         ? `until ${endDate}`
-        : `for ${occurrenceCount} occurrences`
+        : `for ${occurrenceCount} week${occurrenceCount !== 1 ? 's' : ''}`
   }`;
 
   return (
@@ -324,36 +330,34 @@ const NewSeriesModal = ({
                 {laneCodes.length === 0 && <p className="mt-1 text-[12px] text-red-500">Select at least one lane.</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls} htmlFor="ns-day">
-                    Repeats on
-                  </label>
-                  <select
-                    className={inputCls}
-                    id="ns-day"
-                    value={dayOfWeek}
-                    onChange={e => setDayOfWeek(e.target.value as DayOfWeek)}
-                  >
-                    {DAYS.map(d => (
-                      <option key={d.value} value={d.value}>
-                        {d.label}
-                      </option>
-                    ))}
-                  </select>
+              <div>
+                <span className={labelCls}>Repeats on</span>
+                <div className="grid grid-cols-3 gap-2 rounded-xl border border-[#B3DADA] bg-white p-3 sm:grid-cols-4">
+                  {DAYS.map(d => (
+                    <label key={d.value} className="flex items-center gap-2 text-[13px] text-[#21295A]">
+                      <input
+                        checked={daysOfWeek.includes(d.value)}
+                        type="checkbox"
+                        onChange={() => toggleDay(d.value)}
+                      />
+                      {d.label}
+                    </label>
+                  ))}
                 </div>
-                <div>
-                  <label className={labelCls} htmlFor="ns-start-date">
-                    Starting from
-                  </label>
-                  <input
-                    className={inputCls}
-                    id="ns-start-date"
-                    type="date"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                  />
-                </div>
+                {daysOfWeek.length === 0 && <p className="mt-1 text-[12px] text-red-500">Select at least one day.</p>}
+              </div>
+
+              <div>
+                <label className={labelCls} htmlFor="ns-start-date">
+                  Starting from
+                </label>
+                <input
+                  className={inputCls}
+                  id="ns-start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -415,7 +419,7 @@ const NewSeriesModal = ({
               {endType === 'after_count' && (
                 <div>
                   <label className={labelCls} htmlFor="ns-count">
-                    Number of occurrences
+                    Number of weeks
                   </label>
                   <input
                     className={inputCls}

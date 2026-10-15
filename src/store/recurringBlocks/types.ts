@@ -18,7 +18,7 @@ export type OccurrenceOutcome =
 export interface SeriesCoreFields {
   facilityCode: string;
   laneCode: string;
-  dayOfWeek: DayOfWeek;
+  daysOfWeek: DayOfWeek[];
   startTimeLocal: string; // HH:MM
   endTimeLocal: string; // HH:MM
   timezone: string; // IANA
@@ -127,7 +127,7 @@ export interface EditSeriesRequest {
   occurrenceDate?: string; // required for 'this_one' and 'this_and_following'
   expectedEtag?: string; // required for 'this_and_following' and 'all'
   idempotencyKey?: string; // required for 'this_and_following'
-  dayOfWeek?: DayOfWeek;
+  daysOfWeek?: DayOfWeek[];
   startTimeLocal?: string;
   endTimeLocal?: string;
   timezone?: string;

@@ -44,7 +44,7 @@ const EditSeriesModal = ({ isOpen, seriesId, occurrenceDate, timeSlots, onClose,
   const [scope, setScope] = useState<EditScope>('this_one');
 
   const [reason, setReason] = useState('');
-  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>('sunday');
+  const [daysOfWeek, setDaysOfWeek] = useState<DayOfWeek[]>(['sunday']);
   const [startTimeLocal, setStartTimeLocal] = useState('09:00');
   const [endTimeLocal, setEndTimeLocal] = useState('09:45');
   const [endType, setEndType] = useState<SeriesEndType>('after_count');
@@ -67,7 +67,7 @@ const EditSeriesModal = ({ isOpen, seriesId, occurrenceDate, timeSlots, onClose,
       .then(res => {
         const s = res.data?.data?.series as SeriesWithEtag;
         setSeries(s);
-        setDayOfWeek(s.dayOfWeek);
+        setDaysOfWeek(s.daysOfWeek);
         setStartTimeLocal(s.startTimeLocal);
         setEndTimeLocal(s.endTimeLocal);
         setEndType(s.endType);
@@ -92,7 +92,7 @@ const EditSeriesModal = ({ isOpen, seriesId, occurrenceDate, timeSlots, onClose,
       }
       if (scope === 'this_and_following' || scope === 'all') {
         payload.expectedEtag = series.etag;
-        payload.dayOfWeek = dayOfWeek;
+        payload.daysOfWeek = daysOfWeek;
         payload.startTimeLocal = startTimeLocal;
         payload.endTimeLocal = endTimeLocal;
         payload.timezone = series.timezone;
@@ -116,7 +116,8 @@ const EditSeriesModal = ({ isOpen, seriesId, occurrenceDate, timeSlots, onClose,
   const formValid =
     !!reason.trim() &&
     (scope === 'this_one' ||
-      (startTimeLocal < endTimeLocal &&
+      (daysOfWeek.length > 0 &&
+        startTimeLocal < endTimeLocal &&
         (endType !== 'on_date' || !!endDate) &&
         (endType !== 'after_count' || occurrenceCount >= 1)));
 
@@ -193,39 +194,42 @@ const EditSeriesModal = ({ isOpen, seriesId, occurrenceDate, timeSlots, onClose,
 
               {(scope === 'this_and_following' || scope === 'all') && (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelCls} htmlFor="es-day">
-                        Repeats on
-                      </label>
-                      <select
-                        className={inputCls}
-                        id="es-day"
-                        value={dayOfWeek}
-                        onChange={e => setDayOfWeek(e.target.value as DayOfWeek)}
-                      >
-                        {DAYS.map(d => (
-                          <option key={d.value} value={d.value}>
-                            {d.label}
-                          </option>
-                        ))}
-                      </select>
+                  <div>
+                    <span className={labelCls}>Repeats on</span>
+                    <div className="grid grid-cols-3 gap-2 rounded-xl border border-[#B3DADA] bg-white p-3 sm:grid-cols-4">
+                      {DAYS.map(d => (
+                        <label key={d.value} className="flex items-center gap-2 text-[13px] text-[#21295A]">
+                          <input
+                            checked={daysOfWeek.includes(d.value)}
+                            type="checkbox"
+                            onChange={() =>
+                              setDaysOfWeek(prev =>
+                                prev.includes(d.value) ? prev.filter(x => x !== d.value) : [...prev, d.value]
+                              )
+                            }
+                          />
+                          {d.label}
+                        </label>
+                      ))}
                     </div>
-                    <div>
-                      <label className={labelCls} htmlFor="es-end-type">
-                        Ends
-                      </label>
-                      <select
-                        className={inputCls}
-                        id="es-end-type"
-                        value={endType}
-                        onChange={e => setEndType(e.target.value as SeriesEndType)}
-                      >
-                        <option value="after_count">After a number of occurrences</option>
-                        <option value="on_date">On a specific date</option>
-                        <option value="never">Never</option>
-                      </select>
-                    </div>
+                    {daysOfWeek.length === 0 && (
+                      <p className="mt-1 text-[12px] text-red-500">Select at least one day.</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className={labelCls} htmlFor="es-end-type">
+                      Ends
+                    </label>
+                    <select
+                      className={inputCls}
+                      id="es-end-type"
+                      value={endType}
+                      onChange={e => setEndType(e.target.value as SeriesEndType)}
+                    >
+                      <option value="after_count">After a number of occurrences</option>
+                      <option value="on_date">On a specific date</option>
+                      <option value="never">Never</option>
+                    </select>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -275,7 +279,7 @@ const EditSeriesModal = ({ isOpen, seriesId, occurrenceDate, timeSlots, onClose,
                   {endType === 'after_count' && (
                     <div>
                       <label className={labelCls} htmlFor="es-count">
-                        Number of occurrences
+                        Number of weeks
                       </label>
                       <input
                         className={inputCls}

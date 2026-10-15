@@ -5,6 +5,22 @@ import endpoints from '../../../constants/endpoints';
 import api from '../../../services';
 import { SeriesListItem } from '../../../store/recurringBlocks/types';
 
+const SHORT_DAY: Record<string, string> = {
+  monday: 'Mon',
+  tuesday: 'Tue',
+  wednesday: 'Wed',
+  thursday: 'Thu',
+  friday: 'Fri',
+  saturday: 'Sat',
+  sunday: 'Sun',
+};
+const SHORT_DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const formatDaysOfWeek = (daysOfWeek: string[]) =>
+  [...daysOfWeek]
+    .sort((a, b) => SHORT_DAY_ORDER.indexOf(a) - SHORT_DAY_ORDER.indexOf(b))
+    .map(d => SHORT_DAY[d] || d)
+    .join(', ');
+
 const STATUS_BADGE: Record<string, string> = {
   active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   paused: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -15,7 +31,7 @@ interface SeriesListModalProps {
   isOpen: boolean;
   facilityCode: string;
   onClose: () => void;
-  /** Called after an "Unblock all remaining" so the calendar grid refreshes. */
+  /** Called after an "Unblock remaining" so the calendar grid refreshes. */
   onChanged: () => void;
 }
 
@@ -24,6 +40,7 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const load = () => {
     setError('');
@@ -45,7 +62,7 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
   const handleUnblockAll = async (item: SeriesListItem) => {
     if (
       !window.confirm(
-        `Free all ${item.remainingBlockedCount} currently-blocked date(s) for this series? The series itself keeps running — use Cancel series separately to stop future blocking.`
+        `Free all ${item.remainingBlockedCount} currently-blocked date(s) for this series? The series itself keeps running — use Stop blocking separately to stop future dates from being blocked.`
       )
     ) {
       return;
@@ -59,6 +76,25 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
       setError(e?.response?.data?.message || 'Failed to unblock the remaining dates.');
     } finally {
       setUnblockingId(null);
+    }
+  };
+
+  const handleCancelSeries = async (item: SeriesListItem) => {
+    if (
+      !window.confirm(
+        'Stop this series from blocking any FUTURE dates? Any date already blocked stays blocked until you separately click Unblock remaining.'
+      )
+    ) {
+      return;
+    }
+    setCancellingId(item.series.id);
+    try {
+      await api.post(endpoints.recurringBlocks.cancel, { seriesId: item.series.id, expectedEtag: item.series.etag });
+      load();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Failed to cancel the series.');
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -125,8 +161,8 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
                     <tr key={item.series.id} className="border-b border-gray-100 last:border-b-0">
                       <td className="py-3 pr-3 font-medium text-[#21295A]">{item.series.laneCode}</td>
                       <td className="py-3 pr-3 text-gray-600">
-                        {item.series.dayOfWeek.charAt(0).toUpperCase() + item.series.dayOfWeek.slice(1)}{' '}
-                        {item.series.startTimeLocal}–{item.series.endTimeLocal}
+                        {formatDaysOfWeek(item.series.daysOfWeek)} {item.series.startTimeLocal}–
+                        {item.series.endTimeLocal}
                       </td>
                       <td className="py-3 pr-3">
                         <span
@@ -140,14 +176,24 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
                       </td>
                       <td className="py-3 pr-3 text-gray-600">{item.remainingBlockedCount}</td>
                       <td className="py-3 pr-3">
-                        <button
-                          className="rounded-lg border border-red-200 px-2.5 py-1 text-[12px] font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={item.remainingBlockedCount === 0 || unblockingId === item.series.id}
-                          type="button"
-                          onClick={() => handleUnblockAll(item)}
-                        >
-                          {unblockingId === item.series.id ? 'Unblocking…' : 'Unblock all remaining'}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-lg border border-red-200 px-2.5 py-1 text-[12px] font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={item.remainingBlockedCount === 0 || unblockingId === item.series.id}
+                            type="button"
+                            onClick={() => handleUnblockAll(item)}
+                          >
+                            {unblockingId === item.series.id ? 'Unblocking…' : 'Unblock remaining'}
+                          </button>
+                          <button
+                            className="rounded-lg border border-gray-300 px-2.5 py-1 text-[12px] font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={item.series.status === 'cancelled' || cancellingId === item.series.id}
+                            type="button"
+                            onClick={() => handleCancelSeries(item)}
+                          >
+                            {cancellingId === item.series.id ? 'Stopping…' : 'Stop blocking'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
