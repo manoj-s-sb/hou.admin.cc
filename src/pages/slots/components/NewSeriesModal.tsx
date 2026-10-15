@@ -4,7 +4,7 @@ import { LoaderSpinner } from '../../../components/Loader';
 import endpoints from '../../../constants/endpoints';
 import api from '../../../services';
 import {
-  CoachConflictResolution,
+  ConflictResolution,
   CreateSeriesResponse,
   DayOfWeek,
   OccurrencePreview,
@@ -42,8 +42,8 @@ const dayNameFromDate = (dateStr: string): DayOfWeek => {
   return DAYS[d.getDay()].value;
 };
 
-/** Coach-resolution map key — per lane AND date, since the same date can be a
- * coach conflict on one lane and free on another. */
+/** Conflict-resolution map key — per lane AND date, since the same date can
+ * be a conflict (member or coach) on one lane and free on another. */
 const resolutionKey = (laneCode: string, occurrenceDate: string) => `${laneCode}::${occurrenceDate}`;
 
 interface NewSeriesModalProps {
@@ -100,7 +100,7 @@ const NewSeriesModal = ({
   // Keyed by laneCode — each selected lane gets its own preview, since the
   // same date can be free on one lane and booked on another.
   const [previews, setPreviews] = useState<Record<string, SeriesPreviewResponse>>({});
-  const [coachResolutions, setCoachResolutions] = useState<
+  const [conflictResolutions, setConflictResolutions] = useState<
     Record<string, { decision: 'keep' | 'cancel'; reason: string }>
   >({});
   const [confirmChecked, setConfirmChecked] = useState(false);
@@ -131,7 +131,7 @@ const NewSeriesModal = ({
     setOccurrenceCount(DEFAULT_OCCURRENCE_COUNT);
     setReason('');
     setPreviews({});
-    setCoachResolutions({});
+    setConflictResolutions({});
     setConfirmChecked(false);
     setError('');
     setResults({});
@@ -198,14 +198,18 @@ const NewSeriesModal = ({
     }
   };
 
-  // Every (lane, date) coach conflict across every previewed lane.
-  const coachOccurrencesByLane = laneCodes.map(laneCode => ({
+  // Every (lane, date) booking conflict — member OR coach — across every
+  // previewed lane. Both now require the same explicit admin decision
+  // before anything is created/cancelled.
+  const conflictOccurrencesByLane = laneCodes.map(laneCode => ({
     laneCode,
-    occurrences: (previews[laneCode]?.occurrences || []).filter(o => o.conflictType === 'coach'),
+    occurrences: (previews[laneCode]?.occurrences || []).filter(
+      o => o.conflictType === 'member' || o.conflictType === 'coach'
+    ),
   }));
-  const allCoachConflictsResolved = coachOccurrencesByLane.every(({ laneCode, occurrences }) =>
+  const allConflictsResolved = conflictOccurrencesByLane.every(({ laneCode, occurrences }) =>
     occurrences.every(o => {
-      const r = coachResolutions[resolutionKey(laneCode, o.occurrenceDate)];
+      const r = conflictResolutions[resolutionKey(laneCode, o.occurrenceDate)];
       return r && (r.decision === 'keep' || (r.decision === 'cancel' && r.reason.trim()));
     })
   );
@@ -218,9 +222,11 @@ const NewSeriesModal = ({
     try {
       const outcomes = await Promise.all(
         laneCodes.map(async laneCode => {
-          const laneCoachOccurrences = (previews[laneCode]?.occurrences || []).filter(o => o.conflictType === 'coach');
-          const resolutions: CoachConflictResolution[] = laneCoachOccurrences.map(o => {
-            const r = coachResolutions[resolutionKey(laneCode, o.occurrenceDate)];
+          const laneConflictOccurrences = (previews[laneCode]?.occurrences || []).filter(
+            o => o.conflictType === 'member' || o.conflictType === 'coach'
+          );
+          const resolutions: ConflictResolution[] = laneConflictOccurrences.map(o => {
+            const r = conflictResolutions[resolutionKey(laneCode, o.occurrenceDate)];
             return {
               occurrenceDate: o.occurrenceDate,
               decision: r.decision,
@@ -231,7 +237,7 @@ const NewSeriesModal = ({
             const res = await api.post(endpoints.recurringBlocks.create, {
               ...coreFieldsFor(laneCode),
               idempotencyKey: `${idempotencyBase}-${laneCode}`,
-              coachConflictResolutions: resolutions,
+              conflictResolutions: resolutions,
             });
             return { laneCode, response: res.data?.data as CreateSeriesResponse, error: null as string | null };
           } catch (e: any) {
@@ -488,15 +494,16 @@ const NewSeriesModal = ({
                 This will block {whenSummary} across {laneCodes.length} lane{laneCodes.length !== 1 ? 's' : ''}.{' '}
                 {totalMemberConflicts > 0 && (
                   <>
-                    {totalMemberConflicts} existing member booking{totalMemberConflicts !== 1 ? 's' : ''} will be
-                    cancelled and refunded.{' '}
+                    {totalMemberConflicts} existing member booking{totalMemberConflicts !== 1 ? 's' : ''}{' '}
                   </>
                 )}
+                {totalMemberConflicts > 0 && totalCoachConflicts > 0 && 'and '}
                 {totalCoachConflicts > 0 && (
                   <>
-                    {totalCoachConflicts} coach booking{totalCoachConflicts !== 1 ? 's' : ''} need your decision below.
+                    {totalCoachConflicts} coach booking{totalCoachConflicts !== 1 ? 's' : ''}{' '}
                   </>
                 )}
+                {totalMemberConflicts + totalCoachConflicts > 0 && 'need your decision below.'}
               </div>
 
               <div className="max-h-[320px] space-y-4 overflow-y-auto rounded-xl border border-gray-200 p-3">
@@ -524,13 +531,13 @@ const NewSeriesModal = ({
                                 {o.booking.memberName || '(unknown member)'} — {o.booking.bookingCode}
                               </p>
                             )}
-                            {o.conflictType === 'coach' && (
+                            {(o.conflictType === 'member' || o.conflictType === 'coach') && (
                               <div className="mt-2 flex items-center gap-2">
                                 <select
                                   className="rounded-lg border border-gray-200 px-2 py-1 text-[12px]"
-                                  value={coachResolutions[key]?.decision || ''}
+                                  value={conflictResolutions[key]?.decision || ''}
                                   onChange={e =>
-                                    setCoachResolutions(prev => ({
+                                    setConflictResolutions(prev => ({
                                       ...prev,
                                       [key]: {
                                         decision: e.target.value as 'keep' | 'cancel',
@@ -543,13 +550,13 @@ const NewSeriesModal = ({
                                   <option value="keep">Keep booking, skip this date</option>
                                   <option value="cancel">Cancel booking</option>
                                 </select>
-                                {coachResolutions[key]?.decision === 'cancel' && (
+                                {conflictResolutions[key]?.decision === 'cancel' && (
                                   <input
                                     className="flex-1 rounded-lg border border-gray-200 px-2 py-1 text-[12px]"
                                     placeholder="Reason (required)"
-                                    value={coachResolutions[key]?.reason || ''}
+                                    value={conflictResolutions[key]?.reason || ''}
                                     onChange={e =>
-                                      setCoachResolutions(prev => ({
+                                      setConflictResolutions(prev => ({
                                         ...prev,
                                         [key]: { decision: 'cancel', reason: e.target.value },
                                       }))
@@ -579,7 +586,7 @@ const NewSeriesModal = ({
               <div className="flex gap-3">
                 <button
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={!confirmChecked || !allCoachConflictsResolved || isLoading}
+                  disabled={!confirmChecked || !allConflictsResolved || isLoading}
                   type="button"
                   onClick={handleCreate}
                 >

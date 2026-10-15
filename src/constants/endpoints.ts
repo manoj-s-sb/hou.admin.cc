@@ -17,9 +17,9 @@ const endpoints = {
   recurringBlocks: {
     // Conflict preview — read-only, nothing written.
     preview: `${API_PREFIX}/admin/recurringblocks/preview`,
-    // Creates the series — idempotent on `idempotencyKey`; cancels+refunds+notifies
-    // conflicting member bookings automatically, requires coachConflictResolutions
-    // for any coach-booking conflict the preview surfaced.
+    // Creates the series — idempotent on `idempotencyKey`; requires
+    // conflictResolutions for EVERY conflicting booking the preview surfaced
+    // (member or coach) — nothing is cancelled/refunded/notified without one.
     create: `${API_PREFIX}/admin/recurringblocks/create`,
     // Fetch one series + its current _etag — read before skip/cancel/edit.
     getSeries: `${API_PREFIX}/admin/recurringblocks/series/get`,

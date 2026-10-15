@@ -4,7 +4,7 @@
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 export type SeriesEndType = 'never' | 'on_date' | 'after_count';
 export type OccurrenceConflictType = 'none' | 'member' | 'coach' | 'already_blocked' | 'not_yet_created';
-export type CoachConflictDecision = 'keep' | 'cancel';
+export type ConflictDecision = 'keep' | 'cancel';
 export type OccurrenceOutcome =
   | 'blocked'
   | 'member_cancelled_and_blocked'
@@ -50,15 +50,15 @@ export interface SeriesPreviewResponse {
   coachConflictCount: number;
 }
 
-export interface CoachConflictResolution {
+export interface ConflictResolution {
   occurrenceDate: string;
-  decision: CoachConflictDecision;
+  decision: ConflictDecision;
   reason?: string; // required when decision='cancel'
 }
 
 export interface CreateSeriesRequest extends SeriesCoreFields {
   idempotencyKey: string;
-  coachConflictResolutions: CoachConflictResolution[];
+  conflictResolutions: ConflictResolution[];
 }
 
 export interface OccurrenceResult {
