@@ -8,6 +8,7 @@ import {
   CreateSeriesResponse,
   DayOfWeek,
   OccurrencePreview,
+  RecurrenceType,
   SeriesEndType,
   SeriesPreviewResponse,
 } from '../../../store/recurringBlocks/types';
@@ -29,6 +30,11 @@ const DAYS: { value: DayOfWeek; label: string }[] = [
 
 const DEFAULT_OCCURRENCE_COUNT = 12;
 
+/** Today's date, local, YYYY-MM-DD — the earliest a new series may start.
+ * The backend rejects a past startDate outright; this just keeps the admin
+ * from hitting that error after filling out the whole form. */
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
 const CONFLICT_BADGE: Record<string, { label: string; cls: string }> = {
   none: { label: 'Available', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   member: { label: 'Member booking', cls: 'bg-red-50 text-red-700 border-red-200' },
@@ -40,6 +46,23 @@ const CONFLICT_BADGE: Record<string, { label: string; cls: string }> = {
 const dayNameFromDate = (dateStr: string): DayOfWeek => {
   const d = new Date(`${dateStr}T00:00:00`);
   return DAYS[d.getDay()].value;
+};
+
+/** The combined "Ends" dropdown's current value: "weekly_after_count" /
+ * "monthly_on_date" / etc. for an auto-repeating pattern, or the single
+ * literal "specific_dates" (no end-type suffix — there's no pattern to
+ * end, just a hand-picked date list). */
+const endsOptionValue = (recurrenceType: RecurrenceType, endType: SeriesEndType | null): string =>
+  recurrenceType === 'specific_dates' ? 'specific_dates' : `${recurrenceType}_${endType}`;
+
+/** Inverse of `endsOptionValue` — split on the FIRST underscore only, since
+ * `endType` values ("after_count", "on_date") carry underscores of their
+ * own; "weekly"/"monthly" never do, so the first underscore is always
+ * exactly the boundary between the two parts. */
+const parseEndsOption = (value: string): { recurrenceType: RecurrenceType; endType: SeriesEndType | null } => {
+  if (value === 'specific_dates') return { recurrenceType: 'specific_dates', endType: null };
+  const sep = value.indexOf('_');
+  return { recurrenceType: value.slice(0, sep) as RecurrenceType, endType: value.slice(sep + 1) as SeriesEndType };
 };
 
 /** Conflict-resolution map key — per lane AND date, since the same date can
@@ -87,12 +110,24 @@ const NewSeriesModal = ({
 }: NewSeriesModalProps) => {
   const [step, setStep] = useState<Step>('form');
   const [laneCodes, setLaneCodes] = useState<string[]>([]);
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('weekly');
   const [daysOfWeek, setDaysOfWeek] = useState<DayOfWeek[]>(['sunday']);
+  // Only meaningful when recurrenceType === 'monthly' — a full date (not just
+  // a day number) so it can be picked with a normal calendar input; only its
+  // day-of-month actually gets sent (as monthlyEndDay), paired with
+  // startDate's own day as the recurring range's [start, end] bounds.
+  const [monthlyThroughDate, setMonthlyThroughDate] = useState(todayStr());
+  // Only meaningful when recurrenceType === 'specific_dates' — an explicit,
+  // admin-picked list of dates, deduped and kept sorted ascending.
+  const [specificDates, setSpecificDates] = useState<string[]>([]);
+  const [pendingDate, setPendingDate] = useState('');
   const defaultStart = timeSlots.includes('09:00') ? '09:00' : timeSlots[0] || '09:00';
   const [startTimeLocal, setStartTimeLocal] = useState(defaultStart);
   const [endTimeLocal, setEndTimeLocal] = useState(nextGridTime(timeSlots, defaultStart));
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
-  const [endType, setEndType] = useState<SeriesEndType>('after_count');
+  const [startDate, setStartDate] = useState(todayStr());
+  // null only when recurrenceType === 'specific_dates' — there's no pattern
+  // to end, just a finite list of dates.
+  const [endType, setEndType] = useState<SeriesEndType | null>('after_count');
   const [endDate, setEndDate] = useState('');
   const [occurrenceCount, setOccurrenceCount] = useState(DEFAULT_OCCURRENCE_COUNT);
   const [reason, setReason] = useState('');
@@ -121,11 +156,15 @@ const NewSeriesModal = ({
     if (!isOpen) return;
     setStep('form');
     setLaneCodes([]);
+    setRecurrenceType('weekly');
     setDaysOfWeek([initialDate ? dayNameFromDate(initialDate) : 'sunday']);
+    setMonthlyThroughDate(initialDate || todayStr());
+    setSpecificDates([]);
+    setPendingDate('');
     const resetStart = timeSlots.includes('09:00') ? '09:00' : timeSlots[0] || '09:00';
     setStartTimeLocal(resetStart);
     setEndTimeLocal(nextGridTime(timeSlots, resetStart));
-    setStartDate(initialDate || new Date().toISOString().slice(0, 10));
+    setStartDate(initialDate || todayStr());
     setEndType('after_count');
     setEndDate('');
     setOccurrenceCount(DEFAULT_OCCURRENCE_COUNT);
@@ -156,28 +195,60 @@ const NewSeriesModal = ({
     setDaysOfWeek(prev => (prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]));
   };
 
+  // Only meaningful for recurrenceType === 'specific_dates' — adds the
+  // currently-picked date into the explicit list (deduped, kept sorted),
+  // guarding against a date outside [startDate, endDate] in case a browser
+  // lets one through despite the input's own min/max.
+  const addSpecificDate = () => {
+    if (!pendingDate) return;
+    if (startDate && pendingDate < startDate) return;
+    if (endDate && pendingDate > endDate) return;
+    setSpecificDates(prev => (prev.includes(pendingDate) ? prev : [...prev, pendingDate].sort()));
+    setPendingDate('');
+  };
+
+  const removeSpecificDate = (d: string) => {
+    setSpecificDates(prev => prev.filter(x => x !== d));
+  };
+
   const coreFieldsFor = (laneCode: string) => ({
     facilityCode,
     laneCode,
-    daysOfWeek,
+    recurrenceType,
+    daysOfWeek: recurrenceType === 'weekly' ? daysOfWeek : [],
+    monthlyEndDay:
+      recurrenceType === 'monthly'
+        ? Number((endType === 'on_date' ? endDate : monthlyThroughDate).split('-')[2])
+        : undefined,
+    specificDates: recurrenceType === 'specific_dates' ? specificDates : [],
     startTimeLocal,
     endTimeLocal,
     timezone,
     startDate,
-    endType,
-    endDate: endType === 'on_date' ? endDate : undefined,
-    occurrenceCount: endType === 'after_count' ? occurrenceCount : undefined,
+    endType: recurrenceType === 'specific_dates' ? undefined : endType,
+    endDate: recurrenceType === 'specific_dates' || endType === 'on_date' ? endDate : undefined,
+    occurrenceCount: recurrenceType !== 'specific_dates' && endType === 'after_count' ? occurrenceCount : undefined,
     reason: reason.trim(),
   });
 
+  const monthlyRangeValid =
+    recurrenceType !== 'monthly' ||
+    (endType === 'on_date'
+      ? !!endDate && Number(endDate.split('-')[2]) >= Number(startDate.split('-')[2])
+      : monthlyThroughDate >= startDate && monthlyThroughDate.slice(0, 7) === startDate.slice(0, 7));
+
   const formValid =
     laneCodes.length > 0 &&
-    daysOfWeek.length > 0 &&
     timeSlots.length > 0 &&
     !!reason.trim() &&
+    startDate >= todayStr() &&
     startTimeLocal < endTimeLocal &&
-    (endType !== 'on_date' || !!endDate) &&
-    (endType !== 'after_count' || occurrenceCount >= 1);
+    monthlyRangeValid &&
+    (recurrenceType === 'specific_dates'
+      ? !!endDate && startDate <= endDate && specificDates.length > 0
+      : (recurrenceType !== 'weekly' || daysOfWeek.length > 0) &&
+        (endType !== 'on_date' || !!endDate) &&
+        (endType !== 'after_count' || occurrenceCount >= 1));
 
   const handlePreview = async () => {
     setError('');
@@ -271,13 +342,21 @@ const NewSeriesModal = ({
   };
 
   const selectedDayLabels = DAYS.filter(d => daysOfWeek.includes(d.value)).map(d => d.label);
-  const whenSummary = `every ${selectedDayLabels.join('/') || '…'} at ${startTimeLocal}, from ${startDate} ${
+  const endCondition = (unit: 'week' | 'month') =>
     endType === 'never'
       ? 'with no end date'
       : endType === 'on_date'
         ? `until ${endDate}`
-        : `for ${occurrenceCount} week${occurrenceCount !== 1 ? 's' : ''}`
-  }`;
+        : `for ${occurrenceCount} ${unit}${occurrenceCount !== 1 ? 's' : ''}`;
+  const monthlyRangeEndDate = endType === 'on_date' ? endDate : monthlyThroughDate;
+  const whenSummary =
+    recurrenceType === 'weekly'
+      ? `every ${selectedDayLabels.join('/') || '…'} at ${startTimeLocal}, from ${startDate} ${endCondition('week')}`
+      : recurrenceType === 'monthly'
+        ? `day${monthlyRangeEndDate.slice(8) !== startDate.slice(8) ? 's' : ''} ${startDate.slice(8)}${
+            monthlyRangeEndDate.slice(8) !== startDate.slice(8) ? `-${monthlyRangeEndDate.slice(8)}` : ''
+          } of every month at ${startTimeLocal}, ${endCondition('month')}`
+        : `${specificDates.length} specific date${specificDates.length !== 1 ? 's' : ''} at ${startTimeLocal}`;
 
   return (
     <div
@@ -337,34 +416,229 @@ const NewSeriesModal = ({
               </div>
 
               <div>
-                <span className={labelCls}>Repeats on</span>
-                <div className="grid grid-cols-3 gap-2 rounded-xl border border-[#B3DADA] bg-white p-3 sm:grid-cols-4">
-                  {DAYS.map(d => (
-                    <label key={d.value} className="flex items-center gap-2 text-[13px] text-[#21295A]">
-                      <input
-                        checked={daysOfWeek.includes(d.value)}
-                        type="checkbox"
-                        onChange={() => toggleDay(d.value)}
-                      />
-                      {d.label}
-                    </label>
-                  ))}
-                </div>
-                {daysOfWeek.length === 0 && <p className="mt-1 text-[12px] text-red-500">Select at least one day.</p>}
+                <label className={labelCls} htmlFor="ns-end-type">
+                  Ends
+                </label>
+                <select
+                  className={inputCls}
+                  id="ns-end-type"
+                  value={endsOptionValue(recurrenceType, endType)}
+                  onChange={e => {
+                    const { recurrenceType: rt, endType: et } = parseEndsOption(e.target.value);
+                    setRecurrenceType(rt);
+                    setEndType(et);
+                  }}
+                >
+                  <option value="weekly_after_count">Weekly — After a number of occurrences</option>
+                  <option value="weekly_on_date">Weekly — On a specific date</option>
+                  <option value="weekly_never">Weekly — Never</option>
+                  <option value="monthly_after_count">Monthly — After a number of occurrences</option>
+                  <option value="monthly_on_date">Monthly — On a specific date</option>
+                  <option value="monthly_never">Monthly — Never</option>
+                  <option value="specific_dates">Specific dates</option>
+                </select>
               </div>
 
-              <div>
-                <label className={labelCls} htmlFor="ns-start-date">
-                  Starting from
-                </label>
-                <input
-                  className={inputCls}
-                  id="ns-start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                />
+              {recurrenceType === 'weekly' && (
+                <div>
+                  <span className={labelCls}>Repeats on</span>
+                  <div className="grid grid-cols-3 gap-2 rounded-xl border border-[#B3DADA] bg-white p-3 sm:grid-cols-4">
+                    {DAYS.map(d => (
+                      <label key={d.value} className="flex items-center gap-2 text-[13px] text-[#21295A]">
+                        <input
+                          checked={daysOfWeek.includes(d.value)}
+                          type="checkbox"
+                          onChange={() => toggleDay(d.value)}
+                        />
+                        {d.label}
+                      </label>
+                    ))}
+                  </div>
+                  {daysOfWeek.length === 0 && <p className="mt-1 text-[12px] text-red-500">Select at least one day.</p>}
+                  <p className="mt-1.5 text-[12px] text-gray-500">
+                    This series repeats on every checked day each week, starting from the date below, until the end
+                    condition you choose above. For a single one-off date with no weekly repeat, close this and use the
+                    block option on the calendar grid instead.
+                  </p>
+                </div>
+              )}
+
+              <div
+                className={
+                  recurrenceType === 'specific_dates' ||
+                  (recurrenceType === 'monthly' && endType !== 'on_date') ||
+                  endType === 'never'
+                    ? ''
+                    : 'grid grid-cols-2 gap-3'
+                }
+              >
+                <div className={recurrenceType === 'monthly' && endType !== 'on_date' ? 'grid grid-cols-2 gap-3' : ''}>
+                  <div>
+                    <label className={labelCls} htmlFor="ns-start-date">
+                      Starting from
+                    </label>
+                    <input
+                      className={inputCls}
+                      id="ns-start-date"
+                      min={todayStr()}
+                      type="date"
+                      value={startDate}
+                      onChange={e => setStartDate(e.target.value)}
+                    />
+                    {startDate < todayStr() && (
+                      <p className="mt-1 text-[12px] text-red-500">Starting date cannot be in the past.</p>
+                    )}
+                  </div>
+                  {recurrenceType === 'monthly' && endType !== 'on_date' && (
+                    <div>
+                      <label className={labelCls} htmlFor="ns-monthly-through">
+                        End date
+                      </label>
+                      <input
+                        className={inputCls}
+                        id="ns-monthly-through"
+                        min={startDate}
+                        type="date"
+                        value={monthlyThroughDate}
+                        onChange={e => setMonthlyThroughDate(e.target.value)}
+                      />
+                      {monthlyThroughDate < startDate && (
+                        <p className="mt-1 text-[12px] text-red-500">End date must be on or after Starting from.</p>
+                      )}
+                      {monthlyThroughDate.slice(0, 7) !== startDate.slice(0, 7) && (
+                        <p className="mt-1 text-[12px] text-red-500">
+                          End date must be in the same month as Starting from.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {recurrenceType === 'weekly' && endType === 'after_count' && (
+                  <div>
+                    <label className={labelCls} htmlFor="ns-count">
+                      Number of weeks
+                    </label>
+                    <input
+                      className={inputCls}
+                      id="ns-count"
+                      min={1}
+                      type="number"
+                      value={occurrenceCount}
+                      onChange={e => setOccurrenceCount(Math.max(1, Number(e.target.value) || 1))}
+                    />
+                  </div>
+                )}
+                {(recurrenceType === 'weekly' || recurrenceType === 'monthly') && endType === 'on_date' && (
+                  <div>
+                    <label className={labelCls} htmlFor="ns-end-date">
+                      End date
+                    </label>
+                    <input
+                      className={inputCls}
+                      id="ns-end-date"
+                      min={startDate}
+                      type="date"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                    />
+                    {recurrenceType === 'monthly' &&
+                      !!endDate &&
+                      Number(endDate.split('-')[2]) < Number(startDate.split('-')[2]) && (
+                        <p className="mt-1 text-[12px] text-red-500">
+                          End date&apos;s day-of-month must be on or after Starting from&apos;s day-of-month (its day
+                          becomes the range&apos;s last day).
+                        </p>
+                      )}
+                  </div>
+                )}
+                {recurrenceType === 'specific_dates' && (
+                  <div>
+                    <label className={labelCls} htmlFor="ns-end-date">
+                      End date
+                    </label>
+                    <input
+                      className={inputCls}
+                      id="ns-end-date"
+                      min={startDate}
+                      type="date"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                    />
+                    {!!startDate && !!endDate && startDate > endDate && (
+                      <p className="mt-1 text-[12px] text-red-500">End date must be on or after the start date.</p>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {recurrenceType === 'monthly' && endType === 'after_count' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls} htmlFor="ns-count">
+                      Number of months
+                    </label>
+                    <input
+                      className={inputCls}
+                      id="ns-count"
+                      min={1}
+                      type="number"
+                      value={occurrenceCount}
+                      onChange={e => setOccurrenceCount(Math.max(1, Number(e.target.value) || 1))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {recurrenceType === 'specific_dates' && (
+                <div>
+                  <span className={labelCls}>Dates</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      className={inputCls}
+                      max={endDate || undefined}
+                      min={startDate || todayStr()}
+                      type="date"
+                      value={pendingDate}
+                      onChange={e => setPendingDate(e.target.value)}
+                    />
+                    <button
+                      className="shrink-0 rounded-xl border-2 border-[#B3DADA] px-4 py-2.5 text-[13px] font-medium text-[#21295A] hover:border-[#21295A] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!pendingDate}
+                      type="button"
+                      onClick={addSpecificDate}
+                    >
+                      Add date
+                    </button>
+                  </div>
+                  {specificDates.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {specificDates.map(d => (
+                        <span
+                          key={d}
+                          className="flex items-center gap-1.5 rounded-full border border-[#B3DADA] bg-[#F8FAFA] px-3 py-1 text-[12px] font-medium text-[#21295A]"
+                        >
+                          {d}
+                          <button
+                            aria-label={`Remove ${d}`}
+                            className="text-gray-400 hover:text-red-500"
+                            type="button"
+                            onClick={() => removeSpecificDate(d)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {specificDates.length === 0 && (
+                    <p className="mt-1 text-[12px] text-red-500">Add at least one date.</p>
+                  )}
+                  <p className="mt-1.5 text-[12px] text-gray-500">
+                    This series blocks exactly the dates you add here — nothing is generated automatically and no
+                    pattern repeats. Add every date individually, within the Start/End range above.
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -405,51 +679,6 @@ const NewSeriesModal = ({
               <p className="-mt-2 text-[12px] text-gray-400">Times are restricted to this centre&apos;s slot grid.</p>
               {startTimeLocal >= endTimeLocal && (
                 <p className="text-[12px] text-red-500">Start time must be before end time.</p>
-              )}
-
-              <div>
-                <label className={labelCls} htmlFor="ns-end-type">
-                  Ends
-                </label>
-                <select
-                  className={inputCls}
-                  id="ns-end-type"
-                  value={endType}
-                  onChange={e => setEndType(e.target.value as SeriesEndType)}
-                >
-                  <option value="after_count">After a number of occurrences</option>
-                  <option value="on_date">On a specific date</option>
-                  <option value="never">Never</option>
-                </select>
-              </div>
-              {endType === 'after_count' && (
-                <div>
-                  <label className={labelCls} htmlFor="ns-count">
-                    Number of weeks
-                  </label>
-                  <input
-                    className={inputCls}
-                    id="ns-count"
-                    min={1}
-                    type="number"
-                    value={occurrenceCount}
-                    onChange={e => setOccurrenceCount(Math.max(1, Number(e.target.value) || 1))}
-                  />
-                </div>
-              )}
-              {endType === 'on_date' && (
-                <div>
-                  <label className={labelCls} htmlFor="ns-end-date">
-                    End date
-                  </label>
-                  <input
-                    className={inputCls}
-                    id="ns-end-date"
-                    type="date"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                  />
-                </div>
               )}
 
               <div>

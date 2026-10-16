@@ -2,6 +2,7 @@
 // names/shapes in sync with that file.
 
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+export type RecurrenceType = 'weekly' | 'monthly' | 'specific_dates';
 export type SeriesEndType = 'never' | 'on_date' | 'after_count';
 export type OccurrenceConflictType = 'none' | 'member' | 'coach' | 'already_blocked' | 'not_yet_created';
 export type ConflictDecision = 'keep' | 'cancel';
@@ -18,14 +19,17 @@ export type OccurrenceOutcome =
 export interface SeriesCoreFields {
   facilityCode: string;
   laneCode: string;
-  daysOfWeek: DayOfWeek[];
+  recurrenceType: RecurrenceType;
+  daysOfWeek: DayOfWeek[]; // required (min 1) when recurrenceType='weekly', else []
+  monthlyEndDay?: number; // 1-31 — only for recurrenceType='monthly': the LAST day of the recurring range, paired with startDate's own day as the range's first day
+  specificDates: string[]; // YYYY-MM-DD — required (min 1) when recurrenceType='specific_dates', else []
   startTimeLocal: string; // HH:MM
   endTimeLocal: string; // HH:MM
   timezone: string; // IANA
-  startDate: string; // YYYY-MM-DD
-  endType: SeriesEndType;
-  endDate?: string; // required when endType='on_date'
-  occurrenceCount?: number; // required when endType='after_count'
+  startDate: string; // YYYY-MM-DD — first occurrence (weekly/monthly), or the lower bound of specificDates' range
+  endType?: SeriesEndType; // required when recurrenceType='weekly'; omitted when recurrenceType='specific_dates'
+  endDate?: string; // required when endType='on_date', OR when recurrenceType='specific_dates' (upper bound of the range)
+  occurrenceCount?: number; // required when endType='after_count'; not applicable to recurrenceType='specific_dates'
   reason: string;
 }
 
@@ -127,7 +131,10 @@ export interface EditSeriesRequest {
   occurrenceDate?: string; // required for 'this_one' and 'this_and_following'
   expectedEtag?: string; // required for 'this_and_following' and 'all'
   idempotencyKey?: string; // required for 'this_and_following'
+  recurrenceType?: RecurrenceType;
   daysOfWeek?: DayOfWeek[];
+  monthlyEndDay?: number;
+  specificDates?: string[];
   startTimeLocal?: string;
   endTimeLocal?: string;
   timezone?: string;

@@ -571,13 +571,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
             )}
           </div>
         ) : !currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'disabled' ? (
-          <div
-            className="relative h-full w-full rounded-md bg-cover bg-center opacity-80"
-            style={{ backgroundImage: "url('/assets/svg/slot_bg.svg')" }}
-          >
-            {currentSlot?.source === 'series' && (
+          currentSlot?.source === 'series' ? (
+            <div
+              className="relative flex h-full w-full items-center justify-center rounded-md bg-purple-100 px-3 py-1"
+              title={currentSlot.disableReason || 'Blocked by a recurring series'}
+            >
               <span
-                className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#21295A] text-white opacity-100"
+                className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#21295A] text-white"
                 title="Blocked by a recurring series"
               >
                 <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -589,8 +589,21 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
                   />
                 </svg>
               </span>
-            )}
-          </div>
+              <span
+                className={composeClasses(
+                  'line-clamp-2 text-center font-medium text-purple-900',
+                  isMobile ? 'text-[9px]' : 'text-[11px]'
+                )}
+              >
+                {currentSlot.disableReason || 'Recurring block'}
+              </span>
+            </div>
+          ) : (
+            <div
+              className="relative h-full w-full rounded-md bg-cover bg-center opacity-80"
+              style={{ backgroundImage: "url('/assets/svg/slot_bg.svg')" }}
+            />
+          )
         ) : (
           <div className={composeClasses('h-full w-full rounded-sm', zebraBg)} />
         )}
