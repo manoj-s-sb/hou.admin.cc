@@ -8,7 +8,15 @@ const endpoints = {
     list: `${API_PREFIX}/admin/slots/calendar`,
     updateLaneStatus: `${API_PREFIX}/admin/slots/status/update`,
     coachSlots: `${API_PREFIX}/admin/coach/calendar`,
+    // Bulk status (+ optional supportedSessionTypes) update over an arbitrary
+    // admin-picked list of coach slot codes — see CoachScheduleGrid's
+    // click/drag multi-select. No day-of-week/day-of-month pattern involved.
     updateCoachSlots: `${API_PREFIX}/admin/coach/status/update`,
+    // Fills in missing coachslot inventory for a coach over a plain date
+    // range when CenturyBackend hasn't pre-created that far out yet. Separate
+    // from updateCoachSlots: this creates new disabled/unavailable slots,
+    // it never sets availability itself.
+    generateCoachSlots: `${API_PREFIX}/admin/coach/slots/generate`,
     // "Book for someone" — admin books a lane slot for a walk-in/phone caller.
     createBooking: `${API_PREFIX}/admin/bookings/create`,
     // "Shift Lane" — moves an existing booking to another lane's slot at the same time.

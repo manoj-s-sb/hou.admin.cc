@@ -35,6 +35,7 @@ const CENTRE_ONLY_MODULES = new Set([
   'tour',
   'waitlistleads',
   'coachschedule',
+  'staffschedule',
   'facilities',
   'planspricing',
 ]);

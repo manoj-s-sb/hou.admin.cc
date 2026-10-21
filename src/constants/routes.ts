@@ -12,6 +12,7 @@ export const ROUTES = {
   TOUR: { path: '/tour', label: 'Tour Details' },
   SLOT_BOOKINGS: { path: '/slot-bookings', label: 'Slot Bookings' },
   COACH_SCHEDULE: { path: '/coach-schedule', label: 'Coach Schedule' },
+  STAFF_SCHEDULE: { path: '/staff-schedule', label: 'Staff Schedule' },
   MAINTENANCE: { path: '/maintenance', label: 'Maintenance' },
   TAILGATE: { path: '/tailgate', label: 'Tailgate' },
   STAFF_MANAGEMENT: { path: '/staff-management', label: 'Staff Management' },

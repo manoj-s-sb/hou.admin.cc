@@ -8,6 +8,7 @@ import Members from '../members';
 // re-enable both together once a real spec exists.
 // import Notifications from '../notifications';
 import SlotBookings from '../slots';
+import StaffSchedule from '../staffSchedule';
 import Tailgate from '../tailgate';
 import Tickets from '../tickets';
 import Tours from '../tours';
@@ -168,6 +169,24 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         slug: 'coach-schedule',
         component: CoachSchedule,
         scope: ACCESS_SCOPES.coaches,
+        icon: I(
+          <>
+            <rect height="18" rx="2" width="18" x="3" y="4" />
+            <line x1="16" x2="16" y1="2" y2="6" />
+            <line x1="8" x2="8" y1="2" y2="6" />
+            <line x1="3" x2="21" y1="10" y2="10" />
+            <path d="M8 14l2 2 4-4" />
+          </>
+        ),
+      },
+      {
+        // Right after Coach Schedule, same visibility pattern — same
+        // generate-slots/mark-available mechanism, scoped to staff personnel.
+        key: 'staffSchedule',
+        label: 'Staff Schedule',
+        slug: 'staff-schedule',
+        component: StaffSchedule,
+        scope: ACCESS_SCOPES.staffSchedule,
         icon: I(
           <>
             <rect height="18" rx="2" width="18" x="3" y="4" />

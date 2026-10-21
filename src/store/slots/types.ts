@@ -186,6 +186,16 @@ export interface CoachSlot {
   memberName?: string;
   memberEmail?: string;
   memberPhone?: string;
+  // Set when this slot was disabled with a reason (e.g. 'Holiday' from the
+  // day-off quick action) — lets the grid label it differently from a plain
+  // not-yet-opened-up unavailable slot.
+  disableReason?: string;
+  // CenturyBackend pre-creates every coachslot doc with this already set (e.g.
+  // ['regular','induction'] or ['regular','induction','tour']) — this app never
+  // creates a coachslot, only reads/bulk-edits this field. Defaults effectively
+  // to ['regular'] server-side when absent on an old/malformed doc.
+  supportedSessionTypes?: string[];
+  duration?: number;
 }
 
 export interface Availability {
