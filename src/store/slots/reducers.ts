@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { cancelBooking, coachSlots, createBooking, editBooking, getSlots, updateLaneStatus } from './api';
+import { cancelBooking, coachSlots, createBooking, editBooking, getSlots, staffSlots, updateLaneStatus } from './api';
 import { initialState } from './types';
 
 const slotsSlice = createSlice({
@@ -84,6 +84,19 @@ const slotsSlice = createSlice({
       state.isLoading = false;
       state.error = (action.payload as string) ?? null;
       state.coachSlotsList = null;
+    });
+    builder.addCase(staffSlots.pending, state => {
+      state.isStaffLoading = true;
+      state.error = null;
+    });
+    builder.addCase(staffSlots.fulfilled, (state, action) => {
+      state.isStaffLoading = false;
+      state.staffSlotsList = action.payload ? [action.payload] : null;
+    });
+    builder.addCase(staffSlots.rejected, (state, action) => {
+      state.isStaffLoading = false;
+      state.error = (action.payload as string) ?? null;
+      state.staffSlotsList = null;
     });
   },
 });

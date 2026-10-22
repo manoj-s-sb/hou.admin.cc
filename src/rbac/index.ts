@@ -8,6 +8,7 @@ export {
   canRead,
   canWrite,
   getRole,
+  getSelfOnlyPersonnelRole,
   hasPermission,
   isGlobalScope,
   isSuperAdmin,

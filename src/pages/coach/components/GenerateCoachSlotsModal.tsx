@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 
-import { generateCoachSlots } from '../../../store/slots/api';
+import { generateCoachSlots, generateStaffSlots } from '../../../store/slots/api';
 import { AppDispatch } from '../../../store/store';
 
 interface GenerateCoachSlotsModalProps {
@@ -12,23 +12,20 @@ interface GenerateCoachSlotsModalProps {
   dispatch: AppDispatch;
   onApplied: () => void;
   onClose: () => void;
-  /** Defaults to 'coach'. 'staff' only swaps the wording here — the actual
-   * generate action is provided via onMockGenerate below (no real staff
-   * backend exists yet; this is a frontend-only preview). */
+  /** Defaults to 'coach'. Also picks which backend action to dispatch —
+   * generateCoachSlots (admin/coach/slots/generate) for 'coach',
+   * generateStaffSlots (admin/staff/slots/generate) for 'staff'. */
   personnelType?: 'coach' | 'staff';
-  /** When provided (Staff Schedule's mock mode), used INSTEAD of dispatching
-   * generateCoachSlots — simulates a created/skipped count locally with no
-   * network call. */
-  onMockGenerate?: (startDate: string, endDate: string) => { createdCount: number; skippedCount: number };
 }
 
 /**
- * Fills in missing coachslot inventory for this coach over a plain,
- * contiguous calendar-date range — separate from the grid's click/drag
- * Available/Unavailable + Induction editor, which only works on slots that
- * already exist. CenturyBackend normally pre-creates coachslot documents on
- * its own schedule; this is only for when the admin needs to set
- * availability further out than that schedule has reached yet.
+ * Fills in missing coachslot-shaped inventory for this coach or staff member
+ * over a plain, contiguous calendar-date range — separate from the grid's
+ * click/drag Available/Unavailable + Induction editor, which only works on
+ * slots that already exist. CenturyBackend normally pre-creates coachslot
+ * documents on its own schedule for coaches; this is for when the admin
+ * needs to set availability further out than that schedule has reached yet,
+ * or (for a brand-new staff member) when no slots exist at all yet.
  */
 const GenerateCoachSlotsModal: React.FC<GenerateCoachSlotsModalProps> = ({
   coachCode,
@@ -38,12 +35,12 @@ const GenerateCoachSlotsModal: React.FC<GenerateCoachSlotsModalProps> = ({
   onApplied,
   onClose,
   personnelType = 'coach',
-  onMockGenerate,
 }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const personnelLabel = personnelType === 'staff' ? 'staff member' : 'coach';
+  const generateAction = personnelType === 'staff' ? generateStaffSlots : generateCoachSlots;
 
   const handleGenerate = async () => {
     if (!startDate || !endDate) {
@@ -57,19 +54,8 @@ const GenerateCoachSlotsModal: React.FC<GenerateCoachSlotsModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      if (onMockGenerate) {
-        const data = onMockGenerate(startDate, endDate);
-        toast.success(
-          `Created ${data.createdCount} new slot${data.createdCount === 1 ? '' : 's'} for ${startDate} – ${endDate}${
-            data.skippedCount > 0 ? ` (${data.skippedCount} already existed)` : ''
-          }`
-        );
-        onApplied();
-        onClose();
-        return;
-      }
-      const resultAction = await dispatch(generateCoachSlots({ facilityCode, coachCode, startDate, endDate }));
-      if (generateCoachSlots.fulfilled.match(resultAction)) {
+      const resultAction = await dispatch(generateAction({ facilityCode, coachCode, startDate, endDate }));
+      if (generateAction.fulfilled.match(resultAction)) {
         const data = resultAction.payload;
         toast.success(
           `Created ${data.createdCount} new slot${data.createdCount === 1 ? '' : 's'} for ${startDate} – ${endDate}${

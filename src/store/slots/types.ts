@@ -230,6 +230,11 @@ export interface SlotsInitialState {
   slots: GetSlotsResponse | null;
   isBlockLaneLoading: boolean;
   coachSlotsList: CoachSlotsResponse[] | null;
+  // Kept separate from coachSlotsList (never reused) so navigating between
+  // the Team Schedule page's Coach and Staff tabs can never show one tab's
+  // stale data (or loading state) under the other's selection.
+  isStaffLoading: boolean;
+  staffSlotsList: CoachSlotsResponse[] | null;
 }
 
 export const initialState: SlotsInitialState = {
@@ -238,4 +243,6 @@ export const initialState: SlotsInitialState = {
   slots: null,
   isBlockLaneLoading: false,
   coachSlotsList: null,
+  isStaffLoading: false,
+  staffSlotsList: null,
 };

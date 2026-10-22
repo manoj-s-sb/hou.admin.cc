@@ -5,7 +5,7 @@ import { useDispatch } from 'react-redux';
 
 import LoaderComponent, { LoaderSpinner } from '../../../components/Loader';
 import { useScopedFacilityCode } from '../../../hooks/useScopedFacilityCode';
-import { updateCoachSlots } from '../../../store/slots/api';
+import { updateCoachSlots, updateStaffSlots } from '../../../store/slots/api';
 import { CoachSlotsResponse, Coach, CoachSlot } from '../../../store/slots/types';
 import { AppDispatch } from '../../../store/store';
 import { getTodayDateInChicago } from '../../../utils/dateUtils';
@@ -407,6 +407,12 @@ const CoachScheduleGrid: React.FC<{
   // Refetching the displayed range after every successful mutation keeps the
   // cache (and therefore every coach's data, not just the one being edited)
   // actually current — same pattern already used after slot generation.
+  // Edit access is gated by a different permission depending on personnel
+  // type ('coachschedule' vs 'staffschedule') — the backend route differs
+  // accordingly, even though the request/response shape and behavior are
+  // identical either way.
+  const updateSlotsAction = personnelType === 'staff' ? updateStaffSlots : updateCoachSlots;
+
   const refreshDisplayedRange = () => {
     if (displayedDates.length > 0) {
       onDateRangeChange(displayedDates[0].dateString, displayedDates[displayedDates.length - 1].dateString);
@@ -417,31 +423,14 @@ const CoachScheduleGrid: React.FC<{
     if (!selectedSlot) return;
     setIsUpdating(true);
     try {
-      // Staff Schedule is a frontend-only preview right now (no real staff
-      // backend exists yet) — apply the change to local state directly
-      // instead of calling the coach-only backend route with a fake slot code.
-      if (personnelType === 'staff') {
-        setAvailability(prev => ({ ...prev, [selectedSlot.coachSlotCode]: isAvailable }));
-        if (isAvailable) {
-          setHolidaySlotCodes(prev => {
-            const next = new Set(prev);
-            next.delete(selectedSlot.coachSlotCode);
-            return next;
-          });
-        }
-        toast.success(`Slot marked as ${isAvailable ? 'available' : 'unavailable'}`);
-        setShowModal(false);
-        setSelectedSlot(null);
-        return;
-      }
       const resultAction = await dispatch(
-        updateCoachSlots({
+        updateSlotsAction({
           slotCodes: [selectedSlot.coachSlotCode],
           action: isAvailable ? 'available' : 'disable',
           reason: '',
         })
       );
-      if (updateCoachSlots.fulfilled.match(resultAction)) {
+      if (updateSlotsAction.fulfilled.match(resultAction)) {
         setAvailability(prev => ({ ...prev, [selectedSlot.coachSlotCode]: isAvailable }));
         if (isAvailable) {
           setHolidaySlotCodes(prev => {
@@ -468,35 +457,14 @@ const CoachScheduleGrid: React.FC<{
     if (selectedSlots.size === 0) return;
     setIsUpdating(true);
     try {
-      if (personnelType === 'staff') {
-        const updates: SlotAvailability = {};
-        selectedSlots.forEach(code => {
-          updates[code] = isAvailable;
-        });
-        setAvailability(prev => ({ ...prev, ...updates }));
-        if (isAvailable) {
-          setHolidaySlotCodes(prev => {
-            const next = new Set(prev);
-            selectedSlots.forEach(code => next.delete(code));
-            return next;
-          });
-        }
-        toast.success(`${selectedSlots.size} slot(s) marked as ${isAvailable ? 'available' : 'unavailable'}`);
-        const emptySet = new Set<string>();
-        setSelectedSlots(emptySet);
-        selectedSlotsRef.current = emptySet;
-        setSelectionTypeRestriction(null);
-        setSelectionMode(false);
-        return;
-      }
       const resultAction = await dispatch(
-        updateCoachSlots({
+        updateSlotsAction({
           slotCodes: Array.from(selectedSlots),
           action: isAvailable ? 'available' : 'disable',
           reason: '',
         })
       );
-      if (updateCoachSlots.fulfilled.match(resultAction)) {
+      if (updateSlotsAction.fulfilled.match(resultAction)) {
         const updates: SlotAvailability = {};
         selectedSlots.forEach(code => {
           updates[code] = isAvailable;
@@ -531,28 +499,14 @@ const CoachScheduleGrid: React.FC<{
     if (codes.length === 0) return;
     setIsUpdating(true);
     try {
-      if (personnelType === 'staff') {
-        const updates: SlotAvailability = {};
-        codes.forEach(code => {
-          updates[code] = false;
-        });
-        setAvailability(prev => ({ ...prev, ...updates }));
-        setHolidaySlotCodes(prev => {
-          const next = new Set(prev);
-          codes.forEach(code => next.add(code));
-          return next;
-        });
-        toast.success(`${date.weekday} ${date.day} marked off — booked slots were left untouched`);
-        return;
-      }
       const resultAction = await dispatch(
-        updateCoachSlots({
+        updateSlotsAction({
           slotCodes: codes,
           action: 'disable',
           reason: 'Holiday',
         })
       );
-      if (updateCoachSlots.fulfilled.match(resultAction)) {
+      if (updateSlotsAction.fulfilled.match(resultAction)) {
         const updates: SlotAvailability = {};
         codes.forEach(code => {
           updates[code] = false;
@@ -900,17 +854,6 @@ const CoachScheduleGrid: React.FC<{
             }
           }}
           onClose={() => setShowGenerateModal(false)}
-          onMockGenerate={
-            personnelType === 'staff'
-              ? (start, end) => {
-                  const days =
-                    Math.round(
-                      (new Date(`${end}T00:00:00Z`).getTime() - new Date(`${start}T00:00:00Z`).getTime()) / 86400000
-                    ) + 1;
-                  return { createdCount: Math.max(days, 0) * 32, skippedCount: 0 };
-                }
-              : undefined
-          }
         />
       )}
 

@@ -17,6 +17,16 @@ const endpoints = {
     // from updateCoachSlots: this creates new disabled/unavailable slots,
     // it never sets availability itself.
     generateCoachSlots: `${API_PREFIX}/admin/coach/slots/generate`,
+    // Staff Schedule's equivalents of the two above — same mechanism, same
+    // coachslot-shaped documents, just over the facility's staff roster
+    // instead of its coaches.
+    staffSlots: `${API_PREFIX}/admin/staff/calendar`,
+    generateStaffSlots: `${API_PREFIX}/admin/staff/slots/generate`,
+    // Same request/response shape and service method as updateCoachSlots —
+    // a separate route purely so edit access is gated by the 'staffschedule'
+    // permission instead of 'coachschedule' (otherwise someone granted only
+    // Staff Schedule access could view but never edit the staff calendar).
+    updateStaffSlots: `${API_PREFIX}/admin/staff/slots/status/update`,
     // "Book for someone" — admin books a lane slot for a walk-in/phone caller.
     createBooking: `${API_PREFIX}/admin/bookings/create`,
     // "Shift Lane" — moves an existing booking to another lane's slot at the same time.

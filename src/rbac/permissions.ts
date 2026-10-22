@@ -34,6 +34,23 @@ export const isSuperAdmin = (): boolean => {
 /** Spec alias — `isSuperadmin()` (lowercase). Same check as `isSuperAdmin()`. */
 export const isSuperadmin = isSuperAdmin;
 
+// Mirrors slots/api/slot_routes.py's _ADMIN_TIER_ROLES exactly — any of these
+// on a login grants the full admin-operated Team Schedule view even if
+// 'coach'/'staff' is ALSO present. This frontend check only decides what the
+// UI shows; the real security boundary is the matching server-side check.
+const ADMIN_TIER_ROLES = new Set(['superadmin', 'admin', 'countrymanager', 'regionalmanager']);
+
+/** 'coach'/'staff' when this login should be locked to just their own Team
+ * Schedule calendar (that role present, no admin-tier role alongside it);
+ * null when the caller gets the full, unrestricted Coach/Staff tab view. */
+export const getSelfOnlyPersonnelRole = (): 'coach' | 'staff' | null => {
+  const userTypes = (store.getState().auth.user?.userType ?? []).map(t => t.toLowerCase());
+  if (userTypes.some(t => ADMIN_TIER_ROLES.has(t))) return null;
+  if (userTypes.includes('coach')) return 'coach';
+  if (userTypes.includes('staff')) return 'staff';
+  return null;
+};
+
 const toList = (key: ModuleKey): readonly string[] => (Array.isArray(key) ? key : [key as string]);
 
 export const hasPermission = (modules: ModuleKey | undefined, action: PermissionAction): boolean => {

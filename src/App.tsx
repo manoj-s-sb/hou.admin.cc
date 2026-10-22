@@ -27,8 +27,7 @@ const Tours = lazy(() => import('./pages/tours'));
 const Members = lazy(() => import('./pages/members'));
 const ViewMembers = lazy(() => import('./pages/members/viewMembers'));
 const SlotBookings = lazy(() => import('./pages/slots'));
-const CoachSchedule = lazy(() => import('./pages/coach'));
-const StaffSchedule = lazy(() => import('./pages/staffSchedule'));
+const TeamSchedule = lazy(() => import('./pages/teamSchedule'));
 const Tailgate = lazy(() => import('./pages/tailgate'));
 const StaffManagement = lazy(() => import('./pages/staff'));
 const AddStaffMember = lazy(() => import('./pages/staff/AddStaffMember'));
@@ -164,19 +163,11 @@ const AppRoutes: React.FC = () => {
           />
           <Route
             element={
-              <PermissionRoute module={ACCESS_SCOPES.coaches}>
-                <CoachSchedule />
+              <PermissionRoute module={ACCESS_SCOPES.teamSchedule}>
+                <TeamSchedule />
               </PermissionRoute>
             }
-            path={ROUTES.COACH_SCHEDULE.path}
-          />
-          <Route
-            element={
-              <PermissionRoute module={ACCESS_SCOPES.staffSchedule}>
-                <StaffSchedule />
-              </PermissionRoute>
-            }
-            path={ROUTES.STAFF_SCHEDULE.path}
+            path={ROUTES.TEAM_SCHEDULE.path}
           />
           <Route
             element={

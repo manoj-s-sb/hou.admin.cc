@@ -1,15 +1,14 @@
 import React, { lazy } from 'react';
 
 import { ACCESS_SCOPES } from '../../rbac/constants';
-import CoachSchedule from '../coach';
 import Induction from '../induction';
 import Members from '../members';
 // Notifications: import kept alongside its commented-out module entry below —
 // re-enable both together once a real spec exists.
 // import Notifications from '../notifications';
 import SlotBookings from '../slots';
-import StaffSchedule from '../staffSchedule';
 import Tailgate from '../tailgate';
+import TeamSchedule from '../teamSchedule';
 import Tickets from '../tickets';
 import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
@@ -164,29 +163,14 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
       },
       {
         // Not shown in the mockup — kept here (appended) so it isn't removed.
-        key: 'coach',
-        label: 'Coach Schedule',
-        slug: 'coach-schedule',
-        component: CoachSchedule,
-        scope: ACCESS_SCOPES.coaches,
-        icon: I(
-          <>
-            <rect height="18" rx="2" width="18" x="3" y="4" />
-            <line x1="16" x2="16" y1="2" y2="6" />
-            <line x1="8" x2="8" y1="2" y2="6" />
-            <line x1="3" x2="21" y1="10" y2="10" />
-            <path d="M8 14l2 2 4-4" />
-          </>
-        ),
-      },
-      {
-        // Right after Coach Schedule, same visibility pattern — same
-        // generate-slots/mark-available mechanism, scoped to staff personnel.
-        key: 'staffSchedule',
-        label: 'Staff Schedule',
-        slug: 'staff-schedule',
-        component: StaffSchedule,
-        scope: ACCESS_SCOPES.staffSchedule,
+        // Merges the former separate Coach Schedule / Staff Schedule entries
+        // into one nav item with a Coach/Staff tab toggle inside — the grids
+        // themselves are unchanged, only the navigation was consolidated.
+        key: 'teamSchedule',
+        label: 'Team Schedule',
+        slug: 'team-schedule',
+        component: TeamSchedule,
+        scope: ACCESS_SCOPES.teamSchedule,
         icon: I(
           <>
             <rect height="18" rx="2" width="18" x="3" y="4" />

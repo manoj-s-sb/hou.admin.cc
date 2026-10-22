@@ -107,6 +107,39 @@ export const updateCoachSlots = createAsyncThunk(
   }
 );
 
+/** Same request/response shape and behavior as updateCoachSlots — a separate
+ * thunk/route purely so edit access is gated by the 'staffschedule'
+ * permission instead of 'coachschedule'. */
+export const updateStaffSlots = createAsyncThunk(
+  'slots/updateStaffSlots',
+  async (
+    {
+      slotCodes,
+      action,
+      reason,
+      includeInduction,
+    }: {
+      slotCodes: string[];
+      action: string;
+      reason: string;
+      includeInduction?: boolean;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.post(endpoints.slots.updateStaffSlots, {
+        slotCodes,
+        action,
+        reason,
+        includeInduction,
+      });
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to update staff slots'));
+    }
+  }
+);
+
 /** Fills in missing coachslot inventory for a coach over a plain contiguous
  * date range (no day-of-week/day-of-month pattern) — for when CenturyBackend
  * hasn't pre-created slots that far out yet. New slots default to
@@ -137,6 +170,55 @@ export const generateCoachSlots = createAsyncThunk(
       return response.data?.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to generate coach slots'));
+    }
+  }
+);
+
+/** Staff Schedule's equivalent of coachSlots — same mechanism, same
+ * coachslot-shaped documents, just over the facility's staff roster. */
+export const staffSlots = createAsyncThunk(
+  'slots/staffSlots',
+  async ({ startDate, endDate, facilityCode }: CoachSlotsRequest, { rejectWithValue }) => {
+    try {
+      const response = await api.post(endpoints.slots.staffSlots, { startDate, endDate, facilityCode });
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to fetch staff slots'));
+    }
+  }
+);
+
+/** Staff Schedule's equivalent of generateCoachSlots — same mechanism, for a
+ * staff member's own code instead of a coach's. A brand-new staff member has
+ * no existing slots to template from; the backend falls back to a sensible
+ * default (45-min cadence, induction/tour, the facility's own timezone)
+ * rather than erroring the way generateCoachSlots still does. */
+export const generateStaffSlots = createAsyncThunk(
+  'slots/generateStaffSlots',
+  async (
+    {
+      facilityCode,
+      coachCode,
+      startDate,
+      endDate,
+    }: {
+      facilityCode: string;
+      coachCode: string;
+      startDate: string;
+      endDate: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.post(endpoints.slots.generateStaffSlots, {
+        facilityCode,
+        coachCode,
+        startDate,
+        endDate,
+      });
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to generate staff slots'));
     }
   }
 );

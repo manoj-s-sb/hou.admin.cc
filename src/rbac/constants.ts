@@ -55,6 +55,10 @@ export const ACCESS_SCOPES = {
   slots: [MODULES.SLOT_BOOKING],
   coaches: [MODULES.COACH_SCHEDULE],
   staffSchedule: [MODULES.STAFF_SCHEDULE],
+  // Team Schedule merges the Coach Schedule and Staff Schedule nav entries —
+  // granted by either underlying module so existing permission grants for
+  // either one still work unchanged.
+  teamSchedule: [MODULES.COACH_SCHEDULE, MODULES.STAFF_SCHEDULE],
   reports: [MODULES.REPORTS],
   induction: [MODULES.INDUCTION],
   tour: [MODULES.TOUR],
