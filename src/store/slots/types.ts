@@ -145,6 +145,9 @@ export interface CancelledBooking {
   refundAmount: number;
   slotCode?: string;
   notified: boolean;
+  /** False means the booking was cancelled/refunded but the lane slot itself
+   * could not be freed — it may still show as booked on the calendar. */
+  slotReleased: boolean;
 }
 
 export interface FailedCancellation {
@@ -186,10 +189,13 @@ export interface CoachSlot {
   memberName?: string;
   memberEmail?: string;
   memberPhone?: string;
-  // Set when this slot was disabled with a reason (e.g. 'Holiday' from the
-  // day-off quick action) — lets the grid label it differently from a plain
-  // not-yet-opened-up unavailable slot.
+  // Free-text reason the slot was disabled (e.g. 'Sick leave') — shown in the
+  // slot's own detail modal, NOT used to detect Holiday (see isHoliday).
   disableReason?: string;
+  // True only when this slot was disabled via the whole-day-off quick action.
+  // The grid always labels such slots 'Holiday' regardless of disableReason's
+  // text. Never set by an ordinary single-cell Mark Unavailable.
+  isHoliday?: boolean;
   // CenturyBackend pre-creates every coachslot doc with this already set (e.g.
   // ['regular','induction'] or ['regular','induction','tour']) — this app never
   // creates a coachslot, only reads/bulk-edits this field. Defaults effectively

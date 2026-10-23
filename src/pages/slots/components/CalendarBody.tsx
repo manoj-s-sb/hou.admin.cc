@@ -247,7 +247,17 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
         return;
       }
       await dispatch(getSlots({ date, facilityCode }));
-      toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+      const cancelled = response?.cancelled?.[0];
+      if (cancelled && cancelled.slotReleased === false) {
+        toast.error(
+          'Booking cancelled and refunded, but the slot could not be freed — it may still show as booked. Please refresh and retry.',
+          {
+            duration: 7000,
+          }
+        );
+      } else {
+        toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+      }
       setSelectedSlot(null);
     } catch (error) {
       toast.error((error as Error)?.message || 'Failed to cancel booking.', { duration: 5000 });
@@ -265,7 +275,17 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
         return;
       }
       await dispatch(getSlots({ date, facilityCode }));
-      toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+      const cancelled = response?.cancelled?.[0];
+      if (cancelled && cancelled.slotReleased === false) {
+        toast.error(
+          'Booking cancelled and refunded, but the slot could not be freed — it may still show as booked. Please refresh and retry.',
+          {
+            duration: 7000,
+          }
+        );
+      } else {
+        toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+      }
     } catch (error) {
       toast.error((error as Error)?.message || 'Failed to cancel booking.', { duration: 5000 });
     }

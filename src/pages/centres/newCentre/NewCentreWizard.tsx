@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
 import NumberInput from '../../../components/NumberInput';
+import PhoneCodeSearchSelect from '../../../components/PhoneCodeSearchSelect';
 import { createCentre, updateCentre } from '../../../store/centres/api';
 import { getMemberships } from '../../../store/memberships/api';
 import { AppDispatch, RootState } from '../../../store/store';
@@ -906,20 +907,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Phone *</span>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <select
-                      aria-label="Country code"
-                      className="cmx-field"
-                      style={{ flex: '0 0 92px', paddingLeft: 8, paddingRight: 4 }}
+                    <PhoneCodeSearchSelect
                       value={dialCodeOf(s.phone) || COUNTRY_DIAL_CODES[s.country] || ''}
-                      onChange={e => set({ phone: `${e.target.value} ${stripDialCode(s.phone)}`.trim() })}
-                    >
-                      <option value="">Code</option>
-                      {COUNTRIES.map(c => (
-                        <option key={c.code} value={COUNTRY_DIAL_CODES[c.code]}>
-                          {COUNTRY_DIAL_CODES[c.code]} {c.code}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={code => set({ phone: `${code} ${stripDialCode(s.phone)}`.trim() })}
+                    />
                     <input
                       className="cmx-field"
                       inputMode="tel"

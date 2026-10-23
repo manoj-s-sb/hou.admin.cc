@@ -85,11 +85,17 @@ export const updateCoachSlots = createAsyncThunk(
       action,
       reason,
       includeInduction,
+      isHoliday,
     }: {
       slotCodes: string[];
       action: string;
       reason: string;
       includeInduction?: boolean;
+      /** True = the whole-day-off action (Holiday, optional reason above).
+       * False = "Undo day off" — clears the Holiday flag + reason, slot stays
+       * disabled. Omitted = ordinary single/multi-cell disable/enable, never
+       * touches the Holiday flag. */
+      isHoliday?: boolean;
     },
     { rejectWithValue }
   ) => {
@@ -99,6 +105,7 @@ export const updateCoachSlots = createAsyncThunk(
         action,
         reason,
         includeInduction,
+        isHoliday,
       });
       return response.data?.data;
     } catch (error) {
@@ -118,11 +125,13 @@ export const updateStaffSlots = createAsyncThunk(
       action,
       reason,
       includeInduction,
+      isHoliday,
     }: {
       slotCodes: string[];
       action: string;
       reason: string;
       includeInduction?: boolean;
+      isHoliday?: boolean;
     },
     { rejectWithValue }
   ) => {
@@ -132,6 +141,7 @@ export const updateStaffSlots = createAsyncThunk(
         action,
         reason,
         includeInduction,
+        isHoliday,
       });
       return response.data?.data;
     } catch (error) {

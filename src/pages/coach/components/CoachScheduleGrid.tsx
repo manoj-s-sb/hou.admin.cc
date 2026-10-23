@@ -97,6 +97,13 @@ const CoachScheduleGrid: React.FC<{
   }, [selectedSlots]);
 
   const [holidaySlotCodes, setHolidaySlotCodes] = useState<Set<string>>(new Set());
+  // Free-text reason typed in the "Mark day off" prompt, keyed by slot code —
+  // shown only in that slot's own detail modal; the grid cell itself always
+  // just says "Holiday" regardless of this text.
+  const [disableReasonByCode, setDisableReasonByCode] = useState<Record<string, string>>({});
+  const [showDayOffModal, setShowDayOffModal] = useState(false);
+  const [dayOffTargetDate, setDayOffTargetDate] = useState<DateCell | null>(null);
+  const [dayOffReason, setDayOffReason] = useState('');
 
   const currentCoachData: Coach | null = useMemo(
     () => coaches.find(c => c.coachCode === selectedCoachCode) || null,
@@ -107,14 +114,17 @@ const CoachScheduleGrid: React.FC<{
     if (currentCoachData) {
       const initialAvailability: SlotAvailability = {};
       const initialHolidayCodes = new Set<string>();
+      const initialReasons: Record<string, string> = {};
       currentCoachData.availability.forEach(dayAvailability => {
         dayAvailability.slots.forEach(slot => {
           initialAvailability[slot.coachSlotCode] = slot.isAvailable;
-          if (slot.disableReason === 'Holiday') initialHolidayCodes.add(slot.coachSlotCode);
+          if (slot.isHoliday) initialHolidayCodes.add(slot.coachSlotCode);
+          if (slot.disableReason) initialReasons[slot.coachSlotCode] = slot.disableReason;
         });
       });
       setAvailability(initialAvailability);
       setHolidaySlotCodes(initialHolidayCodes);
+      setDisableReasonByCode(initialReasons);
     }
   }, [currentCoachData]);
 
@@ -246,6 +256,24 @@ const CoachScheduleGrid: React.FC<{
     return date.slots.find(s => `${formatTime(s.startTime)} - ${formatTime(s.endTime)}` === timeSlotStr) || null;
   };
 
+  // Once "now" reaches 10 minutes before a slot's own start time, editing it
+  // is refused — but (per explicit user feedback) this is NOT shown as a
+  // distinct visual "Locked" state; the cell looks exactly like any other
+  // Available/Unavailable cell. The refusal only surfaces as a message at the
+  // moment an admin actually tries to act on it (same pattern already used by
+  // the Slot Bookings calendar for a past-start slot — see
+  // CalendarBody.tsx's isSlotStartInThePast/TIME_UP_MESSAGE). The backend
+  // still enforces this as the real boundary regardless of what the UI shows.
+  // Fails open (not locked) on malformed startTime, matching this screen's
+  // general tolerance for bad/legacy data over blocking admins.
+  const isSlotTooCloseToStart = (slot: CoachSlot): boolean => {
+    const startTime = new Date(slot.startTime);
+    if (Number.isNaN(startTime.getTime())) return false;
+    return Date.now() >= startTime.getTime() - 10 * 60 * 1000;
+  };
+
+  const TIME_UP_MESSAGE = "Can't update this slot — its time has already passed.";
+
   const getSlotStatus = (
     dateIndex: number,
     slotIndex: number
@@ -273,6 +301,10 @@ const CoachScheduleGrid: React.FC<{
     const coachSlotCode = slot?.coachSlotCode || `temp-${dateIndex}-${slotIndex}`;
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
     if (slotStatus === 'booked') return;
+    if (slot && isSlotTooCloseToStart(slot)) {
+      toast.error(TIME_UP_MESSAGE);
+      return;
+    }
     if (selectionTypeRestriction && slotStatus !== 'not-set' && slotStatus !== selectionTypeRestriction) return;
     setSelectedSlots(prev => {
       const newSelected = new Set(prev);
@@ -367,6 +399,10 @@ const CoachScheduleGrid: React.FC<{
     const slot = findSlotByIndices(dateIndex, timeSlot);
     const slotStatus = getSlotStatus(dateIndex, slotIndex);
     if (slotStatus === 'booked') return;
+    if (slot && isSlotTooCloseToStart(slot)) {
+      toast.error(TIME_UP_MESSAGE);
+      return;
+    }
     const coachSlotCode = slot?.coachSlotCode || `temp-${dateIndex}-${slotIndex}`;
     setSelectedSlot({
       dateIndex,
@@ -438,6 +474,11 @@ const CoachScheduleGrid: React.FC<{
             next.delete(selectedSlot.coachSlotCode);
             return next;
           });
+          setDisableReasonByCode(prev => {
+            const next = { ...prev };
+            delete next[selectedSlot.coachSlotCode];
+            return next;
+          });
         }
         toast.success(`Slot marked as ${isAvailable ? 'available' : 'unavailable'}`);
         setShowModal(false);
@@ -476,6 +517,11 @@ const CoachScheduleGrid: React.FC<{
             selectedSlots.forEach(code => next.delete(code));
             return next;
           });
+          setDisableReasonByCode(prev => {
+            const next = { ...prev };
+            selectedSlots.forEach(code => delete next[code]);
+            return next;
+          });
         }
         toast.success(`${selectedSlots.size} slot(s) marked as ${isAvailable ? 'available' : 'unavailable'}`);
         const emptySet = new Set<string>();
@@ -494,7 +540,10 @@ const CoachScheduleGrid: React.FC<{
     }
   };
 
-  const markWholeDayOff = async (date: DateCell) => {
+  const markWholeDayOff = async (date: DateCell, reason: string) => {
+    // Slots within 10 minutes of starting (or already started) are skipped
+    // server-side the same way booked slots are — no need to filter them out
+    // here, the response's skip-and-report handles it.
     const codes = date.slots.map(slot => slot.coachSlotCode).filter(Boolean);
     if (codes.length === 0) return;
     setIsUpdating(true);
@@ -503,7 +552,8 @@ const CoachScheduleGrid: React.FC<{
         updateSlotsAction({
           slotCodes: codes,
           action: 'disable',
-          reason: 'Holiday',
+          reason,
+          isHoliday: true,
         })
       );
       if (updateSlotsAction.fulfilled.match(resultAction)) {
@@ -517,13 +567,62 @@ const CoachScheduleGrid: React.FC<{
           codes.forEach(code => next.add(code));
           return next;
         });
-        toast.success(`${date.weekday} ${date.day} marked off — booked slots were left untouched`);
+        setDisableReasonByCode(prev => {
+          const next = { ...prev };
+          codes.forEach(code => {
+            if (reason) next[code] = reason;
+            else delete next[code];
+          });
+          return next;
+        });
+        toast.success(`${date.weekday} ${date.day} marked off — booked/locked slots were left untouched`);
         refreshDisplayedRange();
       } else {
         toast.error('Failed to mark the day off');
       }
     } catch (error) {
       toast.error((error as Error).message || 'Failed to mark the day off');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Clears the Holiday flag + reason on every Holiday-flagged slot for this
+  // date — status stays disabled/unavailable. The admin then reopens specific
+  // times manually via the normal click/drag Mark Available action.
+  const undoDayOff = async (date: DateCell) => {
+    const codes = date.slots
+      .filter(slot => slot.coachSlotCode && holidaySlotCodes.has(slot.coachSlotCode))
+      .map(slot => slot.coachSlotCode);
+    if (codes.length === 0) return;
+    setIsUpdating(true);
+    try {
+      const resultAction = await dispatch(
+        updateSlotsAction({
+          slotCodes: codes,
+          action: 'disable',
+          reason: '',
+          isHoliday: false,
+        })
+      );
+      if (updateSlotsAction.fulfilled.match(resultAction)) {
+        setHolidaySlotCodes(prev => {
+          const next = new Set(prev);
+          codes.forEach(code => next.delete(code));
+          return next;
+        });
+        setDisableReasonByCode(prev => {
+          const next = { ...prev };
+          codes.forEach(code => delete next[code]);
+          return next;
+        });
+        toast.success(`${date.weekday} ${date.day} day off undone — slots remain unavailable`);
+        refreshDisplayedRange();
+      } else {
+        toast.error('Failed to undo the day off');
+      }
+    } catch (error) {
+      toast.error((error as Error).message || 'Failed to undo the day off');
     } finally {
       setIsUpdating(false);
     }
@@ -692,43 +791,63 @@ const CoachScheduleGrid: React.FC<{
   };
 
   // Date column header
-  const renderDateHeader = (date: DateCell, dateIdx: number, isMobile: boolean) => (
-    <div
-      key={dateIdx}
-      className={cx(
-        'flex w-full flex-col items-center justify-center border-b border-r border-gray-200 py-2 text-center',
-        isMobile ? 'min-h-[56px] min-w-[115px]' : 'min-h-[60px] min-w-[140px]',
-        date.isToday ? 'border-l-2 border-l-[#21295A] bg-[#21295A]/5' : 'bg-gray-50'
-      )}
-    >
-      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{date.weekday}</span>
-      <div className="flex items-center gap-1">
-        <span
-          className={cx(
-            'font-bold',
-            isMobile ? 'text-[15px]' : 'text-[17px]',
-            date.isToday ? 'text-[#21295A]' : 'text-gray-700'
-          )}
-        >
-          {date.day}
-        </span>
-        {date.isToday && (
-          <span className="rounded-full bg-[#21295A] px-1.5 py-0.5 text-[8px] font-bold text-white">Today</span>
+  const renderDateHeader = (date: DateCell, dateIdx: number, isMobile: boolean) => {
+    const isDateMarkedOff = date.slots.some(slot => slot.coachSlotCode && holidaySlotCodes.has(slot.coachSlotCode));
+    return (
+      <div
+        key={dateIdx}
+        className={cx(
+          'flex w-full flex-col items-center justify-center border-b border-r border-gray-200 py-2 text-center',
+          isMobile ? 'min-h-[56px] min-w-[115px]' : 'min-h-[60px] min-w-[140px]',
+          date.isToday ? 'border-l-2 border-l-[#21295A] bg-[#21295A]/5' : 'bg-gray-50'
         )}
+      >
+        <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{date.weekday}</span>
+        <div className="flex items-center gap-1">
+          <span
+            className={cx(
+              'font-bold',
+              isMobile ? 'text-[15px]' : 'text-[17px]',
+              date.isToday ? 'text-[#21295A]' : 'text-gray-700'
+            )}
+          >
+            {date.day}
+          </span>
+          {date.isToday && (
+            <span className="rounded-full bg-[#21295A] px-1.5 py-0.5 text-[8px] font-bold text-white">Today</span>
+          )}
+        </div>
+        <span className="text-[9px] text-gray-400">
+          {date.fullDate.toLocaleDateString('en-US', { month: 'short' })}
+        </span>
+        {!selectionMode &&
+          date.slots.length > 0 &&
+          (isDateMarkedOff ? (
+            <button
+              className="mt-1 rounded border border-gray-200 px-1.5 py-0.5 text-[8px] font-semibold text-gray-400 transition hover:border-green-200 hover:bg-green-50 hover:text-green-600"
+              title="Clear the Holiday flag — slots stay unavailable, reopen specific times manually"
+              type="button"
+              onClick={() => undoDayOff(date)}
+            >
+              Undo day off
+            </button>
+          ) : (
+            <button
+              className="mt-1 rounded border border-gray-200 px-1.5 py-0.5 text-[8px] font-semibold text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+              title="Mark this whole day off (holiday) — booked/locked slots stay untouched"
+              type="button"
+              onClick={() => {
+                setDayOffTargetDate(date);
+                setDayOffReason('');
+                setShowDayOffModal(true);
+              }}
+            >
+              Mark day off
+            </button>
+          ))}
       </div>
-      <span className="text-[9px] text-gray-400">{date.fullDate.toLocaleDateString('en-US', { month: 'short' })}</span>
-      {!selectionMode && date.slots.length > 0 && (
-        <button
-          className="mt-1 rounded border border-gray-200 px-1.5 py-0.5 text-[8px] font-semibold text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-500"
-          title="Mark this whole day off (holiday) — booked slots stay untouched"
-          type="button"
-          onClick={() => markWholeDayOff(date)}
-        >
-          Mark day off
-        </button>
-      )}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -749,6 +868,7 @@ const CoachScheduleGrid: React.FC<{
           const currentSlotStatus = getSlotStatus(selectedSlot.dateIndex, selectedSlot.slotIndex);
           const isCurrentlyAvailable = currentSlotStatus === 'available';
           const isCurrentlyUnavailable = currentSlotStatus === 'unavailable';
+          const slotReason = disableReasonByCode[selectedSlot.coachSlotCode];
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
               <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -774,6 +894,11 @@ const CoachScheduleGrid: React.FC<{
                       >
                         {currentSlotStatus === 'available' ? 'Available' : 'Unavailable'}
                       </span>
+                    </p>
+                  )}
+                  {slotReason && (
+                    <p className="mt-1 text-[12px] text-gray-500">
+                      <span className="font-semibold text-gray-700">Reason:</span> {slotReason}
                     </p>
                   )}
                   <div className="mt-4 flex flex-col gap-2">
@@ -808,6 +933,67 @@ const CoachScheduleGrid: React.FC<{
             </div>
           );
         })()}
+
+      {/* Mark day off — optional reason modal */}
+      {showDayOffModal && dayOffTargetDate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <h3 className="text-[15px] font-bold text-[#21295A]">Mark day off</h3>
+              <button
+                className="text-gray-400 hover:text-gray-600"
+                type="button"
+                onClick={() => setShowDayOffModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[12px] text-gray-500">
+                Marking{' '}
+                <span className="font-semibold text-gray-700">
+                  {dayOffTargetDate.weekday} {dayOffTargetDate.day}
+                </span>{' '}
+                off as Holiday. Booked/locked slots will be left untouched.
+              </p>
+              <label className="mt-3 block text-[11px] font-semibold text-gray-600" htmlFor="day-off-reason">
+                Reason (optional)
+              </label>
+              <input
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none transition focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
+                id="day-off-reason"
+                maxLength={200}
+                placeholder="e.g. Sick leave, Festival"
+                type="text"
+                value={dayOffReason}
+                onChange={e => setDayOffReason(e.target.value)}
+              />
+              <div className="mt-4">
+                <button
+                  className="w-full rounded-lg bg-[#21295A] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#2d3570]"
+                  type="button"
+                  onClick={() => {
+                    const target = dayOffTargetDate;
+                    setShowDayOffModal(false);
+                    if (target) markWholeDayOff(target, dayOffReason.trim());
+                  }}
+                >
+                  Mark day off
+                </button>
+              </div>
+            </div>
+            <div className="border-t border-gray-100 px-5 py-3">
+              <button
+                className="w-full rounded-lg border border-gray-200 py-2 text-[12px] font-medium text-gray-500 hover:bg-gray-50"
+                type="button"
+                onClick={() => setShowDayOffModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Coach selector — only shown when a facility has more than one real coach */}
       <div className="flex items-center justify-between gap-2">
