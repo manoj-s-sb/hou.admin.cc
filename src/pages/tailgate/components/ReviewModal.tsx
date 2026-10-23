@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import endpoints from '../../../constants/endpoints';
 import api from '../../../services';
-import { AppDispatch } from '../../../store/store';
+import { getMemberships } from '../../../store/memberships/api';
+import { AppDispatch, RootState } from '../../../store/store';
 import { submitTailgateReview } from '../../../store/tailgate/api';
 import { TailgateLog } from '../../../store/tailgate/types';
 import { getEventDisplayType, getLogDate, getLogStatus, getLogTime } from '../utils';
@@ -20,8 +21,6 @@ interface ReviewModalProps {
 const inputCls =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
 const labelCls = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
-
-const SUBSCRIPTIONS = ['Standard', 'Premium', 'Family', 'Offpeak'];
 
 const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -46,11 +45,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     }
     return '';
   };
-  const initSubscription = (): string => {
-    const s = log.review?.subscription || log.actor?.subscription || '';
-    // Normalise to the dropdown's casing (e.g. "standard" -> "Standard") so it shows selected.
-    return s ? (SUBSCRIPTIONS.find(opt => opt.toLowerCase() === s.toLowerCase()) ?? s) : '';
-  };
+  const initSubscription = (): string => log.review?.subscription || log.actor?.subscription || '';
 
   // The form's default values (from the review, else the detection's actor). Used both to
   // seed the fields and to restore them when the admin clears a searched selection.
@@ -65,6 +60,35 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
   const [memberId, setMemberId] = useState(defaultMemberId);
   const [subscription, setSubscription] = useState(initSubscription());
   const [email, setEmail] = useState(defaultEmail);
+
+  // ── Subscription dropdown — real plan codes from the Membership Plans
+  // catalogue (network-wide, since a member can be reviewed at a door that
+  // isn't their home centre), not a hardcoded guess. ──
+  const plans = useSelector((s: RootState) => s.memberships.plans);
+  // NOTE: the memberships slice's initialState defaults isLoading to `true`
+  // (no fetch has happened yet is indistinguishable from one being in
+  // flight) — so this can't gate the dispatch on "not already loading" or it
+  // would never fire on first mount. Fetch once per mount whenever the
+  // catalogue is still empty; the slice itself dedupes re-fulfilling state.
+  const plansLoading = useSelector((s: RootState) => s.memberships.isLoading);
+  const plansLoadedRef = useRef(false);
+  useEffect(() => {
+    if (plans.length === 0 && !plansLoadedRef.current) {
+      plansLoadedRef.current = true;
+      dispatch(getMemberships(undefined));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const subscriptionOptions = useMemo(() => {
+    const opts = plans.map(p => ({ code: p.code, name: p.name }));
+    // The resolved/saved value may not be in the catalogue (plan since archived,
+    // or a code the catalogue doesn't carry) — keep it selectable rather than
+    // silently dropping it from the list.
+    if (subscription && !opts.some(o => o.code.toLowerCase() === subscription.toLowerCase())) {
+      opts.push({ code: subscription, name: subscription });
+    }
+    return opts;
+  }, [plans, subscription]);
 
   // ── Member search typeahead — type a name/email/id, pick a match, auto-fill. ──
   const [memberQuery, setMemberQuery] = useState('');
@@ -113,8 +137,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
     setEmail(m.email ?? '');
     setMemberId(m.userId ?? '');
     setMemberType('Member');
-    const sub = m.subscription?.subscriptionCode ?? '';
-    setSubscription(sub ? (SUBSCRIPTIONS.find(opt => opt.toLowerCase() === sub.toLowerCase()) ?? sub) : '');
+    setSubscription(m.subscription?.subscriptionCode ?? '');
     setMemberSelected(true);
   };
 
@@ -453,10 +476,10 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
                       value={subscription}
                       onChange={e => setSubscription(e.target.value)}
                     >
-                      <option value="">Select…</option>
-                      {SUBSCRIPTIONS.map(s => (
-                        <option key={s} value={s}>
-                          {s}
+                      <option value="">{plansLoading ? 'Loading…' : 'Select…'}</option>
+                      {subscriptionOptions.map(o => (
+                        <option key={o.code} value={o.code}>
+                          {o.name}
                         </option>
                       ))}
                     </select>

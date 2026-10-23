@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { COUNTRIES, COUNTRY_DIAL_CODES } from '../../centres/constants';
+import PhoneCodeSearchSelect from '../../../components/PhoneCodeSearchSelect';
 import { ConfigOption, OTHER_QUALIFICATION, ProfileFormState } from '../types';
 import { dialCodeOf, getConfigOtherQualificationId, INPUT_CLASS, LABEL_CLASS, stripDialCode } from '../utils';
 
@@ -110,20 +110,12 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
               Phone Number
             </label>
             <div className="flex gap-2">
-              <select
-                aria-label="Country code"
+              <PhoneCodeSearchSelect
                 className={INPUT_CLASS}
-                style={{ flex: '0 0 92px', paddingLeft: 8, paddingRight: 4 }}
                 value={dialCodeOf(profile.phone)}
-                onChange={e => onChange('phone', `${e.target.value} ${stripDialCode(profile.phone)}`.trim())}
-              >
-                <option value="">Code</option>
-                {COUNTRIES.map(c => (
-                  <option key={c.code} value={COUNTRY_DIAL_CODES[c.code]}>
-                    {COUNTRY_DIAL_CODES[c.code]} {c.code}
-                  </option>
-                ))}
-              </select>
+                wrapperStyle={{ flex: '0 0 92px' }}
+                onChange={code => onChange('phone', `${code} ${stripDialCode(profile.phone)}`.trim())}
+              />
               <input
                 className={INPUT_CLASS}
                 id="phone"

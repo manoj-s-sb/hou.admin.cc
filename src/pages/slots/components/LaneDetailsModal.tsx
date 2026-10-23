@@ -21,7 +21,7 @@ interface LaneDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLaneClick: (reason?: string, blockLaneApp?: boolean, blockedByName?: string) => void;
-  onCancelBooking: (slotCode: string, reason: string) => void;
+  onCancelBooking: (slotCode: string, reason: string) => Promise<void>;
   /** Moves a booking in this lane to a different lane's slot at the same
    * time. Leaves the vacated slot merely "available" — this lane is about to
    * be blocked wholesale, so there's no separate slot to block here. */
@@ -115,12 +115,19 @@ const LaneDetailsModal = ({
     setShiftTargetSlotCode('');
   };
 
-  const handleCancelAll = () => {
+  const handleCancelAll = async () => {
     if (
       !window.confirm(`Cancel all ${bookedSlots.length} bookings in this lane? This frees up every slot immediately.`)
     )
       return;
-    bookedSlots.forEach(slot => onCancelBooking(slot.slotCode, cancelReason.trim()));
+    // Sequenced, not fired in parallel — each cancel also refreshes the slot
+    // grid, and concurrent refreshes can resolve out of order and silently
+    // overwrite each other, leaving the grid showing a booking as still
+    // active even though it was actually cancelled.
+    for (const slot of bookedSlots) {
+      // eslint-disable-next-line no-await-in-loop
+      await onCancelBooking(slot.slotCode, cancelReason.trim());
+    }
   };
 
   return (

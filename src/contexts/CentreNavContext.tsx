@@ -9,7 +9,7 @@ export type CentreModuleKey =
   // Operations
   | 'members'
   | 'bookings'
-  | 'coach'
+  | 'teamSchedule'
   | 'induction'
   | 'tours'
   | 'tailgate'

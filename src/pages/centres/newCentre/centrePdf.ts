@@ -54,7 +54,7 @@ export function downloadCentrePdf(s: WizardState, catalogue: PlanMeta[]): boolea
             `<li><strong>${esc(f.name)}</strong> — ${esc(
               f.type === 'gaming'
                 ? `${f.psUnits ?? 0} units · $${f.chargePerHour ?? 0}/hr · ${f.openTime}–${f.closeTime}`
-                : `$${f.fortnightlyPrice}/fn · ${f.slotDuration} · ${f.openTime}–${f.closeTime}`
+                : `$${f.fortnightlyPrice}/slot · ${f.slotDuration} · ${f.openTime}–${f.closeTime}`
             )}</li>`
         )
         .join('')

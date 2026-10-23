@@ -43,6 +43,13 @@ interface SlotDetailsModalProps {
   onClose: () => void;
   onBlockSlot: (reason: string, blockedByName: string) => void;
   onUnblockSlot: () => void;
+  /** Only called for a slot blocked by a recurring series (slot.source==='series') —
+   * these replace the plain Unblock button so a series-blocked slot is never
+   * freed through the one-time path (which wouldn't update skippedDates and
+   * would just get re-blocked next time the extension job runs). */
+  onSkipOccurrence?: () => void;
+  onEditSeries?: () => void;
+  onCancelSeries?: () => void;
   onCancelBooking: (reason: string) => void;
   /** "Book for someone" — an available slot only. */
   onBookForSomeone: (payload: BookForSomeonePayload) => void;
@@ -68,6 +75,9 @@ const SlotDetailsModal = ({
   onClose,
   onBlockSlot,
   onUnblockSlot,
+  onSkipOccurrence,
+  onEditSeries,
+  onCancelSeries,
   onCancelBooking,
   onBookForSomeone,
   onShiftLane,
@@ -322,6 +332,22 @@ const SlotDetailsModal = ({
                       <div className="flex justify-between">
                         <span className="text-[13px] text-gray-600">Blocked By:</span>
                         <span className="text-[13px] font-medium text-red-600">{slot.disabledByName}</span>
+                      </div>
+                    )}
+                    {slot.source === 'series' && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Type:</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#21295A] px-2 py-0.5 text-[11px] font-semibold text-white">
+                          <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114-3.5M19.5 15a8 8 0 01-14 3.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2.5}
+                            />
+                          </svg>
+                          Recurring block{slot.isException ? ' (edited)' : ''}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -851,31 +877,60 @@ const SlotDetailsModal = ({
                   </button>
                 )}
 
-                {isBlocked && (
-                  <button
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                    disabled={isLoading}
-                    onClick={onUnblockSlot}
-                  >
-                    {isLoading ? (
-                      <>
-                        <LoaderSpinner className="text-white" size="sm" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                          />
-                        </svg>
-                        Unblock Slot
-                      </>
-                    )}
-                  </button>
+                {isBlocked && slot.source === 'series' ? (
+                  <div className="flex w-full flex-col gap-2 sm:flex-row">
+                    <button
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-[#21295A]/20 px-3 py-3 text-[13px] font-medium text-[#21295A] transition-all hover:bg-[#21295A]/5 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isLoading}
+                      type="button"
+                      onClick={onSkipOccurrence}
+                    >
+                      Skip this date
+                    </button>
+                    <button
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-[#21295A]/20 px-3 py-3 text-[13px] font-medium text-[#21295A] transition-all hover:bg-[#21295A]/5 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isLoading}
+                      type="button"
+                      onClick={onEditSeries}
+                    >
+                      Edit series…
+                    </button>
+                    <button
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-3 text-[13px] font-medium text-white transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isLoading}
+                      type="button"
+                      onClick={onCancelSeries}
+                    >
+                      Cancel series
+                    </button>
+                  </div>
+                ) : (
+                  isBlocked && (
+                    <button
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#21295A] px-4 py-3 text-[14px] font-medium text-white shadow-lg shadow-[#21295A]/20 transition-all hover:scale-[1.02] hover:bg-[#2d3570] hover:shadow-xl hover:shadow-[#21295A]/30 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                      disabled={isLoading}
+                      onClick={onUnblockSlot}
+                    >
+                      {isLoading ? (
+                        <>
+                          <LoaderSpinner className="text-white" size="sm" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                            />
+                          </svg>
+                          Unblock Slot
+                        </>
+                      )}
+                    </button>
+                  )
                 )}
 
                 {canShiftLane && (
