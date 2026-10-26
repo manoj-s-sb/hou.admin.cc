@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../constants/routes';
-import { isSuperAdmin } from '../../rbac';
+import { ACCESS_SCOPES, canRead } from '../../rbac';
 import { login } from '../../store/auth/api';
 import { AppDispatch, RootState } from '../../store/store';
 
@@ -31,8 +31,10 @@ const Login: React.FC = () => {
     if (isAuthenticated && !redirectedRef.current) {
       redirectedRef.current = true;
       toast.success('Logged in successfully!', { duration: 4000 });
-      // Super admins land on Centre Management; everyone else uses the default landing.
-      const destination = isSuperAdmin() ? ROUTES.CENTRES.path : ROUTES.ROOT.path;
+      // Anyone who can actually view Centre Management lands there — not just
+      // superadmins. Everyone else (no permission to see it at all) uses the
+      // default landing instead.
+      const destination = canRead(ACCESS_SCOPES.centreManagement) ? ROUTES.CENTRES.path : ROUTES.ROOT.path;
       setTimeout(() => navigate(destination), 100);
     }
   }, [isAuthenticated, navigate]);

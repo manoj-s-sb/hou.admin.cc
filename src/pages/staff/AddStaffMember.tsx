@@ -556,9 +556,15 @@ const AddStaffMember: React.FC = () => {
           dateOfBirth: blankToNull(profile.dob),
           gender: blankToNull(profile.gender),
           userType: buildSelectedRoleIds(),
-          // Fall back to the member's own Assigned Centres selection (never the EDITING
-          // admin's facility) on the rare chance the loaded record had no facilityCode.
-          facilityCode: requiresCountry ? null : editFacilityCode || assignedCentres[0] || null,
+          // assignedCentres (live, editable in this form) must win over
+          // editFacilityCode (a one-time snapshot of the record's ORIGINAL
+          // facilityCode, taken when the edit form loaded and never updated
+          // again) — editFacilityCode going first meant changing a staff
+          // member's Assigned Centres never actually moved their facilityCode:
+          // the stale original value always took priority since it's set the
+          // moment the form opens. editFacilityCode now only matters as a
+          // last-resort fallback for the rare case assignedCentres is empty.
+          facilityCode: requiresCountry ? null : assignedCentres[0] || editFacilityCode || null,
           countryCode: requiresCountry ? countryCode : null,
           // Per-module overrides from the grid (only when the feature is active).
           ...(customPermission ? { custompermission: customPermission } : {}),

@@ -38,7 +38,7 @@ export const isSuperadmin = isSuperAdmin;
 // on a login grants the full admin-operated Team Schedule view even if
 // 'coach'/'staff' is ALSO present. This frontend check only decides what the
 // UI shows; the real security boundary is the matching server-side check.
-const ADMIN_TIER_ROLES = new Set(['superadmin', 'admin', 'countrymanager', 'regionalmanager']);
+const ADMIN_TIER_ROLES = new Set(['superadmin', 'admin', 'countrymanager', 'regionalmanager', 'facilityadmin']);
 
 /** 'coach'/'staff' when this login should be locked to just their own Team
  * Schedule calendar (that role present, no admin-tier role alongside it);
