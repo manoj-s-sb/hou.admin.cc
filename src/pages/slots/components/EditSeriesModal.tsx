@@ -11,6 +11,7 @@ import {
   SeriesEndType,
   SeriesWithEtag,
 } from '../../../store/recurringBlocks/types';
+import { handleApiError } from '../../../utils/errorUtils';
 
 const inputCls =
   'w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-2.5 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10';
@@ -161,8 +162,8 @@ const EditSeriesModal = ({ isOpen, seriesId, occurrenceDate, timeSlots, onClose,
 
       const res = await api.post(endpoints.recurringBlocks.edit, payload);
       setResult(res.data?.data as EditSeriesResponse);
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to edit the series.');
+    } catch (e) {
+      setError(handleApiError(e, 'Failed to edit the series.'));
     } finally {
       setLoading(false);
     }
