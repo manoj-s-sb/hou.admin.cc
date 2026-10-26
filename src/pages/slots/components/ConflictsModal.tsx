@@ -4,6 +4,7 @@ import { LoaderSpinner } from '../../../components/Loader';
 import endpoints from '../../../constants/endpoints';
 import api from '../../../services';
 import { ConflictItem } from '../../../store/recurringBlocks/types';
+import { handleApiError } from '../../../utils/errorUtils';
 
 const CONFLICT_BADGE: Record<string, { label: string; cls: string }> = {
   member: { label: 'Member booking', cls: 'bg-red-50 text-red-700 border-red-200' },
@@ -68,8 +69,8 @@ const ConflictsModal = ({ isOpen, facilityCode, onClose, onChanged, onCountChang
       setConflicts(remaining);
       onCountChanged(remaining.length);
       onChanged();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to resolve the conflict.');
+    } catch (e) {
+      setError(handleApiError(e, 'Failed to resolve the conflict.'));
     } finally {
       setResolvingKey(null);
     }

@@ -62,11 +62,19 @@ const printResults = rawJson => {
   return totalErrors > 0 ? 1 : 0;
 };
 
-// Run eslint and capture output
+// Run eslint and capture output.
+//
+// This repo lives nested inside another project's node_modules (a quirk of
+// where it's checked out), and that outer project has its own eslint.config.js
+// up the directory tree. ESLint 8.57+ auto-detects ANY eslint.config.js it
+// finds walking up from cwd and silently switches to flat-config mode, which
+// dropped --ext. ESLINT_USE_FLAT_CONFIG=false forces it back to this repo's
+// real config (.eslintrc.js), regardless of what's above us on disk.
 try {
   const output = execSync(ESLINT_COMMAND, {
     encoding: 'utf8',
     stdio: 'pipe',
+    env: { ...process.env, ESLINT_USE_FLAT_CONFIG: 'false' },
   });
 
   const exitCode = printResults(output);

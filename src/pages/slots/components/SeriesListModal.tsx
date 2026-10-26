@@ -4,6 +4,7 @@ import { LoaderSpinner } from '../../../components/Loader';
 import endpoints from '../../../constants/endpoints';
 import api from '../../../services';
 import { SeriesListItem } from '../../../store/recurringBlocks/types';
+import { handleApiError } from '../../../utils/errorUtils';
 
 const SHORT_DAY: Record<string, string> = {
   monday: 'Mon',
@@ -172,8 +173,8 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
       await unblockOne(item);
       onChanged();
       load();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to unblock the remaining dates.');
+    } catch (e) {
+      setError(handleApiError(e, 'Failed to unblock the remaining dates.'));
     } finally {
       setUnblockingId(null);
     }
@@ -191,8 +192,8 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
     try {
       await cancelOne(item);
       load();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to cancel the series.');
+    } catch (e) {
+      setError(handleApiError(e, 'Failed to cancel the series.'));
     } finally {
       setCancellingId(null);
     }
@@ -216,8 +217,8 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
       }
       onChanged();
       load();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to unblock the remaining dates for every lane.');
+    } catch (e) {
+      setError(handleApiError(e, 'Failed to unblock the remaining dates for every lane.'));
     } finally {
       setUnblockingGroup(null);
     }
@@ -239,8 +240,8 @@ const SeriesListModal = ({ isOpen, facilityCode, onClose, onChanged }: SeriesLis
         await cancelOne(item);
       }
       load();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to stop the series for every lane.');
+    } catch (e) {
+      setError(handleApiError(e, 'Failed to stop the series for every lane.'));
     } finally {
       setCancellingGroup(null);
     }

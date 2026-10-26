@@ -13,6 +13,7 @@ import {
   SeriesPreviewResponse,
 } from '../../../store/recurringBlocks/types';
 import { Lanes } from '../../../store/slots/types';
+import { handleApiError } from '../../../utils/errorUtils';
 
 const inputCls =
   'w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-2.5 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10';
@@ -262,8 +263,8 @@ const NewSeriesModal = ({
       );
       setPreviews(Object.fromEntries(entries));
       setStep('preview');
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to load the conflict preview.');
+    } catch (e) {
+      setError(handleApiError(e, 'Failed to load the conflict preview.'));
     } finally {
       setIsLoading(false);
     }
@@ -311,11 +312,11 @@ const NewSeriesModal = ({
               conflictResolutions: resolutions,
             });
             return { laneCode, response: res.data?.data as CreateSeriesResponse, error: null as string | null };
-          } catch (e: any) {
+          } catch (e) {
             return {
               laneCode,
               response: null as CreateSeriesResponse | null,
-              error: e?.response?.data?.message || 'Failed to create the series.',
+              error: handleApiError(e, 'Failed to create the series.'),
             };
           }
         })
@@ -329,8 +330,8 @@ const NewSeriesModal = ({
       setResults(nextResults);
       setCreateErrors(nextErrors);
       setStep('result');
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Failed to create the series.');
+    } catch (e) {
+      setError(handleApiError(e, 'Failed to create the series.'));
     } finally {
       setIsLoading(false);
     }

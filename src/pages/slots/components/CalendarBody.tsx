@@ -10,6 +10,7 @@ import { SeriesWithEtag } from '../../../store/recurringBlocks/types';
 import { cancelBooking, createBooking, editBooking, getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
+import { handleApiError } from '../../../utils/errorUtils';
 
 import BlockTimeSlotModal from './BlockTimeSlotModal';
 import EditSeriesModal from './EditSeriesModal';
@@ -370,8 +371,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
       await dispatch(getSlots({ date, facilityCode }));
       toast.success(`${occurrenceDate} skipped — the series keeps running.`, { duration: 4000 });
       setSelectedSlot(null);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to skip this date.', { duration: 5000 });
+    } catch (error) {
+      toast.error(handleApiError(error, 'Failed to skip this date.'), { duration: 5000 });
     } finally {
       setSeriesActionLoading(false);
     }
@@ -393,8 +394,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
       await api.post(endpoints.recurringBlocks.cancel, { seriesId, expectedEtag: series.etag });
       toast.success('Series cancelled — already-blocked dates stay blocked.', { duration: 4000 });
       setSelectedSlot(null);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to cancel the series.', { duration: 5000 });
+    } catch (error) {
+      toast.error(handleApiError(error, 'Failed to cancel the series.'), { duration: 5000 });
     } finally {
       setSeriesActionLoading(false);
     }
