@@ -46,6 +46,13 @@ export interface Slot {
   // logged-in user's name, editable — e.g. a shared/generic login used by
   // different physical staff). Shown in the modal as "Blocked by".
   disabledByName?: string;
+  // Set by RecurringBlocks (recurringblocks module) when this slot was blocked
+  // by an active weekly series rather than the one-off Block action. 'one_time'
+  // for an ordinary block, undefined when never blocked.
+  source?: 'one_time' | 'series';
+  seriesId?: string;
+  occurrenceDate?: string;
+  isException?: boolean;
 }
 
 export interface Lanes {
@@ -126,6 +133,34 @@ export interface EditBookingResponse {
   notified: boolean;
 }
 
+/** Cancel one booking: refund + DB write + push/email, via CancelBookingService. */
+export interface CancelBookingRequest {
+  bookingIds: string[];
+  reason?: string;
+}
+
+export interface CancelledBooking {
+  bookingCode: string;
+  userId: string;
+  refundAmount: number;
+  slotCode?: string;
+  notified: boolean;
+  /** False means the booking was cancelled/refunded but the lane slot itself
+   * could not be freed — it may still show as booked on the calendar. */
+  slotReleased: boolean;
+}
+
+export interface FailedCancellation {
+  bookingCode: string;
+  reason: string;
+}
+
+export interface CancelBookingResponse {
+  cancelled: CancelledBooking[];
+  failed: FailedCancellation[];
+  totalRefunded: number;
+}
+
 export interface CoachSlotsRequest {
   startDate: string;
   endDate: string;
@@ -154,6 +189,19 @@ export interface CoachSlot {
   memberName?: string;
   memberEmail?: string;
   memberPhone?: string;
+  // Free-text reason the slot was disabled (e.g. 'Sick leave') — shown in the
+  // slot's own detail modal, NOT used to detect Holiday (see isHoliday).
+  disableReason?: string;
+  // True only when this slot was disabled via the whole-day-off quick action.
+  // The grid always labels such slots 'Holiday' regardless of disableReason's
+  // text. Never set by an ordinary single-cell Mark Unavailable.
+  isHoliday?: boolean;
+  // CenturyBackend pre-creates every coachslot doc with this already set (e.g.
+  // ['regular','induction'] or ['regular','induction','tour']) — this app never
+  // creates a coachslot, only reads/bulk-edits this field. Defaults effectively
+  // to ['regular'] server-side when absent on an old/malformed doc.
+  supportedSessionTypes?: string[];
+  duration?: number;
 }
 
 export interface Availability {
@@ -188,6 +236,11 @@ export interface SlotsInitialState {
   slots: GetSlotsResponse | null;
   isBlockLaneLoading: boolean;
   coachSlotsList: CoachSlotsResponse[] | null;
+  // Kept separate from coachSlotsList (never reused) so navigating between
+  // the Team Schedule page's Coach and Staff tabs can never show one tab's
+  // stale data (or loading state) under the other's selection.
+  isStaffLoading: boolean;
+  staffSlotsList: CoachSlotsResponse[] | null;
 }
 
 export const initialState: SlotsInitialState = {
@@ -196,4 +249,6 @@ export const initialState: SlotsInitialState = {
   slots: null,
   isBlockLaneLoading: false,
   coachSlotsList: null,
+  isStaffLoading: false,
+  staffSlotsList: null,
 };

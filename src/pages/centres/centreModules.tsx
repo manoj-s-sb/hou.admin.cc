@@ -1,7 +1,6 @@
 import React, { lazy } from 'react';
 
 import { ACCESS_SCOPES } from '../../rbac/constants';
-import CoachSchedule from '../coach';
 import Induction from '../induction';
 import Members from '../members';
 // Notifications: import kept alongside its commented-out module entry below —
@@ -9,6 +8,7 @@ import Members from '../members';
 // import Notifications from '../notifications';
 import SlotBookings from '../slots';
 import Tailgate from '../tailgate';
+import TeamSchedule from '../teamSchedule';
 import Tickets from '../tickets';
 import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
@@ -163,11 +163,14 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
       },
       {
         // Not shown in the mockup — kept here (appended) so it isn't removed.
-        key: 'coach',
-        label: 'Coach Schedule',
-        slug: 'coach-schedule',
-        component: CoachSchedule,
-        scope: ACCESS_SCOPES.coaches,
+        // Merges the former separate Coach Schedule / Staff Schedule entries
+        // into one nav item with a Coach/Staff tab toggle inside — the grids
+        // themselves are unchanged, only the navigation was consolidated.
+        key: 'teamSchedule',
+        label: 'Team Schedule',
+        slug: 'team-schedule',
+        component: TeamSchedule,
+        scope: ACCESS_SCOPES.teamSchedule,
         icon: I(
           <>
             <rect height="18" rx="2" width="18" x="3" y="4" />

@@ -20,6 +20,8 @@ export const MODULES = {
   WALLET_TRANSACTIONS: 'wallettransactions',
   SLOT_BOOKING: 'slotbooking',
   COACH_SCHEDULE: 'coachschedule',
+  STAFF_SCHEDULE: 'staffschedule',
+  RECURRING_BLOCKS: 'recurringblocks',
   REPORTS: 'reports',
   INDUCTION: 'induction',
   TOUR: 'tour',
@@ -52,6 +54,11 @@ export const ACCESS_SCOPES = {
   walletTransactions: [MODULES.WALLET_TRANSACTIONS],
   slots: [MODULES.SLOT_BOOKING],
   coaches: [MODULES.COACH_SCHEDULE],
+  staffSchedule: [MODULES.STAFF_SCHEDULE],
+  // Team Schedule merges the Coach Schedule and Staff Schedule nav entries —
+  // granted by either underlying module so existing permission grants for
+  // either one still work unchanged.
+  teamSchedule: [MODULES.COACH_SCHEDULE, MODULES.STAFF_SCHEDULE],
   reports: [MODULES.REPORTS],
   induction: [MODULES.INDUCTION],
   tour: [MODULES.TOUR],

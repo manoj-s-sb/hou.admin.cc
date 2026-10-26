@@ -20,6 +20,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; bo
   active: { label: 'Active', color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' },
   commingsoon: { label: 'Coming Soon', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
   inactive: { label: 'Inactive', color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' },
+  draft: { label: 'Draft', color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
 };
 const statusMetaFor = (status: string): { label: string; color: string; bg: string; border: string } =>
   STATUS_META[status] ?? { label: status, color: '#6b7280', bg: '#f3f4f6', border: '#e5e7eb' };
@@ -46,12 +47,38 @@ const money = (amount?: number, currency?: string): string => {
 };
 
 /** True when a value is set (not null/undefined) — so a legit 0 still renders. */
-/** Build the label/value rows for one product, skipping fields the doc doesn't set. */
+/** Build the label/value rows for one product, skipping fields the doc doesn't set.
+ * The Gym is a membership add-on (bookingModel="membership_addon"), billed with the
+ * member's plan rather than paid per slot — "Price per slot" never applied to it and
+ * showed a misleading $0.00; it gets its own distinct row set instead. */
 const detailRows = (p: ApiProduct): [string, string][] => {
   const rows: [string, string][] = [];
-  const price = p.slotPricing?.default;
-  if (has(price?.price)) rows.push(['Price per slot', money(price?.price, price?.currency)]);
-  if (has(p.sessionRules?.durationMinutes)) rows.push(['Session duration', `${p.sessionRules?.durationMinutes} min`]);
+
+  if (p.bookingModel === 'membership_addon') {
+    const gymPricing = p.pricing as { individual?: { fortnightly?: number } } | undefined;
+    if (has(gymPricing?.individual?.fortnightly)) {
+      rows.push(['Fortnightly price', money(gymPricing?.individual?.fortnightly)]);
+    }
+    if (has(p.sessionRules?.slotCapacity)) {
+      rows.push(['Max members / slot', `${p.sessionRules?.slotCapacity}`]);
+    }
+    if (has(p.sessionRules?.durationMinutes)) {
+      rows.push(['Session duration', `${p.sessionRules?.durationMinutes} min`]);
+    }
+    if (has(p.freeTrial?.slotsPerMembershipLifetime)) {
+      rows.push(['Free trial slots', `${p.freeTrial?.slotsPerMembershipLifetime}`]);
+    }
+    if (has(p.ageRules?.minAge)) {
+      rows.push(['Minimum age', `${p.ageRules?.minAge}`]);
+    }
+    return rows;
+  }
+
+  const pricing = p.pricing as { perHour?: number; currency?: string } | undefined;
+  if (has(pricing?.perHour)) rows.push(['Price per hour', money(pricing?.perHour, pricing?.currency)]);
+  if (has(p.sessionRules?.minHours) && has(p.sessionRules?.maxHours)) {
+    rows.push(['Booking length', `${p.sessionRules?.minHours}–${p.sessionRules?.maxHours} hrs`]);
+  }
   if (has(p.sessionRules?.slotCapacity)) rows.push(['Capacity per slot', `${p.sessionRules?.slotCapacity}`]);
   if (has(p.sessionRules?.maxBookingsPerDay)) rows.push(['Max bookings / day', `${p.sessionRules?.maxBookingsPerDay}`]);
   if (has(p.sessionRules?.advanceBookingDays))
@@ -105,34 +132,11 @@ const Facilities: React.FC = () => {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 20,
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Facilities</div>
-          <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
-            Primary lanes, general amenities and additional bookable spaces at this centre
-          </div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Facilities</div>
+        <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
+          Primary lanes, general amenities and additional bookable spaces at this centre
         </div>
-        <button
-          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
-          disabled={!centreCode}
-          type="button"
-          onClick={() => setEditingAmenities(true)}
-        >
-          <svg fill="none" height={13} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={13}>
-            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-          Edit Amenities
-        </button>
       </div>
 
       {/* Lanes */}
@@ -175,7 +179,21 @@ const Facilities: React.FC = () => {
       </div>
 
       {/* General amenities */}
-      <div style={sectionLabel}>General Amenities</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ ...sectionLabel, marginBottom: 0 }}>General Amenities</div>
+        <button
+          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
+          disabled={!centreCode}
+          type="button"
+          onClick={() => setEditingAmenities(true)}
+        >
+          <svg fill="none" height={13} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={13}>
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          Edit Amenities
+        </button>
+      </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         {amenities.map(a => (
           <span
@@ -314,6 +332,7 @@ const Facilities: React.FC = () => {
         <FacilityProductModal
           centreCode={centreCode}
           existingCodes={products.map(p => (p.code ?? '').toLowerCase())}
+          plans={bundle?.memberships ?? []}
           product={productModal.product}
           onClose={() => setProductModal(null)}
           onSaved={refreshBundle}

@@ -69,22 +69,128 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
     if (!code || LANE_PRODUCT_CODES.has(code)) return;
     const type = facilityTypeFromCode(code);
     const base = makeAdditionalFacility(type, i + 1);
+
+    if (p.bookingModel === 'membership_addon') {
+      // Membership add-on shape (addonPricing/freeTrial/ageRules/pinRules) —
+      // distinct from the pay-per-slot mapping below. See buildProducts in
+      // buildCreatePayload.ts for the forward direction.
+      out.push({
+        ...base,
+        name: p.name || base.name,
+        bookingModel: 'membership_addon',
+        annualDiscountPct: hasVal(p.annualDiscountPct) ? num(p.annualDiscountPct) : base.annualDiscountPct,
+        openTime: p.openTime ?? base.openTime,
+        closeTime: p.closeTime ?? base.closeTime,
+        fortnightlyPrice: hasVal(
+          (p.pricing as { individual?: { fortnightly?: number } } | undefined)?.individual?.fortnightly
+        )
+          ? num((p.pricing as { individual?: { fortnightly?: number } } | undefined)?.individual?.fortnightly)
+          : base.fortnightlyPrice,
+        annualPrice: hasVal(p.addonPricing?.annualPriceOverride)
+          ? num(p.addonPricing?.annualPriceOverride)
+          : base.annualPrice,
+        slotDuration: hasVal(p.sessionRules?.durationMinutes)
+          ? `${p.sessionRules?.durationMinutes} minutes`
+          : base.slotDuration,
+        slotStartIntervalMinutes: hasVal(p.sessionRules?.slotIncrementMinutes)
+          ? num(p.sessionRules?.slotIncrementMinutes)
+          : base.slotStartIntervalMinutes,
+        maxMembersPerSlot: hasVal(p.sessionRules?.slotCapacity)
+          ? num(p.sessionRules?.slotCapacity)
+          : base.maxMembersPerSlot,
+        // bookingFrequency is per-membership-plan on the stored doc (Facilities
+        // page's own concept) — the wizard has no per-plan UI, so there's no
+        // single value to read back here; just keep the wizard's own default.
+        minGapHours: base.minGapHours,
+        guestSessionPrice: hasVal(p.guestPolicy?.additionalGuestPrice)
+          ? num(p.guestPolicy?.additionalGuestPrice)
+          : base.guestSessionPrice,
+        freeGuestVisits: hasVal(p.guestPolicy?.freeGuestsPerBillingCycle)
+          ? num(p.guestPolicy?.freeGuestsPerBillingCycle)
+          : base.freeGuestVisits,
+        freeGymEntryWithLaneBooking: p.guestPolicy?.laneGuestFreeGymSameDay ?? base.freeGymEntryWithLaneBooking,
+        freeTrialSlots: (p.freeTrial?.slotsPerMembershipLifetime ?? base.freeTrialSlots) as 0 | 1 | 2,
+        minimumAge: hasVal(p.ageRules?.minAge) ? num(p.ageRules?.minAge) : base.minimumAge,
+        parentPresentFrom: hasVal(p.ageRules?.supervisedRange?.min)
+          ? num(p.ageRules?.supervisedRange?.min)
+          : base.parentPresentFrom,
+        parentPresentTo: hasVal(p.ageRules?.supervisedRange?.max)
+          ? num(p.ageRules?.supervisedRange?.max)
+          : base.parentPresentTo,
+        consentFrom: hasVal(p.ageRules?.consentRange?.min) ? num(p.ageRules?.consentRange?.min) : base.consentFrom,
+        consentTo: hasVal(p.ageRules?.consentRange?.max) ? num(p.ageRules?.consentRange?.max) : base.consentTo,
+        // Reference schema (accessControl) has no on/off flag and no "minutes
+        // after" — those two fields have nothing to read back from here.
+        gymPinRequired: base.gymPinRequired,
+        gymPinBefore: hasVal(
+          (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.[p.code ?? '']?.preAccessTime
+        )
+          ? num(
+              (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.[p.code ?? '']?.preAccessTime
+            )
+          : base.gymPinBefore,
+        gymPinAfter: base.gymPinAfter,
+        facilityPinBefore: hasVal(
+          (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.mainDoor?.preAccessTime
+        )
+          ? num((p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.mainDoor?.preAccessTime)
+          : base.facilityPinBefore,
+        facilityPinAfter: base.facilityPinAfter,
+        inductionRequired: p.inductionRequired ?? base.inductionRequired,
+      });
+      return;
+    }
+
+    // Pay-per-slot is hourly on every stored doc now (pricing.perHour, a member
+    // picks any whole hour count in sessionRules.minHours..maxHours) — and
+    // accessControl is the SAME per-door map shape addon facilities use.
+    const hourlyPricing = p.pricing as { perHour?: number } | undefined;
+    const access = p.accessControl as Record<string, { preAccessTime?: number }> | undefined;
+    const doorPinBefore = hasVal(access?.[p.code ?? '']?.preAccessTime)
+      ? num(access?.[p.code ?? '']?.preAccessTime)
+      : base.doorPinBefore;
+    const roomFacilityPinBefore = hasVal(access?.mainDoor?.preAccessTime)
+      ? num(access?.mainDoor?.preAccessTime)
+      : base.roomFacilityPinBefore;
+
+    if (type === 'gaming') {
+      // Gaming's own fields (psUnits/chargePerHour/minSession/maxSession) are
+      // the wizard's UI for the same hourly pricing — see buildCreatePayload.ts's
+      // toHours for the forward (hours → "N minutes") direction.
+      out.push({
+        ...base,
+        name: p.name || base.name,
+        bookingModel: 'pay_per_slot',
+        chargePerHour: hasVal(hourlyPricing?.perHour) ? num(hourlyPricing?.perHour) : base.chargePerHour,
+        psUnits: hasVal(p.totalCapacity) ? num(p.totalCapacity) : base.psUnits,
+        minSession: hasVal(p.sessionRules?.minHours)
+          ? `${num(p.sessionRules?.minHours) * 60} minutes`
+          : base.minSession,
+        maxSession: hasVal(p.sessionRules?.maxHours)
+          ? `${num(p.sessionRules?.maxHours) * 60} minutes`
+          : base.maxSession,
+        doorPinBefore,
+        roomFacilityPinBefore,
+      });
+      return;
+    }
+
+    // podcast / meeting / custom-pay-per-slot.
     out.push({
       ...base,
       name: p.name || base.name,
-      fortnightlyPrice: num(p.slotPricing?.default?.price) || base.fortnightlyPrice,
+      bookingModel: 'pay_per_slot',
+      fortnightlyPrice: hasVal(hourlyPricing?.perHour) ? num(hourlyPricing?.perHour) : base.fortnightlyPrice,
       guestSessionPrice: hasVal(p.guestPolicy?.additionalGuestPrice)
         ? num(p.guestPolicy?.additionalGuestPrice)
         : base.guestSessionPrice,
-      totalCapacity: hasVal(p.guestPolicy?.maxGuestsPerSlot)
-        ? num(p.guestPolicy?.maxGuestsPerSlot)
-        : base.totalCapacity,
+      totalCapacity: hasVal(p.totalCapacity) ? num(p.totalCapacity) : base.totalCapacity,
       concurrentCapacity: hasVal(p.sessionRules?.slotCapacity)
         ? num(p.sessionRules?.slotCapacity)
         : base.concurrentCapacity,
-      slotDuration: hasVal(p.sessionRules?.durationMinutes)
-        ? `${p.sessionRules?.durationMinutes} minutes`
-        : base.slotDuration,
+      maxBookableHours: hasVal(p.sessionRules?.maxHours) ? num(p.sessionRules?.maxHours) : base.maxBookableHours,
+      doorPinBefore,
+      roomFacilityPinBefore,
     });
   });
   return out;

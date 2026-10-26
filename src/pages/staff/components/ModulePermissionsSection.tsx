@@ -68,6 +68,7 @@ const CENTRE_SUB_MODULE_ORDER = [
   'tour',
   'waitlistleads',
   'coachschedule',
+  'staffschedule',
   'ticketsincidents', // "Centre view"
   'tailgate', // "Centre view"
   'maintenance', // "Centre view"

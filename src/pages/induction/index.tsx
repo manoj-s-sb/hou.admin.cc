@@ -233,6 +233,14 @@ const Induction = () => {
         },
       },
       {
+        field: 'updatedByName',
+        headerName: 'Completed By',
+        flex: 1,
+        sortable: false,
+        renderCell: params => <span className="text-[13px] text-gray-700">{params.row?.updatedByName || '—'}</span>,
+        valueGetter: params => params.row?.updatedByName || '',
+      },
+      {
         field: 'actions',
         headerName: 'Actions',
         width: 200,

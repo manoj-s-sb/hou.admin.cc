@@ -35,6 +35,7 @@ const CENTRE_ONLY_MODULES = new Set([
   'tour',
   'waitlistleads',
   'coachschedule',
+  'staffschedule',
   'facilities',
   'planspricing',
 ]);
@@ -334,14 +335,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   <GroupLabel>{g.group}</GroupLabel>
                   {visibleItems.map(m => {
                     const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
-                    // Member Details (/members/:userId) is a standalone route outside
-                    // the centre-module shell (see ROUTES.VIEW_MEMBERS) — an exact-path
-                    // match alone leaves the Members item unhighlighted while viewing
-                    // it, exactly the gap the OTHER nav branch below already closes for
-                    // its own '/view-members' route.
+                    // Member Details (/members/:userId) and View Induction
+                    // (/view-induction/:userId) are standalone routes outside the
+                    // centre-module shell (see ROUTES.VIEW_MEMBERS/VIEW_INDUCTION) —
+                    // an exact-path match alone leaves Members/Induction
+                    // unhighlighted while viewing either, exactly the gap the OTHER
+                    // nav branch below already closes for its own
+                    // '/view-members'/'/view-induction' routes.
                     const isActive =
                       location.pathname === modulePath ||
-                      (m.key === 'members' && location.pathname.startsWith('/members/'));
+                      (m.key === 'members' && location.pathname.startsWith('/members/')) ||
+                      (m.key === 'induction' && location.pathname.startsWith('/view-induction'));
                     return (
                       <button
                         key={m.key}

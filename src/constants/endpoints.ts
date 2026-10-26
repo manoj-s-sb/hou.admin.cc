@@ -8,11 +8,61 @@ const endpoints = {
     list: `${API_PREFIX}/admin/slots/calendar`,
     updateLaneStatus: `${API_PREFIX}/admin/slots/status/update`,
     coachSlots: `${API_PREFIX}/admin/coach/calendar`,
+    // Bulk status (+ optional supportedSessionTypes) update over an arbitrary
+    // admin-picked list of coach slot codes — see CoachScheduleGrid's
+    // click/drag multi-select. No day-of-week/day-of-month pattern involved.
     updateCoachSlots: `${API_PREFIX}/admin/coach/status/update`,
+    // Fills in missing coachslot inventory for a coach over a plain date
+    // range when CenturyBackend hasn't pre-created that far out yet. Separate
+    // from updateCoachSlots: this creates new disabled/unavailable slots,
+    // it never sets availability itself.
+    generateCoachSlots: `${API_PREFIX}/admin/coach/slots/generate`,
+    // Staff Schedule's equivalents of the two above — same mechanism, same
+    // coachslot-shaped documents, just over the facility's staff roster
+    // instead of its coaches.
+    staffSlots: `${API_PREFIX}/admin/staff/calendar`,
+    generateStaffSlots: `${API_PREFIX}/admin/staff/slots/generate`,
+    // Same request/response shape and service method as updateCoachSlots —
+    // a separate route purely so edit access is gated by the 'staffschedule'
+    // permission instead of 'coachschedule' (otherwise someone granted only
+    // Staff Schedule access could view but never edit the staff calendar).
+    updateStaffSlots: `${API_PREFIX}/admin/staff/slots/status/update`,
     // "Book for someone" — admin books a lane slot for a walk-in/phone caller.
     createBooking: `${API_PREFIX}/admin/bookings/create`,
     // "Shift Lane" — moves an existing booking to another lane's slot at the same time.
     editBooking: `${API_PREFIX}/admin/bookings/edit`,
+    // Cancel one booking: refund + DB write + push/email, via CancelBookingService.
+    // POST { bookingIds: [bookingId], reason }.
+    cancelBooking: `${API_PREFIX}/admin/bookings/cancel`,
+  },
+  recurringBlocks: {
+    // Conflict preview — read-only, nothing written.
+    preview: `${API_PREFIX}/admin/recurringblocks/preview`,
+    // Creates the series — idempotent on `idempotencyKey`; requires
+    // conflictResolutions for EVERY conflicting booking the preview surfaced
+    // (member or coach) — nothing is cancelled/refunded/notified without one.
+    create: `${API_PREFIX}/admin/recurringblocks/create`,
+    // Fetch one series + its current _etag — read before skip/cancel/edit.
+    getSeries: `${API_PREFIX}/admin/recurringblocks/series/get`,
+    // Skip one occurrence — frees the slot if blocked, series keeps running.
+    skip: `${API_PREFIX}/admin/recurringblocks/skip`,
+    // Stops future generation only; already-blocked dates stay blocked.
+    cancel: `${API_PREFIX}/admin/recurringblocks/cancel`,
+    // scope: 'this_one' | 'this_and_following' | 'all'.
+    edit: `${API_PREFIX}/admin/recurringblocks/edit`,
+    // Series list view — each entry's remainingBlockedDates come straight from
+    // the slot docs, not re-derived from the pattern.
+    list: `${API_PREFIX}/admin/recurringblocks/list`,
+    // Frees every date still actually blocked by one series; does not change
+    // the series' own status (Cancel is the separate action for that).
+    unblockAll: `${API_PREFIX}/admin/recurringblocks/unblock-all`,
+    // Every live, currently-unresolved member/coach conflict across every
+    // ACTIVE series' upcoming occurrences — recomputed fresh on every call,
+    // never read from an old background-job log. POST { facilityCode? }.
+    conflictsList: `${API_PREFIX}/admin/recurringblocks/conflicts/list`,
+    // Act on one flagged conflict: keep (skip that date) or cancel+reason
+    // (cancel the booking, refund, notify, then block the freed slot).
+    conflictsResolve: `${API_PREFIX}/admin/recurringblocks/conflicts/resolve`,
   },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,
@@ -81,6 +131,7 @@ const endpoints = {
     centreDetails: `${API_PREFIX}/admin/centres/details`, // POST { code }
     centreCreate: `${API_PREFIX}/admin/centres/create`, // POST { facility, lanes[], memberships[], membershipSalesFlow }
     centreUpdate: `${API_PREFIX}/admin/centres/update`, // POST { centreId, facility } — edit facility / activate draft
+    uploadImageUrl: `${API_PREFIX}/admin/centres/upload_url`, // POST { facilityCode, fileName, contentType? } — mints a blob write-SAS for a product image
     // Legacy model (ops dashboard + update/suspend/delete — not re-wired yet).
     list: `${API_PREFIX}/admin/centres`,
     wizardStart: `${API_PREFIX}/admin/centres/wizard/start`,

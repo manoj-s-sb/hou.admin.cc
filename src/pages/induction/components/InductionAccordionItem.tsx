@@ -313,6 +313,12 @@ const InductionAccordionItem = ({
                   <span className="text-sm text-gray-600">Loading induction steps...</span>
                 </div>
               </div>
+            ) : !userId ? (
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <p className="text-center text-sm text-gray-600">
+                  This member hasn&apos;t created an account yet — induction can&apos;t be tracked until they do.
+                </p>
+              </div>
             ) : totalSteps === 0 ? (
               <div className="rounded-lg border border-gray-200 bg-white p-4">
                 <p className="text-center text-sm text-gray-600">No induction steps found</p>
