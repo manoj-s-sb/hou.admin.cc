@@ -26,6 +26,18 @@ interface PhoneCodeSearchSelectProps {
   className?: string;
   style?: React.CSSProperties;
   wrapperStyle?: React.CSSProperties;
+  /**
+   * This app's country `code` (e.g. "US") for the address/centre country
+   * already chosen elsewhere on the same form, when there is one. Several
+   * real countries genuinely share one dial code (the US and Canada both use
+   * "+1"; Russia and Kazakhstan both use "+7"), so matching by dial code
+   * alone is ambiguous — without this hint the label shown next to the code
+   * is just whichever same-code country sorts first alphabetically (e.g.
+   * "+1 AS" for American Samoa when the admin actually picked the US).
+   * Pass it whenever the caller has a country to match against; omit it for
+   * a standalone phone field with no linked country (e.g. Staff Management).
+   */
+  preferredIso?: string;
 }
 
 const PhoneCodeSearchSelect: React.FC<PhoneCodeSearchSelectProps> = ({
@@ -34,6 +46,7 @@ const PhoneCodeSearchSelect: React.FC<PhoneCodeSearchSelectProps> = ({
   className,
   style,
   wrapperStyle,
+  preferredIso,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -50,7 +63,9 @@ const PhoneCodeSearchSelect: React.FC<PhoneCodeSearchSelectProps> = ({
     return () => document.removeEventListener('mousedown', onDocMouseDown);
   }, []);
 
-  const selected = PHONE_CODE_OPTIONS.find(o => o.dialCode === value);
+  const selected =
+    (preferredIso && PHONE_CODE_OPTIONS.find(o => o.dialCode === value && o.isoCode === preferredIso)) ||
+    PHONE_CODE_OPTIONS.find(o => o.dialCode === value);
   const q = query.trim().toLowerCase().replace(/^\+/, '');
   const filtered = PHONE_CODE_OPTIONS.filter(
     o =>

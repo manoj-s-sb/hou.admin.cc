@@ -1,13 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 
-import { toast } from 'react-hot-toast';
 import { Navigate, useParams } from 'react-router-dom';
 
 import { ROUTES } from '../../constants/routes';
 import { useCentreNav } from '../../contexts/CentreNavContext';
 import { canRead, RestrictedAccess } from '../../rbac';
 
-import { ACTIVE_ONLY_MODULE_KEYS, LIVE_CENTRE_MODULES } from './centreModules';
+import { isCentreOperational, LIVE_CENTRE_MODULES } from './centreModules';
 import CentreDetailView from './components/CentreDetailView';
 import { useCentreScope } from './useCentreScope';
 
@@ -25,32 +24,32 @@ const CentreModuleRoute: React.FC = () => {
   const { activeCentre } = useCentreNav();
 
   const mod = LIVE_CENTRE_MODULES.find(m => m.slug === moduleSlug);
-
-  // A Draft/Staging/Suspended centre can't be operated on — Operations modules
-  // (bookings, tickets, maintenance, etc.) are blocked here even if someone reaches
-  // the URL directly (hiding the nav link alone isn't enough); Centre Config
-  // (Facilities, Plans & Pricing) stays open so the centre can actually be set up.
-  const needsActivation =
-    !!mod && ACTIVE_ONLY_MODULE_KEYS.has(mod.key) && !!activeCentre && activeCentre.status !== 'active';
-  // Toasting is a side effect, so it belongs in an effect, not inline during render
-  // (which could double-fire under StrictMode or re-render before navigating away).
-  const toastedRef = useRef(false);
-  useEffect(() => {
-    if (needsActivation && !toastedRef.current) {
-      toastedRef.current = true;
-      toast.error("This centre isn't live yet — finish setup (Facilities / Plans & Pricing) first.");
-    }
-    if (!needsActivation) toastedRef.current = false;
-  }, [needsActivation]);
-
   if (!mod?.component) return <Navigate replace to={ROUTES.CENTRES.path} />;
 
-  if (needsActivation) {
-    // Land on the first Centre Config module this user can access instead of
-    // bouncing all the way back out to the centre list.
-    const firstSetup = LIVE_CENTRE_MODULES.find(m => !ACTIVE_ONLY_MODULE_KEYS.has(m.key) && canRead(m.scope));
-    if (firstSetup) return <Navigate replace to={`/centres/${facilityCode}/${firstSetup.slug}`} />;
-    return <Navigate replace to={ROUTES.CENTRES.path} />;
+  // A Draft/Staging centre has never gone live — there's nothing real to
+  // manage yet, so no module is reachable here (not even Facilities/Plans &
+  // Pricing, even if someone reaches the URL directly). Setup happens only
+  // through the Edit & Activate wizard from the centre list. A neutral note
+  // instead of an error — this is the centre's normal, expected state before
+  // it's activated, not a problem to flag.
+  if (activeCentre && !isCentreOperational(activeCentre.status)) {
+    return (
+      <CentreDetailView code={facilityCode}>
+        <div
+          style={{
+            fontSize: 13,
+            color: '#374151',
+            background: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: 10,
+            padding: '16px 18px',
+          }}
+        >
+          This centre isn&apos;t active yet. Use <strong>Edit &amp; Activate</strong> from the centre list to finish
+          setup and go live.
+        </div>
+      </CentreDetailView>
+    );
   }
 
   if (!canRead(mod.scope)) {
