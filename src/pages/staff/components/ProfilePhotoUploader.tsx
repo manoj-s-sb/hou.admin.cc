@@ -5,6 +5,8 @@ interface ProfilePhotoUploaderProps {
   existingUrl: string;
   onSelect: (file: File | null) => void;
   onRemove: () => void;
+  label?: string;
+  helpText?: string;
 }
 
 const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({
@@ -12,6 +14,8 @@ const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({
   existingUrl,
   onSelect,
   onRemove,
+  label = 'Profile Photo',
+  helpText = 'JPG or PNG, max 2MB. Displayed on staff profiles and member-facing interfaces.',
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const hasImage = Boolean(imageDataUrl || existingUrl);
@@ -34,10 +38,8 @@ const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({
           )}
         </div>
         <div className="flex-1">
-          <p className="text-[13px] font-semibold text-[#21295A]">Profile Photo</p>
-          <p className="text-[11px] text-gray-500">
-            JPG or PNG, max 2MB. Displayed on staff profiles and member-facing interfaces.
-          </p>
+          <p className="text-[13px] font-semibold text-[#21295A]">{label}</p>
+          <p className="text-[11px] text-gray-500">{helpText}</p>
           <input
             ref={inputRef}
             accept="image/png,image/jpeg"

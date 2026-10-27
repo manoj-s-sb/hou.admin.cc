@@ -133,14 +133,15 @@ export const freqBadgeCls = (freqN: number, freqUnit: FreqUnit): string => {
 
 /* ── Frequency buckets (tab filters) ── */
 
-export type GlobalBucket = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
-export type CentreBucket = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+export type GlobalBucket = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
+export type CentreBucket = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
 
 export const GLOBAL_BUCKETS: { key: GlobalBucket; label: string }[] = [
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'monthly', label: 'Monthly' },
   { key: 'quarterly', label: 'Quarterly' },
+  { key: 'halfyearly', label: 'Half-Yearly' },
   { key: 'yearly', label: 'Yearly' },
 ];
 
@@ -150,24 +151,33 @@ export const CENTRE_BUCKETS: { key: CentreBucket; label: string }[] = [
   { key: 'biweekly', label: 'Bi-Weekly' },
   { key: 'monthly', label: 'Monthly' },
   { key: 'quarterly', label: 'Quarterly' },
+  { key: 'halfyearly', label: 'Half-Yearly' },
   { key: 'yearly', label: 'Yearly' },
 ];
 
 type FreqSource = Pick<TaskTemplate, 'freqN' | 'freqUnit'> | Pick<TemplateEnrich, 'freqN' | 'freqUnit'>;
 
+// Mirrors freqLabel's own 3/6-month special-casing (MT-8) — a 6-month task
+// used to collapse into the same "quarterly" bucket as a 3-month one, with no
+// Half-Yearly tab to file it under at all.
+const monthBucket = (freqN: number): 'monthly' | 'quarterly' | 'halfyearly' => {
+  if (freqN < 3) return 'monthly';
+  if (freqN === 6) return 'halfyearly';
+  return 'quarterly';
+};
+
 export const globalBucket = (t: FreqSource): GlobalBucket => {
   if (t.freqUnit === 'day') return 'daily';
   if (t.freqUnit === 'week') return 'weekly';
   if (t.freqUnit === 'year') return 'yearly';
-  if (t.freqUnit === 'month' && t.freqN < 3) return 'monthly';
-  return 'quarterly'; // month>=3 (incl. half-yearly)
+  return monthBucket(t.freqN); // month
 };
 
 export const centreBucket = (t: FreqSource): CentreBucket => {
   if (t.freqUnit === 'day') return 'daily';
   if (t.freqUnit === 'week') return t.freqN === 2 ? 'biweekly' : 'weekly';
   if (t.freqUnit === 'year') return 'yearly';
-  return t.freqN >= 3 ? 'quarterly' : 'monthly'; // month
+  return monthBucket(t.freqN); // month
 };
 
 /* ── Shared Tailwind class fragments ── */

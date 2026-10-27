@@ -6,11 +6,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
 import { buildRoute, ROUTES } from '../../constants/routes';
-import { getStaffDetails, resendWelcomeEmail, setStaffStatus } from '../../store/staff/api';
+import { getStaffConfig, getStaffDetails, resendWelcomeEmail, setStaffStatus } from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
 
 import { StaffDocument } from './types';
 import { useCentreLookup } from './useCentreLookup';
+import { resolveConfigLabel } from './utils';
 
 import type { AppDispatch, RootState } from '../../store/store';
 
@@ -25,24 +26,23 @@ const ROLE_LABEL: Record<string, string> = {
 const formatRoleLabel = (role: string): string =>
   ROLE_LABEL[role.toLowerCase()] ?? role.charAt(0).toUpperCase() + role.slice(1);
 
+// Gender is a small fixed enum (see ProfileStep's own <select>), not an
+// admin-configurable designation — a plain lookup is enough, no config list.
+const GENDER_LABEL: Record<string, string> = {
+  male: 'Male',
+  female: 'Female',
+  'non-binary': 'Non-binary',
+  'prefer-not-to-say': 'Prefer not to say',
+};
+
+const formatGenderLabel = (gender: string): string =>
+  GENDER_LABEL[gender.toLowerCase()] ?? gender.charAt(0).toUpperCase() + gender.slice(1);
+
 const formatDate = (value: string | null | undefined): string => {
   if (!value) return '—';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-};
-
-const formatDateTime = (value: string | null | undefined): string => {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 };
 
 const buildInitials = (firstName: string, lastName: string, email: string): string => {
@@ -106,6 +106,7 @@ const ViewStaffMember: React.FC = () => {
     staffDetails: staff,
     isDetailsLoading: isLoading,
     detailsError,
+    staffConfig,
   } = useSelector((state: RootState) => state.staff);
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
   const [isSuspending, setIsSuspending] = useState<boolean>(false);
@@ -121,6 +122,13 @@ const ViewStaffMember: React.FC = () => {
       dispatch(clearStaffDetails());
     };
   }, [staffId, dispatch]);
+
+  // Cached by the thunk after the first load anywhere in the app — needed
+  // here to resolve raw config codes (qualification, certifications, access
+  // level) to their human-readable labels instead of showing the code itself.
+  useEffect(() => {
+    dispatch(getStaffConfig());
+  }, [dispatch]);
 
   const goBack = () => navigate(ROUTES.STAFF_MANAGEMENT.path);
   const goEdit = () => {
@@ -196,7 +204,6 @@ const ViewStaffMember: React.FC = () => {
   const rolesSource = profile.roles && profile.roles.length > 0 ? profile.roles : (staff.userType ?? []);
   const roles = rolesSource.map(formatRoleLabel);
   const centres = centreLookup.text(profile.assignedCentres, staff.facilityCode);
-  const facilityName = centreLookup.text(null, staff.facilityCode);
   const documents = profile.documents ?? [];
   const photoUrl = profile.photoSasUrl;
 
@@ -274,15 +281,29 @@ const ViewStaffMember: React.FC = () => {
               >
                 Edit
               </button>
-              <button
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition hover:border-[#21295A]/30 hover:text-[#21295A] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isResending || !staff.email}
-                title={!staff.email ? 'No email address on file' : undefined}
-                type="button"
-                onClick={handleResendWelcomeEmail}
-              >
-                {isResending ? 'Sending…' : 'Resend Welcome Email'}
-              </button>
+              {/* Resend Welcome Email only makes sense while the account isn't set
+                  up yet; once Active, the equivalent action is framed as a password
+                  reset instead — same backend call (rotates the password + emails
+                  new credentials), just the right label for the account's state.
+                  Hidden entirely for Draft/Inactive — neither action is meaningful
+                  until the account is Invited or reactivated to Active. */}
+              {(statusKey === 'invited' || statusKey === 'active') && (
+                <button
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition hover:border-[#21295A]/30 hover:text-[#21295A] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isResending || !staff.email}
+                  title={!staff.email ? 'No email address on file' : undefined}
+                  type="button"
+                  onClick={handleResendWelcomeEmail}
+                >
+                  {isResending
+                    ? statusKey === 'invited'
+                      ? 'Sending…'
+                      : 'Resetting…'
+                    : statusKey === 'invited'
+                      ? 'Resend Welcome Email'
+                      : 'Reset Password'}
+                </button>
+              )}
               <button
                 className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
                 disabled={isSuspending}
@@ -311,7 +332,7 @@ const ViewStaffMember: React.FC = () => {
               <InfoCard label="Email" value={staff.email || '—'} />
               <InfoCard label="Phone" value={staff.phone || '—'} />
               <InfoCard label="Date of Birth" value={formatDate(staff.dateOfBirth)} />
-              <InfoCard label="Gender" value={staff.gender || '—'} />
+              <InfoCard label="Gender" value={staff.gender ? formatGenderLabel(staff.gender) : '—'} />
             </div>
           </div>
         </div>
@@ -327,11 +348,16 @@ const ViewStaffMember: React.FC = () => {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               <InfoCard label="Employment Type" value={profile.employmentType || '—'} />
               <InfoCard label="Start Date" value={formatDate(profile.startDate)} />
-              <InfoCard label="Highest Qualification" value={profile.highestQualification || '—'} />
+              <InfoCard
+                label="Highest Qualification"
+                value={resolveConfigLabel(staffConfig?.qualifications, profile.highestQualification)}
+              />
               <InfoCard
                 label="Certifications"
                 value={
-                  profile.certifications && profile.certifications.length > 0 ? profile.certifications.join(', ') : '—'
+                  profile.certifications && profile.certifications.length > 0
+                    ? profile.certifications.map(id => resolveConfigLabel(staffConfig?.certifications, id)).join(', ')
+                    : '—'
                 }
               />
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 md:col-span-2 lg:col-span-3">
@@ -368,8 +394,15 @@ const ViewStaffMember: React.FC = () => {
                   )
                 }
               />
-              <InfoCard label="Access Level" value={profile.accessLevel || '—'} />
-              <InfoCard label="Facility" value={facilityName} />
+              <InfoCard
+                label="Access Level"
+                value={resolveConfigLabel(staffConfig?.accessLevels, profile.accessLevel)}
+              />
+              {/* "Facility" (home centre) and "Assigned Centres" showed the same
+                  value for any staff member assigned to just one centre — Assigned
+                  Centres already falls back to the home facility when nothing's
+                  explicitly assigned, so it's the superset field; Facility is dropped
+                  rather than shown twice. */}
               <InfoCard label="Assigned Centres" value={centres} />
             </div>
           </div>
@@ -440,8 +473,10 @@ const ViewStaffMember: React.FC = () => {
               <InfoCard label="Login Email" value={staff.loginEmail || staff.email} />
               <InfoCard label="Two-Factor Auth" value={profile.twoFactorAuth ? 'Enabled' : 'Disabled'} />
               <InfoCard label="Created" value={formatDate(staff.createdAt)} />
-              <InfoCard label="Last Login" value={formatDateTime(staff.lastLoginAt)} />
-              <InfoCard label="Staff ID" value={staff.staffId || '—'} />
+              {/* Last Login removed for now (moves to Phase 2) — the backend already
+                  captures it, so this is just a display decision, easy to restore. */}
+              {/* Staff ID hidden — it's the long internal system id, not a readable
+                  staff code; no short-code system exists yet to show instead. */}
             </div>
           </div>
         </div>

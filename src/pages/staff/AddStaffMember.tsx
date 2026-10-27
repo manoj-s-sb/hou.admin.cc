@@ -26,15 +26,28 @@ import RoleAccessStep from './components/RoleAccessStep';
 import StepFooter from './components/StepFooter';
 import StepIndicator from './components/StepIndicator';
 import { STEPS } from './constants';
-import { OTHER_QUALIFICATION, ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
+import {
+  CoachProfileFormState,
+  DEFAULT_DIAL_CODE,
+  OTHER_QUALIFICATION,
+  ProfileFormState,
+  StaffDocument,
+  StepKey,
+  initialCoachProfile,
+  initialProfile,
+} from './types';
 import {
   blankToNull,
   buildStaffListParams,
+  dialCodeOf,
   fileToDataUrl,
   getConfigOtherQualificationId,
+  isBelowMinimumAge,
   isCentreScopedLevel,
   isCountryScopedLevel,
+  MIN_STAFF_AGE_YEARS,
   sortActiveUnique,
+  stripDialCode,
   validatePassword,
 } from './utils';
 
@@ -71,6 +84,13 @@ const AddStaffMember: React.FC = () => {
   const [profile, setProfile] = useState<ProfileFormState>(initialProfile);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, boolean>>({});
   const [accessLevel, setAccessLevel] = useState<string | null>(null);
+  // Coach Profile — only meaningful while 'coach' is one of the selected roles.
+  const [coachProfile, setCoachProfile] = useState<CoachProfileFormState>(initialCoachProfile);
+  const [existingCoachCode, setExistingCoachCode] = useState<string | null>(null);
+  // Coach photo — same newly-selected-file vs. already-saved-SAS-URL split as
+  // the staff member's own profile photo.
+  const [coachPhotoImage, setCoachPhotoImage] = useState<string>('');
+  const [existingCoachPhotoUrl, setExistingCoachPhotoUrl] = useState<string>('');
   const [documents, setDocuments] = useState<Record<string, File>>({});
   const [docErrors, setDocErrors] = useState<Record<string, string>>({});
   const [profileImage, setProfileImage] = useState<string>('');
@@ -128,6 +148,7 @@ const AddStaffMember: React.FC = () => {
   const modulePermMenus = staffConfig?.menus;
 
   const selectedRoleIds = useMemo(() => Object.keys(selectedRoles).filter(id => selectedRoles[id]), [selectedRoles]);
+  const isCoachSelected = Boolean(selectedRoles['coach']);
   // Primitive dep so the fetch effect below only re-runs when the ROLE SET actually
   // changes (selectedRoleIds is a fresh array every render otherwise).
   const selectedRoleIdsKey = selectedRoleIds.join(',');
@@ -270,7 +291,14 @@ const AddStaffMember: React.FC = () => {
       firstName: data.firstName ?? '',
       lastName: data.lastName ?? '',
       email: data.email ?? '',
-      phone: data.phone ?? '',
+      // A number saved before the dial-code default existed has no leading
+      // "+code" at all — default it to +1 here too, same as a brand-new
+      // Add form, instead of leaving the Code field blank next to a number.
+      phone: (() => {
+        const raw = (data.phone ?? '').trim();
+        if (!raw) return `${DEFAULT_DIAL_CODE} `;
+        return dialCodeOf(raw) ? raw : `${DEFAULT_DIAL_CODE} ${stripDialCode(raw)}`;
+      })(),
       dob: (data.dateOfBirth ?? '').toString().slice(0, 10),
       gender: data.gender ?? '',
       employmentType: sp.employmentType ?? 'Full-time',
@@ -291,6 +319,22 @@ const AddStaffMember: React.FC = () => {
       }, {})
     );
     setAccessLevel(sp.accessLevel ?? null);
+    setExistingCoachCode(data.code ?? null);
+    const cp = data.coachProfile;
+    setCoachProfile(
+      cp
+        ? {
+            specialization: cp.specialization ?? [],
+            coachDescription: cp.coachDescription ?? '',
+            experienceYears:
+              cp.experienceYears !== null && cp.experienceYears !== undefined ? String(cp.experienceYears) : '',
+            certifications: cp.certifications ?? [],
+            hourlyRate: cp.hourlyRate !== null && cp.hourlyRate !== undefined ? String(cp.hourlyRate) : '',
+          }
+        : initialCoachProfile
+    );
+    setExistingCoachPhotoUrl(cp?.profileImageUrl ?? '');
+    setCoachPhotoImage('');
     setExistingDocs(sp.documents ?? []);
     setExistingPhotoUrl(sp.photoSasUrl ?? '');
     setEditFacilityCode(data.facilityCode ?? '');
@@ -371,7 +415,11 @@ const AddStaffMember: React.FC = () => {
   // Profile — via Next or by clicking straight to a later step — until they're
   // filled, same four fields validateForSubmit already requires at save time.
   const isProfileValid = Boolean(
-    profile.firstName.trim() && profile.lastName.trim() && profile.email.trim() && profile.dob.trim()
+    profile.firstName.trim() &&
+    profile.lastName.trim() &&
+    profile.email.trim() &&
+    profile.dob.trim() &&
+    !isBelowMinimumAge(profile.dob)
   );
   const [showProfileErrors, setShowProfileErrors] = useState(false);
 
@@ -458,6 +506,24 @@ const AddStaffMember: React.FC = () => {
     }
   };
 
+  const handleCoachPhotoSelect = async (file: File | null) => {
+    if (!file) return;
+    if (!/^image\/(jpeg|png|jpg)$/i.test(file.type)) {
+      toast.error('Coach photo must be a JPG or PNG');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Coach photo must be 2MB or smaller');
+      return;
+    }
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setCoachPhotoImage(dataUrl);
+    } catch {
+      toast.error('Failed to read image');
+    }
+  };
+
   // Create a new role (persisted via the backend), then auto-select it for this staff member.
   const handleCreateRole = async (label: string, description: string): Promise<boolean> => {
     setCreatingRole(true);
@@ -495,14 +561,34 @@ const AddStaffMember: React.FC = () => {
   };
 
   const buildSelectedRoleIds = (): string[] => roles.filter(r => selectedRoles[r.id]).map(r => r.id);
+  // Only sent when 'coach' is selected — omitting the key entirely when it
+  // isn't leaves any existing code/coachProfile untouched server-side.
+  const buildCoachProfilePayload = () =>
+    isCoachSelected
+      ? {
+          specialization: coachProfile.specialization,
+          coachDescription: coachProfile.coachDescription.trim(),
+          experienceYears: coachProfile.experienceYears.trim() ? Number(coachProfile.experienceYears) : null,
+          certifications: coachProfile.certifications,
+          hourlyRate: coachProfile.hourlyRate.trim() ? Number(coachProfile.hourlyRate) : null,
+        }
+      : undefined;
   const buildSelectedCertificationIds = (): string[] =>
     certifications.filter(c => profile.certifications[c.id]).map(c => c.id);
+  // Never send a bare dial code with no actual number typed — profile.phone
+  // defaults to "+1 " so the picker never looks unset (SM-7 follow-up), but
+  // that default-only value must not be saved as a fake phone number.
+  const normalizedPhone = stripDialCode(profile.phone).trim() ? profile.phone.trim() : '';
 
   const validateForSubmit = (draft: boolean): string | null => {
     if (!profile.firstName.trim()) return 'First name is required';
     if (!profile.lastName.trim()) return 'Last name is required';
     if (!profile.email.trim()) return 'Email is required';
     if (!profile.dob.trim()) return 'Date of birth is required';
+    if (isBelowMinimumAge(profile.dob)) return `Staff member must be at least ${MIN_STAFF_AGE_YEARS} years old`;
+    if (stripDialCode(profile.phone).trim() && !dialCodeOf(profile.phone)) {
+      return 'Select a country code for the phone number';
+    }
     if (draft) return null;
     if (buildSelectedRoleIds().length === 0) return 'Select at least one role';
     if (!accessLevel) return 'Select an access level';
@@ -552,7 +638,7 @@ const AddStaffMember: React.FC = () => {
           lastName: profile.lastName.trim(),
           email: profile.email.trim(),
           loginEmail: (loginEmail || profile.email).trim(),
-          phone: profile.phone.trim(),
+          phone: normalizedPhone,
           dateOfBirth: blankToNull(profile.dob),
           gender: blankToNull(profile.gender),
           userType: buildSelectedRoleIds(),
@@ -568,6 +654,10 @@ const AddStaffMember: React.FC = () => {
           countryCode: requiresCountry ? countryCode : null,
           // Per-module overrides from the grid (only when the feature is active).
           ...(customPermission ? { custompermission: customPermission } : {}),
+          // Coach code + profile — only sent while 'coach' is selected; omitted
+          // entirely otherwise so an existing one is left untouched.
+          ...(buildCoachProfilePayload() ? { coachProfile: buildCoachProfilePayload() } : {}),
+          ...(coachPhotoImage ? { coachProfileImageUrl: coachPhotoImage } : {}),
           status: editStatus,
           staffProfile: {
             employmentType: profile.employmentType,
@@ -635,6 +725,10 @@ const AddStaffMember: React.FC = () => {
         countryCode: requiresCountry ? countryCode : null,
         // Per-module overrides from the grid (only when the feature is active).
         ...(customPermission ? { custompermission: customPermission } : {}),
+        // Coach profile — only sent while 'coach' is selected; `code` is left
+        // unset so the backend auto-generates the next free one.
+        ...(buildCoachProfilePayload() ? { coachProfile: buildCoachProfilePayload() } : {}),
+        ...(coachPhotoImage ? { coachProfileImageUrl: coachPhotoImage } : {}),
         draftMode: draft,
         sendWelcomeEmail: draft ? false : sendWelcomeEmail,
       })
@@ -772,10 +866,15 @@ const AddStaffMember: React.FC = () => {
               assignedCentres={assignedCentres}
               centres={centres}
               centresLoading={centresLoading}
+              coachCode={existingCoachCode}
+              coachPhotoImage={coachPhotoImage}
+              coachProfile={coachProfile}
               configError={configError}
               countryCode={countryCode}
               creatingAccessLevel={creatingAccessLevel}
               creatingRole={creatingRole}
+              existingCoachPhotoUrl={existingCoachPhotoUrl}
+              isCoachSelected={isCoachSelected}
               isConfigLoading={isConfigLoading}
               modulePermissionDefaults={defaultsGrid}
               modulePermissionError={modulePermError}
@@ -787,11 +886,14 @@ const AddStaffMember: React.FC = () => {
               showAssignedCentres={requiresAssignedCentres}
               showCountry={requiresCountry}
               onChangeCentres={setAssignedCentres}
+              onChangeCoachProfile={setCoachProfile}
               onChangeCountry={setCountryCode}
               onChangeModulePermissions={onChangeModulePermissions}
               onCreateAccessLevel={handleCreateAccessLevel}
               onCreateRole={handleCreateRole}
+              onRemoveCoachPhoto={() => setCoachPhotoImage('')}
               onSelectAccessLevel={setAccessLevel}
+              onSelectCoachPhoto={handleCoachPhotoSelect}
               onToggleRole={toggleRole}
             />
           )}

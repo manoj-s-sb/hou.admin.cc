@@ -2,7 +2,16 @@ import React from 'react';
 
 import PhoneCodeSearchSelect from '../../../components/PhoneCodeSearchSelect';
 import { ConfigOption, OTHER_QUALIFICATION, ProfileFormState } from '../types';
-import { dialCodeOf, getConfigOtherQualificationId, INPUT_CLASS, LABEL_CLASS, stripDialCode } from '../utils';
+import {
+  dialCodeOf,
+  getConfigOtherQualificationId,
+  INPUT_CLASS,
+  isBelowMinimumAge,
+  LABEL_CLASS,
+  maxDobForMinAge,
+  MIN_STAFF_AGE_YEARS,
+  stripDialCode,
+} from '../utils';
 
 import ProfilePhotoUploader from './ProfilePhotoUploader';
 
@@ -50,6 +59,8 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
   const lastNameInvalid = !!showErrors && !profile.lastName.trim();
   const emailInvalid = !!showErrors && !profile.email.trim();
   const dobInvalid = !!showErrors && !profile.dob.trim();
+  const maxDob = maxDobForMinAge();
+  const dobTooYoung = isBelowMinimumAge(profile.dob);
 
   return (
     <div className="space-y-6">
@@ -137,13 +148,17 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
               Date of Birth *
             </label>
             <input
-              className={dobInvalid ? ERROR_INPUT_CLASS : INPUT_CLASS}
+              className={dobInvalid || dobTooYoung ? ERROR_INPUT_CLASS : INPUT_CLASS}
               id="dob"
+              max={maxDob}
               type="date"
               value={profile.dob}
               onChange={e => onChange('dob', e.target.value)}
             />
             {dobInvalid && <p className={ERROR_TEXT_CLASS}>Date of birth is required</p>}
+            {!dobInvalid && dobTooYoung && (
+              <p className={ERROR_TEXT_CLASS}>Staff member must be at least {MIN_STAFF_AGE_YEARS} years old</p>
+            )}
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="gender">

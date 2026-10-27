@@ -162,7 +162,14 @@ const ModulePermissionsSection: React.FC<Props> = ({
   const [centreExpanded, setCentreExpanded] = useState(false);
 
   const isCustomized = (id: string): boolean => {
-    if (!defaults) return false;
+    // While the real role-defaults fetch is in flight (e.g. right after
+    // landing on Edit), `defaults` is either not loaded yet or still the
+    // stale value from before the role selection changed — comparing the
+    // member's actual (already-granted) permissions against that momentarily
+    // empty/stale set made EVERY granted module look "customized" until the
+    // fetch resolved. Suppress the dot entirely until we have a trustworthy
+    // snapshot to compare against.
+    if (!defaults || loadingDefaults) return false;
     const cur = value[id] ?? { view: false, edit: false };
     const def = defaults[id] ?? { view: false, edit: false };
     return cur.view !== def.view || cur.edit !== def.edit;
@@ -239,6 +246,15 @@ const ModulePermissionsSection: React.FC<Props> = ({
         <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
           <p className="mb-2 px-2 text-[12px] text-gray-600">
             Fine-tune what this member can see and change per module. Defaults come from the selected role(s).
+            {menus.some(m => isCustomized(m.id)) && (
+              <>
+                {' '}
+                <span className="inline-flex items-center gap-1 align-middle">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" /> means this module was changed from
+                  the role&rsquo;s default.
+                </span>
+              </>
+            )}
           </p>
 
           <div className="flex items-center gap-2 px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">

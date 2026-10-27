@@ -54,7 +54,12 @@ export function useCentreLookup(): CentreLookup {
       if (!code) return '—';
       const c = byCode[code.toUpperCase()];
       if (!c) return code; // not yet loaded / unknown → show the raw code, never a guess
-      const place = [c.name, c.stateCode || c.cityCode].filter(Boolean).join(', ');
+      // stateCode is a 2-letter abbreviation (e.g. "tx") and may be stored in
+      // either case — always display it uppercase ("TX"). cityCode is a full
+      // name, not a code, so it's shown as-is when there's no state to fall
+      // back to.
+      const stateOrCity = c.stateCode ? c.stateCode.toUpperCase() : c.cityCode;
+      const place = [c.name, stateOrCity].filter(Boolean).join(', ');
       return place || c.code;
     },
     [byCode]

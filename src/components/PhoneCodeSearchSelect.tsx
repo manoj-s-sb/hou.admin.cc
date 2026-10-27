@@ -14,11 +14,25 @@ import { COUNTRIES, COUNTRY_DIAL_CODES } from '../pages/centres/constants';
  * its own existing field look (Tailwind classes in one place, inline styles
  * in another) — this component only owns the search/dropdown behavior.
  */
+// US and India pinned to the top (most of this org's staff/centres are in one
+// of the two) — everything else keeps its existing alphabetical order after
+// them. Local to this picker only; the general country selector elsewhere
+// (e.g. New Centre Wizard's address country) is untouched.
+const PINNED_ISO_ORDER = ['US', 'IN'];
 const PHONE_CODE_OPTIONS = COUNTRIES.map(c => ({
   isoCode: c.code,
   label: c.label,
   dialCode: COUNTRY_DIAL_CODES[c.code] || '',
-})).filter(o => o.dialCode);
+}))
+  .filter(o => o.dialCode)
+  .sort((a, b) => {
+    const ai = PINNED_ISO_ORDER.indexOf(a.isoCode);
+    const bi = PINNED_ISO_ORDER.indexOf(b.isoCode);
+    if (ai === -1 && bi === -1) return 0; // preserve existing alphabetical order
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
 
 interface PhoneCodeSearchSelectProps {
   value: string;
