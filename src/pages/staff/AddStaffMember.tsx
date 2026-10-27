@@ -757,6 +757,13 @@ const AddStaffMember: React.FC = () => {
         toast('Staff member created, but welcome email failed to send. You can resend from the staff profile.', {
           icon: '⚠️',
         });
+      } else if (!sendWelcomeEmail) {
+        // "Send welcome email" was deliberately unticked — explicit here rather
+        // than a plain success toast, so unchecking it is never a silent no-op
+        // the admin only discovers later when the new hire says they got nothing.
+        toast('Staff member created. No welcome email was sent — share login details manually, or resend later.', {
+          icon: 'ℹ️',
+        });
       } else {
         toast.success('Staff member created');
       }
@@ -941,6 +948,7 @@ const AddStaffMember: React.FC = () => {
           isLastStep={activeIndex === STEPS.length - 1}
           isSubmitting={isSubmitting}
           nextStepLabel={nextStepLabel}
+          willSendWelcomeEmail={sendWelcomeEmail}
           onBack={handleBack}
           onCancel={goBack}
           onNext={handleNext}
