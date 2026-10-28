@@ -13,6 +13,9 @@ export interface ReportsRequest {
   period: ReportPeriod;
   startDate?: string;
   endDate?: string;
+  /** RP-1: network view defaults to Active centres only. Set true to also
+   * include Draft/Staging/Suspended centres (e.g. QA/test ones) in the totals. */
+  includeNonActive?: boolean;
 }
 
 export interface ReportMeta {
@@ -28,15 +31,20 @@ export interface ReportMeta {
 // ─── overview ──────────────────────────────────────────────────────────
 export interface OverviewStats {
   totalMembers: number;
+  /** Total booking COUNT for the period (PRD KPI: "18,654 bookings") — not hours.
+   * totalBookingsHrs below is the separate hours-sum used by the per-centre breakdowns. */
+  totalBookings: number;
   totalBookingsHrs: number;
   /** Network-wide average; null when no centre in scope is configured for it yet. */
   utilisationPct: number | null;
   noshowPct: number;
-  // Period-over-period trend %: new sign-ups this window vs the previous equal window.
-  membersTrendPct: number;
-  // Average booking hours per day in the window, and its trend vs the previous window.
-  bookingsPerDay: number;
-  bookingsTrendPct: number;
+  /** Trend % of the active-member COUNT vs the same count at the end of the
+   * previous equal window — null when there's no previous-period baseline
+   * (e.g. Full summary, or the previous window had none), shown as "New"/"—". */
+  membersTrendPct: number | null;
+  /** Trend % of totalBookings vs the previous equal window; null for the same
+   * no-baseline reason as membersTrendPct. */
+  bookingsTrendPct: number | null;
 }
 export interface MembershipGrowthPoint {
   month: string;
@@ -60,6 +68,9 @@ export interface CentreSummaryRow {
   utilisationPct: number | null;
   noshowPct: number;
   status: string;
+  /** This centre's own new-vs-cancelled series (PDF sparkline) — not the
+   * network-wide one shared by every centre. */
+  growth: MembershipGrowthPoint[];
 }
 export interface OverviewData {
   stats: OverviewStats;
@@ -73,7 +84,8 @@ export interface OverviewData {
 export interface PlanCard {
   planName: string;
   count: number;
-  growthPct: number;
+  /** null when there's no previous-period baseline to compare against (shown as "New"/"—"). */
+  growthPct: number | null;
   percentageOfTotal: number;
 }
 export interface DonutSlice {
@@ -106,7 +118,11 @@ export interface UtilisationStats {
   /** Network-wide average; null when no centre in scope is configured for it yet. */
   avgUtilisation: number | null;
   peakHour: string;
-  offPeakAvg: number;
+  /** The peak hour's own utilisation %, same formula as avgUtilisation — null
+   * when no centre in scope is configured for it yet. */
+  peakHourPct: number | null;
+  /** null when no centre in scope is configured for it yet. */
+  offPeakAvg: number | null;
   totalCapacityHrs: number;
 }
 export interface Heatmap {
@@ -191,7 +207,9 @@ export interface CentreCapacityRing {
   centreName: string;
   members: number;
   totalCapacity: number;
-  pct: number;
+  /** null when totalCapacity isn't configured — show "—"/"Capacity not set",
+   * never 0%, which would misread as "no members". */
+  pct: number | null;
   color: string;
   plans: CapacityPlanBar[];
 }
