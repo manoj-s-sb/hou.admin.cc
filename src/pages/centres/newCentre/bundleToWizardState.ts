@@ -266,6 +266,10 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
       planId: m.code,
       enabled: true,
       fortnightlyPrice: num(regular.fortnightly),
+      // This centre's OWN saved choice — distinct from the global template's
+      // offersAnnual, since a centre can turn annual off even where the
+      // template offers it (default to offered when the doc predates this field).
+      offersAnnual: (m.pricing?.billingCycles ?? ['fortnightly', 'annual']).includes('annual'),
       annualPrice: num(regular.annual),
       allocatedSlots,
       // registrationFee is an object on real docs ({enabled, amount, ...}, see

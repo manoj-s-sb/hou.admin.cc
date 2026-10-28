@@ -43,14 +43,18 @@ interface StatProps {
   hero?: boolean;
   /** Shown as a title-attribute tooltip when the value is empty, e.g. why it's unconfigured. */
   emptyHint?: string;
+  /** Always-shown tooltip (even with a value) — for clarifying a metric that's
+   * easy to confuse with a similarly-named one elsewhere (e.g. Reports' own
+   * selectable-period figures vs this card's fixed 30-day window). */
+  hint?: string;
 }
 
 /** One KPI cell. Missing values render as an intentional muted dash, not "0". */
-const Stat: React.FC<StatProps> = ({ value, label, suffix = '', hero = false, emptyHint }) => {
+const Stat: React.FC<StatProps> = ({ value, label, suffix = '', hero = false, emptyHint, hint }) => {
   const display = value === undefined || value === null ? '—' : `${value.toLocaleString()}${suffix}`;
   const isEmpty = display === '—';
   return (
-    <div className="flex flex-col gap-0.5" title={isEmpty ? emptyHint : undefined}>
+    <div className="flex flex-col gap-0.5" title={isEmpty ? emptyHint : hint}>
       <span
         className={`tabular-nums leading-none ${hero ? 'text-[22px] font-extrabold' : 'text-lg font-bold'} ${
           isEmpty ? 'text-muted' : 'text-navy'
@@ -150,13 +154,18 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit, onDelete, now }) 
       {/* ── KPI rollup (mapped from the API `stats` block) ── */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 rounded-[10px] border border-cmx-border bg-cmx-body/60 p-3">
         <Stat hero label="Active Members" value={kpi?.activeMembers} />
-        <Stat label="Bookings · 30d" value={kpi?.bookings30d} />
+        <Stat
+          hint="Count of bookings, not hours — Reports shows total booking HOURS over a period you choose, not this fixed 30-day count"
+          label="Bookings · 30d"
+          value={kpi?.bookings30d}
+        />
         <Stat
           emptyHint={
             kpi?.utilisationStatus === 'insufficient_config'
               ? 'Capacity or operating hours not configured for this centre'
               : undefined
           }
+          hint="Based on a fixed last-30-days window — Reports' Utilisation figures follow the period you choose there instead"
           label="Utilisation"
           suffix="%"
           value={kpi?.utilisationPct}

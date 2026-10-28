@@ -11,12 +11,6 @@ export type PlanStatus = 'active' | 'archived';
 
 export type AccessType = '24/7' | 'offpeak' | 'nightowl' | 'custom';
 
-export interface PlanEligibility {
-  adult: boolean;
-  junior: boolean;
-  family: boolean;
-}
-
 export interface MembershipPlan {
   /** Stable id — one of the catalogue ids, or a generated id for new plans. */
   id: PlanId | string;
@@ -29,6 +23,11 @@ export interface MembershipPlan {
 
   // ── Pricing ──
   fortnightlyPrice: number;
+  /** MP-8: whether this plan has an annual billing option at all — distinct from
+   * `annualPrice` being 0, which used to be the only (wrong) way "not offered"
+   * was representable, and rendered as a misleading "~100% off" discount. */
+  offersAnnual: boolean;
+  /** Meaningless when `offersAnnual` is false — don't render it in that case. */
   annualPrice: number;
   /** Currency these prices are stored in (upper-case, e.g. 'USD'/'AUD'). Usually
    *  'USD', but the API can return another — the UI must convert FROM this, not
@@ -57,7 +56,11 @@ export interface MembershipPlan {
   extraSessionPrice: number;
 
   // ── Eligibility & caps ──
-  eligibility: PlanEligibility;
+  /** MP-10: open-ended tags (e.g. ['adult', 'senior']) — not a fixed
+   * adult/junior/family shape. A brand-new tag typed on this plan becomes a
+   * real option in the New Centre Wizard's demographic filter immediately,
+   * with no code change (same pattern as the Waitlist Type filter). */
+  eligibilityTags: string[];
   /** Family additional-member fee. null = N/A. */
   additionalMemberFee: number | null;
   /** Network-wide member cap. 0 = unlimited. */
@@ -136,7 +139,8 @@ export interface ApiMembership {
     };
     [key: string]: unknown;
   };
-  memberTypes?: { adult?: unknown; junior?: unknown };
+  /** MP-10: open-ended — any tag key, not just adult/junior. */
+  memberTypes?: Record<string, unknown>;
   description?: { fortnightly?: string; annual?: string };
   [key: string]: unknown;
 }

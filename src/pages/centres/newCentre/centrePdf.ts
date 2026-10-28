@@ -40,7 +40,7 @@ export function downloadCentrePdf(s: WizardState, catalogue: PlanMeta[]): boolea
       return `<tr>
         <td>${esc(meta?.name ?? p.planId)}</td>
         <td>$${esc(p.fortnightlyPrice)}</td>
-        <td>$${esc(p.annualPrice)}</td>
+        <td>${p.offersAnnual ? `$${esc(p.annualPrice)}` : 'Not offered'}</td>
         <td>${esc(p.allocatedSlots)}</td>
         <td>${p.isFoundationEligible ? 'Yes' : 'No'}</td>
       </tr>`;
