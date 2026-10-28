@@ -85,6 +85,7 @@ const endpoints = {
   },
   tour: {
     updateTourStatus: `${API_PREFIX}/admin/bookings/tour/status/update`,
+    addNote: `${API_PREFIX}/admin/bookings/tour/notes/add`,
   },
   // Maintenance & Tasks — ONE action-dispatched endpoint. Body always carries an
   // `action` (list_templates | create_template | update_template | archive_template |
@@ -207,6 +208,10 @@ const endpoints = {
     // POST — superadmin only (403 for every other role). { userId | email, amount, reason }.
     credit: `${API_PREFIX}/admin/wallets/credit`,
   },
+  // NE-1: central notifications log. GET, every filter optional (recipient_email,
+  // email_type, facility_code, start_date, end_date, skip, limit) — called with
+  // none of them, lists every outbound email across the whole portal, newest first.
+  emailLogs: `${API_PREFIX}/admin/email-logs`,
 };
 
 export default endpoints;
