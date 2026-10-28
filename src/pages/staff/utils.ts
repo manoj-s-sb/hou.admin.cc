@@ -69,6 +69,21 @@ export const validatePassword = (pw: string): string | null => {
   return null;
 };
 
+export const MIN_STAFF_AGE_YEARS = 16;
+
+// Latest Date of Birth that satisfies the minimum staff age, as yyyy-mm-dd —
+// e.g. today 2026-10-26 with a 16-year minimum -> "2010-10-26". Always
+// strictly before today, so this single cutoff covers "DOB is today",
+// "DOB is in the future", AND "staff member is too young" all at once.
+export const maxDobForMinAge = (minAgeYears: number = MIN_STAFF_AGE_YEARS): string => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - minAgeYears);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
+
+export const isBelowMinimumAge = (dateStr: string, minAgeYears: number = MIN_STAFF_AGE_YEARS): boolean =>
+  Boolean(dateStr) && dateStr > maxDobForMinAge(minAgeYears);
+
 export const blankToNull = (v: string | null | undefined): string | null => {
   const trimmed = (v ?? '').toString().trim();
   return trimmed === '' ? null : trimmed;
@@ -94,6 +109,51 @@ const ROLE_LABEL: Record<string, string> = {
 export const formatRoleLabel = (role: string): string =>
   ROLE_LABEL[role.toLowerCase()] ?? role.charAt(0).toUpperCase() + role.slice(1);
 
+// Turns a raw internal config code (e.g. "bachelorphysed", "facility_only")
+// into a readable fallback label ("Bachelor Physed", "Facility Only") when
+// there's no matching config entry to pull a real label from.
+export const humanizeCode = (code: string): string =>
+  code
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim();
+
+// SM-10: resolve a raw config code (qualification, certification, access
+// level, ...) to its configured human-readable label, falling back to a
+// humanized version of the code itself rather than ever showing the raw
+// code verbatim (e.g. "iccl2coach", "facilityonly").
+// Mirrors the backend's CreateRoleRequest/CreateAccessLevelRequest validation
+// (staff_config_models.py's _validate_display_name) — a custom role/access-
+// level name must look like an actual name: starts with a letter/digit, then
+// only letters, digits, spaces, hyphens, apostrophes, or '&', at least 2
+// characters. Rejects junk like "mn,m." or ",," at the point of entry rather
+// than only after a round-trip to the backend.
+const DISPLAY_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 &'-]*$/;
+export const isValidDisplayName = (value: string): boolean => {
+  const trimmed = value.trim();
+  return trimmed.length >= 2 && DISPLAY_NAME_PATTERN.test(trimmed);
+};
+
+// Mirrors the backend's _validate_description — a description is free text
+// (punctuation is fine, unlike the name), the only real problem reported was
+// a literal "hjkl"-style junk entry, so this just enforces a minimum length.
+// Blank is always valid (description is optional).
+export const MIN_DESCRIPTION_LENGTH = 10;
+export const isValidDescription = (value: string): boolean => {
+  const trimmed = value.trim();
+  return trimmed.length === 0 || trimmed.length >= MIN_DESCRIPTION_LENGTH;
+};
+
+export const resolveConfigLabel = (
+  options: { id: string; label: string }[] | undefined,
+  code: string | null | undefined
+): string => {
+  if (!code) return '—';
+  const match = (options ?? []).find(o => o.id.toLowerCase() === code.toLowerCase());
+  return match?.label || humanizeCode(code);
+};
+
 // Shared field styling tokens — used across step components
 export const LABEL_CLASS = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500';
 export const INPUT_CLASS =
@@ -118,12 +178,16 @@ export const stripDialCode = (phone: string): string => phone.trim().replace(/^\
  * country manager the viewer had just created. Country/regional-scoped viewers filter
  * to their country; everyone else (facility-scoped) filters to their own facility.
  */
-export const buildStaffListParams = (limit = 50, offset = 0): StaffListRequest => {
+export const buildStaffListParams = (
+  limit = 50,
+  offset = 0,
+  extra: { search?: string; role?: string; accessLevel?: string } = {}
+): StaffListRequest => {
   const authState = (store.getState() as RootState).auth;
   const countryCode = authState.scope?.countryCodes?.[0] || authState.user?.countryCode || undefined;
   const facilityCode = getLocalUser().facilityCode || '';
   const level = scopeType();
-  if (level === 'global') return { limit, offset };
-  if (level === 'country' || level === 'regional') return { countryCode, limit, offset };
-  return { facilityCode, limit, offset };
+  if (level === 'global') return { limit, offset, ...extra };
+  if (level === 'country' || level === 'regional') return { countryCode, limit, offset, ...extra };
+  return { facilityCode, limit, offset, ...extra };
 };

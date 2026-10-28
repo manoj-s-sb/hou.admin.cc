@@ -63,7 +63,14 @@ const ALL_COUNTRIES: WorldCountryEntry[] = worldCountries
     label: c.name.common,
     iso2: c.cca2,
     iso3: c.cca3,
-    dialCode: c.idd?.root ? `${c.idd.root}${c.idd.suffixes?.[0] ?? ''}` : '',
+    // `idd.root` is the real, dialable country code (e.g. "+1" for both the US
+    // and Canada, "+7" for both Russia and Kazakhstan — genuinely shared, not
+    // a mistake). `idd.suffixes` is NOT a tiebreaker digit to append — it's
+    // world-countries' internal list of domestic area-code hints for
+    // countries whose numbering plan is split with others under the same
+    // root. Appending suffixes[0] produced nonsense like "+1201" for the US
+    // and "+73" for Russia. The real international dial code is root alone.
+    dialCode: c.idd?.root || '',
     flag: c.flag,
   }))
   .sort((a, b) => a.label.localeCompare(b.label));
@@ -101,9 +108,32 @@ const toRealIso2 = (code: string): string => {
   return upper === 'UK' ? 'GB' : upper === 'UAE' ? 'AE' : upper;
 };
 
+// The `countries-and-timezones` package's own `utcOffsetStr` is a single
+// static value per zone — for most zones it's the non-DST (winter) offset,
+// which showed New York as "UTC-05:00" even in summer when it's really
+// EDT/UTC-04:00. It's also inconsistent between zones that share the exact
+// same real rules (its data had Vancouver and Los Angeles — both Pacific
+// Time — disagreeing). Computing the offset from `Intl.DateTimeFormat`
+// against today's actual date sidesteps both problems: it reflects whatever
+// is really in effect right now, for every zone, from the same
+// always-current source the rest of the browser's date handling uses.
+const currentUtcOffset = (name: string): string | null => {
+  try {
+    const part = new Intl.DateTimeFormat('en-US', { timeZone: name, timeZoneName: 'shortOffset' })
+      .formatToParts(new Date())
+      .find(p => p.type === 'timeZoneName');
+    const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(part?.value ?? '');
+    if (!match) return part?.value === 'GMT' ? '+00:00' : null;
+    const [, sign, hours, minutes] = match;
+    return `${sign}${hours.padStart(2, '0')}:${minutes ?? '00'}`;
+  } catch {
+    return null;
+  }
+};
+
 const tzLabel = (name: string): string => {
-  const tz = getTimezone(name);
-  return tz ? `${name} (UTC${tz.utcOffsetStr})` : name;
+  const offset = currentUtcOffset(name) ?? getTimezone(name)?.utcOffsetStr;
+  return offset ? `${name} (UTC${offset})` : name;
 };
 
 /** Every real-world IANA timezone — the Time Zone dropdown's full list before
@@ -121,12 +151,86 @@ export const timezonesForCountry = (code: string): { value: string; label: strin
   return country ? country.timezones.map(name => ({ value: name, label: tzLabel(name) })) : [];
 };
 
+// Postcode shape per country — keyed on this app's own `code` values (so 'UK'/'UAE',
+// matching COUNTRIES above, not raw ISO). Covers the markets this app actually
+// operates in today plus a few other common ones; every other country falls back
+// to a loose "looks like a real postcode" check rather than being rejected outright
+// — hand-maintaining all ~250 countries' real postal formats isn't worth it for a
+// rule whose whole point is catching obvious nonsense like "abc" in a US address.
+const POSTCODE_PATTERNS: Record<string, RegExp> = {
+  US: /^\d{5}(-\d{4})?$/,
+  CA: /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/,
+  UK: /^[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}$/,
+  IN: /^\d{6}$/,
+  AU: /^\d{4}$/,
+  NZ: /^\d{4}$/,
+  ZA: /^\d{4}$/,
+  DE: /^\d{5}$/,
+  FR: /^\d{5}$/,
+  // UAE has no mandatory nationwide postal-code system — nothing to validate.
+};
+
+// Loose fallback for any country without a curated pattern above: a handful of
+// letters/digits (plus space/hyphen for formats like "1234-567"), not empty, not
+// obviously fake. Real-world postcodes run roughly 2–10 characters everywhere.
+const GENERIC_POSTCODE_RE = /^[A-Za-z0-9][A-Za-z0-9\s-]{1,9}$/;
+
+/** Whether `postcode` looks like a real postal code for `countryCode` (this
+ * app's own country code). Empty is NOT validated here — "required" is a
+ * separate, already-existing check; this only catches a filled-in value that
+ * doesn't look real (e.g. "abc" for a US address). */
+export const isValidPostcode = (postcode: string, countryCode: string): boolean => {
+  const trimmed = postcode.trim();
+  if (!trimmed) return true;
+  const pattern = POSTCODE_PATTERNS[(countryCode || '').toUpperCase()];
+  return pattern ? pattern.test(trimmed) : GENERIC_POSTCODE_RE.test(trimmed);
+};
+
+// National phone-number length (digits only, AFTER the country's dial code —
+// e.g. "5551234567" for a US number, not "+15551234567"), [min, max] inclusive.
+// Real numbering plans vary within a country (mobile vs. landline, area-code
+// length), so this is a range, not one exact count — the point is catching
+// something obviously wrong like a 3-digit number, not policing every valid
+// format. Keyed on this app's own `code` values, same as the postcode map above.
+const PHONE_LENGTH_RANGES: Record<string, [number, number]> = {
+  US: [10, 10],
+  CA: [10, 10],
+  UK: [9, 10],
+  IN: [10, 10],
+  AU: [9, 9],
+  NZ: [8, 9],
+  ZA: [9, 9],
+  UAE: [8, 9],
+  DE: [6, 11],
+  FR: [9, 9],
+};
+
+// Fallback for any country without a curated range above — the ITU's E.164
+// standard caps a full international number (country code + national number)
+// at 15 digits, and a real national number is practically never under 6.
+const GENERIC_PHONE_LENGTH_RANGE: [number, number] = [6, 14];
+
+/** Whether `localNumber` (the phone number's digits, with the country's dial
+ * code already stripped off — see `stripDialCode`) is a plausible length for
+ * `countryCode` (this app's own country code). Empty is NOT validated here —
+ * "required" is a separate, already-existing check; this only catches a
+ * filled-in value that's obviously too short/long, e.g. a 3-digit number. */
+export const isValidPhoneLength = (localNumber: string, countryCode: string): boolean => {
+  const digits = localNumber.replace(/\D/g, '');
+  if (!digits) return true;
+  const [min, max] = PHONE_LENGTH_RANGES[(countryCode || '').toUpperCase()] ?? GENERIC_PHONE_LENGTH_RANGE;
+  return digits.length >= min && digits.length <= max;
+};
+
+// 'Gym' is deliberately NOT here — it already has its own dedicated panel in
+// Step 3 (Additional Facilities), with its own toggle and full pricing/
+// capacity/guest-access config. Listing it again here as a plain checkbox
+// duplicated the same concept under two different names/places in the wizard.
 export const FACILITY_OPTIONS = [
   'Batting Lanes',
   'Bowling Lanes',
   'Hybrid Lanes',
   'Simulator Bay',
-  'Gym',
   'Coaching Area',
   'Lounge',
   'Pro Shop',

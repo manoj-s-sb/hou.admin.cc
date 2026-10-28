@@ -82,6 +82,9 @@ export interface TaskSchedule {
   lastCompletedAt: string | null;
   actionTaken: string | null;
   attachments: ScheduleAttachment[];
+  // Present only on a schedule created by the up-front 1-year generation
+  // (MT-2) — absent on a legacy one-at-a-time schedule.
+  seriesId?: string | null;
   createdAt: string;
   createdBy: string;
   createdByName: string;
@@ -156,6 +159,16 @@ export interface FlagIssuePayload {
 }
 
 export interface UnscheduleTaskPayload {
+  id: string;
+  facilityCode: string;
+}
+
+export interface EndSeriesPayload {
+  id: string;
+  facilityCode: string;
+}
+
+export interface UndoCompleteTaskPayload {
   id: string;
   facilityCode: string;
 }

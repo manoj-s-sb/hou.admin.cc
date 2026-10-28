@@ -83,7 +83,9 @@ const buildLanes = (state: WizardState): ApiLane[] => {
         type: 'lane',
         laneNo,
         laneType: type,
-        status: 'active',
+        // Mirrors the centre's own status — a Draft/Staging centre's lanes
+        // showed "Active" regardless, same mismatch U9 reported for Gym.
+        status: state.status,
         code: `${code}-L${laneNo}`,
         lanePitchMapping: { ...DEFAULT_LANE_PITCH },
         speedRestriction: null,
@@ -126,7 +128,8 @@ const buildMemberships = (state: WizardState, catalogue: PlanMeta[]): ApiMembers
       return {
         type: 'membership',
         code: p.planId,
-        status: 'active',
+        // Mirrors the centre's own status — same reasoning as buildLanes above.
+        status: state.status,
         // Persist the proper display label + access hours so the centre's Plans &
         // Pricing page reads them from the API (not a frontend lookup).
         name: meta?.name ?? p.planId.charAt(0).toUpperCase() + p.planId.slice(1),
@@ -264,7 +267,8 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
           type: 'product',
           code,
           name: f.name,
-          status: 'active',
+          // Mirrors the centre's own status — same reasoning as buildLanes above.
+          status: state.status,
           annualDiscountPct: f.annualDiscountPct,
           openTime: f.openTime,
           closeTime: f.closeTime,
@@ -316,7 +320,8 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
           type: 'product',
           code,
           name: f.name,
-          status: 'active',
+          // Mirrors the centre's own status — same reasoning as buildLanes above.
+          status: state.status,
           annualDiscountPct: f.annualDiscountPct,
           openTime: f.openTime,
           closeTime: f.closeTime,
@@ -342,7 +347,8 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
         type: 'product',
         code,
         name: f.name,
-        status: 'active',
+        // Mirrors the centre's own status — same reasoning as buildLanes above.
+        status: state.status,
         pricing: { perHour: f.fortnightlyPrice, currency: 'usd' },
         sessionRules: {
           minHours: 1,

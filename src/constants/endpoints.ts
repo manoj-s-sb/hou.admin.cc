@@ -131,6 +131,7 @@ const endpoints = {
     centreDetails: `${API_PREFIX}/admin/centres/details`, // POST { code }
     centreCreate: `${API_PREFIX}/admin/centres/create`, // POST { facility, lanes[], memberships[], membershipSalesFlow }
     centreUpdate: `${API_PREFIX}/admin/centres/update`, // POST { centreId, facility } — edit facility / activate draft
+    centreDelete: `${API_PREFIX}/admin/centres/delete`, // POST { centreId } — soft-delete a Draft centre (status="deleted", recoverable; superadmin only)
     uploadImageUrl: `${API_PREFIX}/admin/centres/upload_url`, // POST { facilityCode, fileName, contentType? } — mints a blob write-SAS for a product image
     // Legacy model (ops dashboard + update/suspend/delete — not re-wired yet).
     list: `${API_PREFIX}/admin/centres`,

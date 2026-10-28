@@ -186,7 +186,7 @@ const AccountStep: React.FC<AccountStepProps> = ({
                 ? editStatus.charAt(0).toUpperCase() + editStatus.slice(1)
                 : sendWelcomeEmail
                   ? 'Invited (pending login)'
-                  : 'Draft'}
+                  : 'Invited (no email sent)'}
             </span>
           </p>
         </div>

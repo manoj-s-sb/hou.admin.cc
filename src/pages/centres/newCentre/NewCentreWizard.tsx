@@ -5,6 +5,8 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import NumberInput from '../../../components/NumberInput';
 import PhoneCodeSearchSelect from '../../../components/PhoneCodeSearchSelect';
+import endpoints from '../../../constants/endpoints';
+import api from '../../../services';
 import { createCentre, updateCentre } from '../../../store/centres/api';
 import { getMemberships } from '../../../store/memberships/api';
 import { AppDispatch, RootState } from '../../../store/store';
@@ -16,6 +18,8 @@ import {
   DAYS,
   DEMOGRAPHICS,
   FACILITY_OPTIONS,
+  isValidPhoneLength,
+  isValidPostcode,
   PLAN_COUNTRY_CHIPS,
   SLOT_DURATIONS,
   TIMEZONES,
@@ -288,7 +292,7 @@ const SAVE_STATUS_META: Record<SaveStatus, { title: string; desc: string }> = {
   },
   active: {
     title: 'Save & Activate',
-    desc: 'Centre goes live immediately. Visible to assigned staff and available for member sign-ups. Sends activation notification to assigned Admins.',
+    desc: 'Centre goes live immediately. Visible to centre staff and available for member sign-ups.',
   },
   suspended: {
     title: 'Suspend Centre',
@@ -354,6 +358,91 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [postcodeLooking, setPostcodeLooking] = useState(false);
+  // Live short-code uniqueness — previously only caught at Create, after the
+  // admin had filled out every step. Checked against the server (not the list
+  // page's own, paginated `state.centres.facilities`, which may not include
+  // every centre) so this is accurate regardless of how many centres exist.
+  const [shortCodeTaken, setShortCodeTaken] = useState(false);
+  const [checkingShortCode, setCheckingShortCode] = useState(false);
+  const ownCode = (initialBundle?.facility?.code ?? '').toUpperCase();
+  // Tracks the last code a toast already fired for, so re-renders (or simply
+  // not having changed the input) don't re-toast the same duplicate — only a
+  // genuinely new duplicate code gets a fresh toast.
+  const toastedDuplicateCodeRef = useRef<string | null>(null);
+  useEffect(() => {
+    const code = s.shortCode.trim().toUpperCase();
+    if (!code || !SHORT_CODE_RE.test(code) || code === ownCode) {
+      setShortCodeTaken(false);
+      setCheckingShortCode(false);
+      return;
+    }
+    let cancelled = false;
+    setCheckingShortCode(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.post<{ data?: { facilities?: { code: string }[] } }>(endpoints.centres.centresList, {
+          search: code,
+          skip: 0,
+          limit: 5,
+        });
+        const facilities = res.data?.data?.facilities ?? [];
+        const taken = facilities.some(f => (f.code ?? '').toUpperCase() === code);
+        if (cancelled) return;
+        setShortCodeTaken(taken);
+        if (taken && toastedDuplicateCodeRef.current !== code) {
+          toastedDuplicateCodeRef.current = code;
+          toast.error(`"${code}" is already used by another centre — pick a different short code.`);
+        } else if (!taken) {
+          toastedDuplicateCodeRef.current = null;
+        }
+      } catch {
+        // A lookup failure shouldn't block typing or falsely flag a duplicate —
+        // the server still enforces uniqueness for real at Create either way.
+        if (!cancelled) setShortCodeTaken(false);
+      } finally {
+        if (!cancelled) setCheckingShortCode(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [s.shortCode, ownCode]);
+  // Live duplicate-name warning (R2) — a toast only, not a blocker like the
+  // short-code check above: two centres can legitimately share a name (e.g.
+  // "Downtown" in two different cities), so this is advisory, not enforced.
+  const ownName = (initialBundle?.facility?.name ?? '').trim().toLowerCase();
+  const toastedDuplicateNameRef = useRef<string | null>(null);
+  useEffect(() => {
+    const name = s.name.trim();
+    const key = name.toLowerCase();
+    if (!name || key === ownName) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.post<{ data?: { facilities?: { name: string }[] } }>(endpoints.centres.centresList, {
+          search: name,
+          skip: 0,
+          limit: 5,
+        });
+        const facilities = res.data?.data?.facilities ?? [];
+        const taken = facilities.some(f => (f.name ?? '').trim().toLowerCase() === key);
+        if (cancelled) return;
+        if (taken && toastedDuplicateNameRef.current !== key) {
+          toastedDuplicateNameRef.current = key;
+          toast.error(`A centre named "${name}" already exists — double-check this isn't a duplicate.`);
+        } else if (!taken) {
+          toastedDuplicateNameRef.current = null;
+        }
+      } catch {
+        // Advisory only — a lookup failure here should never block typing.
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [s.name, ownName]);
   // Free-text entry for a "Facilities Available" option not in FACILITY_OPTIONS —
   // added facilities live in the same s.facilities: string[], no separate field.
   const [customFacilityInput, setCustomFacilityInput] = useState('');
@@ -374,6 +463,31 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   const [savedAs, setSavedAs] = useState<SaveStatus | null>(null);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
   const dirtyRef = useRef(false);
+  const stepContentRef = useRef<HTMLDivElement | null>(null);
+
+  // Finds the first field currently showing a red error border (every error
+  // style in this file uses the same #dc2626, which the browser normalizes to
+  // this rgb value) and scrolls it into view — rather than leaving the admin
+  // to hunt for the problem across a long step after a toast flashes by.
+  // Falls back to scrolling the step to the top when the error isn't on a
+  // single field (e.g. the lane/facility mismatch warning, or a step
+  // reached from elsewhere via `save`'s own jump). Run one frame later so
+  // this sees the just-applied `showErrors`/`setStep` styling, not the stale
+  // pre-render state.
+  const scrollToFirstError = useCallback(() => {
+    requestAnimationFrame(() => {
+      const container = stepContentRef.current;
+      if (!container) return;
+      const fields = container.querySelectorAll<HTMLElement>('input, select, textarea');
+      const firstBad = Array.from(fields).find(el => getComputedStyle(el).borderColor === 'rgb(220, 38, 38)');
+      if (firstBad) {
+        firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstBad.focus({ preventScroll: true });
+      } else {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }, []);
 
   const set = (patch: Partial<WizardState>) => {
     dirtyRef.current = true;
@@ -454,8 +568,36 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   const allocatedTotal = s.plans.filter(p => p.enabled).reduce((sum, p) => sum + (Number(p.allocatedSlots) || 0), 0);
   const overAllocated = capacity > 0 && allocatedTotal > capacity;
   const foundationOverflow = foundation > capacity && capacity > 0;
+  // A lane type ticked under "Facilities Available" with a 0 count for that
+  // type — real data, not hypothetical (Houston: "Bowling Lanes" ticked, 0
+  // bowling lanes). Shown as a warning the moment it happens; only actually
+  // blocks saving as Active (see `save`) — ticking a planned amenity before
+  // its count is finalised is fine while still setting up.
+  const laneFacilityMismatches = [
+    { label: 'Batting Lanes', count: toNum(s.battingLanes) },
+    { label: 'Bowling Lanes', count: toNum(s.bowlingLanes) },
+    { label: 'Hybrid Lanes', count: toNum(s.multipurposeLanes) },
+  ].filter(({ label, count }) => s.facilities.includes(label) && count < 1);
+  // A plan priced at $0 fortnightly with a real annual price (e.g. $9,999) is
+  // nonsensical — the fortnightly rate is what the annual price is supposed to
+  // be a discount OFF of (26 fortnights/year), so annual can never legitimately
+  // exceed fortnightly × 26, and a free plan with a paid annual option makes no
+  // sense at all.
+  const invalidPlanPricing = (p: WizardPlanRow): boolean =>
+    p.enabled && (p.fortnightlyPrice <= 0 || p.annualPrice > p.fortnightlyPrice * 26);
+  const hasInvalidPlanPricing = s.plans.some(invalidPlanPricing);
+  // Go-live is optional (leave blank to not schedule one), but a date that IS
+  // set can't be in the past — ISO 8601 strings sort lexicographically, so
+  // plain string comparison against the current instant is safe here.
+  const goLiveInPast = Boolean(s.keyDates.goLiveAt && s.keyDates.goLiveAt < new Date().toISOString());
 
   const shortCodeValid = !s.shortCode || SHORT_CODE_RE.test(s.shortCode);
+  const postcodeValid = isValidPostcode(s.postcode, s.country);
+  const phoneLengthValid = isValidPhoneLength(stripDialCode(s.phone), s.country);
+  // State matters most for a US address (shipping, tax/legal, how the centre
+  // shows up in reports) — Houston was saved with none at all, showing only
+  // "USA" on its list card instead of "Houston, TX, USA".
+  const stateRequired = s.country === 'US';
 
   const emailValid = !s.email || EMAIL_RE.test(s.email);
   const hoursValid =
@@ -478,12 +620,16 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
           s.name.trim() &&
           s.shortCode.trim() &&
           shortCodeValid &&
+          !shortCodeTaken &&
           s.addressLine1.trim() &&
           s.city.trim() &&
+          (!stateRequired || s.state.trim()) &&
           s.postcode.trim() &&
+          postcodeValid &&
           s.country &&
           s.timezone &&
           s.phone.trim() &&
+          phoneLengthValid &&
           s.email.trim() &&
           emailValid &&
           hoursValid
@@ -493,7 +639,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
       case 3:
         return true; // optional
       case 4:
-        return capacity > 0 && s.plans.some(p => p.enabled) && !overAllocated;
+        return capacity > 0 && s.plans.some(p => p.enabled) && !overAllocated && !hasInvalidPlanPricing;
+      case 5:
+        return !goLiveInPast;
       default:
         return true;
     }
@@ -503,7 +651,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     // Moving forward requires the current step to be valid.
     if (n > step && !stepValid(step)) {
       setShowErrors(true);
-      toast.error('Please complete the required fields before continuing.');
+      // A fixed `id` makes repeat clicks update the same toast instead of
+      // stacking a new one each time.
+      toast.error('Please complete the required fields before continuing.', { id: 'wizard-step-error' });
+      scrollToFirstError();
       return;
     }
     setShowErrors(false);
@@ -573,9 +724,29 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
 
   const save = async () => {
     if (!stepValid(4)) {
-      toast.error('Resolve plan & capacity validation before saving.');
+      setShowErrors(true);
+      toast.error('Resolve plan & capacity validation before saving.', { id: 'wizard-step-error' });
       setStep(4);
+      scrollToFirstError();
       return;
+    }
+    // A lane type ticked in "Facilities Available" with a 0 count for that type
+    // is a real, live inconsistency today (Houston: "Bowling Lanes" ticked, 0
+    // bowling lanes) — allowed while still setting up (Draft/Staging), since an
+    // admin may tick a planned amenity before finalising its count, but blocked
+    // the moment the centre is saved as Active: a member-facing centre can't
+    // advertise a lane type it has none of.
+    if (saveStatus === 'active') {
+      const [laneMismatch] = laneFacilityMismatches;
+      if (laneMismatch) {
+        toast.error(
+          `"${laneMismatch.label}" is enabled under Facilities Available, but its lane count is 0 — set at least 1 or untick it before going Active.`,
+          { id: 'wizard-step-error' }
+        );
+        setStep(2);
+        scrollToFirstError();
+        return;
+      }
     }
     setSaving(true);
     const finalState: WizardState = { ...s, status: saveStatus };
@@ -743,7 +914,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
           })}
         </div>
 
-        <div style={{ padding: 26 }}>
+        <div ref={stepContentRef} style={{ padding: 26 }}>
           {/* ══ STEP 1 ══ */}
           {step === 1 && (
             <div>
@@ -769,16 +940,30 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     className="cmx-field"
                     maxLength={6}
                     placeholder="e.g. DAL001"
-                    style={{ textTransform: 'uppercase', ...(err(!shortCodeValid || !s.shortCode) || {}) }}
+                    style={{
+                      textTransform: 'uppercase',
+                      ...(err(!shortCodeValid || !s.shortCode) || {}),
+                      // Shown immediately, not gated behind showErrors like the rest of
+                      // this form's validation — a duplicate code is a known fact the
+                      // moment the lookup confirms it, not a "you left this blank" nudge
+                      // that should wait for a Next attempt.
+                      ...(shortCodeTaken ? { borderColor: '#dc2626' } : {}),
+                    }}
                     type="text"
                     value={s.shortCode}
                     onChange={e => set({ shortCode: e.target.value.toUpperCase() })}
                   />
                   <div className="cmx-hint">
                     Used in booking references. 3–6 uppercase letters/numbers. Immutable after activation.
+                    {checkingShortCode && ' Checking availability…'}
                   </div>
                   {showErrors && s.shortCode && !shortCodeValid && (
                     <div style={{ fontSize: 11, color: '#dc2626' }}>Must be 3–6 uppercase letters/numbers.</div>
+                  )}
+                  {shortCodeValid && shortCodeTaken && (
+                    <div style={{ fontSize: 11, color: '#dc2626' }}>
+                      &quot;{s.shortCode}&quot; is already used by another centre — pick a different code.
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col gap-1">
@@ -789,6 +974,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     onChange={e => set({ status: e.target.value as SaveStatus })}
                   >
                     <option value="draft">Draft (not visible to members)</option>
+                    <option value="staging">Staging (ready for internal review)</option>
                     <option value="active">Active (go live immediately)</option>
                     <option value="suspended">Suspended (taken offline)</option>
                   </select>
@@ -832,21 +1018,25 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">State / Province</span>
+                  <span className="cmx-field-label">State / Province{stateRequired ? ' *' : ''}</span>
                   <input
                     className="cmx-field"
                     placeholder="e.g. TX"
+                    style={err(stateRequired && !s.state.trim())}
                     type="text"
                     value={s.state}
                     onChange={e => set({ state: e.target.value })}
                   />
+                  {showErrors && stateRequired && !s.state.trim() && (
+                    <div style={{ fontSize: 11, color: '#dc2626' }}>Required for a US address.</div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Postcode *</span>
                   <input
                     className="cmx-field"
                     placeholder="e.g. 75201"
-                    style={err(!s.postcode.trim())}
+                    style={err(!s.postcode.trim() || !postcodeValid)}
                     type="text"
                     value={s.postcode}
                     onBlur={async e => {
@@ -865,7 +1055,20 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     }}
                     onChange={e => set({ postcode: e.target.value })}
                   />
-                  {postcodeLooking && <div className="cmx-hint">Looking up city/state/country…</div>}
+                  {/* Always rendered (never conditionally removed) so this row's height
+                      never changes when the lookup finishes — otherwise the Country
+                      dropdown just below jumps up at that exact moment, and a click
+                      already in flight can land on a different, nearby option
+                      (reported as "United States" turning into "US Minor Outlying
+                      Islands", its alphabetical neighbour). */}
+                  <div className="cmx-hint" style={{ visibility: postcodeLooking ? 'visible' : 'hidden' }}>
+                    Looking up city/state/country…
+                  </div>
+                  {showErrors && s.postcode.trim() && !postcodeValid && (
+                    <div style={{ fontSize: 11, color: '#dc2626' }}>
+                      Doesn&apos;t look like a valid postcode for the selected country.
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
@@ -908,6 +1111,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   <span className="cmx-field-label">Phone *</span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <PhoneCodeSearchSelect
+                      className="cmx-field"
+                      preferredIso={s.country}
                       value={dialCodeOf(s.phone) || COUNTRY_DIAL_CODES[s.country] || ''}
                       onChange={code => set({ phone: `${code} ${stripDialCode(s.phone)}`.trim() })}
                     />
@@ -915,7 +1120,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                       className="cmx-field"
                       inputMode="tel"
                       placeholder="555 000 0000"
-                      style={{ flex: 1, ...(err(!s.phone.trim()) || {}) }}
+                      style={{ flex: 1, ...(err(!s.phone.trim() || !phoneLengthValid) || {}) }}
                       type="tel"
                       value={stripDialCode(s.phone)}
                       onChange={e => {
@@ -926,6 +1131,11 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                       }}
                     />
                   </div>
+                  {showErrors && s.phone.trim() && !phoneLengthValid && (
+                    <div style={{ fontSize: 11, color: '#dc2626' }}>
+                      That doesn&apos;t look like a complete phone number for the selected country.
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="cmx-field-label">Email *</span>
@@ -998,84 +1208,110 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   <div>Close</div>
                   <div>Open?</div>
                 </div>
-                {s.operatingHours.map((h, i) => (
-                  <div
-                    key={h.day}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '100px 1fr 1fr 60px',
-                      padding: '8px 14px',
-                      borderTop: '1px solid var(--border)',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)' }}>{DAYS[i]}</div>
-                    <div style={{ paddingRight: 10 }}>
-                      {s.is24x7 ? (
-                        <div style={readonlyTimeBox}>12:00 AM</div>
-                      ) : (
-                        <input
-                          aria-disabled={!h.isOpen}
-                          disabled={!h.isOpen}
-                          style={{
-                            width: '100%',
-                            padding: '5px 8px',
-                            border: '1px solid var(--border)',
-                            borderRadius: 6,
-                            fontSize: 12.5,
-                            opacity: h.isOpen ? 1 : 0.4,
-                          }}
-                          type="time"
-                          value={h.openTime}
-                          onChange={e => setHour(h.day, { openTime: e.target.value })}
-                        />
-                      )}
-                    </div>
-                    <div style={{ paddingRight: 10 }}>
-                      {s.is24x7 ? (
-                        <div style={readonlyTimeBox}>11:59 PM</div>
-                      ) : (
-                        <input
-                          aria-disabled={!h.isOpen}
-                          disabled={!h.isOpen}
-                          style={{
-                            width: '100%',
-                            padding: '5px 8px',
-                            border: '1px solid var(--border)',
-                            borderRadius: 6,
-                            fontSize: 12.5,
-                            opacity: h.isOpen ? 1 : 0.4,
-                          }}
-                          type="time"
-                          value={h.closeTime}
-                          onChange={e => setHour(h.day, { closeTime: e.target.value })}
-                        />
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
-                        <input
-                          aria-label={`${DAYS[i]} open`}
-                          checked={s.is24x7 || h.isOpen}
-                          className="peer sr-only"
-                          disabled={s.is24x7}
-                          type="checkbox"
-                          onChange={e => setHour(h.day, { isOpen: e.target.checked })}
-                        />
-                        {/* Track/knob coloured via inline style so the 24/7 (disabled)
+                {s.operatingHours.map((h, i) => {
+                  // A close time at or before the open time is accepted as an overnight
+                  // window (hoursValid above already computes its real span correctly) —
+                  // but previously that happened completely silently. A typo like meaning
+                  // "06:00 AM–05:00 PM" but mistyping "05:00 AM" would be read as a
+                  // 23-hour overnight stretch with no indication anything unusual was
+                  // even detected. This note makes the interpretation visible so the
+                  // admin can catch a typo instead of just trusting it was intentional.
+                  const openMin = minutesOf(h.openTime);
+                  const closeMin = minutesOf(h.closeTime);
+                  const isOvernight =
+                    !s.is24x7 && h.isOpen && !Number.isNaN(openMin) && !Number.isNaN(closeMin) && closeMin <= openMin;
+                  return (
+                    <React.Fragment key={h.day}>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '100px 1fr 1fr 60px',
+                          padding: '8px 14px',
+                          borderTop: '1px solid var(--border)',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--navy)' }}>{DAYS[i]}</div>
+                        <div style={{ paddingRight: 10 }}>
+                          {s.is24x7 ? (
+                            <div style={readonlyTimeBox}>12:00 AM</div>
+                          ) : (
+                            <input
+                              aria-disabled={!h.isOpen}
+                              disabled={!h.isOpen}
+                              style={{
+                                width: '100%',
+                                padding: '5px 8px',
+                                border: '1px solid var(--border)',
+                                borderRadius: 6,
+                                fontSize: 12.5,
+                                opacity: h.isOpen ? 1 : 0.4,
+                              }}
+                              type="time"
+                              value={h.openTime}
+                              onChange={e => setHour(h.day, { openTime: e.target.value })}
+                            />
+                          )}
+                        </div>
+                        <div style={{ paddingRight: 10 }}>
+                          {s.is24x7 ? (
+                            <div style={readonlyTimeBox}>11:59 PM</div>
+                          ) : (
+                            <input
+                              aria-disabled={!h.isOpen}
+                              disabled={!h.isOpen}
+                              style={{
+                                width: '100%',
+                                padding: '5px 8px',
+                                border: '1px solid var(--border)',
+                                borderRadius: 6,
+                                fontSize: 12.5,
+                                opacity: h.isOpen ? 1 : 0.4,
+                              }}
+                              type="time"
+                              value={h.closeTime}
+                              onChange={e => setHour(h.day, { closeTime: e.target.value })}
+                            />
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <label className="relative inline-block h-[22px] w-10 flex-shrink-0 cursor-pointer">
+                            <input
+                              aria-label={`${DAYS[i]} open`}
+                              checked={s.is24x7 || h.isOpen}
+                              className="peer sr-only"
+                              disabled={s.is24x7}
+                              type="checkbox"
+                              onChange={e => setHour(h.day, { isOpen: e.target.checked })}
+                            />
+                            {/* Track/knob coloured via inline style so the 24/7 (disabled)
                               toggle stays solid teal instead of the browser's dimmed look. */}
-                        <span
-                          className="absolute inset-0 rounded-full transition-colors"
-                          style={{ background: s.is24x7 || h.isOpen ? '#008482' : '#d1d5db' }}
-                        />
-                        <span
-                          className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform"
-                          style={{ transform: s.is24x7 || h.isOpen ? 'translateX(18px)' : 'none' }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                ))}
+                            <span
+                              className="absolute inset-0 rounded-full transition-colors"
+                              style={{ background: s.is24x7 || h.isOpen ? '#008482' : '#d1d5db' }}
+                            />
+                            <span
+                              className="absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform"
+                              style={{ transform: s.is24x7 || h.isOpen ? 'translateX(18px)' : 'none' }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      {isOvernight && (
+                        <div
+                          style={{
+                            padding: '0 14px 8px',
+                            fontSize: 11,
+                            color: '#6b7280',
+                            fontStyle: 'italic',
+                          }}
+                        >
+                          Closes at {h.closeTime} the next day (overnight).
+                        </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -1220,7 +1456,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Multi-purpose Lanes</span>
+                  <span className="cmx-field-label">Hybrid Lanes</span>
                   <NumberInput
                     className="cmx-field"
                     min={0}
@@ -1275,6 +1511,22 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     </span>
                   ))}
               </div>
+              {laneFacilityMismatches.length > 0 && (
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: '#92400e',
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    marginBottom: 14,
+                  }}
+                >
+                  {laneFacilityMismatches.map(({ label }) => label).join(', ')} enabled above with a lane count of 0.
+                  Fine for now while setting up, but set at least 1 (or untick it) before saving as Active.
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                 <input
                   className="cmx-field"
@@ -1497,9 +1749,13 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                                 className="cmx-field"
                                 min={0}
                                 step={0.01}
+                                style={err(row.fortnightlyPrice <= 0) || undefined}
                                 value={row.fortnightlyPrice}
                                 onValueChange={v => setPlan(meta.id, { fortnightlyPrice: v })}
                               />
+                              {showErrors && row.fortnightlyPrice <= 0 && (
+                                <div style={{ fontSize: 11, color: '#dc2626' }}>Must be above $0.</div>
+                              )}
                             </div>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">Annual Price</span>
@@ -1507,9 +1763,16 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                                 className="cmx-field"
                                 min={0}
                                 step={0.01}
+                                style={err(row.annualPrice > row.fortnightlyPrice * 26) || undefined}
                                 value={row.annualPrice}
                                 onValueChange={v => setPlan(meta.id, { annualPrice: v })}
                               />
+                              {showErrors && row.annualPrice > row.fortnightlyPrice * 26 && (
+                                <div style={{ fontSize: 11, color: '#dc2626' }}>
+                                  Can&apos;t exceed 26 × fortnightly ($
+                                  {(row.fortnightlyPrice * 26).toFixed(2)}).
+                                </div>
+                              )}
                             </div>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">Allocated Slots *</span>
@@ -1827,6 +2090,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
 
               <div style={{ marginBottom: 14 }}>
                 <KeyDateField
+                  errorMessage={showErrors && goLiveInPast ? "Can't be in the past." : undefined}
                   label="Centre go-live date"
                   timezone={s.timezone}
                   value={s.keyDates.goLiveAt}
@@ -1905,7 +2169,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     ['Foundation Pool', String(foundation || '—')],
                     [
                       'Lanes',
-                      `${toNum(s.battingLanes)} batting · ${toNum(s.bowlingLanes)} bowling · ${toNum(s.multipurposeLanes)} multi`,
+                      `${toNum(s.battingLanes)} batting · ${toNum(s.bowlingLanes)} bowling · ${toNum(s.multipurposeLanes)} hybrid`,
                     ],
                     ['Slot Duration', `${s.slotDurationMinutes} min`],
                     ['Booking Window', `${s.advanceBookingWindowDays} days`],
@@ -2434,15 +2698,18 @@ const KeyDateField: React.FC<{
   timezone: string;
   value: string | undefined;
   onChange: (isoOrUndefined: string | undefined) => void;
-}> = ({ label, timezone, value, onChange }) => (
+  errorMessage?: string;
+}> = ({ label, timezone, value, onChange, errorMessage }) => (
   <label className="flex flex-col gap-1">
     <span className="cmx-field-label">{label}</span>
     <input
       className="cmx-field"
+      style={errorMessage ? { borderColor: '#dc2626' } : undefined}
       type="datetime-local"
       value={utcIsoToLocal(value, timezone)}
       onChange={e => onChange(localToUtcIso(e.target.value, timezone))}
     />
+    {errorMessage && <div style={{ fontSize: 11, color: '#dc2626' }}>{errorMessage}</div>}
   </label>
 );
 

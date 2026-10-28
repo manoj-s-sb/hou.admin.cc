@@ -5,11 +5,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 
 import { getFacilityCode } from '../../constants/user';
+import { isGlobalScope } from '../../rbac/permissions';
 import {
   archiveTemplate,
+  endSeries,
   listSchedules,
   listTemplates,
   restoreTemplate,
+  undoCompleteTask,
   unscheduleTask,
 } from '../../store/maintenance/api';
 import { AppDispatch, RootState } from '../../store/store';
@@ -64,8 +67,16 @@ const Maintenance: React.FC = () => {
   // Prefer the centre route param; otherwise fall back to the user's own scoped centre
   // (facility roles reach Maintenance via the global nav, not by opening a centre —
   // they should still get the full per-centre scheduling view for their own centre).
-  // Superadmin on the global route has no scoped centre → sees the global task library.
-  const facilityCode = routeFacility || getFacilityCode();
+  //
+  // A global-scoped viewer (superadmin, or an explicit Global access level) on the
+  // bare route never falls back to a remembered centre — getFacilityCode() returns
+  // facilityScope.get() for them (whatever centre they last viewed ANYWHERE in the
+  // app, e.g. Centre Management), which used to silently turn the Global page into
+  // that stale centre's scheduling view (MT-3: a test task once landed on the QA
+  // centre this way). They always see the true global task library instead; picking
+  // a template and scheduling it for a specific centre happens from that centre's
+  // own Maintenance page, never from here.
+  const facilityCode = routeFacility || (isGlobalScope() ? '' : getFacilityCode());
   const isCentre = Boolean(facilityCode);
   const dispatch = useDispatch<AppDispatch>();
   const { templates, templatesLoading, schedules, schedulesLoading } = useSelector((s: RootState) => s.maintenance);
@@ -206,6 +217,31 @@ const Maintenance: React.FC = () => {
       loadSchedules();
     } catch (e) {
       toast.error(typeof e === 'string' ? e : 'Could not remove the schedule');
+    }
+  };
+
+  // MT-2: stop every future occurrence of a recurring series at once, instead
+  // of removing one date at a time. Completed occurrences stay as history.
+  const onEndSeries = async (s: TaskSchedule) => {
+    if (!window.confirm('End this recurring series? Future occurrences will be removed; completed ones are kept.'))
+      return;
+    try {
+      const result = await dispatch(endSeries({ id: s.id, facilityCode })).unwrap();
+      toast.success(`Series ended — removed ${result.deletedCount} upcoming occurrence(s)`);
+      loadSchedules();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not end the series');
+    }
+  };
+
+  // MT-7: reverse an accidental Mark Done.
+  const onUndo = async (s: TaskSchedule) => {
+    try {
+      await dispatch(undoCompleteTask({ id: s.id, facilityCode })).unwrap();
+      toast.success('Marked as not done');
+      loadSchedules();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not undo the completion');
     }
   };
 
@@ -455,8 +491,10 @@ const Maintenance: React.FC = () => {
                 facilityCode={facilityCode}
                 schedule={s}
                 onChanged={loadSchedules}
+                onEndSeries={canManage ? onEndSeries : undefined}
                 onFlag={setFlag}
                 onReschedule={canManage ? setReschedule : undefined}
+                onUndo={onUndo}
                 onUnschedule={canManage ? onUnschedule : undefined}
                 onViewSteps={openScheduleSteps}
               />
@@ -640,6 +678,14 @@ const Maintenance: React.FC = () => {
                   loadSchedules();
                   setCalendarSchedule(null);
                 }}
+                onEndSeries={
+                  canManage
+                    ? s => {
+                        setCalendarSchedule(null);
+                        onEndSeries(s);
+                      }
+                    : undefined
+                }
                 onFlag={s => {
                   setCalendarSchedule(null);
                   setFlag(s);
@@ -652,6 +698,10 @@ const Maintenance: React.FC = () => {
                       }
                     : undefined
                 }
+                onUndo={s => {
+                  setCalendarSchedule(null);
+                  onUndo(s);
+                }}
                 onUnschedule={
                   canManage
                     ? s => {

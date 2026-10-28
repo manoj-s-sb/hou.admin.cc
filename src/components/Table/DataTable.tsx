@@ -34,7 +34,7 @@ function DataTable<T = any>({
   onSortChange,
   pagination = true,
   page: externalPage,
-  rowsPerPage: externalRowsPerPage = 10,
+  rowsPerPage: externalRowsPerPage,
   totalRows: externalTotalRows,
   onPageChange,
   onRowsPerPageChange,
@@ -51,6 +51,12 @@ function DataTable<T = any>({
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
 
   const page = externalPage !== undefined ? externalPage : internalPage;
+  // externalRowsPerPage must NOT carry a destructuring default (e.g. `= 10`) —
+  // that would make this check true even for a caller that never passed the
+  // prop at all, permanently locking rowsPerPage to that default and making
+  // internalRowsPerPage (and the dropdown that drives it) dead code for every
+  // uncontrolled consumer. The real fallback-to-10 lives in internalRowsPerPage's
+  // own initial state below instead.
   const rowsPerPage = externalRowsPerPage !== undefined ? externalRowsPerPage : internalRowsPerPage;
   const totalRows = serverSide && externalTotalRows !== undefined ? externalTotalRows : data.length;
   const totalPages = Math.ceil(totalRows / rowsPerPage);
