@@ -14,6 +14,7 @@ import { handleApiError } from '../../utils/errorUtils';
 import type {
   CompleteTaskPayload,
   CreateTemplatePayload,
+  EndSeriesPayload,
   FlagIssuePayload,
   FlagIssueResponse,
   ListSchedulesPayload,
@@ -23,6 +24,7 @@ import type {
   ScheduleTaskPayload,
   TaskSchedule,
   TaskTemplate,
+  UndoCompleteTaskPayload,
   UnscheduleTaskPayload,
   UpdateTemplatePayload,
 } from './types';
@@ -198,3 +200,26 @@ export const unscheduleTask = createAsyncThunk<
     return rejectWithValue(handleApiError(error, 'Could not remove the schedule'));
   }
 });
+
+export const endSeries = createAsyncThunk<
+  { seriesId: string | null; deletedCount: number },
+  EndSeriesPayload,
+  { rejectValue: string }
+>('maintenance/endSeries', async (payload, { rejectWithValue }) => {
+  try {
+    return await post<{ seriesId: string | null; deletedCount: number }>('end_series', { ...payload });
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Could not end the series'));
+  }
+});
+
+export const undoCompleteTask = createAsyncThunk<TaskSchedule, UndoCompleteTaskPayload, { rejectValue: string }>(
+  'maintenance/undoCompleteTask',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await post<TaskSchedule>('undo_complete_task', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not undo the completion'));
+    }
+  }
+);

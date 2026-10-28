@@ -28,7 +28,7 @@ import endpoints from '../../constants/endpoints';
 import { getRelationshipLabel } from '../../constants/relationship';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getFacilityCode } from '../../constants/user';
-import { isSuperAdmin } from '../../rbac';
+import { ACCESS_SCOPES, canWrite } from '../../rbac';
 import api from '../../services';
 import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
@@ -118,7 +118,14 @@ const ViewMembers = () => {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isWalletLoading, setIsWalletLoading] = useState(false);
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
-  const canCreditWallet = isSuperAdmin();
+  // Gated on the Wallet module's own edit permission, not Members-edit or
+  // superadmin — crediting is a real financial action (adds money without
+  // taking any in), so it's granted independently of who can edit a member's
+  // profile. Must match the backend's own check (wallets/api/wallet_routes.py).
+  const canCreditWallet = canWrite(ACCESS_SCOPES.walletTransactions);
+  // A member who hasn't completed activation yet (no confirmed subscription)
+  // shouldn't be credited — there's nothing active for the credit to apply to.
+  const isPendingActivation = memberDetails?.subscription?.subscriptionStatus === 'pendingactivation';
 
   const { userId } = useParams();
 
@@ -313,10 +320,16 @@ const ViewMembers = () => {
               </div>
               <button
                 className="rounded-lg bg-[#21295A] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={!canCreditWallet}
-                title={canCreditWallet ? undefined : 'Only a superadmin can credit a wallet'}
+                disabled={!canCreditWallet || isPendingActivation}
+                title={
+                  isPendingActivation
+                    ? "This member's subscription is still Pending Activation — wallet credit is available once it's active."
+                    : canCreditWallet
+                      ? undefined
+                      : "You don't have permission to credit a wallet."
+                }
                 type="button"
-                onClick={() => canCreditWallet && setIsCreditModalOpen(true)}
+                onClick={() => canCreditWallet && !isPendingActivation && setIsCreditModalOpen(true)}
               >
                 + Add Wallet
               </button>

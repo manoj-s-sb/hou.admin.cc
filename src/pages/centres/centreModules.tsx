@@ -18,6 +18,7 @@ import Facilities from './facilities';
 import PlansPricing from './plans';
 
 import type { CentreModuleKey } from '../../contexts/CentreNavContext';
+import type { CentreApiStatus } from '../../store/centres/types';
 
 // Maintenance is a large page kept in its own chunk (see App.tsx) — lazy-load it here too
 // so the registry (imported by the Sidebar) doesn't pull it into the main bundle.
@@ -285,11 +286,13 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
 export const LIVE_CENTRE_MODULES: CentreModuleDef[] = CENTRE_MODULE_GROUPS.flatMap(g => g.items);
 
 /**
- * Modules gated behind the centre itself being Active — every "Operations" module
- * (real bookings/tickets/tasks/assignments). A Draft/Staging/Suspended centre can
- * still reach "Centre Config" (Facilities, Plans & Pricing) to finish setup, but
- * nothing operational — see CentreModuleRoute (route guard) and Sidebar (nav).
+ * Whether a centre has anything real for an admin to manage yet. Active and
+ * Suspended both keep full access to every module — a Suspended centre was
+ * live before and still holds real members, bookings and tickets; suspending
+ * it only stops NEW member-app activity, not an admin's ability to look at or
+ * manage what's already there. Draft and Staging have never gone live, so
+ * there is nothing real to manage — every module, including Facilities and
+ * Plans & Pricing, is blocked until the centre is actually activated via the
+ * Edit & Activate wizard. See CentreModuleRoute (route guard) and Sidebar (nav).
  */
-export const ACTIVE_ONLY_MODULE_KEYS: ReadonlySet<CentreModuleKey> = new Set(
-  CENTRE_MODULE_GROUPS.find(g => g.group === 'Operations')?.items.map(m => m.key) ?? []
-);
+export const isCentreOperational = (status: CentreApiStatus): boolean => status === 'active' || status === 'suspended';

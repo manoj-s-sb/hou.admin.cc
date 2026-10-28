@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
+import { getCentreDetails } from '../../../store/centres/api';
 import { scheduleTask, unscheduleTask } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
 import {
@@ -51,9 +52,39 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
   );
   const [saving, setSaving] = useState(false);
 
+  // MT-9: the Lane dropdown shows this centre's REAL configured lanes, not the
+  // broad static 1-7 range — fails open to that static range (ALL_LANES) if
+  // the lookup fails or the centre has no lane docs yet, same fail-open
+  // philosophy as the backend's own validation.
+  const [realLanes, setRealLanes] = useState<number[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    dispatch(getCentreDetails(facilityCode))
+      .unwrap()
+      .then(bundle => {
+        if (cancelled) return;
+        const nums = (bundle.lanes ?? [])
+          .map(l => l.laneNo)
+          .filter((n): n is number => typeof n === 'number')
+          .sort((a, b) => a - b);
+        setRealLanes(nums.length ? nums : null);
+      })
+      .catch(() => {
+        if (!cancelled) setRealLanes(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, facilityCode]);
+  const laneOptions = realLanes ?? ALL_LANES;
+
   const handleSave = async () => {
     if (!scheduledDate) {
       toast.error('Pick a date');
+      return;
+    }
+    if (scheduledDate < todayStr()) {
+      toast.error("Scheduled date can't be in the past");
       return;
     }
     setSaving(true);
@@ -128,7 +159,7 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
               <span className={labelCls}>Lane</span>
               <select className={inputCls} value={lane} onChange={e => setLane(e.target.value)}>
                 <option value="">Facility-wide</option>
-                {ALL_LANES.map(n => (
+                {laneOptions.map(n => (
                   <option key={n} value={n}>
                     Lane {n}
                   </option>
@@ -139,6 +170,7 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
               <span className={labelCls}>Scheduled date</span>
               <input
                 className={inputCls}
+                min={todayStr()}
                 type="date"
                 value={scheduledDate}
                 onChange={e => setScheduledDate(e.target.value)}

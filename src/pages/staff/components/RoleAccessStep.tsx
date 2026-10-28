@@ -1,12 +1,78 @@
 import React, { useMemo, useState } from 'react';
 
 import { countryFlag } from '../../centres/constants';
-import { AccessLevelConfig, MenuMasterItem, RoleConfig } from '../types';
-import { INPUT_CLASS } from '../utils';
+import { AccessLevelConfig, CoachProfileFormState, MenuMasterItem, RoleConfig } from '../types';
+import { INPUT_CLASS, isValidDescription, isValidDisplayName, LABEL_CLASS, MIN_DESCRIPTION_LENGTH } from '../utils';
 
 import AccessLevelCard from './AccessLevelCard';
 import ModulePermissionsSection, { type PermGrid } from './ModulePermissionsSection';
+import ProfilePhotoUploader from './ProfilePhotoUploader';
 import RoleCard from './RoleCard';
+
+/** Free-text tag input — type a value, press Enter or "+ Add" to add a chip. */
+const TagInput: React.FC<{
+  values: string[];
+  onChange: (next: string[]) => void;
+  placeholder: string;
+  id?: string;
+}> = ({ values, onChange, placeholder, id }) => {
+  const [input, setInput] = useState('');
+
+  const add = () => {
+    const v = input.trim();
+    if (!v) return;
+    if (!values.some(x => x.toLowerCase() === v.toLowerCase())) onChange([...values, v]);
+    setInput('');
+  };
+
+  return (
+    <div>
+      {values.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {values.map(v => (
+            <span
+              key={v}
+              className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-[12px] font-medium text-gray-700"
+            >
+              {v}
+              <button
+                aria-label={`Remove ${v}`}
+                className="text-[14px] leading-none text-gray-400 transition hover:text-gray-700"
+                type="button"
+                onClick={() => onChange(values.filter(x => x !== v))}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          className={INPUT_CLASS}
+          id={id}
+          placeholder={placeholder}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <button
+          className="shrink-0 rounded-lg bg-[#21295A] px-4 text-[13px] font-semibold text-white transition hover:bg-[#2c3670] disabled:opacity-40"
+          disabled={!input.trim()}
+          type="button"
+          onClick={add}
+        >
+          + Add
+        </button>
+      </div>
+    </div>
+  );
+};
 
 /** Minimal centre shape needed for the picker (FacilitySummary satisfies this). */
 interface AssignableCentre {
@@ -54,6 +120,20 @@ interface RoleAccessStepProps {
   modulePermissionDefaults?: PermGrid;
   /** True while a role-defaults refetch (role selection just changed) is in flight. */
   modulePermissionsLoading?: boolean;
+  // Coach Profile — shown only while 'coach' is among the selected roles,
+  // regardless of what else is selected alongside it (e.g. Facility Admin).
+  isCoachSelected: boolean;
+  coachProfile: CoachProfileFormState;
+  onChangeCoachProfile: (next: CoachProfileFormState) => void;
+  /** Existing coach code (e.g. "C001"), shown read-only once assigned. */
+  coachCode?: string | null;
+  // Coach photo — same newly-selected-file vs. already-saved-SAS-URL split as
+  // the staff member's own profile photo (ProfileStep), uploaded to the same
+  // staff-docs blob storage.
+  coachPhotoImage: string;
+  existingCoachPhotoUrl: string;
+  onSelectCoachPhoto: (file: File | null) => void;
+  onRemoveCoachPhoto: () => void;
 }
 
 // "🇺🇸 Houston, TX" — flag + name + state/city, mirroring the design.
@@ -89,6 +169,14 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   modulePermissionError,
   modulePermissionDefaults,
   modulePermissionsLoading,
+  isCoachSelected,
+  coachProfile,
+  onChangeCoachProfile,
+  coachCode,
+  coachPhotoImage,
+  existingCoachPhotoUrl,
+  onSelectCoachPhoto,
+  onRemoveCoachPhoto,
 }) => {
   const [showOther, setShowOther] = useState(false);
   const [otherInput, setOtherInput] = useState('');
@@ -102,9 +190,14 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   const [newLevelDesc, setNewLevelDesc] = useState('');
   const [newLevelScope, setNewLevelScope] = useState<'facility' | 'global'>('facility');
 
+  const roleNameValid = isValidDisplayName(newRoleName);
+  const levelNameValid = isValidDisplayName(newLevelName);
+  const roleDescValid = isValidDescription(newRoleDesc);
+  const levelDescValid = isValidDescription(newLevelDesc);
+
   const submitNewRole = async () => {
     const name = newRoleName.trim();
-    if (!name || !onCreateRole) return;
+    if (!name || !roleNameValid || !roleDescValid || !onCreateRole) return;
     const ok = await onCreateRole(name, newRoleDesc.trim());
     if (ok) {
       setNewRoleName('');
@@ -115,7 +208,7 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
 
   const submitNewLevel = async () => {
     const name = newLevelName.trim();
-    if (!name || !onCreateAccessLevel) return;
+    if (!name || !levelNameValid || !levelDescValid || !onCreateAccessLevel) return;
     const ok = await onCreateAccessLevel(name, newLevelDesc.trim(), newLevelScope);
     if (ok) {
       setNewLevelName('');
@@ -209,6 +302,12 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
                         }
                       }}
                     />
+                    {newRoleName.trim() && !roleNameValid && (
+                      <p className="text-[11px] font-medium text-red-500">
+                        Name must be at least 2 characters and can only contain letters, numbers, spaces, hyphens,
+                        apostrophes, and &apos;&amp;&apos; — not just punctuation.
+                      </p>
+                    )}
                     <input
                       className={INPUT_CLASS}
                       placeholder="Short description (optional)"
@@ -221,6 +320,11 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
                         }
                       }}
                     />
+                    {newRoleDesc.trim() && !roleDescValid && (
+                      <p className="text-[11px] font-medium text-red-500">
+                        Description must be at least {MIN_DESCRIPTION_LENGTH} characters, or left blank.
+                      </p>
+                    )}
                   </div>
                   <div className="mt-2 flex justify-end gap-2">
                     <button
@@ -236,7 +340,7 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
                     </button>
                     <button
                       className="rounded-lg bg-[#21295A] px-4 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-[#2c3670] disabled:opacity-40"
-                      disabled={!newRoleName.trim() || creatingRole}
+                      disabled={!roleNameValid || !roleDescValid || creatingRole}
                       type="button"
                       onClick={() => void submitNewRole()}
                     >
@@ -249,6 +353,101 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
           )}
         </div>
       </div>
+
+      {/* Coach Profile — appears the moment 'coach' is checked above, for ANY
+          combination of roles (e.g. Facility Admin + Coach), and disappears
+          again if 'coach' is unchecked. Makes this staff member a real,
+          bookable coach once saved (a code + this profile get attached). */}
+      {isCoachSelected && (
+        <div className="rounded-xl border border-[#21295A]/15 bg-[#21295A]/[0.03] p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#21295A]">Coach Profile</p>
+            {coachCode && (
+              <span className="rounded-md bg-[#21295A]/10 px-2 py-0.5 text-[11px] font-semibold text-[#21295A]">
+                Coach code: {coachCode}
+              </span>
+            )}
+          </div>
+          <p className="mb-4 text-[12px] text-gray-600">
+            Shown on this coach&rsquo;s profile and used for bookings. A coach code is generated automatically. Weekly
+            availability is set separately, from the coach calendar.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className={LABEL_CLASS} htmlFor="coach-specialization">
+                Specialization
+              </label>
+              <TagInput
+                id="coach-specialization"
+                placeholder="e.g. Batting — press Enter to add"
+                values={coachProfile.specialization}
+                onChange={next => onChangeCoachProfile({ ...coachProfile, specialization: next })}
+              />
+            </div>
+            <div>
+              <label className={LABEL_CLASS} htmlFor="coach-description">
+                Description
+              </label>
+              <textarea
+                className={`${INPUT_CLASS} min-h-[80px] resize-y`}
+                id="coach-description"
+                placeholder="A short bio shown on this coach's profile"
+                value={coachProfile.coachDescription}
+                onChange={e => onChangeCoachProfile({ ...coachProfile, coachDescription: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className={LABEL_CLASS} htmlFor="coach-experience-years">
+                  Years of Experience
+                </label>
+                <input
+                  className={INPUT_CLASS}
+                  id="coach-experience-years"
+                  min={0}
+                  placeholder="e.g. 5"
+                  type="number"
+                  value={coachProfile.experienceYears}
+                  onChange={e => onChangeCoachProfile({ ...coachProfile, experienceYears: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLASS} htmlFor="coach-hourly-rate">
+                  Hourly Rate
+                </label>
+                <input
+                  className={INPUT_CLASS}
+                  id="coach-hourly-rate"
+                  min={0}
+                  placeholder="e.g. 50"
+                  type="number"
+                  value={coachProfile.hourlyRate}
+                  onChange={e => onChangeCoachProfile({ ...coachProfile, hourlyRate: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className={LABEL_CLASS} htmlFor="coach-certifications">
+                Certifications
+              </label>
+              <TagInput
+                id="coach-certifications"
+                placeholder="e.g. ECB Level 3 — press Enter to add"
+                values={coachProfile.certifications}
+                onChange={next => onChangeCoachProfile({ ...coachProfile, certifications: next })}
+              />
+            </div>
+            <ProfilePhotoUploader
+              existingUrl={existingCoachPhotoUrl}
+              helpText="JPG or PNG, max 2MB. Shown on this coach's bookable profile."
+              imageDataUrl={coachPhotoImage}
+              label="Coach Photo"
+              onRemove={onRemoveCoachPhoto}
+              onSelect={onSelectCoachPhoto}
+            />
+          </div>
+        </div>
+      )}
 
       <div>
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Access Level</p>
@@ -294,6 +493,12 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
                       }
                     }}
                   />
+                  {newLevelName.trim() && !levelNameValid && (
+                    <p className="text-[11px] font-medium text-red-500">
+                      Name must be at least 2 characters and can only contain letters, numbers, spaces, hyphens,
+                      apostrophes, and &apos;&amp;&apos; — not just punctuation.
+                    </p>
+                  )}
                   <input
                     className={INPUT_CLASS}
                     placeholder="Short description (optional)"
@@ -306,6 +511,11 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
                       }
                     }}
                   />
+                  {newLevelDesc.trim() && !levelDescValid && (
+                    <p className="text-[11px] font-medium text-red-500">
+                      Description must be at least {MIN_DESCRIPTION_LENGTH} characters, or left blank.
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <button
                       className={`flex-1 rounded-lg border px-3 py-2 text-[12.5px] font-semibold transition ${
@@ -346,7 +556,7 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
                   </button>
                   <button
                     className="rounded-lg bg-[#21295A] px-4 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-[#2c3670] disabled:opacity-40"
-                    disabled={!newLevelName.trim() || creatingAccessLevel}
+                    disabled={!levelNameValid || !levelDescValid || creatingAccessLevel}
                     type="button"
                     onClick={() => void submitNewLevel()}
                   >

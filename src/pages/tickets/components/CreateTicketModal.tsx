@@ -85,6 +85,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([]);
   const [lanes, setLanes] = useState<number[]>([]);
   const [equipment, setEquipment] = useState<string[]>([]);
+  const [customEquipmentInput, setCustomEquipmentInput] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [triedSubmit, setTriedSubmit] = useState(false);
@@ -124,6 +125,21 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
 
   const toggle = <T,>(list: T[], value: T, set: (v: T[]) => void) =>
     set(list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
+
+  // Equipment not in the fixed EQUIPMENT_LIST (e.g. something new on site) —
+  // typed in free text, added as its own selected chip, same pattern as the
+  // New Centre wizard's "Add a facility not listed above".
+  const addCustomEquipment = () => {
+    const trimmed = customEquipmentInput.trim();
+    if (!trimmed) return;
+    const allKnown = [...EQUIPMENT_LIST, ...equipment];
+    if (allKnown.some(e => e.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error('That equipment is already in the list.');
+      return;
+    }
+    setEquipment(prev => [...prev, trimmed]);
+    setCustomEquipmentInput('');
+  };
 
   const handleSubmit = async () => {
     setTriedSubmit(true);
@@ -379,6 +395,49 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
                   {item}
                 </Chip>
               ))}
+              {/* Custom equipment the admin has typed in below — not part of the fixed
+                  EQUIPMENT_LIST, so shown as its own removable chip (always selected,
+                  since adding it IS selecting it — nothing to toggle back to). */}
+              {equipment
+                .filter(item => !EQUIPMENT_LIST.includes(item))
+                .map(item => (
+                  <span
+                    key={item}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#9096be] bg-[#ecedf4] py-1 pl-2.5 pr-1.5 text-xs font-medium text-[#21295a]"
+                  >
+                    {item}
+                    <button
+                      aria-label={`Remove ${item}`}
+                      className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-[#21295a]/70 hover:text-[#21295a]"
+                      type="button"
+                      onClick={() => setEquipment(prev => prev.filter(e => e !== item))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+            </div>
+            <div className="mt-2 flex gap-2">
+              <input
+                className={`${fieldClass} max-w-[260px]`}
+                placeholder="Add equipment not listed above…"
+                type="text"
+                value={customEquipmentInput}
+                onChange={e => setCustomEquipmentInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addCustomEquipment();
+                  }
+                }}
+              />
+              <button
+                className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                type="button"
+                onClick={addCustomEquipment}
+              >
+                + Add
+              </button>
             </div>
           </div>
 

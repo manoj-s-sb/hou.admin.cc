@@ -166,6 +166,26 @@ export const updateCentreFacilities = createAsyncThunk<CentreBundle, FacilitiesP
 );
 
 /**
+ * POST /admin/centres/delete — soft-delete a Draft centre: marks the facility
+ * doc status="deleted" (deletedAt/deletedBy set) rather than removing
+ * anything — the backend already enforces Draft-only, superadmin-only, and
+ * excludes a deleted centre from the unfiltered list from here on.
+ */
+export const deleteCentre = createAsyncThunk<{ centreId: string }, string, { rejectValue: string }>(
+  'centres/deleteCentre',
+  async (centreId, { rejectWithValue }) => {
+    try {
+      const res = await api.post<{ data: { centreId: string; deleted: boolean } }>(endpoints.centres.centreDelete, {
+        centreId,
+      });
+      return unwrap<{ centreId: string; deleted: boolean }>(res);
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not delete the centre. Please try again.'));
+    }
+  }
+);
+
+/**
  * Upload raw file bytes to a blob write-SAS URL. Same PUT contract the
  * maintenance module uses (see store/maintenance/api.ts's uploadFileToBlob) —
  * duplicated here rather than imported to keep this slice free of a

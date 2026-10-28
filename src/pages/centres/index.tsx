@@ -12,10 +12,11 @@ import { facilityScope } from '../../utils/facilityScope';
 
 import { LIVE_CENTRE_MODULES } from './centreModules';
 import CentreCard from './components/CentreCard';
+import DeleteCentreModal from './components/DeleteCentreModal';
 import { STATUS_FILTERS, PAGE_LIMIT } from './constants';
 import NewCentreWizard from './newCentre/NewCentreWizard';
 
-import type { CentreApiStatus } from '../../store/centres/types';
+import type { CentreApiStatus, FacilitySummary } from '../../store/centres/types';
 
 /** Page numbers with ellipses, mirroring the DataTable pager used on Members. */
 function pageNumbers(current: number, totalPages: number): (number | '...')[] {
@@ -25,6 +26,12 @@ function pageNumbers(current: number, totalPages: number): (number | '...')[] {
   return [0, '...', current - 1, current, current + 1, '...', totalPages - 1];
 }
 
+/** The module to land on when opening a centre from the list. Which one
+ * doesn't matter for a Draft/Staging centre — CentreModuleRoute shows its own
+ * neutral "not active yet" note for every module on those, regardless of
+ * slug — so this only ever needs to pick the first module the user can read. */
+const firstModuleFor = (): { slug: string } | undefined => LIVE_CENTRE_MODULES.find(m => !m.scope || canRead(m.scope));
+
 const CentreManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'' | CentreApiStatus>('');
   const [searchInput, setSearchInput] = useState('');
@@ -33,6 +40,8 @@ const CentreManagement: React.FC = () => {
   const [wizardOpen, setWizardOpen] = useState(false);
   // Code of the draft centre being edited/activated directly from its card.
   const [editCode, setEditCode] = useState<string | null>(null);
+  // The Draft centre currently in the delete-confirmation flow, if any.
+  const [deleteTarget, setDeleteTarget] = useState<FacilitySummary | null>(null);
   const { closeCentre } = useCentreNav();
   const navigate = useNavigate();
 
@@ -105,7 +114,7 @@ const CentreManagement: React.FC = () => {
     autoOpenedRef.current = true;
     const [centre] = facilities;
     facilityScope.set(centre.code);
-    const first = LIVE_CENTRE_MODULES.find(m => !m.scope || canRead(m.scope));
+    const first = firstModuleFor();
     navigate(buildRoute.centreModule(centre.code, first?.slug ?? 'members'), { replace: true });
   }, [isLoading, total, facilities, statusFilter, search, skip, navigate]);
 
@@ -219,6 +228,26 @@ const CentreManagement: React.FC = () => {
         <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
           <div className="text-sm font-bold text-navy">Loading centres…</div>
         </div>
+      ) : facilities.length === 0 && (statusFilter || search) ? (
+        // A search/status filter matching nothing used to render a bare grid
+        // with only "+ Add New Centre" — indistinguishable from "there are no
+        // centres at all" and no quick way back to the unfiltered list.
+        <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
+          <div className="mb-1 text-sm font-bold text-navy">No centres match</div>
+          <div className="mb-4 text-[13px]">Try a different search or status filter.</div>
+          <button
+            className="cmx-btn cmx-btn-outline"
+            type="button"
+            onClick={() => {
+              setStatusFilter('');
+              setSearchInput('');
+              setSearch('');
+              setSkip(0);
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3">
@@ -227,11 +256,15 @@ const CentreManagement: React.FC = () => {
                 key={c.id || c.code}
                 centre={c}
                 now={now}
+                onDelete={canManageCentres ? summary => setDeleteTarget(summary) : undefined}
                 onEdit={canManageCentres ? summary => startEdit(summary.code) : undefined}
                 onOpen={summary => {
                   facilityScope.set(summary.code);
-                  // Land on the first module this user has read access to.
-                  const first = LIVE_CENTRE_MODULES.find(m => !m.scope || canRead(m.scope));
+                  // Land on the first module this user has read access to. A
+                  // Draft/Staging centre shows its own neutral "not active yet"
+                  // note on whichever module this resolves to (CentreModuleRoute
+                  // gates on status, not on which slug was requested).
+                  const first = firstModuleFor();
                   navigate(buildRoute.centreModule(summary.code, first?.slug ?? 'members'));
                 }}
               />
@@ -297,6 +330,17 @@ const CentreManagement: React.FC = () => {
             </div>
           )}
         </>
+      )}
+
+      {deleteTarget && (
+        <DeleteCentreModal
+          centre={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            setSkip(0);
+            refetch();
+          }}
+        />
       )}
     </div>
   );

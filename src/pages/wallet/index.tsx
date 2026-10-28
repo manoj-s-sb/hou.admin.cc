@@ -6,7 +6,7 @@ import CreditWalletModal from '../../components/wallet/CreditWalletModal';
 import MemberTransactionsModal from '../../components/wallet/MemberTransactionsModal';
 import endpoints from '../../constants/endpoints';
 import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
-import { isSuperAdmin } from '../../rbac';
+import { ACCESS_SCOPES, canWrite } from '../../rbac';
 import api from '../../services';
 
 interface WalletRosterRow {
@@ -40,7 +40,9 @@ const WalletTransactions = () => {
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
   const [viewingMember, setViewingMember] = useState<{ userId: string; name: string } | null>(null);
 
-  const canCredit = isSuperAdmin();
+  // Same rule as the per-member Add Wallet button (src/pages/members/viewMembers.tsx) —
+  // gated on the Wallet module's own edit permission, not superadmin or Members-edit.
+  const canCredit = canWrite(ACCESS_SCOPES.walletTransactions);
 
   const fetchPage = (nextPage: number, nextLimit: number, nextSearch: string) => {
     setIsLoading(true);

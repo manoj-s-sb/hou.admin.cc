@@ -6,7 +6,7 @@ import endpoints from '../constants/endpoints';
 import { MENU_GROUPS, type MenuItem } from '../constants/menus';
 import { ROUTES, buildRoute } from '../constants/routes';
 import { useCentreNav } from '../contexts/CentreNavContext';
-import { CENTRE_MODULE_GROUPS } from '../pages/centres/centreModules';
+import { CENTRE_MODULE_GROUPS, isCentreOperational } from '../pages/centres/centreModules';
 import { centreColour, countryFlag } from '../pages/centres/constants';
 import { ACCESS_SCOPES } from '../rbac/constants';
 import { allowedFacilities, canRead, isGlobalScope, isSuperAdmin, scopeType, sidebarItems } from '../rbac/permissions';
@@ -322,48 +322,55 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               </div>
             </div>
 
-            {CENTRE_MODULE_GROUPS.map(g => {
-              // Operations modules require the centre itself to be Active — a
-              // Draft/Staging/Suspended centre can still reach Centre Config
-              // (Facilities, Plans & Pricing) to finish setup, nothing else. See
-              // CentreModuleRoute's matching route guard.
-              if (g.group === 'Operations' && activeCentre.status !== 'active') return null;
-              const visibleItems = g.items.filter(m => !m.scope || canRead(m.scope));
-              if (!visibleItems.length) return null;
-              return (
-                <React.Fragment key={g.group}>
-                  <GroupLabel>{g.group}</GroupLabel>
-                  {visibleItems.map(m => {
-                    const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
-                    // Member Details (/members/:userId) and View Induction
-                    // (/view-induction/:userId) are standalone routes outside the
-                    // centre-module shell (see ROUTES.VIEW_MEMBERS/VIEW_INDUCTION) —
-                    // an exact-path match alone leaves Members/Induction
-                    // unhighlighted while viewing either, exactly the gap the OTHER
-                    // nav branch below already closes for its own
-                    // '/view-members'/'/view-induction' routes.
-                    const isActive =
-                      location.pathname === modulePath ||
-                      (m.key === 'members' && location.pathname.startsWith('/members/')) ||
-                      (m.key === 'induction' && location.pathname.startsWith('/view-induction'));
-                    return (
-                      <button
-                        key={m.key}
-                        aria-current={isActive ? 'page' : undefined}
-                        className={`${itemClass(isActive)} w-[calc(100%-1.25rem)] text-left`}
-                        type="button"
-                        onClick={() => {
-                          navigate(modulePath);
-                          closeOnMobile();
-                        }}
-                      >
-                        <NavInner active={isActive} icon={m.icon} label={m.label} />
-                      </button>
-                    );
-                  })}
-                </React.Fragment>
-              );
-            })}
+            {isCentreOperational(activeCentre.status) ? (
+              CENTRE_MODULE_GROUPS.map(g => {
+                const visibleItems = g.items.filter(m => !m.scope || canRead(m.scope));
+                if (!visibleItems.length) return null;
+                return (
+                  <React.Fragment key={g.group}>
+                    <GroupLabel>{g.group}</GroupLabel>
+                    {visibleItems.map(m => {
+                      const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
+                      // Member Details (/members/:userId) and View Induction
+                      // (/view-induction/:userId) are standalone routes outside the
+                      // centre-module shell (see ROUTES.VIEW_MEMBERS/VIEW_INDUCTION) —
+                      // an exact-path match alone leaves Members/Induction
+                      // unhighlighted while viewing either, exactly the gap the OTHER
+                      // nav branch below already closes for its own
+                      // '/view-members'/'/view-induction' routes.
+                      const isActive =
+                        location.pathname === modulePath ||
+                        (m.key === 'members' && location.pathname.startsWith('/members/')) ||
+                        (m.key === 'induction' && location.pathname.startsWith('/view-induction'));
+                      return (
+                        <button
+                          key={m.key}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={`${itemClass(isActive)} w-[calc(100%-1.25rem)] text-left`}
+                          type="button"
+                          onClick={() => {
+                            navigate(modulePath);
+                            closeOnMobile();
+                          }}
+                        >
+                          <NavInner active={isActive} icon={m.icon} label={m.label} />
+                        </button>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })
+            ) : (
+              // Draft/Staging has never gone live — nothing real to manage yet, so
+              // no module nav at all. Setup happens only through Edit & Activate
+              // from the centre list; CentreModuleRoute shows the matching neutral
+              // note in the main content area.
+              <div className="mx-2.5 mt-1 rounded-lg bg-white/5 px-3 py-2.5 text-[11.5px] leading-snug text-white/60">
+                This centre isn&apos;t active yet. Use{' '}
+                <span className="font-semibold text-white/80">Edit &amp; Activate</span> from the centre list to finish
+                setup.
+              </div>
+            )}
           </nav>
         ) : (
           <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">

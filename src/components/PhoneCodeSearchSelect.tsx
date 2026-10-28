@@ -14,11 +14,25 @@ import { COUNTRIES, COUNTRY_DIAL_CODES } from '../pages/centres/constants';
  * its own existing field look (Tailwind classes in one place, inline styles
  * in another) — this component only owns the search/dropdown behavior.
  */
+// US and India pinned to the top (most of this org's staff/centres are in one
+// of the two) — everything else keeps its existing alphabetical order after
+// them. Local to this picker only; the general country selector elsewhere
+// (e.g. New Centre Wizard's address country) is untouched.
+const PINNED_ISO_ORDER = ['US', 'IN'];
 const PHONE_CODE_OPTIONS = COUNTRIES.map(c => ({
   isoCode: c.code,
   label: c.label,
   dialCode: COUNTRY_DIAL_CODES[c.code] || '',
-})).filter(o => o.dialCode);
+}))
+  .filter(o => o.dialCode)
+  .sort((a, b) => {
+    const ai = PINNED_ISO_ORDER.indexOf(a.isoCode);
+    const bi = PINNED_ISO_ORDER.indexOf(b.isoCode);
+    if (ai === -1 && bi === -1) return 0; // preserve existing alphabetical order
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
 
 interface PhoneCodeSearchSelectProps {
   value: string;
@@ -26,6 +40,18 @@ interface PhoneCodeSearchSelectProps {
   className?: string;
   style?: React.CSSProperties;
   wrapperStyle?: React.CSSProperties;
+  /**
+   * This app's country `code` (e.g. "US") for the address/centre country
+   * already chosen elsewhere on the same form, when there is one. Several
+   * real countries genuinely share one dial code (the US and Canada both use
+   * "+1"; Russia and Kazakhstan both use "+7"), so matching by dial code
+   * alone is ambiguous — without this hint the label shown next to the code
+   * is just whichever same-code country sorts first alphabetically (e.g.
+   * "+1 AS" for American Samoa when the admin actually picked the US).
+   * Pass it whenever the caller has a country to match against; omit it for
+   * a standalone phone field with no linked country (e.g. Staff Management).
+   */
+  preferredIso?: string;
 }
 
 const PhoneCodeSearchSelect: React.FC<PhoneCodeSearchSelectProps> = ({
@@ -34,6 +60,7 @@ const PhoneCodeSearchSelect: React.FC<PhoneCodeSearchSelectProps> = ({
   className,
   style,
   wrapperStyle,
+  preferredIso,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -50,7 +77,9 @@ const PhoneCodeSearchSelect: React.FC<PhoneCodeSearchSelectProps> = ({
     return () => document.removeEventListener('mousedown', onDocMouseDown);
   }, []);
 
-  const selected = PHONE_CODE_OPTIONS.find(o => o.dialCode === value);
+  const selected =
+    (preferredIso && PHONE_CODE_OPTIONS.find(o => o.dialCode === value && o.isoCode === preferredIso)) ||
+    PHONE_CODE_OPTIONS.find(o => o.dialCode === value);
   const q = query.trim().toLowerCase().replace(/^\+/, '');
   const filtered = PHONE_CODE_OPTIONS.filter(
     o =>

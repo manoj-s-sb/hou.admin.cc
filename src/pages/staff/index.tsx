@@ -31,6 +31,11 @@ interface StaffRow {
   twoFa: 'on' | 'off';
   documents: { count: number; tone: 'green' | 'red' | 'amber' };
   status: 'active' | 'invited' | 'draft' | 'inactive';
+  // A draft saved with Role and/or Access Level never filled in — still
+  // missing from the record (edit-mode saves already require both, so this
+  // can only ever be true for a draft). Flagged in the list so it's never
+  // mistaken for a fully set-up staff member.
+  isIncomplete: boolean;
   raw: StaffListRow;
 }
 
@@ -115,10 +120,35 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
   return 'active';
 };
 
+// A stale/expired SAS URL (or any broken photoUrl) falls back to initials
+// instead of a broken-image icon — tracked locally since renderCell isn't
+// itself a component and can't hold React state.
+const StaffAvatar: React.FC<{ photoUrl: string; initials: string; initialsBg: string; name: string }> = ({
+  photoUrl,
+  initials,
+  initialsBg,
+  name,
+}) => {
+  const [broken, setBroken] = useState(false);
+  const showPhoto = Boolean(photoUrl) && !broken;
+  return (
+    <div
+      className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold ${showPhoto ? 'bg-gray-100' : initialsBg}`}
+    >
+      {showPhoto ? (
+        <img alt={name} className="h-full w-full object-cover" src={photoUrl} onError={() => setBroken(true)} />
+      ) : (
+        initials
+      )}
+    </div>
+  );
+};
+
 const mapStaff = (
   row: StaffListRow,
   resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string,
-  resolveAccessLabel: (code: string | null) => string
+  resolveAccessLabel: (code: string | null) => string,
+  resolveRoleLabel: (code: string) => string
 ): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
   const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
@@ -131,7 +161,7 @@ const mapStaff = (
       .map(part => part.charAt(0).toUpperCase())
       .join('') || '?';
 
-  const roles = (row.userType ?? []).map(role => ({ label: formatRoleLabel(role) }));
+  const roles = (row.userType ?? []).map(role => ({ label: resolveRoleLabel(role) }));
 
   const centres = resolveCentres(row.assignedCentres, row.facilityCode);
 
@@ -159,6 +189,7 @@ const mapStaff = (
       tone: (row.documentCount ?? 0) > 0 ? 'green' : 'red',
     },
     status: normalizeStatus(row.status),
+    isIncomplete: normalizeStatus(row.status) === 'draft' && ((row.userType ?? []).length === 0 || !row.accessLevel),
     raw: row,
   };
 };
@@ -176,6 +207,13 @@ const StaffManagement: React.FC = () => {
   // already collapses 'suspended' into the same "Inactive" bucket the Status
   // column displays — so there's no separate "Suspended" option.
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'invited' | 'draft' | 'inactive'>('all');
+  // Search + role/access-level/centre filters — all client-side over the
+  // already-loaded page (same approach the existing Status filter already
+  // uses), since the whole list is fetched in one page (limit 50) today.
+  const [searchInput, setSearchInput] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [accessFilter, setAccessFilter] = useState('all');
+  const [centreFilter, setCentreFilter] = useState('all');
   const { staffList, isListLoading, listError, staffConfig, isConfigLoading, configError } = useSelector(
     (state: RootState) => state.staff
   );
@@ -197,6 +235,18 @@ const StaffManagement: React.FC = () => {
     [staffConfig]
   );
 
+  // Role code → human designation name. Prefers the configured label from
+  // staff config (e.g. "facilitymgmt" -> "Facility Management"); falls back
+  // to formatRoleLabel's small built-in set + naive capitalize for anything
+  // else, same pattern already used by the Designations tab below.
+  const roleLabelOf = useCallback(
+    (code: string): string => {
+      const match = (staffConfig?.roles ?? []).find(r => r.id.toLowerCase() === code.toLowerCase());
+      return match?.label || formatRoleLabel(code);
+    },
+    [staffConfig]
+  );
+
   const loadStaff = useCallback(() => {
     dispatch(getStaffList(buildStaffListParams()));
   }, [dispatch]);
@@ -208,14 +258,40 @@ const StaffManagement: React.FC = () => {
   }, [dispatch, loadStaff]);
 
   const staff: StaffRow[] = useMemo(
-    () => staffList.map(row => mapStaff(row, centreLookup.text, accessLabelOf)),
-    [staffList, centreLookup.text, accessLabelOf]
+    () => staffList.map(row => mapStaff(row, centreLookup.text, accessLabelOf, roleLabelOf)),
+    [staffList, centreLookup.text, accessLabelOf, roleLabelOf]
   );
 
+  // Distinct centre codes actually present across the loaded staff, labelled via
+  // useCentreLookup — no separate "list all centres" fetch needed.
+  const centreOptions = useMemo(() => {
+    const codes = new Set<string>();
+    staffList.forEach(row => {
+      (row.assignedCentres ?? []).forEach(c => c && codes.add(c));
+      if (row.facilityCode) codes.add(row.facilityCode);
+    });
+    return Array.from(codes)
+      .sort()
+      .map(code => ({ code, label: centreLookup.label(code) }));
+  }, [staffList, centreLookup]);
+
   const filteredStaff: StaffRow[] = useMemo(() => {
-    if (statusFilter === 'all') return staff;
-    return staff.filter(s => s.status === statusFilter);
-  }, [staff, statusFilter]);
+    const needle = searchInput.trim().toLowerCase();
+    return staff.filter(s => {
+      if (statusFilter !== 'all' && s.status !== statusFilter) return false;
+      if (roleFilter !== 'all' && !(s.raw.userType ?? []).includes(roleFilter)) return false;
+      if (accessFilter !== 'all' && (s.raw.accessLevel ?? '') !== accessFilter) return false;
+      if (centreFilter !== 'all') {
+        const codes = [...(s.raw.assignedCentres ?? []), s.raw.facilityCode].filter(Boolean);
+        if (!codes.includes(centreFilter)) return false;
+      }
+      if (needle) {
+        const haystack = [s.name, s.raw.email, s.raw.phone].filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
+      return true;
+    });
+  }, [staff, statusFilter, searchInput, roleFilter, accessFilter, centreFilter]);
 
   const isLoading = isListLoading;
   const error = listError;
@@ -297,15 +373,7 @@ const StaffManagement: React.FC = () => {
             openProfile(row);
           }}
         >
-          <div
-            className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold ${row.photoUrl ? 'bg-gray-100' : row.initialsBg}`}
-          >
-            {row.photoUrl ? (
-              <img alt={row.name} className="h-full w-full object-cover" src={row.photoUrl} />
-            ) : (
-              row.initials
-            )}
-          </div>
+          <StaffAvatar initials={row.initials} initialsBg={row.initialsBg} name={row.name} photoUrl={row.photoUrl} />
           <div>
             <p className="text-[13px] font-semibold text-[#21295A] hover:underline">{row.name}</p>
             <p className="text-[11px] text-gray-400">{row.subtitle}</p>
@@ -386,8 +454,21 @@ const StaffManagement: React.FC = () => {
       minWidth: 100,
       sortable: false,
       renderCell: ({ row }) => {
-        const status = statusToneClass[(row as StaffRow).status];
-        return <span className={`text-[12px] font-semibold ${status.className}`}>{status.label}</span>;
+        const r = row as StaffRow;
+        const status = statusToneClass[r.status];
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-[12px] font-semibold ${status.className}`}>{status.label}</span>
+            {r.isIncomplete && (
+              <span
+                className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
+                title="Missing Role and/or Access Level — finish this draft in Edit before activating it"
+              >
+                Incomplete
+              </span>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -453,7 +534,12 @@ const StaffManagement: React.FC = () => {
           </span>
           <div>
             <p className="text-[13px] font-bold text-[#21295A]">{row.label}</p>
-            <p className="line-clamp-1 max-w-[260px] text-[11px] text-gray-400">{row.description}</p>
+            <p
+              className="line-clamp-2 max-w-[260px] whitespace-normal text-[11px] text-gray-400"
+              title={row.description}
+            >
+              {row.description}
+            </p>
           </div>
         </div>
       ),
@@ -536,25 +622,67 @@ const StaffManagement: React.FC = () => {
               {error}
             </div>
           )}
-          <div className="mb-3 flex items-center justify-end">
-            <label
-              className="mr-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-              htmlFor="staff-status-filter"
-            >
-              Status
-            </label>
-            <select
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-              id="staff-status-filter"
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="invited">Invited</option>
-              <option value="draft">Draft</option>
-            </select>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <input
+              className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+              placeholder="Search by name, email, or phone"
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="staff-role-filter"
+                value={roleFilter}
+                onChange={e => setRoleFilter(e.target.value)}
+              >
+                <option value="all">All Roles</option>
+                {(staffConfig?.roles ?? []).map(role => (
+                  <option key={role.id} value={role.id}>
+                    {role.label || formatRoleLabel(role.id)}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="staff-access-filter"
+                value={accessFilter}
+                onChange={e => setAccessFilter(e.target.value)}
+              >
+                <option value="all">All Access Levels</option>
+                {(staffConfig?.accessLevels ?? []).map(level => (
+                  <option key={level.id} value={level.id}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="staff-centre-filter"
+                value={centreFilter}
+                onChange={e => setCentreFilter(e.target.value)}
+              >
+                <option value="all">All Centres</option>
+                {centreOptions.map(c => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="staff-status-filter"
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="invited">Invited</option>
+                <option value="draft">Draft</option>
+              </select>
+            </div>
           </div>
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <DataTable
@@ -579,7 +707,6 @@ const StaffManagement: React.FC = () => {
               }}
               getRowId={(row: StaffRow) => row.id}
               loading={isLoading}
-              rowsPerPage={15}
               onRowClick={(row: StaffRow) => openProfile(row)}
             />
           </div>

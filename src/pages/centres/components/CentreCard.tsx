@@ -68,11 +68,15 @@ interface Props {
   onOpen: (centre: FacilitySummary) => void;
   /** Open the wizard in edit mode (Review step) to edit the centre and change its status. */
   onEdit?: (centre: FacilitySummary) => void;
+  /** Opens the delete-confirmation flow. Only ever shown for a Draft centre —
+   * nothing real can be attached to one yet, so it's safe to remove; Active/
+   * Suspended centres need the separate Archive/Deactivate feature instead. */
+  onDelete?: (centre: FacilitySummary) => void;
   /** Shared clock tick from the list, so N cards don't each run their own 1s interval. */
   now: Date;
 }
 
-const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit, now }) => {
+const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit, onDelete, now }) => {
   const localTime = getLocalTime(centre.timezone, now);
 
   const status = STATUS_META[centre.status] ?? STATUS_META.draft;
@@ -223,7 +227,27 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit, now }) => {
       </div>
 
       {/* ── Footer: open affordance ── */}
-      <div className="mt-3.5 flex items-center justify-end border-t border-cmx-border pt-3">
+      <div className="mt-3.5 flex items-center justify-between border-t border-cmx-border pt-3">
+        {onDelete && centre.status === 'draft' ? (
+          <button
+            aria-label={`Delete ${centre.name}`}
+            className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-transparent px-2 py-1 text-[11px] font-semibold text-muted transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onDelete(centre);
+            }}
+          >
+            <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M3 6h18" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            </svg>
+            Delete
+          </button>
+        ) : (
+          <span />
+        )}
         <div className="flex items-center gap-2.5">
           {/* Every centre is editable. Drafts get an amber "Edit & Activate" call-to-action
               to finish setup; active/suspended centres get a neutral "Edit" (the wizard then
