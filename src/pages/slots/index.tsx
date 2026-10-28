@@ -173,7 +173,10 @@ const SlotBookings: React.FC = () => {
         if (slot.isBooked && slot.booking) {
           totalBooked++;
           if (slot.booking.bookingStatus === 'completed' || slot.booking.bookingStatus === 'played') completed++;
-          if (slot.booking.coach?.name) bookedWithCoach++;
+          // SA-8: a coach is "attached" when `code` is set, regardless of
+          // whether the display name resolved — see the matching comment on
+          // BookingDetails['coach'] in store/slots/types.ts.
+          if (slot.booking.coach?.code) bookedWithCoach++;
           if (slot.booking.guests && slot.booking.guests.length > 0) bookedWithGuest++;
         }
       });
