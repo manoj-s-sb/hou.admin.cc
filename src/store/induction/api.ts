@@ -5,6 +5,7 @@ import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
 import {
+  AddTourNoteRequest,
   InductionListRequest,
   InductionStepsDetailsRequest,
   UpdateInductionStepsRequest,
@@ -95,6 +96,23 @@ export const updateTourStatus = createAsyncThunk(
       return response?.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to update tour status'));
+    }
+  }
+);
+
+/** NS-6: add a follow-up note to a tour booking, from the Tours page's View detail panel. */
+export const addTourNote = createAsyncThunk(
+  'induction/addTourNote',
+  async ({ userId, bookingCode, text }: AddTourNoteRequest, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${endpoints.tour.addNote}`, {
+        userId,
+        bookingCode,
+        text,
+      });
+      return response?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to add note'));
     }
   }
 );

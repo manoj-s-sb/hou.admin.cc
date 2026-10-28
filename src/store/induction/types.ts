@@ -39,6 +39,13 @@ export interface InductionMember {
   isInductionCompleted: boolean;
 }
 
+export interface TourNote {
+  text: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+}
+
 export interface Induction {
   userId: string;
   email: string;
@@ -58,6 +65,11 @@ export interface Induction {
   /** First name of the admin who last changed this booking's status
    * (completed/noshow/cancelled) — empty/absent if never admin-changed. */
   updatedByName?: string;
+  /** Primary attendee's phone — the backend has always sent this (tour bookings
+   * embed it directly); this was just never declared on the frontend type. */
+  phone?: string;
+  /** NS-6: follow-up notes added from the Tour "View" detail panel, oldest first. */
+  notes?: TourNote[];
 }
 
 export interface InductionResponse {
@@ -97,6 +109,18 @@ export interface UpdateTourStatusRequest {
   status: string;
   /** Optional free-text reason — used when status is 'cancelled'. */
   reason?: string;
+}
+
+export interface AddTourNoteRequest {
+  userId: string;
+  bookingCode: string;
+  text: string;
+}
+
+export interface AddTourNoteResponse {
+  userId: string;
+  bookingCode: string;
+  notes: TourNote[];
 }
 
 export interface InductionState {

@@ -447,15 +447,19 @@ const ExportPreviewModal: React.FC<{ data: ExportData; onClose: () => void }> = 
   );
 };
 
-const AddLeadModal: React.FC<{ facilityCode: string; onClose: () => void; onAdded: () => void }> = ({
-  facilityCode,
-  onClose,
-  onAdded,
-}) => {
+/** `initial` lets a caller outside this page (e.g. the Tours "View" detail
+ * panel — NS-6/NS-7: still a manual, deliberate click, just pre-filled so
+ * staff don't retype a visitor's details) seed the form with known contact info. */
+export const AddLeadModal: React.FC<{
+  facilityCode: string;
+  onClose: () => void;
+  onAdded: () => void;
+  initial?: { name?: string; email?: string; phone?: string };
+}> = ({ facilityCode, onClose, onAdded, initial }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState(initial?.name ?? '');
+  const [email, setEmail] = useState(initial?.email ?? '');
+  const [phone, setPhone] = useState(initial?.phone ?? '');
   const [plan, setPlan] = useState('all');
   const [saving, setSaving] = useState(false);
   const [tried, setTried] = useState(false);

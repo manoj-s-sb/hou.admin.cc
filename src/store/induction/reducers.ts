@@ -3,6 +3,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { logger } from '../../utils/logger';
 
 import {
+  addTourNote,
   inductionList,
   getInductionStepsDetails,
   updateInductionSteps,
@@ -102,6 +103,14 @@ const inductionSlice = createSlice({
     builder.addCase(userInductionDetails.rejected, (state, action) => {
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to fetch user induction details. Please try again.';
+    });
+    // NS-6: patch the matching row's notes in place so the View panel (reading
+    // straight from the list) reflects the new note without a full refetch.
+    builder.addCase(addTourNote.fulfilled, (state, action) => {
+      const data = action.payload?.data;
+      if (!data?.bookingCode) return;
+      const row = state.inductionList.bookings.find(b => b.bookingCode === data.bookingCode);
+      if (row) row.notes = data.notes;
     });
   },
 });
