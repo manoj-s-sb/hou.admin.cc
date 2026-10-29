@@ -319,6 +319,7 @@ const SlotBookings: React.FC = () => {
           <SeriesListModal
             facilityCode={facilityCode}
             isOpen={showSeriesListModal}
+            lanes={slots?.lanes || []}
             onChanged={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
             onClose={() => setShowSeriesListModal(false)}
           />
