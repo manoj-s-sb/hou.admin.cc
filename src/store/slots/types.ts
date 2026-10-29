@@ -23,7 +23,14 @@ export interface BookingDetails {
   }[];
   facilityPin: string;
   lanePin: string;
+  // SA-8: `code` is always present when a coach is genuinely attached, even
+  // if `name` couldn't be resolved (an inactive/deleted coach record, or a
+  // code the self-service system wrote that this portal's coach list doesn't
+  // recognize) — callers must check `code` to detect "has a coach", not
+  // `name`, or a booking with a real but unresolved coach silently counts as
+  // having none (see slot_calendar_service.py's matching comment).
   coach: {
+    code?: string;
     name: string;
   };
   // Set only when an admin booked this on someone's behalf via "Book for

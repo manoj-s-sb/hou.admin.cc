@@ -39,6 +39,11 @@ export function mapApiMembership(m: ApiMembership): MembershipPlan {
     colour: PLAN_COLORS[m.code as keyof typeof PLAN_COLORS] ?? FALLBACK_COLOUR,
 
     fortnightlyPrice: regular.fortnightly ?? 0,
+    // MP-8: absence of "annual" in billingCycles (or of the regular.annual field
+    // itself) means this plan genuinely has no annual option — not that it costs
+    // $0. Default to offered when the doc predates this field, matching the
+    // create/update endpoints' own default of both cycles.
+    offersAnnual: (m.pricing?.billingCycles ?? ['fortnightly', 'annual']).includes('annual'),
     annualPrice: regular.annual ?? 0,
     // Preserve the price's own currency (default USD) so the page converts FROM
     // it instead of assuming USD — the reverse mapper already keeps it too.
@@ -58,11 +63,13 @@ export function mapApiMembership(m: ApiMembership): MembershipPlan {
     extraSessionEnabled: !!slot.enabled,
     extraSessionPrice: slot.price ?? 0,
 
-    eligibility: {
-      adult: !!m.memberTypes?.adult,
-      junior: !!m.memberTypes?.junior,
-      family: isFamily,
-    },
+    // MP-10: whatever keys memberTypes actually has, in whatever case the doc
+    // stores them — not just adult/junior. `isFamily` is kept as an ADDITIONAL
+    // inferred tag (not a replacement) for plans saved before this fix ever
+    // explicitly set a "family" key, so they don't lose that signal on read.
+    eligibilityTags: Array.from(
+      new Set([...Object.keys(m.memberTypes ?? {}).map(k => k.toLowerCase()), ...(isFamily ? ['family'] : [])])
+    ),
     additionalMemberFee: regular.additionalmemberfortnightlyPrice ?? null,
     memberCap: m.pricing?.maxMembersAllowed ?? 0,
     // Live endpoint is scoped to one facility, so the plan is active at (at least)
@@ -98,9 +105,8 @@ export interface CreatePlanBody {
   carryCap: number;
   advanceWindowDays: number;
   extraSessionEnabled: boolean;
-  eligibilityAdult: boolean;
-  eligibilityJunior: boolean;
-  eligibilityFamily: boolean;
+  /** MP-10: open-ended — any tag string, not just adult/junior/family. */
+  eligibilityTags: string[];
   additionalMemberFee?: number;
   memberCap: number;
   status: PlanStatus;
@@ -122,13 +128,14 @@ export function toCreatePayload(plan: MembershipPlan, customHours?: { start: str
     carryCap: plan.carryCap,
     advanceWindowDays: plan.advanceWindowDays,
     extraSessionEnabled: plan.extraSessionEnabled,
-    eligibilityAdult: plan.eligibility.adult,
-    eligibilityJunior: plan.eligibility.junior,
-    eligibilityFamily: plan.eligibility.family,
+    eligibilityTags: plan.eligibilityTags,
     memberCap: plan.memberCap,
     status: plan.status,
   };
-  if (plan.annualPrice) body.priceAnnual = plan.annualPrice;
+  // MP-8: omitting priceAnnual (not sending a falsy/0 one) is what tells
+  // create_membership_plan to leave "annual" out of billingCycles entirely —
+  // the correct "not offered" signal, vs. a real $0 price.
+  if (plan.offersAnnual && plan.annualPrice) body.priceAnnual = plan.annualPrice;
   if (plan.accessType === 'custom' && customHours) body.customHours = customHours;
   if (plan.additionalMemberFee !== null && plan.additionalMemberFee !== undefined) {
     body.additionalMemberFee = plan.additionalMemberFee;
@@ -148,6 +155,7 @@ export function toUpdatePayload(plan: MembershipPlan): ApiMembership {
   const raw = plan._raw ?? ({} as ApiMembership);
   const rawPricing = raw.pricing ?? {};
   const rawRegular = rawPricing.regular ?? {};
+  const { annual: _rawAnnual, ...rawRegularWithoutAnnual } = rawRegular;
   const rawBooking = raw.bookingRules ?? {};
   const rawGeneral = rawBooking.generalBookingRules ?? {};
   const rawCarry = rawGeneral.bookingCarryOver ?? {};
@@ -168,15 +176,24 @@ export function toUpdatePayload(plan: MembershipPlan): ApiMembership {
     },
     pricing: {
       ...rawPricing,
-      billingCycles: rawPricing.billingCycles ?? ['fortnightly', 'annual'],
+      // MP-8: when annual billing is turned off, drop "annual" from BOTH
+      // billingCycles and regular — a stale `annual` left in `regular` from
+      // before it was toggled off would still read as a real price.
+      billingCycles: plan.offersAnnual ? ['fortnightly', 'annual'] : ['fortnightly'],
       regular: {
-        ...rawRegular,
+        ...(plan.offersAnnual ? rawRegular : rawRegularWithoutAnnual),
         fortnightly: plan.fortnightlyPrice,
-        annual: plan.annualPrice,
         currency,
+        ...(plan.offersAnnual ? { annual: plan.annualPrice } : {}),
         ...(plan.additionalMemberFee !== null ? { additionalmemberfortnightlyPrice: plan.additionalMemberFee } : {}),
       },
     },
+    // MP-10: this was previously never sent at all, so editing a plan's
+    // eligibility checkboxes silently did nothing — the raw doc's original
+    // memberTypes survived untouched regardless of what the admin ticked.
+    // Preserve a tag's existing rich sub-fields (e.g. adult's minAge) when
+    // it's kept; a brand-new tag gets a plain {} flag.
+    memberTypes: Object.fromEntries(plan.eligibilityTags.map(tag => [tag, raw.memberTypes?.[tag] ?? {}])),
     access: {
       ...raw.access,
       type: plan.accessType,

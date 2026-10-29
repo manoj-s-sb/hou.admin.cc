@@ -20,6 +20,9 @@ export interface PlanMeta {
   colour: string;
   access: string;
   fortnightly: number;
+  /** Whether the global template offers annual billing at all — the wizard's
+   * default-off starting point for this plan's own per-centre annual option. */
+  offersAnnual: boolean;
   annual: number;
   defaultSlots: number;
   defaultFoundation: boolean;
@@ -28,8 +31,14 @@ export interface PlanMeta {
 
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-export const DEMOGRAPHICS = [
-  { key: 'all', label: 'All plans' },
+// MP-10: the known, curated eligibility tags — shown as ready-made checkboxes
+// on the Plan form, and used to prettify these specific keys wherever a plan's
+// tags are displayed. This is a label lookup, NOT the only tags a plan can
+// have: the Plan form also lets an admin add any other tag on the spot, and
+// the wizard's own demographic filter is built dynamically from whatever tags
+// actually exist across all live plans (see NewCentreWizard's dynamicDemographics)
+// — so a brand new tag works everywhere immediately, no code change required.
+export const ELIGIBILITY_TAG_OPTIONS = [
   { key: 'adult', label: '👤 Adult' },
   { key: 'youth', label: '🧒 Youth' },
   { key: 'senior', label: '🧓 Senior' },
@@ -37,6 +46,13 @@ export const DEMOGRAPHICS = [
   { key: 'family', label: '👨‍👩‍👧 Family' },
   { key: 'professional', label: '💼 Professional' },
 ];
+export const ELIGIBILITY_TAG_LABELS: Record<string, string> = Object.fromEntries(
+  ELIGIBILITY_TAG_OPTIONS.map(d => [d.key, d.label])
+);
+/** Humanizes a tag for display — the curated label when known, else a plain
+ * capitalized fallback so a brand-new custom tag still reads cleanly. */
+export const labelForTag = (key: string): string =>
+  ELIGIBILITY_TAG_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
 
 // ── World country data (name/dial-code/ISO/flag), sourced from the
 // `world-countries` package instead of a short hand-picked list — every real

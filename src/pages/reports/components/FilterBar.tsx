@@ -19,7 +19,11 @@ const inputCls =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
 const labelCls = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
 
-const PERIODS: { value: ReportPeriod; label: string }[] = [
+// Exported so the page header can name the active period next to its figures —
+// the Centre Management card's own stats use a fixed last-30-days window
+// regardless of this selection, so the two are only directly comparable when
+// "Last 30 days" is selected here.
+export const PERIODS: { value: ReportPeriod; label: string }[] = [
   { value: 'all', label: 'Full summary' },
   { value: '30d', label: 'Last 30 days' },
   { value: '90d', label: 'Last 90 days' },
@@ -40,6 +44,14 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
 
   const isCentre = draft.view === 'centre';
   const isCustom = draft.period === 'custom';
+  // RP-7: block a reversed custom range (end before start) before it ever reaches
+  // the backend — the HTML5 min/max on the two date inputs below already stop most
+  // of this via the native picker, but typing a date directly can still bypass it.
+  const invalidRange = Boolean(isCustom && draft.startDate && draft.endDate && draft.startDate > draft.endDate);
+  // Fix A: a Custom range with either date still empty must not be submittable —
+  // the backend 500s on an incomplete range instead of failing cleanly, so this
+  // has to be caught here rather than relying on the API's own error response.
+  const incompleteRange = Boolean(isCustom && (!draft.startDate || !draft.endDate));
 
   // Facility-scoped users get exactly one centre (the list is server-scoped) — lock the
   // picker to it and auto-apply, so they can't switch to network / another centre.
@@ -83,6 +95,22 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
             ))}
           </div>
         </div>
+
+        {/* RP-1: network totals default to Active centres only; let the admin opt into
+            Draft/Staging/Suspended (e.g. QA/test centres) when they need to see them. */}
+        {!isCentre && (
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 text-[12px] font-medium text-gray-600">
+              <input
+                checked={Boolean(draft.includeNonActive)}
+                className="h-4 w-4 rounded border-gray-300 text-[#21295A] focus:ring-[#21295A]/30"
+                type="checkbox"
+                onChange={e => set({ includeNonActive: e.target.checked })}
+              />
+              Include non-active centres
+            </label>
+          </div>
+        )}
 
         {/* Centre (only when single centre) */}
         {isCentre && (
@@ -142,6 +170,9 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
                 value={draft.endDate || ''}
                 onChange={e => set({ endDate: e.target.value })}
               />
+              {invalidRange && (
+                <p className="mt-1 text-[11px] font-medium text-red-500">End date must be after start date</p>
+              )}
             </div>
           </>
         )}
@@ -150,7 +181,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
         <div className="flex items-end">
           <button
             className="w-full rounded-lg bg-[#21295A] px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[#2c3670] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isCentre && !draft.centreId}
+            disabled={(isCentre && !draft.centreId) || invalidRange || incompleteRange}
             type="button"
             onClick={apply}
           >

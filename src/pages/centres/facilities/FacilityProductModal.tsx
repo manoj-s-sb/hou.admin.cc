@@ -712,29 +712,50 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
           style={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
             gap: 12,
             borderBottom: '1px solid var(--border)',
             padding: '16px 20px',
           }}
         >
-          <div
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                background: meta.bg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 16,
+                flexShrink: 0,
+              }}
+            >
+              {meta.icon}
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>
+              {isEdit ? `Edit ${product?.name || 'Facility'}` : 'Add Bookable Facility'}
+            </div>
+          </div>
+          <button
+            aria-label="Close"
             style={{
-              width: 34,
-              height: 34,
+              width: 32,
+              height: 32,
+              border: '1px solid var(--border)',
               borderRadius: 8,
-              background: meta.bg,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
+              background: '#fff',
+              cursor: 'pointer',
+              color: 'var(--sub)',
+              fontSize: 18,
               flexShrink: 0,
             }}
+            type="button"
+            onClick={onClose}
           >
-            {meta.icon}
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>
-            {isEdit ? `Edit ${product?.name || 'Facility'}` : 'Add Bookable Facility'}
-          </div>
+            ×
+          </button>
         </div>
 
         <div style={{ padding: 16 }}>

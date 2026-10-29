@@ -77,9 +77,17 @@ export interface BlockSeries extends SeriesCoreFields {
   status: 'active' | 'paused' | 'cancelled';
   skippedDates: string[];
   createdBy: string;
+  createdByName?: string;
   createdAt: string;
   updatedBy?: string;
   updatedAt?: string;
+  // FS-163: set ONLY by cancel_series — distinct from updatedBy/updatedAt,
+  // which other actions (e.g. unblock-all on an already-cancelled series)
+  // also write, so those can't be trusted to mean "this is when/who cancelled
+  // it". Absent until the series is cancelled.
+  cancelledBy?: string;
+  cancelledByName?: string;
+  cancelledAt?: string;
   idempotencyKey: string;
   version: number;
 }

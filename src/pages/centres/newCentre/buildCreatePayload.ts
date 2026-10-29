@@ -141,10 +141,14 @@ const buildMemberships = (state: WizardState, catalogue: PlanMeta[]): ApiMembers
         stateCode,
         facilityCode,
         pricing: {
-          billingCycles: ['fortnightly', 'annual'],
+          // MP-8: omitting "annual" here (both in billingCycles and regular) is
+          // what tells the backend this centre has no annual option for this
+          // plan — not a real $0 price, which used to be the only way a blank
+          // field could be represented.
+          billingCycles: p.offersAnnual ? ['fortnightly', 'annual'] : ['fortnightly'],
           regular: {
             fortnightly: p.fortnightlyPrice,
-            annual: p.annualPrice,
+            ...(p.offersAnnual ? { annual: p.annualPrice } : {}),
             currency: 'usd',
             // Not computed — the real annual/fortnightly relationship isn't a
             // fixed multiplier, so a guessed % would likely be wrong.

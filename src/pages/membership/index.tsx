@@ -135,6 +135,10 @@ const MembershipPlans: React.FC = () => {
 
   const [tab, setTab] = useState<PlanTab>('fortnightly');
   const [region, setRegion] = useState('all');
+  // MP-1: archived plans are hidden by default — an archived plan is meant to be
+  // retired from new assignments, not a permanent fixture of the list an admin
+  // has to visually filter out of every time.
+  const [showArchived, setShowArchived] = useState(false);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [drawerPlan, setDrawerPlan] = useState<MembershipPlan | null>(null);
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | null>(null);
@@ -168,9 +172,15 @@ const MembershipPlans: React.FC = () => {
   };
 
   const visiblePlans = useMemo(
-    () => plans.filter(p => region === 'all' || p.regions.includes('all') || p.regions.includes(region)),
-    [plans, region]
+    () =>
+      plans.filter(
+        p =>
+          (region === 'all' || p.regions.includes('all') || p.regions.includes(region)) &&
+          (showArchived || p.status !== 'archived')
+      ),
+    [plans, region, showArchived]
   );
+  const archivedCount = useMemo(() => plans.filter(p => p.status === 'archived').length, [plans]);
 
   const openCreate = () => {
     setDrawerPlan(null);
@@ -225,6 +235,20 @@ const MembershipPlans: React.FC = () => {
             </button>
           ))}
         </div>
+        {archivedCount > 0 && (
+          <label
+            className="inline-flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-sub"
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            <input
+              checked={showArchived}
+              className="h-3.5 w-3.5 rounded border-cmx-border"
+              type="checkbox"
+              onChange={e => setShowArchived(e.target.checked)}
+            />
+            Show archived ({archivedCount})
+          </label>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="text-xs font-bold uppercase tracking-[0.06em] text-sub" style={{ margin: 0 }}>
             Currency:
@@ -498,7 +522,9 @@ const AnnualTab: React.FC<{
             <FeatureLabel>Annual Price (billed once)</FeatureLabel>
             {plans.map(p => (
               <td key={p.id} className={TD}>
-                <strong>{money(p.annualPrice, currency, rateOf(p.currency))}</strong>
+                {/* MP-8: a plan with no annual option shows "Not offered", never
+                    $0.00 — $0 used to be the only (wrong) way this was representable. */}
+                <strong>{p.offersAnnual ? money(p.annualPrice, currency, rateOf(p.currency)) : 'Not offered'}</strong>
               </td>
             ))}
           </tr>
@@ -506,7 +532,7 @@ const AnnualTab: React.FC<{
             <FeatureLabel>Equiv. per fortnight</FeatureLabel>
             {plans.map(p => (
               <td key={p.id} className={TD} style={{ color: 'var(--sub)', fontSize: 12 }}>
-                ~{money(p.annualPrice / 26, currency, rateOf(p.currency))}
+                {p.offersAnnual ? `~${money(p.annualPrice / 26, currency, rateOf(p.currency))}` : '—'}
               </td>
             ))}
           </tr>
@@ -514,10 +540,10 @@ const AnnualTab: React.FC<{
             <FeatureLabel>Savings vs fortnightly</FeatureLabel>
             {plans.map(p => {
               const yearly = p.fortnightlyPrice * 26;
-              const pct = yearly > 0 ? Math.round((1 - p.annualPrice / yearly) * 100) : 0;
+              const pct = p.offersAnnual && yearly > 0 ? Math.round((1 - p.annualPrice / yearly) * 100) : 0;
               return (
                 <td key={p.id} className={TD}>
-                  {pct > 0 ? <Pill tone="green">~{pct}% off</Pill> : <Pill tone="gray">—</Pill>}
+                  {p.offersAnnual && pct > 0 ? <Pill tone="green">~{pct}% off</Pill> : <Pill tone="gray">—</Pill>}
                 </td>
               );
             })}
