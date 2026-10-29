@@ -849,9 +849,14 @@ export interface CentreKeyDates {
 
 export type AdditionalFacilityType = 'gym' | 'podcast' | 'meeting' | 'gaming' | 'custom';
 
-export interface FacilityPhoto {
-  name: string;
+/** An uploaded facility image — same shape/upload flow as the Facilities
+ * page's Edit modal (see uploadProductImage): `blobName` is the stable
+ * identifier submitted with the facility, `previewUrl` is what's rendered
+ * (a local object URL while mid-upload, or the resolved SAS URL on edit). */
+export interface WizardFacilityImage {
+  blobName: string;
   previewUrl: string;
+  uploading?: boolean;
 }
 
 export interface AdditionalFacility {
@@ -877,7 +882,16 @@ export interface AdditionalFacility {
    * (as '00:00'/'23:59') for display/back-compat but the two time inputs are
    * hidden in favour of a single "24 Hours" toggle. */
   is24Hours?: boolean;
-  photos?: FacilityPhoto[];
+  images?: WizardFacilityImage[];
+  /** Shown to members/guests — same field as the Facilities page's Edit
+   * modal's "Rules and Guidelines" textarea (ApiProductInput.description). */
+  description?: string;
+  /** How many days ahead a member can book this facility — same field as the
+   * Facilities page's Edit modal (ApiProductInput.sessionRules.advanceBookingDays). */
+  advanceBookingDays?: number;
+  /** Pay-per-slot only (podcast/meeting/gaming/custom) — gym has no equivalent
+   * field in either form (see FacilityProductModal.tsx's `!isGym` gate). */
+  maxBookingsPerDay?: number;
   // Gaming-specific
   psUnits?: number;
   chargePerHour?: number;
@@ -894,7 +908,11 @@ export interface AdditionalFacility {
   gymModel?: 'bundled' | 'standalone' | 'both';
   slotStartIntervalMinutes?: number;
   maxMembersPerSlot?: number;
-  minGapHours?: number;
+  /** Minimum gap (hours) between a member's gym sessions, per membership plan
+   * code assigned to this centre — same shape/convention as the Facilities
+   * page's Edit modal (FacilityProductModal.tsx's gapHoursByPlan). Keyed by
+   * WizardPlanRow.planId. */
+  gapHoursByPlan?: Record<string, number>;
   freeGymEntryWithLaneBooking?: boolean;
   freeTrialSlots?: 0 | 1 | 2;
   minimumAge?: number;
@@ -902,11 +920,8 @@ export interface AdditionalFacility {
   parentPresentTo?: number;
   consentFrom?: number;
   consentTo?: number;
-  gymPinRequired?: boolean;
   gymPinBefore?: number;
-  gymPinAfter?: number;
   facilityPinBefore?: number;
-  facilityPinAfter?: number;
   inductionRequired?: boolean;
   // Custom facilities only — lets "Add custom facility" choose the same two
   // facility types the Facilities page offers: paid per booking (hourly), or
