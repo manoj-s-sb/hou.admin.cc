@@ -16,8 +16,8 @@ import {
   COUNTRY_DIAL_CODES,
   COUNTRY_ISO_CODES,
   DAYS,
-  DEMOGRAPHICS,
   FACILITY_OPTIONS,
+  labelForTag,
   isValidPhoneLength,
   isValidPostcode,
   PLAN_COUNTRY_CHIPS,
@@ -584,7 +584,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   // exceed fortnightly × 26, and a free plan with a paid annual option makes no
   // sense at all.
   const invalidPlanPricing = (p: WizardPlanRow): boolean =>
-    p.enabled && (p.fortnightlyPrice <= 0 || p.annualPrice > p.fortnightlyPrice * 26);
+    p.enabled &&
+    (p.fortnightlyPrice <= 0 || (p.offersAnnual && (p.annualPrice <= 0 || p.annualPrice > p.fortnightlyPrice * 26)));
   const hasInvalidPlanPricing = s.plans.some(invalidPlanPricing);
   // Go-live is optional (leave blank to not schedule one), but a date that IS
   // set can't be in the past — ISO 8601 strings sort lexicographically, so
@@ -694,6 +695,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   colour: '#9ca3af',
                   access: '',
                   fortnightly: 0,
+                  offersAnnual: false,
                   annual: 0,
                   defaultSlots: 0,
                   defaultFoundation: false,
@@ -721,6 +723,21 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
     if (demo === 'all') return catalogue;
     return catalogue.filter(p => p.demographics.includes(demo));
   }, [demo, catalogue]);
+
+  // MP-10: built from whatever tags the live catalogue's plans actually carry —
+  // not a fixed list — so a brand-new eligibility tag typed on the Membership
+  // Plans page becomes a real filter option here immediately, same pattern as
+  // the Waitlist Type filter. "All plans" is always the fixed first option.
+  const dynamicDemographics = useMemo(() => {
+    const tags = new Set<string>();
+    catalogue.forEach(p => p.demographics.forEach(d => tags.add(d)));
+    return [
+      { key: 'all', label: 'All plans' },
+      ...Array.from(tags)
+        .sort()
+        .map(key => ({ key, label: labelForTag(key) })),
+    ];
+  }, [catalogue]);
 
   const save = async () => {
     if (!stepValid(4)) {
@@ -1672,7 +1689,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                     Filter by demographic:
                   </span>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {DEMOGRAPHICS.map(d => (
+                    {dynamicDemographics.map(d => (
                       <button
                         key={d.key}
                         className={`cursor-pointer whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
@@ -1758,16 +1775,55 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                               )}
                             </div>
                             <div className="flex flex-col gap-1">
-                              <span className="cmx-field-label">Annual Price</span>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span className="cmx-field-label">Annual Price</span>
+                                <label
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    fontSize: 11,
+                                    fontWeight: 500,
+                                    color: 'var(--sub)',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <input
+                                    checked={row.offersAnnual}
+                                    style={{ width: 13, height: 13 }}
+                                    type="checkbox"
+                                    onChange={e => {
+                                      const offersAnnual = e.target.checked;
+                                      // MP-8: clear a stale price when turned off at this centre —
+                                      // mirrors the same fix on the Membership Plans template page.
+                                      setPlan(meta.id, {
+                                        offersAnnual,
+                                        annualPrice: offersAnnual ? row.annualPrice : 0,
+                                      });
+                                    }}
+                                  />
+                                  Offered here
+                                </label>
+                              </div>
                               <NumberInput
                                 className="cmx-field"
+                                disabled={!row.offersAnnual}
                                 min={0}
+                                placeholder={row.offersAnnual ? undefined : 'Not offered'}
                                 step={0.01}
-                                style={err(row.annualPrice > row.fortnightlyPrice * 26) || undefined}
+                                style={
+                                  err(
+                                    row.offersAnnual &&
+                                      (row.annualPrice <= 0 || row.annualPrice > row.fortnightlyPrice * 26)
+                                  ) || undefined
+                                }
                                 value={row.annualPrice}
                                 onValueChange={v => setPlan(meta.id, { annualPrice: v })}
                               />
-                              {showErrors && row.annualPrice > row.fortnightlyPrice * 26 && (
+                              {showErrors && row.offersAnnual && row.annualPrice <= 0 && (
+                                <div style={{ fontSize: 11, color: '#dc2626' }}>Must be above $0.</div>
+                              )}
+                              {showErrors && row.offersAnnual && row.annualPrice > row.fortnightlyPrice * 26 && (
                                 <div style={{ fontSize: 11, color: '#dc2626' }}>
                                   Can&apos;t exceed 26 × fortnightly ($
                                   {(row.fortnightlyPrice * 26).toFixed(2)}).

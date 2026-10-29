@@ -527,7 +527,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
                 ? 'bg-[#43a047] text-white'
                 : currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
                   ? 'bg-[#F97316] text-white'
-                  : currentSlot?.booking?.coach?.name
+                  : currentSlot?.booking?.coach?.code
                     ? 'bg-[#006A68] text-white'
                     : 'bg-[#21295A] text-white'
             )}
@@ -585,9 +585,12 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
                 </>
               );
             })()}
-            {currentSlot?.booking?.coach?.name && (
+            {currentSlot?.booking?.coach?.code && (
               <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
-                Coach: {currentSlot.booking.coach.name}
+                {/* SA-8: a coach is attached whenever `code` is set, even if the
+                    display name couldn't be resolved — show that plainly
+                    instead of silently hiding the whole line. */}
+                Coach: {currentSlot.booking.coach.name || 'Name unavailable'}
               </span>
             )}
           </div>

@@ -18,6 +18,11 @@ import { handleApiError } from '../../../utils/errorUtils';
 const inputCls =
   'w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-2.5 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10';
 const labelCls = 'mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-gray-500';
+/** Appended to a label's text for every field `formValid` actually requires,
+ * so the admin can tell at a glance what's mandatory vs. optional (e.g.
+ * "Number of weeks" only appears — and is only required — for certain
+ * recurrence types). */
+const Required = () => <span className="text-red-500">&nbsp;*</span>;
 
 const DAYS: { value: DayOfWeek; label: string }[] = [
   { value: 'sunday', label: 'Sunday' },
@@ -37,11 +42,14 @@ const DEFAULT_OCCURRENCE_COUNT = 12;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const CONFLICT_BADGE: Record<string, { label: string; cls: string }> = {
-  none: { label: 'Available', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  member: { label: 'Member booking', cls: 'bg-red-50 text-red-700 border-red-200' },
-  coach: { label: 'Coach booking', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  none: { label: 'Will be reserved', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  member: { label: 'Booked — conflict', cls: 'bg-red-50 text-red-700 border-red-200' },
+  coach: { label: 'Booked — conflict', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   already_blocked: { label: 'Already blocked', cls: 'bg-gray-100 text-gray-500 border-gray-200' },
-  not_yet_created: { label: 'Not created yet', cls: 'bg-blue-50 text-blue-600 border-blue-200' },
+  // The lane's slot timings don't reach this far out yet — NOT abandoned: the
+  // background extension job auto-reserves it the first run after the slot
+  // opens, no admin action needed (see totalNotYetCreated's comment below).
+  not_yet_created: { label: 'Slot not open yet', cls: 'bg-blue-50 text-blue-600 border-blue-200' },
 };
 
 const dayNameFromDate = (dateStr: string): DayOfWeek => {
@@ -287,6 +295,18 @@ const NewSeriesModal = ({
   );
   const totalMemberConflicts = laneCodes.reduce((sum, l) => sum + (previews[l]?.memberConflictCount || 0), 0);
   const totalCoachConflicts = laneCodes.reduce((sum, l) => sum + (previews[l]?.coachConflictCount || 0), 0);
+  // The lane grid only has slot timings open a limited distance out — a date
+  // beyond that horizon has no slot doc to block yet. It is NOT abandoned:
+  // the background extension job (recurringblocks' run_extension_job, every
+  // 15 minutes) re-checks every active series and blocks any such date
+  // automatically the first run after its slot doc appears. Surfaced here so
+  // the admin isn't left thinking the series only covers the few dates
+  // blocked today.
+  const totalNotYetCreated = laneCodes.reduce(
+    (sum, l) => sum + (previews[l]?.occurrences || []).filter(o => o.conflictType === 'not_yet_created').length,
+    0
+  );
+  const totalOccurrencesPreviewed = laneCodes.reduce((sum, l) => sum + (previews[l]?.occurrences || []).length, 0);
 
   const handleCreate = async () => {
     setError('');
@@ -400,7 +420,10 @@ const NewSeriesModal = ({
           {step === 'form' && (
             <div className="space-y-4">
               <div>
-                <span className={labelCls}>Lanes</span>
+                <span className={labelCls}>
+                  Lanes
+                  <Required />
+                </span>
                 <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#B3DADA] bg-white p-3 sm:grid-cols-3">
                   {lanes.map(l => (
                     <label key={l.laneCode} className="flex items-center gap-2 text-[13px] text-[#21295A]">
@@ -432,17 +455,18 @@ const NewSeriesModal = ({
                 >
                   <option value="weekly_after_count">Weekly — After a number of occurrences</option>
                   <option value="weekly_on_date">Weekly — On a specific date</option>
-                  <option value="weekly_never">Weekly — Never</option>
                   <option value="monthly_after_count">Monthly — After a number of occurrences</option>
                   <option value="monthly_on_date">Monthly — On a specific date</option>
-                  <option value="monthly_never">Monthly — Never</option>
                   <option value="specific_dates">Specific dates</option>
                 </select>
               </div>
 
               {recurrenceType === 'weekly' && (
                 <div>
-                  <span className={labelCls}>Repeats on</span>
+                  <span className={labelCls}>
+                    Repeats on
+                    <Required />
+                  </span>
                   <div className="grid grid-cols-3 gap-2 rounded-xl border border-[#B3DADA] bg-white p-3 sm:grid-cols-4">
                     {DAYS.map(d => (
                       <label key={d.value} className="flex items-center gap-2 text-[13px] text-[#21295A]">
@@ -477,6 +501,7 @@ const NewSeriesModal = ({
                   <div>
                     <label className={labelCls} htmlFor="ns-start-date">
                       Starting from
+                      <Required />
                     </label>
                     <input
                       className={inputCls}
@@ -494,6 +519,7 @@ const NewSeriesModal = ({
                     <div>
                       <label className={labelCls} htmlFor="ns-monthly-through">
                         End date
+                        <Required />
                       </label>
                       <input
                         className={inputCls}
@@ -518,6 +544,7 @@ const NewSeriesModal = ({
                   <div>
                     <label className={labelCls} htmlFor="ns-count">
                       Number of weeks
+                      <Required />
                     </label>
                     <input
                       className={inputCls}
@@ -533,6 +560,7 @@ const NewSeriesModal = ({
                   <div>
                     <label className={labelCls} htmlFor="ns-end-date">
                       End date
+                      <Required />
                     </label>
                     <input
                       className={inputCls}
@@ -556,6 +584,7 @@ const NewSeriesModal = ({
                   <div>
                     <label className={labelCls} htmlFor="ns-end-date">
                       End date
+                      <Required />
                     </label>
                     <input
                       className={inputCls}
@@ -577,6 +606,7 @@ const NewSeriesModal = ({
                   <div>
                     <label className={labelCls} htmlFor="ns-count">
                       Number of months
+                      <Required />
                     </label>
                     <input
                       className={inputCls}
@@ -592,7 +622,10 @@ const NewSeriesModal = ({
 
               {recurrenceType === 'specific_dates' && (
                 <div>
-                  <span className={labelCls}>Dates</span>
+                  <span className={labelCls}>
+                    Dates
+                    <Required />
+                  </span>
                   <div className="flex items-center gap-2">
                     <input
                       className={inputCls}
@@ -645,6 +678,7 @@ const NewSeriesModal = ({
                 <div>
                   <label className={labelCls} htmlFor="ns-start-time">
                     Start time
+                    <Required />
                   </label>
                   <select
                     className={inputCls}
@@ -662,6 +696,7 @@ const NewSeriesModal = ({
                 <div>
                   <label className={labelCls} htmlFor="ns-end-time">
                     End time
+                    <Required />
                   </label>
                   <select
                     className={inputCls}
@@ -685,6 +720,7 @@ const NewSeriesModal = ({
               <div>
                 <label className={labelCls} htmlFor="ns-reason">
                   Reason
+                  <Required />
                 </label>
                 <textarea
                   className={inputCls}
@@ -735,6 +771,15 @@ const NewSeriesModal = ({
                 )}
                 {totalMemberConflicts + totalCoachConflicts > 0 && 'need your decision below.'}
               </div>
+
+              {totalNotYetCreated > 0 && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[13px] font-medium text-blue-800">
+                  ⚠️ {totalNotYetCreated} of {totalOccurrencesPreviewed} date
+                  {totalOccurrencesPreviewed !== 1 ? 's' : ''} don&apos;t have an open slot yet on this lane. They
+                  won&apos;t be reserved today — the system automatically reserves each one as soon as that date&apos;s
+                  slot opens, with no action needed from you.
+                </div>
+              )}
 
               <div className="max-h-[320px] space-y-4 overflow-y-auto rounded-xl border border-gray-200 p-3">
                 {laneCodes.map(laneCode => (
@@ -811,6 +856,15 @@ const NewSeriesModal = ({
                   onChange={e => setConfirmChecked(e.target.checked)}
                 />
                 I confirm this will block {whenSummary} on {laneCodes.length} lane{laneCodes.length !== 1 ? 's' : ''}.
+                {totalNotYetCreated > 0 && (
+                  <>
+                    {' '}
+                    {totalOccurrencesPreviewed - totalNotYetCreated} date
+                    {totalOccurrencesPreviewed - totalNotYetCreated !== 1 ? 's' : ''} will be reserved now;{' '}
+                    {totalNotYetCreated} date{totalNotYetCreated !== 1 ? 's' : ''} will be reserved automatically once
+                    their slots open.
+                  </>
+                )}
               </label>
 
               <div className="flex gap-3">
@@ -862,6 +916,19 @@ const NewSeriesModal = ({
                           ).length
                         }{' '}
                         date(s) blocked.
+                        {(() => {
+                          const notYetCreatedCount = result.occurrences.filter(
+                            o => o.outcome === 'not_yet_created'
+                          ).length;
+                          return (
+                            notYetCreatedCount > 0 && (
+                              <span className="block text-blue-700">
+                                {notYetCreatedCount} date(s) will be reserved automatically once their slots open — no
+                                action needed.
+                              </span>
+                            )
+                          );
+                        })()}
                         {result.unresolvedConflicts.length > 0 && (
                           <span className="block text-amber-700">
                             {result.unresolvedConflicts.length} date(s) left untouched:{' '}

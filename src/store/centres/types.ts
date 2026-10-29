@@ -781,6 +781,9 @@ export interface WizardPlanRow {
   planId: PlanId | string;
   enabled: boolean;
   fortnightlyPrice: number;
+  /** Whether THIS centre offers annual billing for this plan — a centre's own
+   * choice, independent of the global template's own offersAnnual flag. */
+  offersAnnual: boolean;
   annualPrice: number;
   allocatedSlots: number;
   joiningFee: number;

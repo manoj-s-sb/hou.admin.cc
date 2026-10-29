@@ -123,7 +123,9 @@ export const extractSlotBookingEvents = (days: GetSlotsResponse[]): CalendarEven
         // A coach-assisted booking stays a single merged event (see mergeCalendarEvents'
         // dedupe against the Coach Booking feed) but is colored like one, so it's
         // still visually flagged as involving a coach on the calendar grid.
-        const hasCoach = Boolean(slot.booking.coach?.name);
+        // SA-8: check `code`, not `name` — a coach stays "attached" even when
+        // the display name failed to resolve (see types.ts's matching comment).
+        const hasCoach = Boolean(slot.booking.coach?.code);
         events.push({
           id: `booking-${slot.booking.bookingCode || slot.slotCode}`,
           title: name || 'Slot Booking',
