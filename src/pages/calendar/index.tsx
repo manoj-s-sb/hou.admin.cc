@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 /* eslint-enable import/no-duplicates */
-import { Calendar, dateFnsLocalizer, View, Views } from 'react-big-calendar';
+import { Calendar, DateCellWrapperProps, dateFnsLocalizer, View, Views } from 'react-big-calendar';
 import { useDispatch, useSelector } from 'react-redux';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
@@ -39,6 +39,32 @@ interface RBCEvent {
 }
 
 const toDateKey = (date: Date) => format(date, 'yyyy-MM-dd');
+
+/** Day-level count badge for Gym/Podcast bookings, shown top-right of a month-view
+ * date cell — on top of the per-booking colour pills already rendered as events, not
+ * instead of them (see "yes, both colour pills and count number"). Built per-render
+ * via a factory (not a module-level component) so it can close over the current
+ * day -> count map without threading extra props through react-big-calendar's own
+ * `components` contract, which only passes {range, value, children}. */
+const makeGymPodcastDateCellWrapper = (countsByDay: Record<string, number>) => {
+  const GymPodcastDateCellWrapper = ({ value, children }: DateCellWrapperProps) => {
+    const count = countsByDay[toDateKey(value)] ?? 0;
+    return (
+      <div className="relative h-full w-full">
+        {children}
+        {count > 0 && (
+          <span
+            aria-label={`${count} gym/podcast booking${count === 1 ? '' : 's'}`}
+            className="pointer-events-none absolute right-1 top-1 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#db2777] px-1 text-[10px] font-bold text-white"
+          >
+            {count}
+          </span>
+        )}
+      </div>
+    );
+  };
+  return GymPodcastDateCellWrapper;
+};
 
 /** onRangeChange reports either an array of visible days (week/day/agenda) or a {start,end} object (month). */
 const getRangeBounds = (range: Date[] | { start: Date; end: Date }): { start: Date; end: Date } =>
@@ -98,13 +124,29 @@ const CalendarPage = () => {
     []
   );
 
+  // Per-day Gym/Podcast booking count, for the month-view date-cell badge.
+  const gymPodcastCountsByDay = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of events) {
+      if (e.type !== 'gym_booking' && e.type !== 'podcast_booking') continue;
+      const key = toDateKey(new Date(e.start));
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }, [events]);
+
+  const calendarComponents = useMemo(
+    () => ({ toolbar: CalendarToolbar, dateCellWrapper: makeGymPodcastDateCellWrapper(gymPodcastCountsByDay) }),
+    [gymPodcastCountsByDay]
+  );
+
   return (
     <div className="w-full">
       {/* ── Page Header ─────────────────────────────────────── */}
       <div className="mb-5 border-b border-gray-100 pb-4">
         <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Calendar</h1>
         <p className="mt-1 text-[12px] font-medium text-gray-400">
-          Unified view of slot bookings, inductions, tours, and coach bookings
+          Unified view of slot bookings, inductions, tours, coach bookings, and gym/podcast bookings
         </p>
       </div>
 
@@ -123,7 +165,7 @@ const CalendarPage = () => {
         {isLoading && <Loader variant="overlay" />}
         <Calendar<RBCEvent>
           popup
-          components={{ toolbar: CalendarToolbar }}
+          components={calendarComponents}
           endAccessor="end"
           eventPropGetter={eventPropGetter}
           events={calendarEvents}

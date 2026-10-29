@@ -87,6 +87,12 @@ const endpoints = {
     updateTourStatus: `${API_PREFIX}/admin/bookings/tour/status/update`,
     addNote: `${API_PREFIX}/admin/bookings/tour/notes/add`,
   },
+  // Gym/Podcast room bookings for the Calendar page — colour pills + per-day
+  // counts (data lives in the same txn-container bookings the rest of this
+  // "bookings" family covers, so it rides the same endpoint group).
+  gymPodcast: {
+    calendar: `${API_PREFIX}/admin/bookings/gym-podcast/calendar`,
+  },
   // Maintenance & Tasks — ONE action-dispatched endpoint. Body always carries an
   // `action` (list_templates | create_template | update_template | archive_template |
   // restore_template | get_template | list_schedules | schedule_task | complete_task |
@@ -103,6 +109,10 @@ const endpoints = {
     create: `${API_PREFIX}/admin/staff/create`,
     details: `${API_PREFIX}/admin/staff/details`,
     update: `${API_PREFIX}/admin/staff/update`,
+    // Status-only toggle (active <-> suspended) for the Suspend/Activate button —
+    // deliberately NOT the full-record `update` above, which re-validates/re-saves
+    // the whole profile just to flip one field.
+    updateStatus: `${API_PREFIX}/admin/staff/status/update`,
     // Generates a new temp password and emails it — body-based { staffId }, matching
     // the rest of these mutation routes.
     resendWelcomeEmail: `${API_PREFIX}/admin/staff/resend-welcome-email`,

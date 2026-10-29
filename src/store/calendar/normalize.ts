@@ -3,7 +3,7 @@ import { Induction } from '../induction/types';
 import { Coach, GetSlotsResponse } from '../slots/types';
 
 import { EVENT_TYPE_CONFIG } from './eventTypeConfig';
-import { CalendarEvent } from './types';
+import { CalendarEvent, CalendarEventType, GymPodcastBookingItem } from './types';
 
 /**
  * Pure, framework-free normalization/merging for the Calendar feature. Kept
@@ -141,12 +141,39 @@ export const extractSlotBookingEvents = (days: GetSlotsResponse[]): CalendarEven
   return events;
 };
 
-/** Merges the four source lists into one normalized, sorted event list. */
+/**
+ * Gym/Podcast room bookings come from `POST admin/bookings/gym-podcast/calendar`
+ * — one flat list for the whole range (no day/lane grid, unlike slot bookings).
+ * `productType` ('gym' | 'podcast') picks the event type/color; cancelled
+ * bookings are never returned by the backend, so every item here is an event.
+ */
+export const extractGymPodcastBookingEvents = (bookings: GymPodcastBookingItem[]): CalendarEvent[] => {
+  const events: CalendarEvent[] = [];
+  for (const booking of bookings ?? []) {
+    if (!isValidTimeSlot(booking.startTime, booking.endTime)) continue;
+    const name = `${booking.firstName ?? ''} ${booking.lastName ?? ''}`.trim();
+    const isGym = booking.productType === 'gym';
+    const type: CalendarEventType = isGym ? 'gym_booking' : 'podcast_booking';
+    events.push({
+      id: `${booking.productType}-${booking.bookingCode || booking.bookingId}`,
+      title: name || (isGym ? 'Gym Booking' : 'Podcast Booking'),
+      start: booking.startTime,
+      end: booking.endTime,
+      type,
+      color: EVENT_TYPE_CONFIG[type].color,
+      meta: { ...booking },
+    });
+  }
+  return events;
+};
+
+/** Merges the five source lists into one normalized, sorted event list. */
 export const mergeCalendarEvents = (
   inductions: Induction[],
   tours: Induction[],
   coaches: Coach[],
-  slotBookingDays: GetSlotsResponse[] = []
+  slotBookingDays: GetSlotsResponse[] = [],
+  gymPodcastBookings: GymPodcastBookingItem[] = []
 ): CalendarEvent[] => {
   const slotBookingEvents = extractSlotBookingEvents(slotBookingDays);
   const slotBookingIds = new Set(
@@ -158,6 +185,7 @@ export const mergeCalendarEvents = (
     ...(tours ?? []).map(normalizeTourEvent),
     ...extractCoachBookingEvents(coaches, slotBookingIds),
     ...slotBookingEvents,
+    ...extractGymPodcastBookingEvents(gymPodcastBookings),
   ].filter((e): e is CalendarEvent => e !== null);
 
   // Cross-day order stays purely chronological. WITHIN the same day, Coach
