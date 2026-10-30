@@ -21,6 +21,7 @@ import type {
   ListSchedulesResponse,
   ListTemplatesPayload,
   ListTemplatesResponse,
+  RescheduleNextTaskPayload,
   ScheduleTaskPayload,
   TaskSchedule,
   TaskTemplate,
@@ -185,6 +186,21 @@ export const flagIssue = createAsyncThunk<FlagIssueResponse, FlagIssuePayload, {
       return await post<FlagIssueResponse>('flag_issue', { ...payload });
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not flag the issue'));
+    }
+  }
+);
+
+/** Non-destructive reschedule (moves `nextDueDate` only, no lane change,
+ * no delete/recreate) — use this instead of unschedule+scheduleTask whenever
+ * only the date is changing, since that combo's recreate step can spuriously
+ * conflict with the schedule's own still-future sibling occurrences. */
+export const rescheduleNextTask = createAsyncThunk<TaskSchedule, RescheduleNextTaskPayload, { rejectValue: string }>(
+  'maintenance/rescheduleNextTask',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await post<TaskSchedule>('reschedule_next', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not reschedule the task'));
     }
   }
 );

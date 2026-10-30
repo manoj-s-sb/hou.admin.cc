@@ -7,7 +7,7 @@ import { Induction, InductionResponse } from '../induction/types';
 import { Coach, CoachSlotsResponse, GetSlotsResponse } from '../slots/types';
 
 import { mergeCalendarEvents } from './normalize';
-import { CalendarRangeRequest } from './types';
+import { CalendarRangeRequest, GymPodcastBookingsResponse } from './types';
 
 // The list endpoint paginates (max 100/page) and the calendar renders a whole
 // range in one go rather than paging — see the "Known limitation" callout in
@@ -53,12 +53,17 @@ export const fetchCalendarEvents = createAsyncThunk(
       const slotBookingsRequest = facilityCode
         ? api.post(endpoints.slots.list, { startDate, endDate, facilityCode })
         : Promise.resolve(null);
+      // Gym/Podcast calendar is per-centre too (facilityCode required) — same skip rule.
+      const gymPodcastRequest = facilityCode
+        ? api.post(endpoints.gymPodcast.calendar, { startDate, endDate, facilityCode })
+        : Promise.resolve(null);
 
-      const [inductionsRes, toursRes, coachRes, slotBookingsRes] = await Promise.all([
+      const [inductionsRes, toursRes, coachRes, slotBookingsRes, gymPodcastRes] = await Promise.all([
         inductionsRequest,
         toursRequest,
         coachRequest,
         slotBookingsRequest,
+        gymPodcastRequest,
       ]);
 
       const inductions: Induction[] = (inductionsRes.data?.data as InductionResponse | undefined)?.bookings ?? [];
@@ -67,8 +72,11 @@ export const fetchCalendarEvents = createAsyncThunk(
       const slotBookingDays: GetSlotsResponse[] = slotBookingsRes
         ? ((slotBookingsRes.data?.data as SlotCalendarRangeResponse | undefined)?.days ?? [])
         : [];
+      const gymPodcastBookings = gymPodcastRes
+        ? ((gymPodcastRes.data?.data as GymPodcastBookingsResponse | undefined)?.bookings ?? [])
+        : [];
 
-      return mergeCalendarEvents(inductions, tours, coaches, slotBookingDays);
+      return mergeCalendarEvents(inductions, tours, coaches, slotBookingDays, gymPodcastBookings);
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch calendar events'));
     }

@@ -72,6 +72,21 @@ interface WorldCountryEntry {
   flag: string;
 }
 
+// `idd.root` + `idd.suffixes` together make up world-countries' dial code,
+// but how they combine depends on whether the root is genuinely SHARED by
+// several countries (US/CA/DO all under root "+1"; RU/KZ under root "+7" —
+// those countries list many suffixes, one per sharer, and root alone is the
+// real international code) or belongs to exactly ONE country whose root+
+// suffix the dataset just happens to split into two fields (India:
+// root "+9", suffixes ["1"] -> the real code is "+91", not "+9"). A shared
+// root always has more than one suffix entry; a single-country code has
+// exactly one — so that count is what tells the two cases apart.
+const dialCodeOf = (idd: { root?: string; suffixes?: string[] } | undefined): string => {
+  if (!idd?.root) return '';
+  const suffixes = idd.suffixes ?? [];
+  return suffixes.length === 1 ? idd.root + suffixes[0] : idd.root;
+};
+
 const ALL_COUNTRIES: WorldCountryEntry[] = worldCountries
   .filter(c => c.cca2 && c.cca3 && c.name?.common)
   .map(c => ({
@@ -79,14 +94,7 @@ const ALL_COUNTRIES: WorldCountryEntry[] = worldCountries
     label: c.name.common,
     iso2: c.cca2,
     iso3: c.cca3,
-    // `idd.root` is the real, dialable country code (e.g. "+1" for both the US
-    // and Canada, "+7" for both Russia and Kazakhstan — genuinely shared, not
-    // a mistake). `idd.suffixes` is NOT a tiebreaker digit to append — it's
-    // world-countries' internal list of domestic area-code hints for
-    // countries whose numbering plan is split with others under the same
-    // root. Appending suffixes[0] produced nonsense like "+1201" for the US
-    // and "+73" for Russia. The real international dial code is root alone.
-    dialCode: c.idd?.root || '',
+    dialCode: dialCodeOf(c.idd),
     flag: c.flag,
   }))
   .sort((a, b) => a.label.localeCompare(b.label));
