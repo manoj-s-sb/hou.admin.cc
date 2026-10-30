@@ -141,22 +141,29 @@ export const extractSlotBookingEvents = (days: GetSlotsResponse[]): CalendarEven
   return events;
 };
 
+/** Maps a GymPodcastBookingItem.productType to its Calendar event type/label. */
+const GYM_PODCAST_EVENT_TYPE: Record<GymPodcastBookingItem['productType'], CalendarEventType> = {
+  gym: 'gym_booking',
+  podcast: 'podcast_booking',
+  meeting: 'meeting_booking',
+};
+
 /**
- * Gym/Podcast room bookings come from `POST admin/bookings/gym-podcast/calendar`
- * — one flat list for the whole range (no day/lane grid, unlike slot bookings).
- * `productType` ('gym' | 'podcast') picks the event type/color; cancelled
- * bookings are never returned by the backend, so every item here is an event.
+ * Gym/podcast/meeting room bookings come from
+ * `POST admin/bookings/gym-podcast/calendar` — one flat list for the whole
+ * range (no day/lane grid, unlike slot bookings). `productType` picks the
+ * event type/color; cancelled bookings are never returned by the backend, so
+ * every item here is an event.
  */
 export const extractGymPodcastBookingEvents = (bookings: GymPodcastBookingItem[]): CalendarEvent[] => {
   const events: CalendarEvent[] = [];
   for (const booking of bookings ?? []) {
     if (!isValidTimeSlot(booking.startTime, booking.endTime)) continue;
     const name = `${booking.firstName ?? ''} ${booking.lastName ?? ''}`.trim();
-    const isGym = booking.productType === 'gym';
-    const type: CalendarEventType = isGym ? 'gym_booking' : 'podcast_booking';
+    const type = GYM_PODCAST_EVENT_TYPE[booking.productType];
     events.push({
       id: `${booking.productType}-${booking.bookingCode || booking.bookingId}`,
-      title: name || (isGym ? 'Gym Booking' : 'Podcast Booking'),
+      title: name || EVENT_TYPE_CONFIG[type].label,
       start: booking.startTime,
       end: booking.endTime,
       type,

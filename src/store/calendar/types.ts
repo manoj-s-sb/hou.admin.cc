@@ -6,7 +6,14 @@ export interface CalendarRangeRequest {
 }
 
 /** The source APIs a calendar event can come from. */
-export type CalendarEventType = 'booking' | 'induction' | 'tour' | 'coach_booking' | 'gym_booking' | 'podcast_booking';
+export type CalendarEventType =
+  | 'booking'
+  | 'induction'
+  | 'tour'
+  | 'coach_booking'
+  | 'gym_booking'
+  | 'podcast_booking'
+  | 'meeting_booking';
 
 /**
  * Common shape every source API's response is normalized into (see
@@ -28,7 +35,7 @@ export interface CalendarEvent {
 export interface GymPodcastBookingItem {
   bookingId: string;
   bookingCode: string;
-  productType: 'gym' | 'podcast';
+  productType: 'gym' | 'podcast' | 'meeting';
   userId: string;
   firstName: string;
   lastName: string;

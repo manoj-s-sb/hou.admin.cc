@@ -1,14 +1,32 @@
 import React, { useEffect, useState } from 'react';
 
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 
 import endpoints from '../../../constants/endpoints';
 import api from '../../../services';
-import { getStaffList } from '../../../store/staff/api';
-import { AppDispatch, RootState } from '../../../store/store';
+import { RootState } from '../../../store/store';
+import { EMAIL_RE } from '../../../utils/validation';
 import { formatRoleLabel } from '../../staff/utils';
 
-import type { StaffListRow } from '../../../store/staff/types';
+// Minimal shape returned by the Tickets module's own "assignableStaff"
+// action (/admin/tickets) -- deliberately NOT the Staff Management module's
+// full StaffListRow/its own /admin/staff/list endpoint, which requires Staff
+// Management read permission. Assigning a ticket has nothing to do with that
+// module, so this picker gets its own lightweight, Tickets-scoped data
+// source instead (see TicketService.list_assignable_staff on the backend).
+interface AssignableStaffRow {
+  staffId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  userType: string[];
+  status: string;
+}
+
+// Sentinel <option> value for "type an email instead of picking someone from
+// the list" — distinct from any real staffId/email so it can never collide
+// with an actual selectable person.
+const CUSTOM_EMAIL_OPTION = '__custom_email__';
 
 // Designation shown in the picker — e.g. "NOC Team" — instead of email, which
 // isn't useful for picking the right person to assign.
@@ -48,36 +66,58 @@ interface Props {
  * that is carried as extra context by the caller (e.g. CC'd via
  * additionalRecipients) until a real multi-assignee field exists server-side.
  *
- * Three sources feed the list: this centre's staff (scoped, empty for a
+ * Four sources feed the list: this centre's staff (scoped, empty for a
  * brand-new centre), the logged-in caller themself ("Assign to me" — always
- * available, no centre dependency), and every superadmin account by name
- * (also always available — superadmins aren't tied to one centre, so a
- * ticket at a centre with no staff of its own yet can still be escalated to
- * a real, named person instead of being blocked).
+ * available, no centre dependency), every superadmin account by name (also
+ * always available — superadmins aren't tied to one centre, so a ticket at a
+ * centre with no staff of its own yet can still be escalated to a real,
+ * named person instead of being blocked), and a free-typed email address for
+ * anyone not in this system at all (an outside vendor, a staff member not
+ * yet onboarded) — Assign To is entirely optional, so this field can also be
+ * left empty to file the ticket under the centre with nobody assigned yet.
  */
 const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, className, disabled }) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const { staffList, isListLoading, listError } = useSelector((state: RootState) => state.staff);
   const currentUser = useSelector((state: RootState) => state.auth.user);
+
+  const [staffList, setStaffList] = useState<AssignableStaffRow[]>([]);
+  const [isListLoading, setIsListLoading] = useState(false);
+  const [listError, setListError] = useState('');
 
   useEffect(() => {
     if (!facilityCode) return;
-    dispatch(getStaffList({ facilityCode, limit: 200, offset: 0 }));
-  }, [dispatch, facilityCode]);
+    let cancelled = false;
+    setIsListLoading(true);
+    setListError('');
+    api
+      .post(endpoints.tickets, { action: 'assignableStaff', facilityCode, limit: 200, offset: 0 })
+      .then(res => {
+        if (cancelled) return;
+        setStaffList((res.data?.data?.staff ?? []) as AssignableStaffRow[]);
+      })
+      .catch(err => {
+        if (!cancelled) setListError(err?.response?.data?.message || err?.message || 'Failed to fetch staff list');
+      })
+      .finally(() => {
+        if (!cancelled) setIsListLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [facilityCode]);
 
   // Superadmins are global, not centre-scoped — fetched once, independently of
   // the centre-scoped staffList above, into local state so the two never clobber
-  // each other in the shared Redux slice.
-  const [superAdmins, setSuperAdmins] = useState<StaffListRow[]>([]);
+  // each other.
+  const [superAdmins, setSuperAdmins] = useState<AssignableStaffRow[]>([]);
   const [isLoadingSuperAdmins, setIsLoadingSuperAdmins] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setIsLoadingSuperAdmins(true);
     api
-      .post(endpoints.staff.list, { role: 'superadmin', limit: 50, offset: 0 })
+      .post(endpoints.tickets, { action: 'assignableStaff', role: 'superadmin', limit: 50, offset: 0 })
       .then(res => {
         if (cancelled) return;
-        const rows = (res.data?.data?.staff ?? []) as StaffListRow[];
+        const rows = (res.data?.data?.staff ?? []) as AssignableStaffRow[];
         setSuperAdmins(rows.filter(s => isActiveStatus(s.status)));
       })
       .catch(() => {
@@ -91,8 +131,8 @@ const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, c
     };
   }, []);
 
-  // getStaffList itself scopes by facilityCode server-side (matches assignedCentres,
-  // not just the single primary facilityCode field) — trust that, only filter active here.
+  // list_assignable_staff itself scopes by facilityCode server-side — trust
+  // that, only filter active here.
   const activeStaff = staffList.filter(s => isActiveStatus(s.status));
 
   const meEntry: SelectedStaff | null = currentUser
@@ -127,24 +167,56 @@ const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, c
 
   const removePerson = (staffId: string) => onChange(value.filter(v => v.staffId !== staffId));
 
+  // "+ Enter an email…" — assign directly to someone not in any list above
+  // (an outside vendor, a staff member not yet onboarded). The email itself
+  // is both the id and the display name, same convention as the "Notify
+  // additional recipients" CC field.
+  const [showCustomEmailInput, setShowCustomEmailInput] = useState(false);
+  const [customEmail, setCustomEmail] = useState('');
+  const [customEmailError, setCustomEmailError] = useState('');
+
+  const addCustomEmail = () => {
+    const trimmed = customEmail.trim();
+    if (!trimmed) return;
+    if (!EMAIL_RE.test(trimmed)) {
+      setCustomEmailError('Enter a valid email address');
+      return;
+    }
+    if (value.some(v => v.staffId.toLowerCase() === trimmed.toLowerCase())) {
+      setCustomEmailError('That person is already added');
+      return;
+    }
+    onChange([...value, { staffId: trimmed, name: trimmed, email: trimmed }]);
+    setCustomEmail('');
+    setCustomEmailError('');
+    setShowCustomEmailInput(false);
+  };
+
   if (listError) {
     return <div style={{ fontSize: 11, color: '#dc2626' }}>Could not load staff: {listError}</div>;
   }
 
-  const hasAnyOptions = meSelectable || selectableStaff.length > 0 || selectableSuperAdmins.length > 0;
+  // "+ Enter an email…" is always available regardless of centre/staff state,
+  // so there's always at least one option once loading finishes — unlike
+  // before this option existed, there's no "nothing left to add" state to
+  // show a disabled picker for.
   const stillLoading = (!!facilityCode && isListLoading) || isLoadingSuperAdmins;
 
   return (
     <div>
       <select
         className={className}
-        disabled={disabled || (!hasAnyOptions && !stillLoading)}
+        disabled={disabled || stillLoading}
         value=""
         onChange={e => {
-          if (e.target.value) addPerson(e.target.value);
+          if (e.target.value === CUSTOM_EMAIL_OPTION) {
+            setShowCustomEmailInput(true);
+          } else if (e.target.value) {
+            addPerson(e.target.value);
+          }
         }}
       >
-        <option value="">{stillLoading ? 'Loading…' : hasAnyOptions ? 'Add a person…' : 'No one left to add'}</option>
+        <option value="">{stillLoading ? 'Loading…' : 'Add a person…'}</option>
         {meSelectable && meEntry && <option value={meEntry.staffId}>★ Assign to me — {meEntry.name}</option>}
         {selectableStaff.length > 0 && (
           <optgroup label={facilityCode ? "This centre's staff" : 'Staff'}>
@@ -164,7 +236,43 @@ const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, c
             ))}
           </optgroup>
         )}
+        <option value={CUSTOM_EMAIL_OPTION}>+ Enter an email…</option>
       </select>
+      {showCustomEmailInput && (
+        <div className="mt-2">
+          <div className="flex gap-2">
+            <input
+              className={className}
+              placeholder="Enter an email and press Enter…"
+              type="text"
+              value={customEmail}
+              onChange={e => {
+                setCustomEmail(e.target.value);
+                if (customEmailError) setCustomEmailError('');
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addCustomEmail();
+                }
+                if (e.key === 'Escape') {
+                  setShowCustomEmailInput(false);
+                  setCustomEmail('');
+                  setCustomEmailError('');
+                }
+              }}
+            />
+            <button
+              className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+              type="button"
+              onClick={addCustomEmail}
+            >
+              Add
+            </button>
+          </div>
+          {customEmailError && <p className="mt-1 text-[11px] text-red-500">{customEmailError}</p>}
+        </div>
+      )}
       {value.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {value.map((v, i) => (

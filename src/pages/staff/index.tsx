@@ -214,6 +214,12 @@ const StaffManagement: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [accessFilter, setAccessFilter] = useState('all');
   const [centreFilter, setCentreFilter] = useState('all');
+  // "All Staff" table pagination, lifted out of DataTable (which otherwise
+  // tracks this internally) so the S.No column below can offset by the
+  // current page instead of restarting at 1 on every page — same pattern
+  // src/pages/members/index.tsx and src/pages/induction/index.tsx already use.
+  const [staffPage, setStaffPage] = useState(0);
+  const [staffRowsPerPage, setStaffRowsPerPage] = useState(10);
   const { staffList, isListLoading, listError, staffConfig, isConfigLoading, configError } = useSelector(
     (state: RootState) => state.staff
   );
@@ -293,6 +299,13 @@ const StaffManagement: React.FC = () => {
     });
   }, [staff, statusFilter, searchInput, roleFilter, accessFilter, centreFilter]);
 
+  // A filter change can make the currently-viewed page go out of range (or
+  // simply confusing to stay on) — jump back to page 1, matching the other
+  // DataTable-paginated list pages' behavior.
+  useEffect(() => {
+    setStaffPage(0);
+  }, [statusFilter, searchInput, roleFilter, accessFilter, centreFilter]);
+
   const isLoading = isListLoading;
   const error = listError;
 
@@ -356,7 +369,9 @@ const StaffManagement: React.FC = () => {
       flex: 0.5,
       minWidth: 60,
       sortable: false,
-      renderCell: ({ index }) => <span className="text-[13px] font-medium text-gray-400">{index + 1}</span>,
+      renderCell: ({ index }) => (
+        <span className="text-[13px] font-medium text-gray-400">{staffPage * staffRowsPerPage + index + 1}</span>
+      ),
     },
     {
       field: 'name',
@@ -707,7 +722,14 @@ const StaffManagement: React.FC = () => {
               }}
               getRowId={(row: StaffRow) => row.id}
               loading={isLoading}
+              page={staffPage}
+              rowsPerPage={staffRowsPerPage}
+              onPageChange={setStaffPage}
               onRowClick={(row: StaffRow) => openProfile(row)}
+              onRowsPerPageChange={rows => {
+                setStaffRowsPerPage(rows);
+                setStaffPage(0);
+              }}
             />
           </div>
         </>

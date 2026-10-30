@@ -124,11 +124,11 @@ const CalendarPage = () => {
     []
   );
 
-  // Per-day Gym/Podcast booking count, for the month-view date-cell badge.
+  // Per-day Gym/Podcast/Meeting Room booking count, for the month-view date-cell badge.
   const gymPodcastCountsByDay = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const e of events) {
-      if (e.type !== 'gym_booking' && e.type !== 'podcast_booking') continue;
+      if (e.type !== 'gym_booking' && e.type !== 'podcast_booking' && e.type !== 'meeting_booking') continue;
       const key = toDateKey(new Date(e.start));
       counts[key] = (counts[key] ?? 0) + 1;
     }
@@ -146,7 +146,7 @@ const CalendarPage = () => {
       <div className="mb-5 border-b border-gray-100 pb-4">
         <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Calendar</h1>
         <p className="mt-1 text-[12px] font-medium text-gray-400">
-          Unified view of slot bookings, inductions, tours, coach bookings, and gym/podcast bookings
+          Unified view of slot bookings, inductions, tours, coach bookings, and gym/podcast/meeting room bookings
         </p>
       </div>
 

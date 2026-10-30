@@ -111,7 +111,8 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
     centre: !centre ? 'Select a centre' : '',
     title: !title.trim() ? 'Title is required' : '',
     description: !description.trim() ? 'Description is required' : '',
-    assigneeName: assignees.length === 0 ? 'Select at least one assignee' : '',
+    // Assign To is optional — a ticket can be filed under the centre with
+    // nobody assigned yet, to be picked up later.
     customerEmail: isCustomerSupport
       ? !customerEmail.trim()
         ? 'Customer email is required'
@@ -174,10 +175,13 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
       // first person picked becomes that; anyone picked after that has no formal
       // "assignee" slot yet, so they're CC'd via additionalRecipients so they're still
       // notified. See StaffAssigneeSelect's doc comment.
-      // assignedTo is a backend role-bucket enum ('noc'/'centre_staff'/'admin'/'others')
-      // used only to special-case the NOC queue's initial status — picking a specific
-      // person here always goes through 'others', which also keeps new tickets 'open'
-      // until the assignee acts on them, same as any other named assignment.
+      // assignedTo is a backend role-bucket enum ('noc'/'centre_staff'/'admin'/'others'/
+      // 'unassigned') used only to special-case the NOC queue's initial status —
+      // picking a specific person here always goes through 'others', which also
+      // keeps new tickets 'open' until the assignee acts on them, same as any
+      // other named assignment. Leaving Assign To empty sends 'unassigned'
+      // instead — the ticket is still created and filed under the centre, just
+      // with nobody assigned yet.
       const [primaryAssignee, ...extraAssignees] = assignees;
       const recipients = [...additionalRecipients, ...extraAssignees.map(a => a.email)];
       const payload: CreateTicketRequest = {
@@ -188,7 +192,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         customerEmail: isCustomerSupport && customerEmail.trim() ? customerEmail.trim() : undefined,
         task: task.trim() || null,
         priority,
-        assignedTo: 'others',
+        assignedTo: primaryAssignee ? 'others' : 'unassigned',
         assignedToId: primaryAssignee?.staffId,
         assignedToName: primaryAssignee?.name,
         laneNo: lanes.length ? lanes : null,
@@ -348,20 +352,22 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           </div>
 
           <div>
-            <span className={labelClass}>Assign To *</span>
+            <span className={labelClass}>Assign To (optional)</span>
             <StaffAssigneeSelect
-              className={`${fieldClass}${errClass(errors.assigneeName)}`}
+              className={fieldClass}
               facilityCode={centre || undefined}
               value={assignees}
               onChange={setAssignees}
             />
+            {assignees.length === 0 && (
+              <p className="mt-1 text-[11px] text-gray-400">
+                Leave empty to file this ticket under the centre with nobody assigned yet.
+              </p>
+            )}
             {assignees.length > 1 && (
               <p className="mt-1 text-[11px] text-gray-400">
                 Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
               </p>
-            )}
-            {triedSubmit && errors.assigneeName && (
-              <p className="mt-1 text-[11px] text-red-500">{errors.assigneeName}</p>
             )}
           </div>
 

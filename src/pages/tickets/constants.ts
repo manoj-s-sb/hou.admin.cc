@@ -16,7 +16,7 @@ export const TICKET_STATUSES: TicketStatus[] = ['open', 'noc', 'inprogress', 've
 export const SELECTABLE_STATUSES: TicketStatus[] = ['inprogress', 'closed'];
 export const TICKET_CATEGORIES: TicketCategory[] = ['customer_support', 'maintenance', 'general', 'suggestion'];
 export const TICKET_PRIORITIES: TicketPriority[] = ['high', 'medium', 'low'];
-export const TICKET_ROLES: TicketRole[] = ['noc', 'centre_staff', 'admin', 'others'];
+export const TICKET_ROLES: TicketRole[] = ['noc', 'centre_staff', 'admin', 'others', 'unassigned'];
 
 export const MAINTENANCE_CATEGORY: TicketCategory = 'maintenance';
 export const LANE_MIN = 1;
@@ -80,6 +80,7 @@ export const ROLE_LABELS: Record<TicketRole, string> = {
   centre_staff: 'Centre Staff',
   admin: 'Admin',
   others: 'Others',
+  unassigned: 'Unassigned',
 };
 
 // Linear flow used for the detail-view stepper (inprogress sits between noc and verify).

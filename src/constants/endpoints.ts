@@ -222,6 +222,10 @@ const endpoints = {
   // email_type, facility_code, start_date, end_date, skip, limit) — called with
   // none of them, lists every outbound email across the whole portal, newest first.
   emailLogs: `${API_PREFIX}/admin/email-logs`,
+  // Manual retry for a failed, retryable email — POST { retryDocId, facilityCode? }.
+  // Surfaced as "Resend" on a failed row that still has an actionable emailretry
+  // entry (see the backend's EmailLogService._project).
+  emailLogsResend: `${API_PREFIX}/admin/email-logs/resend`,
 };
 
 export default endpoints;

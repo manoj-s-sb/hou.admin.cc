@@ -90,7 +90,7 @@ const MetaFields = ({ event }: { event: CalendarEvent }) => {
     );
   }
 
-  if (event.type === 'gym_booking' || event.type === 'podcast_booking') {
+  if (event.type === 'gym_booking' || event.type === 'podcast_booking' || event.type === 'meeting_booking') {
     const name = `${meta.firstName ?? ''} ${meta.lastName ?? ''}`.trim();
     const guestCount = meta.guestCount as number | undefined;
     return (
