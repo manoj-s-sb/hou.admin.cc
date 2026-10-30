@@ -1354,6 +1354,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   <span className="cmx-field-label">Overall Capacity (total slots) *</span>
                   <NumberInput
                     className="cmx-field"
+                    emptyValue={0}
                     min={1}
                     placeholder="e.g. 450"
                     style={err(capacity <= 0)}
@@ -1547,7 +1548,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                 <input
                   className="cmx-field"
-                  placeholder="Add a facility not listed above (e.g. Nets, Physio Room)…"
+                  placeholder="Add a facility not listed above…"
                   style={{ maxWidth: 340 }}
                   type="text"
                   value={customFacilityInput}
@@ -1639,6 +1640,8 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
             <div>
               <AdditionalFacilitiesStep
                 facilities={s.additionalFacilities}
+                facilityCode={s.shortCode.toUpperCase()}
+                plans={s.plans.filter(p => p.enabled)}
                 onChange={next => set({ additionalFacilities: next })}
               />
 

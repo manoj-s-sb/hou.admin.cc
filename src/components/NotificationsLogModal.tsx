@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import { toast } from 'react-hot-toast';
+
 import endpoints from '../constants/endpoints';
 import api from '../services';
 
@@ -15,6 +17,11 @@ interface EmailLogRow {
   channel?: string;
   status?: string;
   sentAt?: string;
+  // Present only on a failed row of a retryable type that still has an
+  // actionable retry entry (backend: EmailLogService._project). Absent for
+  // non-retryable types (e.g. otp/staff_welcome, which keep their own
+  // regenerate-and-resend flows) and for anything already resolved.
+  retryDocId?: string;
 }
 
 interface NotificationsLogModalProps {
@@ -54,6 +61,7 @@ const NotificationsLogModal = ({ isOpen, onClose }: NotificationsLogModalProps) 
   const [emailType, setEmailType] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const fetchPage = (nextPage: number, nextLimit: number) => {
     setIsLoading(true);
@@ -79,6 +87,19 @@ const NotificationsLogModal = ({ isOpen, onClose }: NotificationsLogModalProps) 
         setTotal(0);
       })
       .finally(() => setIsLoading(false));
+  };
+
+  const handleResend = (row: EmailLogRow) => {
+    if (!row.retryDocId) return;
+    setResendingId(row.retryDocId);
+    api
+      .post(endpoints.emailLogsResend, { retryDocId: row.retryDocId, facilityCode: row.facilityCode })
+      .then(() => {
+        toast.success('Email re-queued for sending');
+        fetchPage(page, limit);
+      })
+      .catch(() => toast.error('Could not resend this email'))
+      .finally(() => setResendingId(null));
   };
 
   useEffect(() => {
@@ -146,6 +167,22 @@ const NotificationsLogModal = ({ isOpen, onClose }: NotificationsLogModalProps) 
           </span>
         );
       },
+      sortable: false,
+    },
+    {
+      id: 'actions',
+      label: '',
+      renderCell: (_value, row) =>
+        row.retryDocId ? (
+          <button
+            className="rounded-lg border border-[#21295A]/20 px-2.5 py-1 text-[11px] font-semibold text-[#21295A] transition hover:bg-[#21295A]/5 disabled:opacity-50"
+            disabled={resendingId === row.retryDocId}
+            type="button"
+            onClick={() => handleResend(row)}
+          >
+            {resendingId === row.retryDocId ? 'Resending…' : 'Resend'}
+          </button>
+        ) : null,
       sortable: false,
     },
   ];

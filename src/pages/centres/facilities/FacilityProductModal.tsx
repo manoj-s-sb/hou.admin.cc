@@ -344,6 +344,11 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
   const [advanceBookingDays, setAdvanceBookingDays] = useState<number | null>(null);
   const [additionalGuestPrice, setAdditionalGuestPrice] = useState<number | null>(null);
   const [freeGuestVisits, setFreeGuestVisits] = useState<number | null>(null);
+  // Gym only — same field the wizard shows as a visible checkbox
+  // (AdditionalFacilitiesStep.tsx's freeGymEntryWithLaneBooking). Previously
+  // hardcoded true at submit time with no UI; now editable, defaulting to true
+  // to match that prior hardcoded behavior.
+  const [freeGymEntryWithLaneBooking, setFreeGymEntryWithLaneBooking] = useState(true);
   const [is24Hours, setIs24Hours] = useState(false);
   const [openTime, setOpenTime] = useState('08:00');
   const [closeTime, setCloseTime] = useState('20:00');
@@ -415,6 +420,7 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
     setAdvanceBookingDays(product?.sessionRules?.advanceBookingDays ?? null);
     setAdditionalGuestPrice(product?.guestPolicy?.additionalGuestPrice ?? null);
     setFreeGuestVisits((isGym ? product?.guestPolicy?.freeGuestsPerBillingCycle : product?.freeGuestVisits) ?? null);
+    setFreeGymEntryWithLaneBooking(product?.guestPolicy?.laneGuestFreeGymSameDay ?? true);
     setIs24Hours(product?.openTime === '00:00' && product?.closeTime === '23:59');
     setOpenTime(product?.openTime ?? '08:00');
     setCloseTime(product?.closeTime ?? '20:00');
@@ -572,8 +578,7 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
       noWalkIns: true,
       maxGuestsPerSlot: maxMembersPerSlot ?? 10,
       guestsCountTowardCapacity: true,
-      // Not admin-configurable — always on (see Guest Access section).
-      freeGymEntryWithLaneBooking: true,
+      freeGymEntryWithLaneBooking,
       freeTrial: { slotsPerMember: freeTrialSlots },
       // Ladder, not independent ranges — "from" of each range is always
       // exactly where the previous one leaves off (see the ageErrors comment).
@@ -597,6 +602,8 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
       maxHours: maxBookableHours ?? 1,
       totalCapacity: totalCapacity ?? undefined,
       maxBookingsPerDay: maxBookingsPerDay ?? undefined,
+      additionalGuestPrice: additionalGuestPrice ?? undefined,
+      freeGuestVisits: freeGuestVisits ?? undefined,
       doorPinBeforeMinutes: doorPinBefore ?? 0,
       facilityPinBeforeMinutes: roomFacilityPinBefore ?? 0,
     };
@@ -636,7 +643,7 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
                   maxGuestsPerSlot: maxMembersPerSlot ?? 10,
                   additionalGuestPrice: additionalGuestPrice ?? undefined,
                   guestsCountTowardCapacity: true,
-                  freeGymEntryWithLaneBooking: true,
+                  freeGymEntryWithLaneBooking,
                 },
                 freeTrial: gymFields.freeTrial,
                 ageRules: gymFields.ageRules,
@@ -663,6 +670,10 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
                   maxBookingsPerDay: maxBookingsPerDay ?? undefined,
                   advanceBookingDays: advanceBookingDays ?? undefined,
                 },
+                guestPolicy: {
+                  additionalGuestPrice: additionalGuestPrice ?? undefined,
+                },
+                freeGuestVisits: freeGuestVisits ?? undefined,
                 doorPin: { beforeMinutes: doorPinBefore ?? 0 },
                 facilityPin: { beforeMinutes: roomFacilityPinBefore ?? 0 },
                 totalCapacity: totalCapacity ?? undefined,
@@ -987,32 +998,36 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
             )}
           </div>
 
+          <SectionLabel>Guest Access</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Extra guest price ($)</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                step={0.01}
+                value={additionalGuestPrice}
+                onValueChange={setAdditionalGuestPrice}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Free guests per billing cycle</span>
+              <NumberInput className={FF_INPUT} min={0} value={freeGuestVisits} onValueChange={setFreeGuestVisits} />
+              {isGym && <span className={HELPER_TEXT}>Billing cycle is fortnightly.</span>}
+            </label>
+          </div>
           {isGym && (
-            <>
-              <SectionLabel>Guest Access</SectionLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <label className="flex flex-col gap-1">
-                  <span className={FIELD_LABEL}>Extra guest price ($)</span>
-                  <NumberInput
-                    className={FF_INPUT}
-                    min={0}
-                    step={0.01}
-                    value={additionalGuestPrice}
-                    onValueChange={setAdditionalGuestPrice}
-                  />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className={FIELD_LABEL}>Free guests per billing cycle</span>
-                  <NumberInput
-                    className={FF_INPUT}
-                    min={0}
-                    value={freeGuestVisits}
-                    onValueChange={setFreeGuestVisits}
-                  />
-                  <span className={HELPER_TEXT}>Billing cycle is fortnightly.</span>
-                </label>
-              </div>
-            </>
+            <label
+              className="flex items-center gap-1.5 text-[12px] font-medium text-cmx-text"
+              style={{ marginBottom: 12 }}
+            >
+              <input
+                checked={freeGymEntryWithLaneBooking}
+                type="checkbox"
+                onChange={e => setFreeGymEntryWithLaneBooking(e.target.checked)}
+              />
+              Free gym entry for guests on the same day&apos;s lane booking
+            </label>
           )}
 
           {isGym && (

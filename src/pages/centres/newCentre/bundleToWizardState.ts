@@ -70,6 +70,8 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
     const type = facilityTypeFromCode(code);
     const base = makeAdditionalFacility(type, i + 1);
 
+    const images = (p.images ?? []).map(img => ({ blobName: img.blobName, previewUrl: img.url }));
+
     if (p.bookingModel === 'membership_addon') {
       // Membership add-on shape (addonPricing/freeTrial/ageRules/pinRules) —
       // distinct from the pay-per-slot mapping below. See buildProducts in
@@ -77,6 +79,8 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
       out.push({
         ...base,
         name: p.name || base.name,
+        description: p.description ?? base.description,
+        images,
         bookingModel: 'membership_addon',
         annualDiscountPct: hasVal(p.annualDiscountPct) ? num(p.annualDiscountPct) : base.annualDiscountPct,
         openTime: p.openTime ?? base.openTime,
@@ -98,10 +102,10 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
         maxMembersPerSlot: hasVal(p.sessionRules?.slotCapacity)
           ? num(p.sessionRules?.slotCapacity)
           : base.maxMembersPerSlot,
-        // bookingFrequency is per-membership-plan on the stored doc (Facilities
-        // page's own concept) — the wizard has no per-plan UI, so there's no
-        // single value to read back here; just keep the wizard's own default.
-        minGapHours: base.minGapHours,
+        gapHoursByPlan: p.sessionRules?.bookingFrequency ?? base.gapHoursByPlan,
+        advanceBookingDays: hasVal(p.sessionRules?.advanceBookingDays)
+          ? num(p.sessionRules?.advanceBookingDays)
+          : base.advanceBookingDays,
         guestSessionPrice: hasVal(p.guestPolicy?.additionalGuestPrice)
           ? num(p.guestPolicy?.additionalGuestPrice)
           : base.guestSessionPrice,
@@ -119,9 +123,6 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
           : base.parentPresentTo,
         consentFrom: hasVal(p.ageRules?.consentRange?.min) ? num(p.ageRules?.consentRange?.min) : base.consentFrom,
         consentTo: hasVal(p.ageRules?.consentRange?.max) ? num(p.ageRules?.consentRange?.max) : base.consentTo,
-        // Reference schema (accessControl) has no on/off flag and no "minutes
-        // after" — those two fields have nothing to read back from here.
-        gymPinRequired: base.gymPinRequired,
         gymPinBefore: hasVal(
           (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.[p.code ?? '']?.preAccessTime
         )
@@ -129,13 +130,11 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
               (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.[p.code ?? '']?.preAccessTime
             )
           : base.gymPinBefore,
-        gymPinAfter: base.gymPinAfter,
         facilityPinBefore: hasVal(
           (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.mainDoor?.preAccessTime
         )
           ? num((p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.mainDoor?.preAccessTime)
           : base.facilityPinBefore,
-        facilityPinAfter: base.facilityPinAfter,
         inductionRequired: p.inductionRequired ?? base.inductionRequired,
       });
       return;
@@ -160,6 +159,8 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
       out.push({
         ...base,
         name: p.name || base.name,
+        description: p.description ?? base.description,
+        images,
         bookingModel: 'pay_per_slot',
         chargePerHour: hasVal(hourlyPricing?.perHour) ? num(hourlyPricing?.perHour) : base.chargePerHour,
         psUnits: hasVal(p.totalCapacity) ? num(p.totalCapacity) : base.psUnits,
@@ -179,16 +180,25 @@ const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFac
     out.push({
       ...base,
       name: p.name || base.name,
+      description: p.description ?? base.description,
+      images,
       bookingModel: 'pay_per_slot',
       fortnightlyPrice: hasVal(hourlyPricing?.perHour) ? num(hourlyPricing?.perHour) : base.fortnightlyPrice,
       guestSessionPrice: hasVal(p.guestPolicy?.additionalGuestPrice)
         ? num(p.guestPolicy?.additionalGuestPrice)
         : base.guestSessionPrice,
+      freeGuestVisits: hasVal(p.freeGuestVisits) ? num(p.freeGuestVisits) : base.freeGuestVisits,
       totalCapacity: hasVal(p.totalCapacity) ? num(p.totalCapacity) : base.totalCapacity,
       concurrentCapacity: hasVal(p.sessionRules?.slotCapacity)
         ? num(p.sessionRules?.slotCapacity)
         : base.concurrentCapacity,
       maxBookableHours: hasVal(p.sessionRules?.maxHours) ? num(p.sessionRules?.maxHours) : base.maxBookableHours,
+      maxBookingsPerDay: hasVal(p.sessionRules?.maxBookingsPerDay)
+        ? num(p.sessionRules?.maxBookingsPerDay)
+        : base.maxBookingsPerDay,
+      advanceBookingDays: hasVal(p.sessionRules?.advanceBookingDays)
+        ? num(p.sessionRules?.advanceBookingDays)
+        : base.advanceBookingDays,
       doorPinBefore,
       roomFacilityPinBefore,
     });

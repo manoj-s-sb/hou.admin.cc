@@ -90,6 +90,20 @@ const MetaFields = ({ event }: { event: CalendarEvent }) => {
     );
   }
 
+  if (event.type === 'gym_booking' || event.type === 'podcast_booking' || event.type === 'meeting_booking') {
+    const name = `${meta.firstName ?? ''} ${meta.lastName ?? ''}`.trim();
+    const guestCount = meta.guestCount as number | undefined;
+    return (
+      <>
+        <DetailRow label="Name" value={name || undefined} />
+        <DetailRow label="Email" value={meta.email as string | undefined} />
+        <DetailRow label="Status" value={meta.status as string | undefined} />
+        <DetailRow label="Guests" value={guestCount ? String(guestCount) : undefined} />
+        <DetailRow label="Time" value={formatTimeRangeAsAuthored(event.start, event.end)} />
+      </>
+    );
+  }
+
   // coach_booking
   return (
     <>

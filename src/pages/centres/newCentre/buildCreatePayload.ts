@@ -254,11 +254,14 @@ const productCodeFor = (f: WizardState['additionalFacilities'][number], indexInT
  */
 const buildProducts = (state: WizardState): ApiProductInput[] => {
   const seen: Record<string, number> = {};
+  const enabledPlans = state.plans.filter(p => p.enabled);
   return state.additionalFacilities
     .filter(f => f.enabled)
     .map(f => {
       seen[f.type] = (seen[f.type] ?? 0) + 1;
       const code = productCodeFor(f, seen[f.type]);
+      // Real blobNames only — a still-uploading/failed placeholder never has one.
+      const imageBlobNames = (f.images ?? []).filter(img => img.blobName).map(img => img.blobName);
       // Custom facilities can be either facility type the Facilities page
       // offers (see AdditionalFacilitiesStep.tsx's Facility type selector).
       const isAddonConfig = f.type === 'gym' || (f.type === 'custom' && f.bookingModel === 'membership_addon');
@@ -271,6 +274,8 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
           type: 'product',
           code,
           name: f.name,
+          description: f.description || undefined,
+          images: imageBlobNames,
           // Mirrors the centre's own status — same reasoning as buildLanes above.
           status: state.status,
           annualDiscountPct: f.annualDiscountPct,
@@ -286,9 +291,10 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
             durationMinutes: parseInt(f.slotDuration, 10) || 60,
             slotStartIntervalMinutes: f.slotStartIntervalMinutes ?? 15,
             maxMembersPerSlot: f.maxMembersPerSlot ?? 10,
-            // Per-plan minimum gap hours aren't collected here (the wizard has
-            // no per-plan UI yet) — left unset; configure it via the
-            // Facilities page's Edit action after the centre is created.
+            // Full current map, every enabled plan — same convention the
+            // Facilities page's Edit form uses (FacilityProductModal.tsx).
+            bookingFrequency: Object.fromEntries(enabledPlans.map(p => [p.planId, f.gapHoursByPlan?.[p.planId] ?? 0])),
+            advanceBookingDays: f.advanceBookingDays,
             noWalkIns: true,
           },
           guestPolicy: {
@@ -324,6 +330,8 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
           type: 'product',
           code,
           name: f.name,
+          description: f.description || undefined,
+          images: imageBlobNames,
           // Mirrors the centre's own status — same reasoning as buildLanes above.
           status: state.status,
           annualDiscountPct: f.annualDiscountPct,
@@ -351,12 +359,16 @@ const buildProducts = (state: WizardState): ApiProductInput[] => {
         type: 'product',
         code,
         name: f.name,
+        description: f.description || undefined,
+        images: imageBlobNames,
         // Mirrors the centre's own status — same reasoning as buildLanes above.
         status: state.status,
         pricing: { perHour: f.fortnightlyPrice, currency: 'usd' },
         sessionRules: {
           minHours: 1,
           maxHours: f.maxBookableHours ?? 2,
+          maxBookingsPerDay: f.maxBookingsPerDay,
+          advanceBookingDays: f.advanceBookingDays,
         },
         guestPolicy: {
           additionalGuestPrice: f.guestSessionPrice,

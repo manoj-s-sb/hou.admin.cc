@@ -7,11 +7,9 @@ import { flagIssue } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
 import { reassignTicket, uploadTicketFile } from '../../../store/tickets/api';
 import StaffAssigneeSelect, { SelectedStaff } from '../../tickets/components/StaffAssigneeSelect';
-import { ROLE_LABELS, TICKET_ROLES } from '../../tickets/constants';
 import { ALL_LANES, PRIORITIES, inputCls, labelCls } from '../constants';
 
 import type { TaskSchedule, TemplatePriority } from '../../../store/maintenance/types';
-import type { TicketRole } from '../../../store/tickets/types';
 
 interface Props {
   schedule: TaskSchedule;
@@ -20,20 +18,39 @@ interface Props {
   onFlagged: () => void;
 }
 
+const LaneChip: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({
+  active,
+  onClick,
+  children,
+}) => (
+  <button
+    className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
+      active
+        ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]'
+        : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+    }`}
+    type="button"
+    onClick={onClick}
+  >
+    {children}
+  </button>
+);
+
 const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFlagged }) => {
   const dispatch = useDispatch<AppDispatch>();
   const laneSuffix = schedule.laneNo ? ` — Lane ${schedule.laneNo}` : '';
   const [title, setTitle] = useState(`${schedule.template.title}${laneSuffix}`);
   const [notes, setNotes] = useState('');
   const [priority, setPriority] = useState<TemplatePriority>('medium');
-  // A maintenance ticket is always lane-scoped. Prefill from the schedule when it
-  // has a lane; require a choice for facility-wide schedules (laneNo === null).
-  const [lane, setLane] = useState<string>(schedule.laneNo ? String(schedule.laneNo) : '');
-  const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
+  // Lane is OPTIONAL — a facility-wide/non-lane issue can be flagged with just a
+  // description, no lane chosen. Prefilled from the schedule's own lane when it has one.
+  const [lanes, setLanes] = useState<number[]>(schedule.laneNo ? [schedule.laneNo] : []);
   const [assignees, setAssignees] = useState<SelectedStaff[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [tried, setTried] = useState(false);
+
+  const toggleLane = (n: number) => setLanes(prev => (prev.includes(n) ? prev.filter(v => v !== n) : [...prev, n]));
 
   const handleSubmit = async () => {
     setTried(true);
@@ -41,11 +58,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
       toast.error('Title and description are required');
       return;
     }
-    if (!lane) {
-      toast.error('Select the lane this issue is on');
-      return;
-    }
-    if (assignedTo === 'others' && assignees.length === 0) {
+    if (assignees.length === 0) {
       toast.error('Select at least one assignee');
       return;
     }
@@ -63,7 +76,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
           title: title.trim(),
           notes: notes.trim(),
           priority,
-          laneNo: parseInt(lane, 10),
+          laneNo: lanes.length ? lanes : null,
           attachments: attachments.length ? attachments : undefined,
         })
       ).unwrap();
@@ -80,9 +93,9 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
           await dispatch(
             reassignTicket({
               ticketId: res.ticket.id,
-              assignedTo,
-              assignedToId: assignedTo === 'others' && primaryAssignee ? primaryAssignee.staffId : undefined,
-              assignedToName: assignedTo === 'others' && primaryAssignee ? primaryAssignee.name : undefined,
+              assignedTo: 'others',
+              assignedToId: primaryAssignee?.staffId,
+              assignedToName: primaryAssignee?.name,
               additionalRecipients: extraAssignees.length ? extraAssignees.map(a => a.email) : undefined,
             })
           ).unwrap();
@@ -144,19 +157,20 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
             />
           </div>
           <div>
-            <span className={labelCls}>Lane *</span>
-            <select
-              className={`${inputCls}${tried && !lane ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-              value={lane}
-              onChange={e => setLane(e.target.value)}
-            >
-              <option value="">Select a lane…</option>
+            <span className={labelCls}>Lane (optional — leave blank if not lane-specific)</span>
+            <div className="flex flex-wrap gap-1.5">
               {ALL_LANES.map(n => (
-                <option key={n} value={n}>
-                  Lane {n}
-                </option>
+                <LaneChip key={n} active={lanes.includes(n)} onClick={() => toggleLane(n)}>
+                  {n}
+                </LaneChip>
               ))}
-            </select>
+              <LaneChip
+                active={lanes.length === ALL_LANES.length}
+                onClick={() => setLanes(lanes.length === ALL_LANES.length ? [] : [...ALL_LANES])}
+              >
+                All
+              </LaneChip>
+            </div>
           </div>
           <div>
             <span className={labelCls}>Priority</span>
@@ -181,30 +195,18 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
           </div>
           <div>
             <span className={labelCls}>Assign To *</span>
-            <select className={inputCls} value={assignedTo} onChange={e => setAssignedTo(e.target.value as TicketRole)}>
-              {TICKET_ROLES.map(r => (
-                <option key={r} value={r}>
-                  {ROLE_LABELS[r]}
-                </option>
-              ))}
-            </select>
+            <StaffAssigneeSelect
+              className={`${inputCls}${tried && assignees.length === 0 ? 'border-red-400 ring-1 ring-red-300' : ''}`}
+              facilityCode={facilityCode}
+              value={assignees}
+              onChange={setAssignees}
+            />
+            {assignees.length > 1 && (
+              <p className="mt-1 text-[11px] text-gray-400">
+                Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
+              </p>
+            )}
           </div>
-          {assignedTo === 'others' && (
-            <div>
-              <span className={labelCls}>Assignee(s) *</span>
-              <StaffAssigneeSelect
-                className={`${inputCls}${tried && assignees.length === 0 ? 'border-red-400 ring-1 ring-red-300' : ''}`}
-                facilityCode={facilityCode}
-                value={assignees}
-                onChange={setAssignees}
-              />
-              {assignees.length > 1 && (
-                <p className="mt-1 text-[11px] text-gray-400">
-                  Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
-                </p>
-              )}
-            </div>
-          )}
           <div>
             <span className={labelCls}>Attachments</span>
             <input

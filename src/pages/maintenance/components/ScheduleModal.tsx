@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
 import { getCentreDetails } from '../../../store/centres/api';
-import { scheduleTask, unscheduleTask } from '../../../store/maintenance/api';
+import { rescheduleNextTask, scheduleTask, unscheduleTask } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
 import {
   ALL_LANES,
@@ -87,19 +87,28 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
       toast.error("Scheduled date can't be in the past");
       return;
     }
+    const laneChanged = existing ? (existing.laneNo ?? null) !== (lane ? parseInt(lane, 10) : null) : false;
     setSaving(true);
     try {
-      // Reschedule = drop the old schedule then re-create it on the new date/lane
-      // (the backend rejects a duplicate schedule, so the old one must go first).
-      if (existing) await dispatch(unscheduleTask({ id: existing.id, facilityCode })).unwrap();
-      await dispatch(
-        scheduleTask({
-          templateId: template.id,
-          facilityCode,
-          laneNo: lane ? parseInt(lane, 10) : null,
-          scheduledDate,
-        })
-      ).unwrap();
+      if (existing && !laneChanged) {
+        // Date-only change on an existing schedule — move `nextDueDate` in place.
+        // Does NOT delete/recreate, so it can't conflict with this same series'
+        // other still-future occurrences (unlike the unschedule+recreate path below).
+        await dispatch(rescheduleNextTask({ id: existing.id, facilityCode, nextDueDate: scheduledDate })).unwrap();
+      } else {
+        // New schedule, or the lane itself changed: the backend has no
+        // "move to a different lane" endpoint, so fall back to drop-then-recreate
+        // (the backend rejects a duplicate schedule, so the old one must go first).
+        if (existing) await dispatch(unscheduleTask({ id: existing.id, facilityCode })).unwrap();
+        await dispatch(
+          scheduleTask({
+            templateId: template.id,
+            facilityCode,
+            laneNo: lane ? parseInt(lane, 10) : null,
+            scheduledDate,
+          })
+        ).unwrap();
+      }
       toast.success(isReschedule ? 'Task rescheduled' : 'Task scheduled');
       onScheduled();
     } catch (e) {

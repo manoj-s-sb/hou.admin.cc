@@ -154,13 +154,22 @@ export interface FlagIssuePayload {
   title: string;
   notes?: string;
   priority: TemplatePriority;
-  laneNo?: number | null;
+  laneNo?: number[] | null;
   attachments?: string[];
 }
 
 export interface UnscheduleTaskPayload {
   id: string;
   facilityCode: string;
+}
+
+/** Non-destructive reschedule — moves an existing schedule's next date only
+ * (no lane change support; see action `reschedule_next`). Use the
+ * unschedule+scheduleTask combo instead when the lane itself is changing. */
+export interface RescheduleNextTaskPayload {
+  id: string;
+  facilityCode: string;
+  nextDueDate: string; // YYYY-MM-DD
 }
 
 export interface EndSeriesPayload {
