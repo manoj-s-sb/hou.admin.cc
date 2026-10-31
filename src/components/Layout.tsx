@@ -83,7 +83,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex min-h-screen">
         <Sidebar isOpen={isSidebarOpen || isDesktop} onClose={() => setIsSidebarOpen(false)} />
         <div className="flex h-screen w-full flex-col overflow-hidden lg:ml-64">
-          <header className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-[#21295A] bg-[#21295A] px-4 sm:px-6 lg:px-8">
+          <header
+            className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-[#21295A] px-4 sm:px-6 lg:px-8"
+            style={{ backgroundImage: 'linear-gradient(-79.8deg, #5FACFF 0%, #324B9C 108.02%)' }}
+          >
             {/* Mobile Menu Button */}
             <button
               aria-label="Open sidebar"

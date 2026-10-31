@@ -45,8 +45,8 @@ interface HealthDeclarationItem {
 }
 
 const SUBSCRIPTION_STATUS_META: Record<string, { label: string; cls: string }> = {
-  active: { label: 'Active', cls: 'bg-green-100 text-green-700' },
-  resumed: { label: 'Resumed', cls: 'bg-green-100 text-green-700' },
+  active: { label: 'Active', cls: 'bg-[rgba(59,143,62,0.15)] text-[#3b8f3e]' },
+  resumed: { label: 'Resumed', cls: 'bg-[rgba(59,143,62,0.15)] text-[#3b8f3e]' },
   pendingactivation: { label: 'Pending Activation', cls: 'bg-amber-100 text-amber-700' },
   paused: { label: 'Paused', cls: 'bg-orange-100 text-orange-700' },
   past_due: { label: 'Past Due', cls: 'bg-red-100 text-red-700' },
@@ -250,15 +250,18 @@ const ViewMembers = () => {
 
         {/* Unified Content Layout */}
         <div className="space-y-3 sm:space-y-4">
-          {/* Member Header Card */}
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 px-4 py-6 sm:px-6 sm:py-8">
+          {/* Member Header Card — identity + wallet balance/action, one banner */}
+          <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+            <div
+              className="px-4 py-6 sm:px-6 sm:py-8"
+              style={{ backgroundImage: 'linear-gradient(159.87deg, #212A5A 5.25%, #3B4FA0 97.01%)' }}
+            >
               <div className="flex flex-col items-center sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="relative">
                     {memberDetails.profileImageUrl ? (
                       <button
-                        className="h-20 w-20 cursor-pointer overflow-hidden rounded-full border-4 border-white bg-transparent object-cover p-0 shadow-xl transition-transform hover:scale-105 sm:h-24 sm:w-24"
+                        className="h-20 w-20 cursor-pointer overflow-hidden rounded-[24px] border border-[#cbcbcb] bg-white object-cover p-0 shadow-xl transition-transform hover:scale-105 sm:h-24 sm:w-24"
                         type="button"
                         onClick={() => setIsImageModalOpen(true)}
                       >
@@ -269,12 +272,12 @@ const ViewMembers = () => {
                         />
                       </button>
                     ) : (
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-gray-100 to-gray-200 shadow-xl sm:h-24 sm:w-24">
-                        <User className="h-12 w-12 text-gray-400 sm:h-14 sm:w-14" />
+                      <div className="flex h-20 w-20 items-center justify-center rounded-[24px] border border-[#cbcbcb] bg-white shadow-xl sm:h-24 sm:w-24">
+                        <User className="h-12 w-12 text-[#336DC2] sm:h-14 sm:w-14" />
                       </div>
                     )}
                     {memberDetails.isActivePlayer && (
-                      <div className="absolute -bottom-1 -right-1 rounded-full border-4 border-white bg-green-500 p-1.5 shadow-lg">
+                      <div className="absolute -bottom-px -right-1 flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-white bg-[#3b8f3e] shadow-lg">
                         <CheckCircle className="h-4 w-4 text-white" />
                       </div>
                     )}
@@ -295,92 +298,78 @@ const ViewMembers = () => {
                     </div>
                   </div>
                 </div>
-                {/* <div className="mt-4 flex gap-3 sm:mt-0">
-                  <button className="group flex items-center justify-center rounded-lg bg-white/20 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-all duration-200 hover:bg-white/30">
-                    <Ban className="mr-2 h-4 w-4 transition-transform group-hover:rotate-12" />
-                    Block Facility
+                <div className="mt-4 flex flex-col items-center gap-3 sm:mt-0 sm:items-end">
+                  <div className="text-center sm:text-right">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-white">Wallet Balance</p>
+                    <p className="text-2xl font-semibold text-[#FEC13F]">
+                      {isWalletLoading || walletBalance === null ? '—' : `$${walletBalance.toFixed(2)}`}
+                    </p>
+                  </div>
+                  <button
+                    className="rounded-xl border border-[#21295A] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#21295A] shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={!canCreditWallet || isPendingActivation}
+                    title={
+                      isPendingActivation
+                        ? "This member's subscription is still Pending Activation — wallet credit is available once it's active."
+                        : canCreditWallet
+                          ? undefined
+                          : "You don't have permission to credit a wallet."
+                    }
+                    type="button"
+                    onClick={() => canCreditWallet && !isPendingActivation && setIsCreditModalOpen(true)}
+                  >
+                    + Add Wallet
                   </button>
-                  <button className="group flex items-center justify-center rounded-lg bg-white/20 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-all duration-200 hover:bg-white/30">
-                    <XCircle className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
-                    Block Lane
-                  </button>
-                </div> */}
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* Wallet Card */}
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="flex flex-col items-start justify-between gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-6">
-              <div>
-                <p className="mb-1 text-xs font-medium uppercase text-gray-500">Wallet Balance</p>
-                <p className="text-xl font-semibold text-green-600">
-                  {isWalletLoading || walletBalance === null ? '—' : `$${walletBalance.toFixed(2)}`}
-                </p>
-              </div>
-              <button
-                className="rounded-lg bg-[#21295A] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={!canCreditWallet || isPendingActivation}
-                title={
-                  isPendingActivation
-                    ? "This member's subscription is still Pending Activation — wallet credit is available once it's active."
-                    : canCreditWallet
-                      ? undefined
-                      : "You don't have permission to credit a wallet."
-                }
-                type="button"
-                onClick={() => canCreditWallet && !isPendingActivation && setIsCreditModalOpen(true)}
-              >
-                + Add Wallet
-              </button>
             </div>
           </div>
 
           {/* Subscription Details Card */}
           <CollapsibleCard icon={<CreditCard className="mr-2 h-5 w-5 text-blue-600" />} title="Subscription Details">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Status</p>
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Status</p>
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).cls}`}
                 >
                   {subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).label}
                 </span>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Subscription Code</p>
-                <p className="text-base font-semibold capitalize text-gray-900">
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Subscription Code</p>
+                <p className="text-base font-semibold capitalize text-[#202020]">
                   {memberDetails.subscription.subscriptionCode}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Billing Cycle</p>
-                <p className="text-base font-semibold capitalize text-gray-900">
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Billing Cycle</p>
+                <p className="text-base font-semibold capitalize text-[#202020]">
                   {memberDetails.subscription.billingCycle}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period Start</p>
-                <p className="text-base font-semibold text-gray-900">
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Current Period Start</p>
+                <p className="text-base font-semibold text-[#202020]">
                   {formatDate(memberDetails.subscription.currentPeriodStart)}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period End</p>
-                <p className="text-base font-semibold text-gray-900">
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Current Period End</p>
+                <p className="text-base font-semibold text-[#202020]">
                   {formatDate(memberDetails.subscription.currentPeriodEnd)}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Next Billing Date</p>
-                <p className="text-base font-semibold text-gray-900">
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Next Billing Date</p>
+                <p className="text-base font-semibold text-[#202020]">
                   {formatDate(memberDetails.subscription.currentPeriodEnd)}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Pricing</p>
-                <p className="text-base font-semibold text-green-600">$ {memberDetails.pricing.totalPrice} USD</p>
-                <p className="mt-1 text-xs text-gray-500">{memberDetails.subscription.billingCycle}</p>
+              <div className="rounded-xl border border-[#3b8f3e] bg-[#ebf4eb] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Pricing</p>
+                <p className="text-base font-semibold text-[#3b8f3e]">$ {memberDetails.pricing.totalPrice} USD</p>
+                <p className="mt-1 text-xs text-[#6e6e6e]">{memberDetails.subscription.billingCycle}</p>
               </div>
             </div>
           </CollapsibleCard>

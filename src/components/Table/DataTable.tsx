@@ -118,13 +118,12 @@ function DataTable<T = any>({
 
   const headCellStyle = (column: TableColumn<T>): CSSProperties => ({
     textAlign: column.align || 'left',
-    backgroundColor: '#ffffff',
-    color: '#111827',
+    backgroundColor: '#336DC2',
+    color: '#ffffff',
     fontWeight: 600,
     fontSize: '0.8125rem',
     padding: cellPadding,
     whiteSpace: 'nowrap',
-    borderBottom: '1px solid #e5e7eb',
     minWidth: column.minWidth,
     width: column.width,
     ...(stickyHeader ? { position: 'sticky', top: 0, zIndex: 1 } : {}),
@@ -190,7 +189,7 @@ function DataTable<T = any>({
                   <th key={column.id} style={headCellStyle(column)}>
                     {column.sortable !== false && sortable ? (
                       <button
-                        className="inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-[0.8125rem] font-semibold text-[#111827]"
+                        className="inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-[0.8125rem] font-semibold text-white"
                         type="button"
                         onClick={() => handleSort(column.id, column.sortable)}
                       >

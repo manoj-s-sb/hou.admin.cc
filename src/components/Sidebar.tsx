@@ -259,10 +259,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 bg-white shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        style={{ backgroundImage: 'linear-gradient(-79.8deg, #5FACFF 0%, #324B9C 108.02%)' }}
       >
         {/* Header with close button for mobile */}
-        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 bg-[#21295A] px-4">
+        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 px-4">
           <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-light.svg" />
           <button
             aria-label="Close sidebar"
@@ -275,7 +276,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
         {/* Navigation — swaps to the centre's module nav while a centre is open */}
         {activeCentre ? (
-          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto py-3">
             {/* Back to Centres */}
             <button
               className="group mx-2.5 mb-2 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-white/50 transition-colors hover:bg-white/10 hover:text-white"
@@ -373,7 +374,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             )}
           </nav>
         ) : (
-          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto py-3">
             {visibleGroups.map(g => (
               <React.Fragment key={g.group}>
                 <GroupLabel>{g.group}</GroupLabel>
