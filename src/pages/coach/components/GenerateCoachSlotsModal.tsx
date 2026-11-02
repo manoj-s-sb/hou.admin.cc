@@ -77,7 +77,12 @@ const GenerateCoachSlotsModal: React.FC<GenerateCoachSlotsModalProps> = ({
       <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <h3 className="text-[15px] font-bold text-[#21295A]">Generate slots — {coachName}</h3>
-          <button className="text-gray-400 hover:text-gray-600" type="button" onClick={onClose}>
+          <button
+            className="text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={isSubmitting}
+            type="button"
+            onClick={onClose}
+          >
             ✕
           </button>
         </div>
@@ -98,7 +103,8 @@ const GenerateCoachSlotsModal: React.FC<GenerateCoachSlotsModalProps> = ({
                 Start date
               </label>
               <input
-                className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] font-medium text-[#21295A] outline-none focus:border-[#21295A]"
+                className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] font-medium text-[#21295A] outline-none focus:border-[#21295A] disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60"
+                disabled={isSubmitting}
                 id="generate-start-date"
                 type="date"
                 value={startDate}
@@ -113,7 +119,8 @@ const GenerateCoachSlotsModal: React.FC<GenerateCoachSlotsModalProps> = ({
                 End date
               </label>
               <input
-                className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] font-medium text-[#21295A] outline-none focus:border-[#21295A]"
+                className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-[12px] font-medium text-[#21295A] outline-none focus:border-[#21295A] disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60"
+                disabled={isSubmitting}
                 id="generate-end-date"
                 type="date"
                 value={endDate}
@@ -124,19 +131,23 @@ const GenerateCoachSlotsModal: React.FC<GenerateCoachSlotsModalProps> = ({
 
           <div className="mt-4 flex flex-col gap-2">
             <button
-              className="rounded-lg bg-[#21295A] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#161c42] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-lg bg-[#21295A] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#161c42] disabled:cursor-not-allowed disabled:opacity-70"
               disabled={isSubmitting}
               type="button"
               onClick={handleGenerate}
             >
-              {isSubmitting ? 'Generating…' : 'Generate'}
+              {isSubmitting && (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              )}
+              {isSubmitting ? 'Generating slots…' : 'Generate'}
             </button>
           </div>
         </div>
 
         <div className="border-t border-gray-100 px-5 py-3">
           <button
-            className="w-full rounded-lg border border-gray-200 py-2 text-[12px] font-medium text-gray-500 hover:bg-gray-50"
+            className="w-full rounded-lg border border-gray-200 py-2 text-[12px] font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isSubmitting}
             type="button"
             onClick={onClose}
           >
