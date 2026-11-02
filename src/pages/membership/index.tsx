@@ -494,22 +494,6 @@ const AnnualTab: React.FC<{
   onEdit?: (p: MembershipPlan) => void;
 }> = ({ plans, currency, rateOf, onEdit }) => (
   <div>
-    <div
-      style={{
-        background: '#fef9f0',
-        border: '1px solid #fed7aa',
-        borderRadius: 8,
-        padding: '12px 16px',
-        marginBottom: 16,
-        fontSize: 12.5,
-        color: '#92400e',
-      }}
-    >
-      <strong>Billing is annual — but slot limits still operate in fortnightly (2-week) cycles.</strong> A member on
-      Annual Premium gets the same per-fortnight slots as the fortnightly plan; annual billing just means they pay once
-      a year. Extra session purchase is <strong>not available</strong> on annual plans.
-    </div>
-
     <div className="flex items-center gap-2 text-sm font-bold text-navy" style={{ marginBottom: 10 }}>
       <span className="h-[7px] w-[7px] rounded-full bg-cmx-blue" />
       Pricing

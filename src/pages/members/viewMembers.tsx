@@ -557,20 +557,16 @@ const ViewMembers = () => {
 
                     {/* Summary totals */}
                     {summary && (
-                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 sm:grid-cols-4">
+                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-[#336dc2] bg-[rgba(51,109,194,0.15)] px-4 py-3 sm:grid-cols-4">
                         {[
-                          { label: 'Total New Slots', value: summary.totalNewSlots, color: 'text-blue-600' },
-                          { label: 'Total Used', value: summary.totalUsed, color: 'text-orange-600' },
-                          { label: 'Current Unused', value: summary.currentUnused, color: 'text-teal-600' },
-                          {
-                            label: 'Total Purchased',
-                            value: totalPurchasedFromCycles,
-                            color: 'text-violet-600',
-                          },
+                          { label: 'Total New Slots', value: summary.totalNewSlots },
+                          { label: 'Total Used', value: summary.totalUsed },
+                          { label: 'Current Unused', value: summary.currentUnused },
+                          { label: 'Total Purchased', value: totalPurchasedFromCycles },
                         ].map(s => (
                           <div key={s.label} className="text-center">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{s.label}</p>
-                            <p className={`text-[18px] font-bold ${s.color}`}>{s.value}</p>
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-[#6e6e6e]">{s.label}</p>
+                            <p className="text-[18px] font-bold text-[#21295a]">{s.value}</p>
                           </div>
                         ))}
                       </div>

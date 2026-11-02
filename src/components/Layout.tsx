@@ -128,7 +128,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="flex items-center gap-3 rounded-xl border border-white/20 px-4 py-2.5 transition-all duration-200 hover:border-white/40 hover:bg-white/10"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-md ring-2 ring-white/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(255,255,255,0.33)] bg-[rgba(255,255,255,0.13)] text-[18px] font-semibold text-white">
                   {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'U'}
                 </div>
                 <div className="hidden flex-col items-start sm:flex">

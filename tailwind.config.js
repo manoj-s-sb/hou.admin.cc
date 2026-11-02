@@ -6,7 +6,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        // Site-wide default, per the Figma design file.
+        sans: ['Mona Sans SemiCondensed', 'Inter', 'sans-serif'],
+        'mona-condensed': ['Mona Sans Condensed', 'Inter', 'sans-serif'],
       },
       screens: {
         desktop: '1500px',

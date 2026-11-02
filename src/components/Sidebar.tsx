@@ -96,7 +96,7 @@ const STATUS_DOT: Record<CentreApiStatus, string> = {
 /** One source of truth for nav-item styling — used by both the global and centre menus. */
 const itemClass = (active: boolean): string =>
   `group relative mx-2.5 my-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm no-underline transition-colors duration-150 ${
-    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-[#9096be] hover:bg-white/10 hover:text-white'
+    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-white hover:bg-white/10'
   }`;
 
 /** Shared inner: active accent bar + icon + label + optional red count badge. */
@@ -115,7 +115,7 @@ const NavInner: React.FC<{ active: boolean; icon: React.ReactNode; label: string
     >
       {icon}
     </span>
-    <span className="truncate">{label}</span>
+    <span className="truncate font-mona-condensed text-[15px] leading-[20px]">{label}</span>
     {typeof badge === 'number' && badge > 0 && (
       <span className="ml-auto min-w-[18px] rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
         {badge}
@@ -183,9 +183,7 @@ const useSidebarBadges = (enabled: boolean): Record<string, number> => {
 };
 
 const GroupLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="px-5 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#9096be] first:pt-2">
-    {children}
-  </div>
+  <div className="px-5 pb-1.5 pt-5 text-[14px] font-semibold uppercase text-white first:pt-2">{children}</div>
 );
 
 interface SidebarProps {
@@ -383,7 +381,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                     location.pathname === item.path ||
                     location.pathname.startsWith(`${item.path}/`) ||
                     (item.path === ROUTES.INDUCTION.path && location.pathname.startsWith('/view-induction')) ||
-                    (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members'));
+                    (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members')) ||
+                    // Member Details (/members/:userId) has no top-level nav item of its
+                    // own -- "Members" only exists inside a centre's own module nav. Landing
+                    // here directly (e.g. from a notification link) with no centre "open"
+                    // would otherwise highlight nothing at all, making the page look
+                    // disconnected from Centre Management, where it conceptually belongs.
+                    (item.path === ROUTES.CENTRES.path && location.pathname.startsWith('/members/'));
 
                   return (
                     <Link
