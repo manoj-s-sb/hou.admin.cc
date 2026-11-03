@@ -229,7 +229,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
     // slot that would just fail (or silently book the wrong, already-elapsed
     // time). A slot that's booked/disabled still opens normally (view/manage).
     if (!slot.isBooked && slot.status?.toLowerCase() === 'available' && isSlotStartInThePast(slot.startTime)) {
-      toast.error(TIME_UP_MESSAGE, { duration: 4000 });
+      toast.error(TIME_UP_MESSAGE, { duration: 4000, id: 'slot-time-up' });
       return;
     }
     setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
@@ -414,7 +414,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
     // Re-check at submit time too — the modal could have been left open across
     // the slot's start time (see handleSlotClick's same guard on open).
     if (isSlotStartInThePast(selectedSlot.slot.startTime)) {
-      toast.error(TIME_UP_MESSAGE, { duration: 4000 });
+      toast.error(TIME_UP_MESSAGE, { duration: 4000, id: 'slot-time-up' });
       setSelectedSlot(null);
       return;
     }

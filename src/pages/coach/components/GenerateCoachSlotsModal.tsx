@@ -44,11 +44,11 @@ const GenerateCoachSlotsModal: React.FC<GenerateCoachSlotsModalProps> = ({
 
   const handleGenerate = async () => {
     if (!startDate || !endDate) {
-      toast.error('Pick both a start date and an end date');
+      toast.error('Pick both a start date and an end date', { id: 'generate-slots-validation' });
       return;
     }
     if (endDate < startDate) {
-      toast.error('End date must be on or after the start date');
+      toast.error('End date must be on or after the start date', { id: 'generate-slots-validation' });
       return;
     }
 

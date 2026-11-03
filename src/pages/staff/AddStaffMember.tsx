@@ -101,6 +101,17 @@ const AddStaffMember: React.FC = () => {
   // Tracks whether the login email has been initialised/edited so the
   // auto-fill effect doesn't refill it after the user clears it.
   const loginEmailInitedRef = useRef(false);
+  // Tracks whether the admin has EXPLICITLY edited Login Email themselves
+  // (Account step) -- as opposed to it merely being seeded from the contact
+  // email. Login Email defaults to, and stays in sync with, the contact
+  // email on every edit (see updateProfile below) right up until the admin
+  // deliberately overrides it, at which point their override wins and
+  // further contact-email edits stop following it. Without this, editing a
+  // staff member's Email Address silently left their actual login
+  // credential (uniqueId) on the old value — the Staff list (which reads
+  // uniqueId) and login itself kept showing/requiring the old email even
+  // though the Staff Profile page showed the new one.
+  const loginEmailOverriddenRef = useRef(false);
 
   // Edit-mode prefill state (derived from staffDetails in store)
   const [existingDocs, setExistingDocs] = useState<StaffDocument[]>([]);
@@ -344,6 +355,14 @@ const AddStaffMember: React.FC = () => {
     setEditStatus(data.status ?? 'active');
     setLoginEmail(data.loginEmail ?? data.email ?? '');
     loginEmailInitedRef.current = true;
+    // If this record already has a login email that deliberately differs
+    // from its contact email, preserve that intentional separation --
+    // don't start silently overwriting it the next time the admin edits
+    // Email Address. Only auto-sync (the common case) when they currently
+    // match, i.e. nothing's been deliberately split yet.
+    loginEmailOverriddenRef.current = Boolean(
+      data.loginEmail && data.email && data.loginEmail.toLowerCase() !== data.email.toLowerCase()
+    );
     setTwoFAEnabled(sp.twoFactorAuth ?? true);
 
     // Pre-fill the Module Permissions grid from this member's saved data. Only
@@ -401,6 +420,9 @@ const AddStaffMember: React.FC = () => {
 
   const handleLoginEmailChange = (value: string) => {
     loginEmailInitedRef.current = true;
+    // An explicit edit here is a deliberate override -- stop following the
+    // contact email from this point on (see updateProfile's own comment).
+    loginEmailOverriddenRef.current = true;
     setLoginEmail(value);
     // Keep the contact email in sync so the profile view reflects the change.
     setProfile(prev => ({ ...prev, email: value }));
@@ -425,6 +447,17 @@ const AddStaffMember: React.FC = () => {
 
   const updateProfile = <K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) => {
     setProfile(prev => ({ ...prev, [key]: value }));
+    // Login Email defaults to, and stays in sync with, the contact email --
+    // right up until the admin explicitly overrides it themselves on the
+    // Account step (handleLoginEmailChange), at which point their override
+    // wins and further contact-email edits stop following it. This matters
+    // just as much in edit mode as create mode: without it, changing an
+    // existing staff member's Email Address silently left their actual
+    // login credential (uniqueId) on the old value.
+    if (key === 'email' && !loginEmailOverriddenRef.current) {
+      setLoginEmail(value as unknown as string);
+      loginEmailInitedRef.current = true;
+    }
   };
 
   const toggleCertification = (key: string) => {
@@ -606,7 +639,7 @@ const AddStaffMember: React.FC = () => {
   const handleSubmit = async (draft: boolean) => {
     const validationError = validateForSubmit(draft);
     if (validationError) {
-      toast.error(validationError);
+      toast.error(validationError, { id: 'staff-submit-error' });
       return;
     }
 
@@ -781,9 +814,20 @@ const AddStaffMember: React.FC = () => {
   };
 
   const handleNext = () => {
+    // In edit mode, `profile` still holds its blank initial state until
+    // getStaffDetails resolves and the prefill effect runs -- a click on
+    // Next/a step pill landing in that window (the "Loading staff
+    // details..." banner is shown, but nothing actually blocks the rest of
+    // the form/validation from being interacted with) used to validate
+    // against that blank state and show "every field required" for a
+    // person who already has all their details filled in. Block the step
+    // change outright while loading, instead of validating prematurely.
+    if (isEditMode && isDetailsLoading) return;
     if (activeStep === 'profile' && !isProfileValid) {
       setShowProfileErrors(true);
-      toast.error('Fill in every required field (First Name, Last Name, Email, Date of Birth) to continue');
+      toast.error('Fill in every required field (First Name, Last Name, Email, Date of Birth) to continue', {
+        id: 'staff-profile-step-error',
+      });
       return;
     }
     const next = STEPS[activeIndex + 1];
@@ -798,9 +842,12 @@ const AddStaffMember: React.FC = () => {
   // Clicking a step pill jumps anywhere, unguarded — except off an invalid
   // Profile step, which gets the same block as the Next button above.
   const handleStepSelect = (key: StepKey) => {
+    if (isEditMode && isDetailsLoading) return;
     if (activeStep === 'profile' && key !== 'profile' && !isProfileValid) {
       setShowProfileErrors(true);
-      toast.error('Fill in every required field (First Name, Last Name, Email, Date of Birth) to continue');
+      toast.error('Fill in every required field (First Name, Last Name, Email, Date of Birth) to continue', {
+        id: 'staff-profile-step-error',
+      });
       return;
     }
     setActiveStep(key);

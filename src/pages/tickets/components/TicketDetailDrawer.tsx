@@ -255,7 +255,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
 
   const handleReassign = async () => {
     if (reassignees.length === 0) {
-      toast.error('Select at least one assignee');
+      toast.error('Select at least one assignee', { id: 'ticket-reassign-validation' });
       return;
     }
     // The backend only has one official assignee (assignedToId/assignedToName) — the

@@ -67,7 +67,7 @@ const ForgotPassword = () => {
 
   const requestOtp = async (isResend: boolean) => {
     if (!email.trim()) {
-      toast.error('Enter your email address.');
+      toast.error('Enter your email address.', { id: 'forgot-pw-email' });
       return;
     }
     setIsLoading(true);
@@ -91,7 +91,7 @@ const ForgotPassword = () => {
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!/^\d{4,8}$/.test(otp.trim())) {
-      toast.error('Enter the numeric code we emailed you.');
+      toast.error('Enter the numeric code we emailed you.', { id: 'forgot-pw-otp' });
       return;
     }
     setIsLoading(true);
@@ -114,11 +114,11 @@ const ForgotPassword = () => {
   const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters.');
+      toast.error('Password must be at least 8 characters.', { id: 'forgot-pw-reset' });
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match.');
+      toast.error('Passwords do not match.', { id: 'forgot-pw-reset' });
       return;
     }
     setIsLoading(true);
