@@ -55,11 +55,11 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
   const handleSubmit = async () => {
     setTried(true);
     if (!title.trim() || !notes.trim()) {
-      toast.error('Title and description are required');
+      toast.error('Title and description are required', { id: 'flag-issue-validation' });
       return;
     }
     if (assignees.length === 0) {
-      toast.error('Select at least one assignee');
+      toast.error('Select at least one assignee', { id: 'flag-issue-validation' });
       return;
     }
     setSaving(true);

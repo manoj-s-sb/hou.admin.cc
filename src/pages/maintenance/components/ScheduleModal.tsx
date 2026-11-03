@@ -80,11 +80,11 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
 
   const handleSave = async () => {
     if (!scheduledDate) {
-      toast.error('Pick a date');
+      toast.error('Pick a date', { id: 'schedule-modal-validation' });
       return;
     }
     if (scheduledDate < todayStr()) {
-      toast.error("Scheduled date can't be in the past");
+      toast.error("Scheduled date can't be in the past", { id: 'schedule-modal-validation' });
       return;
     }
     const laneChanged = existing ? (existing.laneNo ?? null) !== (lane ? parseInt(lane, 10) : null) : false;
