@@ -169,27 +169,27 @@ const Notifications = () => {
 
   const sendNotif = () => {
     if (!compose.pushEnabled && !compose.emailEnabled) {
-      toast.error('Turn on at least one channel — Push or Email.');
+      toast.error('Turn on at least one channel — Push or Email.', { id: 'notif-compose-validation' });
       return;
     }
     if (compose.pushEnabled && (!compose.heading.trim() || !compose.body.trim())) {
-      toast.error('Heading and message are both required.');
+      toast.error('Heading and message are both required.', { id: 'notif-compose-validation' });
       return;
     }
     if (compose.emailEnabled && !compose.subject.trim()) {
-      toast.error('Subject line is required for email.');
+      toast.error('Subject line is required for email.', { id: 'notif-compose-validation' });
       return;
     }
     if (compose.audience === 'Age' && !compose.ages.length) {
-      toast.error('Select at least one age band.');
+      toast.error('Select at least one age band.', { id: 'notif-compose-validation' });
       return;
     }
     if (compose.audience === 'Individual' && !compose.individualUsers.length) {
-      toast.error('Add at least one user to notify.');
+      toast.error('Add at least one user to notify.', { id: 'notif-compose-validation' });
       return;
     }
     if (compose.schedule && !compose.when.trim()) {
-      toast.error('Set a send time, or switch to Send now.');
+      toast.error('Set a send time, or switch to Send now.', { id: 'notif-compose-validation' });
       return;
     }
     const channel: Channel =

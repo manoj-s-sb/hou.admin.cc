@@ -167,7 +167,9 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           break;
         case 'validation':
           if (res.fields.some(f => f.toLowerCase().includes('code'))) setCodeError('Please check the plan code');
-          toast.error(res.fields.length ? `Please fix: ${res.fields.join(', ')}` : 'Please check the form fields');
+          toast.error(res.fields.length ? `Please fix: ${res.fields.join(', ')}` : 'Please check the form fields', {
+            id: 'plan-save-validation',
+          });
           break;
         case 'auth':
           toast.error('Permission denied — a superadmin session is required (or it has expired).');

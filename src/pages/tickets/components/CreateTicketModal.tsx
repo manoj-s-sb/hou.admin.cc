@@ -145,7 +145,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const handleSubmit = async () => {
     setTriedSubmit(true);
     if (hasErrors) {
-      toast.error('Please complete the required fields highlighted below');
+      toast.error('Please complete the required fields highlighted below', { id: 'ticket-create-validation' });
       return;
     }
 

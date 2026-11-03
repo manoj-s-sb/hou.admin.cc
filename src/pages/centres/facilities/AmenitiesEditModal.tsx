@@ -34,7 +34,7 @@ const AmenitiesEditModal: React.FC<Props> = ({ centreCode, current, onClose, onS
     const trimmed = newAmenity.trim();
     if (!trimmed) return;
     if (allAmenities.some(a => a.toLowerCase() === trimmed.toLowerCase())) {
-      toast.error('That amenity is already in the list.');
+      toast.error('That amenity is already in the list.', { id: 'amenity-duplicate' });
       return;
     }
     setCustomAmenities(prev => [...prev, trimmed]);
