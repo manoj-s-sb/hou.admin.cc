@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 
 import { has, num } from '../../../utils/format';
@@ -104,27 +103,13 @@ const PlansPricing: React.FC = () => {
     <div>
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
           marginBottom: 20,
-          gap: 12,
-          flexWrap: 'wrap',
         }}
       >
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Active Membership Plans</div>
-          <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
-            Plans currently offered at this centre with local pricing and slot allocations
-          </div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Active Membership Plans</div>
+        <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
+          Plans currently offered at this centre with local pricing and slot allocations
         </div>
-        <button
-          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3.5 py-2 text-[12.5px] font-semibold text-white transition-all hover:bg-[#2d3570]"
-          type="button"
-          onClick={() => toast('Add / edit plans from Centre Management → Edit')}
-        >
-          Add / Edit Plans
-        </button>
       </div>
 
       {plans.length === 0 ? (

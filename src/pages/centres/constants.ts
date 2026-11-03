@@ -406,6 +406,30 @@ export const PLAN_COUNTRY_CHIPS = [
   { code: 'NZ', label: '🇳🇿 New Zealand' },
   { code: 'ZA', label: '🇿🇦 South Africa' },
 ];
+
+// A facility's countryCode isn't always stored in the same casing/alias as
+// PLAN_COUNTRY_CHIPS's codes (e.g. 'GB'/'USA') — normalizes to this app's
+// PLAN_COUNTRY_CHIPS code space. Shared by the New Centre wizard's own
+// country-chip picker and the Membership Plans page's centre filter, so both
+// stay in sync with a single source of truth.
+const PLAN_COUNTRY_CODE_ALIASES: Record<string, string> = { GB: 'UK', USA: 'US', IND: 'IN' };
+export const normalizePlanCountryCode = (code: string): string => {
+  const upper = (code || '').toUpperCase();
+  return PLAN_COUNTRY_CODE_ALIASES[upper] ?? upper;
+};
+
+/** Narrows PLAN_COUNTRY_CHIPS down to just the countries a REAL centre exists
+ * in right now, derived from whatever facility list the caller passes in —
+ * so a brand new country only ever shows up once an actual centre for it
+ * exists, instead of this list being a fixed hardcoded set. Falls back to
+ * the full candidate list when fewer than 2 real matches are found (e.g.
+ * nothing loaded yet), so the filter never degenerates to just "All
+ * countries" with nothing else to pick. */
+export function dynamicPlanCountryChips(facilities: { countryCode?: string }[]) {
+  const codes = new Set(facilities.map(f => normalizePlanCountryCode(f.countryCode || '')).filter(Boolean));
+  const real = PLAN_COUNTRY_CHIPS.filter(c => c.code === 'all' || codes.has(c.code));
+  return real.length > 1 ? real : PLAN_COUNTRY_CHIPS;
+}
 export const WIZARD_STATUS_LABEL: Record<string, string> = {
   draft: 'Draft',
   staging: 'Staging',

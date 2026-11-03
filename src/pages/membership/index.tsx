@@ -4,13 +4,15 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { canEditModule } from '../../rbac';
 import { MODULES } from '../../rbac/constants';
+import { getCentres } from '../../store/centres/api';
 import { getFxRates, getMemberships } from '../../store/memberships/api';
 import { upsertPlan as upsertPlanAction } from '../../store/memberships/reducers';
 import { AppDispatch, RootState } from '../../store/store';
 import { num } from '../../utils/format';
+import { dynamicPlanCountryChips } from '../centres/constants';
 
 import PlanDrawer from './components/PlanDrawer';
-import { CURRENCIES, PLAN_REGION_FILTERS, SLOT_DURATION_MINUTES, type CurrencyOption } from './constants';
+import { CURRENCIES, SLOT_DURATION_MINUTES, type CurrencyOption } from './constants';
 
 import type { MembershipPlan } from '../../store/memberships/types';
 
@@ -25,12 +27,17 @@ const TABS: { key: PlanTab; label: string }[] = [
 
 const TD = 'border-b border-gray-100 px-3.5 py-[11px] align-middle';
 
-// Each country/centre filter maps to the currency its prices should display in.
+// Each country/centre filter maps to the currency its prices should display
+// in — keyed on PLAN_COUNTRY_CHIPS's own codes (src/pages/centres/constants.ts),
+// the same codes dynamicPlanCountryChips below hands back.
 const REGION_CURRENCY: Record<string, string> = {
   all: 'USD',
-  USA: 'USD',
-  AUS: 'AUD',
-  IND: 'INR',
+  US: 'USD',
+  AU: 'AUD',
+  IN: 'INR',
+  UK: 'GBP',
+  NZ: 'NZD',
+  ZA: 'ZAR',
 };
 
 // `amount` is stored in the currency whose USD-rate is `sourceRate` (1 = already
@@ -131,7 +138,24 @@ const MembershipPlans: React.FC = () => {
         // flag it so the UI can warn the admin the rate may be stale.
         setFx({ rates: null, status: 'fallback' });
       });
+    // Only to discover which countries a real centre already exists in (see
+    // dynamicPlanCountryChips below) — not this page's own list, so a big
+    // single page comfortably covers every centre today. Centre Management's
+    // own mount effect always re-fetches its own paginated view immediately
+    // on next visit, so this doesn't clobber anything there.
+    dispatch(getCentres({ skip: 0, limit: 500 }));
   }, [dispatch]);
+
+  // Narrows the full country-chip candidate list down to just the countries
+  // a real centre exists in right now — same dynamic derivation the New
+  // Centre wizard's own country picker already uses, so creating a centre in
+  // a new country (e.g. South Africa) makes it show up here too, with no
+  // code change needed.
+  const existingCentres = useSelector((state: RootState) => state.centres.facilities);
+  const planRegionFilters = useMemo(
+    () => [{ code: 'all', label: 'All centres' }, ...dynamicPlanCountryChips(existingCentres).slice(1)],
+    [existingCentres]
+  );
 
   const [tab, setTab] = useState<PlanTab>('fortnightly');
   const [region, setRegion] = useState('all');
@@ -224,12 +248,12 @@ const MembershipPlans: React.FC = () => {
           <span className="text-xs font-bold uppercase tracking-[0.06em] text-sub" style={{ margin: 0 }}>
             Centre:
           </span>
-          {PLAN_REGION_FILTERS.map(f => (
+          {planRegionFilters.map(f => (
             <button
-              key={f.key}
-              className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${region === f.key ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : 'border-cmx-border bg-white text-sub'}`}
+              key={f.code}
+              className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${region === f.code ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : 'border-cmx-border bg-white text-sub'}`}
               type="button"
-              onClick={() => selectRegion(f.key)}
+              onClick={() => selectRegion(f.code)}
             >
               {f.label}
             </button>

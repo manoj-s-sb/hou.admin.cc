@@ -16,11 +16,11 @@ import {
   COUNTRY_DIAL_CODES,
   COUNTRY_ISO_CODES,
   DAYS,
+  dynamicPlanCountryChips,
   FACILITY_OPTIONS,
   labelForTag,
   isValidPhoneLength,
   isValidPostcode,
-  PLAN_COUNTRY_CHIPS,
   SLOT_DURATIONS,
   TIMEZONES,
   timezonesForCountry,
@@ -35,13 +35,7 @@ import { bundleToWizardState } from './bundleToWizardState';
 import { downloadCentrePdf } from './centrePdf';
 import { defaultPlanRow, toPlanCatalogue } from './liveCatalogue';
 
-import type {
-  CentreApiStatus,
-  CentreBundle,
-  CentreDiscount,
-  WizardPlanRow,
-  WizardState,
-} from '../../../store/centres/types';
+import type { CentreApiStatus, CentreBundle, WizardPlanRow, WizardState } from '../../../store/centres/types';
 
 // Toggle a country chip: picking 'all' clears specifics; picking a specific clears 'all'.
 const toggleCountry = (current: string[], code: string): string[] => {
@@ -49,15 +43,6 @@ const toggleCountry = (current: string[], code: string): string[] => {
   const next = current.filter(c => c !== 'all');
   const out = next.includes(code) ? next.filter(c => c !== code) : [...next, code];
   return out.length ? out : ['all'];
-};
-
-// A facility's countryCode isn't always stored in the same casing/alias as
-// PLAN_COUNTRY_CHIPS's codes (e.g. 'GB'/'USA') — same alias groups already used
-// by constants.ts's COUNTRY_FLAGS, reused here for consistency.
-const COUNTRY_CODE_ALIASES: Record<string, string> = { GB: 'UK', USA: 'US', IND: 'IN' };
-const normalizePlanCountryCode = (code: string): string => {
-  const upper = (code || '').toUpperCase();
-  return COUNTRY_CODE_ALIASES[upper] ?? upper;
 };
 
 const initialState = (): WizardState => ({
@@ -95,7 +80,6 @@ const initialState = (): WizardState => ({
   firstGuestFee: null,
   additionalGuestDiscountPct: null,
   extraSessionCost: null,
-  discounts: [],
   keyDates: {},
 });
 
@@ -322,14 +306,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
   // re-dispatched here, since getCentres shares state.centres.facilities with that
   // list page's own pagination/filter/search and re-fetching here would clobber it.
   const existingCentres = useSelector((state: RootState) => state.centres.facilities);
-  const availablePlanCountryChips = useMemo(() => {
-    const codes = new Set(existingCentres.map(f => normalizePlanCountryCode(f.countryCode)).filter(Boolean));
-    const real = PLAN_COUNTRY_CHIPS.filter(c => c.code === 'all' || codes.has(c.code));
-    // Never show just "All countries" with nothing else to pick — falls back to
-    // the full fixed list if no centres have loaded yet (e.g. a direct deep link
-    // into this wizard before the list page's own fetch has run).
-    return real.length > 1 ? real : PLAN_COUNTRY_CHIPS;
-  }, [existingCentres]);
+  const availablePlanCountryChips = useMemo(() => dynamicPlanCountryChips(existingCentres), [existingCentres]);
   // Live global plan templates (Membership Plans page) — replaces the old hardcoded
   // PLAN_CATALOGUE so a plan created there is selectable here without a redeploy.
   useEffect(() => {
@@ -706,18 +683,6 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
             },
           ],
     });
-
-  const addDiscount = () => {
-    const d: CentreDiscount = {
-      id: `disc-${Date.now()}`,
-      name: '',
-      type: 'percentage',
-      value: 0,
-      appliesTo: 'All plans',
-      promoCode: '',
-    };
-    set({ discounts: [...s.discounts, d] });
-  };
 
   const visiblePlans = useMemo(() => {
     if (demo === 'all') return catalogue;
@@ -1979,148 +1944,6 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               <div style={{ marginBottom: 20 }}>
                 <AllocationBar capacity={capacity} catalogue={catalogue} plans={s.plans} />
               </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
-
-              <div className="cmx-eyebrow" style={{ marginBottom: 6 }}>
-                Centre Discounts
-              </div>
-              <div style={{ fontSize: 12.5, color: 'var(--sub)', marginBottom: 12 }}>
-                Optional — add centre-specific discounts.
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-                {s.discounts.map(d => (
-                  <div
-                    key={d.id}
-                    style={{
-                      border: '1px solid var(--border)',
-                      borderRadius: 10,
-                      padding: '14px 16px',
-                      position: 'relative',
-                    }}
-                  >
-                    <button
-                      style={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 12,
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: 'var(--muted)',
-                        fontSize: 16,
-                      }}
-                      type="button"
-                      onClick={() => set({ discounts: s.discounts.filter(x => x.id !== d.id) })}
-                    >
-                      ×
-                    </button>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 10 }}>
-                      <div className="flex flex-col gap-1">
-                        <span className="cmx-field-label">Discount Name *</span>
-                        <input
-                          className="cmx-field"
-                          placeholder="e.g. Senior Concession"
-                          type="text"
-                          value={d.name}
-                          onChange={e =>
-                            set({
-                              discounts: s.discounts.map(x => (x.id === d.id ? { ...x, name: e.target.value } : x)),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="cmx-field-label">Type *</span>
-                        <select
-                          className="cmx-field"
-                          value={d.type}
-                          onChange={e =>
-                            set({
-                              discounts: s.discounts.map(x =>
-                                x.id === d.id ? { ...x, type: e.target.value as CentreDiscount['type'], value: 0 } : x
-                              ),
-                            })
-                          }
-                        >
-                          <option value="percentage">Percentage off</option>
-                          <option value="fixed">Fixed amount off</option>
-                          <option value="free_sessions">Free sessions</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                      <div className="flex flex-col gap-1">
-                        <span className="cmx-field-label">
-                          Value{d.type === 'percentage' ? ' (%)' : d.type === 'fixed' ? ' ($)' : ' (sessions)'}
-                        </span>
-                        <input
-                          className="cmx-field"
-                          max={d.type === 'percentage' ? 100 : d.type === 'free_sessions' ? 30 : 99999}
-                          min={0}
-                          type="number"
-                          value={d.value}
-                          onChange={e => {
-                            const maxV = d.type === 'percentage' ? 100 : d.type === 'free_sessions' ? 30 : 99999;
-                            const v = Math.max(0, Math.min(maxV, Number(e.target.value) || 0));
-                            set({
-                              discounts: s.discounts.map(x => (x.id === d.id ? { ...x, value: v } : x)),
-                            });
-                          }}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="cmx-field-label">Applies To</span>
-                        <input
-                          className="cmx-field"
-                          type="text"
-                          value={d.appliesTo}
-                          onChange={e =>
-                            set({
-                              discounts: s.discounts.map(x =>
-                                x.id === d.id ? { ...x, appliesTo: e.target.value } : x
-                              ),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="cmx-field-label">Promo Code</span>
-                        <input
-                          className="cmx-field"
-                          placeholder="OPTIONAL"
-                          type="text"
-                          value={d.promoCode}
-                          onChange={e =>
-                            set({
-                              discounts: s.discounts.map(x =>
-                                x.id === d.id ? { ...x, promoCode: e.target.value.toUpperCase() } : x
-                              ),
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button
-                style={{
-                  width: '100%',
-                  padding: 10,
-                  border: '2px dashed var(--border)',
-                  borderRadius: 10,
-                  background: '#fff',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  color: 'var(--sub)',
-                  fontWeight: 500,
-                }}
-                type="button"
-                onClick={addDiscount}
-              >
-                Add Discount
-              </button>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
                 <button className="cmx-btn cmx-btn-outline" type="button" onClick={() => goStep(3)}>
