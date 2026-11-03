@@ -96,7 +96,7 @@ const STATUS_DOT: Record<CentreApiStatus, string> = {
 /** One source of truth for nav-item styling — used by both the global and centre menus. */
 const itemClass = (active: boolean): string =>
   `group relative mx-2.5 my-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm no-underline transition-colors duration-150 ${
-    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-[#9096be] hover:bg-white/10 hover:text-white'
+    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-white hover:bg-white/10'
   }`;
 
 /** Shared inner: active accent bar + icon + label + optional red count badge. */
@@ -115,7 +115,7 @@ const NavInner: React.FC<{ active: boolean; icon: React.ReactNode; label: string
     >
       {icon}
     </span>
-    <span className="truncate">{label}</span>
+    <span className="truncate font-mona-condensed text-[15px] leading-[20px]">{label}</span>
     {typeof badge === 'number' && badge > 0 && (
       <span className="ml-auto min-w-[18px] rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
         {badge}
@@ -183,9 +183,7 @@ const useSidebarBadges = (enabled: boolean): Record<string, number> => {
 };
 
 const GroupLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="px-5 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#9096be] first:pt-2">
-    {children}
-  </div>
+  <div className="px-5 pb-1.5 pt-5 text-[14px] font-semibold uppercase text-white first:pt-2">{children}</div>
 );
 
 interface SidebarProps {
@@ -259,10 +257,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 bg-white shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        style={{ backgroundImage: 'linear-gradient(-79.8deg, #5FACFF 0%, #324B9C 108.02%)' }}
       >
         {/* Header with close button for mobile */}
-        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 bg-[#21295A] px-4">
+        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 px-4">
           <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-light.svg" />
           <button
             aria-label="Close sidebar"
@@ -275,7 +274,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
         {/* Navigation — swaps to the centre's module nav while a centre is open */}
         {activeCentre ? (
-          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto py-3">
             {/* Back to Centres */}
             <button
               className="group mx-2.5 mb-2 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-white/50 transition-colors hover:bg-white/10 hover:text-white"
@@ -373,7 +372,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             )}
           </nav>
         ) : (
-          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto py-3">
             {visibleGroups.map(g => (
               <React.Fragment key={g.group}>
                 <GroupLabel>{g.group}</GroupLabel>
@@ -382,7 +381,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                     location.pathname === item.path ||
                     location.pathname.startsWith(`${item.path}/`) ||
                     (item.path === ROUTES.INDUCTION.path && location.pathname.startsWith('/view-induction')) ||
-                    (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members'));
+                    (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members')) ||
+                    // Member Details (/members/:userId) has no top-level nav item of its
+                    // own -- "Members" only exists inside a centre's own module nav. Landing
+                    // here directly (e.g. from a notification link) with no centre "open"
+                    // would otherwise highlight nothing at all, making the page look
+                    // disconnected from Centre Management, where it conceptually belongs.
+                    (item.path === ROUTES.CENTRES.path && location.pathname.startsWith('/members/'));
 
                   return (
                     <Link

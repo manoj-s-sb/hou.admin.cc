@@ -49,7 +49,7 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
               </svg>
             </button>
           )}
-          <h1 className="m-0 text-xl font-semibold text-gray-900 max-[560px]:truncate max-[560px]:text-base">
+          <h1 className="m-0 font-mona-condensed text-xl font-semibold uppercase text-[#202020] max-[560px]:truncate max-[560px]:text-base sm:text-[22px]">
             {title}
           </h1>
         </div>

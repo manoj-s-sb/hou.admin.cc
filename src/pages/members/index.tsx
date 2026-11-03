@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { User } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -14,8 +15,6 @@ import { AppDispatch, RootState } from '../../store/store';
 import { decodeToken } from '../../utils/decodeToken';
 
 import BulkSendEmailModal from './components/BulkSendEmailModal';
-
-const user_svg = '/assets/user.svg';
 
 type FilterState = {
   search: string;
@@ -50,10 +49,10 @@ function filtersToSearchParams(filters: FilterState): Record<string, string> {
 }
 
 const planConfig: Record<string, { label: string; color: string; dot: string }> = {
-  standard: { label: 'Standard', color: 'text-blue-700', dot: 'bg-blue-500' },
-  premium: { label: 'Premium', color: 'text-purple-700', dot: 'bg-purple-500' },
-  family: { label: 'Family', color: 'text-pink-700', dot: 'bg-pink-500' },
-  offpeak: { label: 'Offpeak', color: 'text-orange-700', dot: 'bg-orange-500' },
+  standard: { label: 'Standard', color: 'text-[#21295a]', dot: 'bg-[#21295a]' },
+  premium: { label: 'Premium', color: 'text-[#336dc2]', dot: 'bg-[#336dc2]' },
+  family: { label: 'Family', color: 'text-[#3b8f3e]', dot: 'bg-[#3b8f3e]' },
+  offpeak: { label: 'Offpeak', color: 'text-[#cc6900]', dot: 'bg-[#cc6900]' },
 };
 
 const subscriptionStatusMap: Record<string, { label: string; className: string }> = {
@@ -166,21 +165,25 @@ const Members = () => {
         minWidth: 220,
         sortable: false,
         renderCell: params => {
-          const imageUrl = params.row?.profileImageUrl || user_svg;
-          const isDefaultImage = !params.row?.profileImageUrl;
           const fullName = `${params.row?.firstName} ${params.row?.lastName}`.trim();
           return (
             <div className="flex items-center gap-3">
-              <img
-                alt="Profile"
-                className={`h-9 w-9 rounded-full border border-gray-200 object-cover ${isDefaultImage ? 'p-1.5' : ''}`}
-                src={imageUrl}
-                onError={e => {
-                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
-                }}
-              />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#e0e0e0] bg-white">
+                {params.row?.profileImageUrl ? (
+                  <img
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                    src={params.row.profileImageUrl}
+                    onError={e => {
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
+                    }}
+                  />
+                ) : (
+                  <User className="h-5 w-5 text-[#336DC2]" />
+                )}
+              </div>
               <div>
-                <p className="text-[13px] font-semibold text-[#21295A]">{fullName}</p>
+                <p className="text-[16px] font-semibold text-[#202020]">{fullName}</p>
                 <p className="text-[11px] text-gray-400">{params.row?.email || ''}</p>
               </div>
             </div>
@@ -433,7 +436,7 @@ const Members = () => {
           </div>
 
           {/* Section label — Subscription Plans */}
-          <p className="col-span-5 mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+          <p className="col-span-5 mt-1 text-[11px] font-semibold uppercase tracking-widest text-[#6e6e6e]">
             Subscription Plans
           </p>
 
@@ -448,14 +451,14 @@ const Members = () => {
             return (
               <div
                 key={plan.key}
-                className="flex flex-col gap-1 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
+                className="flex flex-col gap-1 rounded-2xl border border-[#cbcbcb] bg-white px-4 py-3 shadow-sm"
               >
                 <div className="flex items-center gap-1.5">
                   <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
                   <p className={`text-[10px] font-semibold uppercase tracking-widest ${cfg.color}`}>{cfg.label}</p>
                 </div>
-                <p className="text-[22px] font-bold text-[#21295A]">{total.toLocaleString()}</p>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-[22px] font-bold text-[#202020]">{total.toLocaleString()}</p>
+                <p className="text-[11px] text-[#6e6e6e]">
                   {plan.annual ?? 0} annual · {plan.fortnightly ?? 0} fortnightly
                 </p>
               </div>

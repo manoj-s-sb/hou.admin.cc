@@ -157,31 +157,22 @@ const PlansPricing: React.FC = () => {
                 padding: '16px 20px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>{p.name}</span>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: p.color,
-                      background: `${p.color}14`,
-                      borderRadius: 20,
-                      padding: '2px 8px',
-                    }}
-                    title={hasOccupancy ? `${p.filled} filled · ${Math.max(0, p.slots - p.filled)} left` : undefined}
-                  >
-                    {hasOccupancy ? `${p.filled}/${p.slots} slots` : `${p.slots} slots`}
-                  </span>
-                </div>
-                <button
-                  className="inline-flex cursor-pointer items-center rounded-[7px] border border-cmx-border bg-white px-3 py-1 text-[12px] font-semibold text-sub transition-all hover:bg-gray-50"
-                  type="button"
-                  onClick={() => toast('Edit plans from Centre Management → Edit')}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>{p.name}</span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: p.color,
+                    background: `${p.color}14`,
+                    borderRadius: 20,
+                    padding: '2px 8px',
+                  }}
+                  title={hasOccupancy ? `${p.filled} filled · ${Math.max(0, p.slots - p.filled)} left` : undefined}
                 >
-                  Edit
-                </button>
+                  {hasOccupancy ? `${p.filled}/${p.slots} slots` : `${p.slots} slots`}
+                </span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, margin: '14px 0 12px' }}>

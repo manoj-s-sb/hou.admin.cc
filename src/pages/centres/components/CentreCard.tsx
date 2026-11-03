@@ -5,10 +5,10 @@ import { centreColour, countryFlag } from '../constants';
 import type { CentreApiStatus, FacilitySummary } from '../../../store/centres/types';
 
 const STATUS_META: Record<CentreApiStatus, { label: string; pill: string; dot: string }> = {
-  active: { label: 'Active', pill: 'bg-cmx-green-bg text-cmx-green', dot: 'bg-cmx-green' },
-  draft: { label: 'Draft', pill: 'bg-cmx-amber-bg text-cmx-amber', dot: 'bg-cmx-amber' },
-  staging: { label: 'Staging', pill: 'bg-cmx-blue-light text-cmx-blue', dot: 'bg-cmx-blue' },
-  suspended: { label: 'Suspended', pill: 'bg-red-100 text-red-600', dot: 'bg-red-500' },
+  active: { label: 'Active', pill: 'bg-[rgba(59,143,62,0.15)] text-[#3b8f3e]', dot: 'bg-cmx-green' },
+  draft: { label: 'Draft', pill: 'bg-[rgba(110,110,110,0.15)] text-[#6e6e6e]', dot: 'bg-cmx-amber' },
+  staging: { label: 'Staging', pill: 'bg-[rgba(238,159,41,0.2)] text-[#ee9f29]', dot: 'bg-cmx-blue' },
+  suspended: { label: 'Suspended', pill: 'bg-[rgba(212,43,43,0.15)] text-[#d42b2b]', dot: 'bg-red-500' },
 };
 
 // Plan accents reuse the centre palette tones so the chips stay on-brand.
@@ -111,16 +111,16 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit, onDelete, now }) 
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="shrink-0 text-base leading-none">{countryFlag(centre.countryCode)}</span>
-            <span className="truncate text-[15px] font-bold leading-tight text-navy">{centre.name}</span>
+            <span className="truncate text-[15px] font-bold uppercase leading-tight text-[#202020]">{centre.name}</span>
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span
-              className="rounded border border-cmx-border bg-cmx-body px-1.5 py-px font-mono text-[10.5px] font-semibold tracking-wide text-sub"
+              className="rounded bg-[#f5f5f8] px-1.5 py-px font-mono text-[10.5px] font-semibold tracking-wide text-[#21295a]"
               style={{ borderLeft: `2px solid ${accent}` }}
             >
               {centre.code}
             </span>
-            <span className="inline-flex items-center gap-1 text-xs text-sub">
+            <span className="inline-flex items-center gap-1 text-xs text-[#6e6e6e]">
               <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                 <circle cx="12" cy="10" r="3" />
