@@ -767,15 +767,6 @@ export interface LeadEntry {
 
 /* ── Wizard form models ── */
 
-export interface CentreDiscount {
-  id: string;
-  name: string;
-  type: 'percentage' | 'fixed' | 'free_sessions';
-  value: number;
-  appliesTo: string;
-  promoCode: string;
-}
-
 export interface WizardPlanRow {
   /** Plan code — one of the fixed catalogue ids, or any live global plan's code. */
   planId: PlanId | string;
@@ -830,7 +821,6 @@ export interface WizardState {
   firstGuestFee: number | null;
   additionalGuestDiscountPct: number | null;
   extraSessionCost: number | null;
-  discounts: CentreDiscount[];
   // Review — optional scheduling metadata, all UTC ISO 8601. Not yet consumed by any
   // backend action (no lifecycle endpoint exists) — carried through as a facility
   // field for whenever that lands. Empty/absent = not scheduled for that behavior.

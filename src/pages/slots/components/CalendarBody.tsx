@@ -639,16 +639,21 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
   const renderLaneHeader = (lane: Lanes, isMobile: boolean) => (
     <div
       key={lane.laneNo}
-      className="relative flex min-h-[60px] w-full flex-col items-center justify-center border-b border-r border-gray-200 bg-white px-3 py-3 text-center"
+      className="relative flex min-h-[60px] w-full flex-col items-center justify-center border-b border-r border-[rgba(255,255,255,0.19)] bg-[#336DC2] px-3 py-3 text-center"
     >
-      <span className={composeClasses('font-semibold text-[#21295A]', isMobile ? 'text-[11px]' : 'text-[13px]')}>
+      <span className={composeClasses('font-semibold text-white', isMobile ? 'text-[11px]' : 'text-[13px]')}>
         {formatLaneType(lane.laneType)}
       </span>
-      <span className={composeClasses('font-medium text-gray-500', isMobile ? 'text-[10px]' : 'text-[12px]')}>
+      <span
+        className={composeClasses(
+          'font-medium text-[rgba(255,255,255,0.87)]',
+          isMobile ? 'text-[10px]' : 'text-[12px]'
+        )}
+      >
         Lane {lane.laneNo}
       </span>
       <span
-        className="absolute right-1 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer px-1 text-[16px] font-bold text-gray-400 hover:text-[#21295A]"
+        className="absolute right-1 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer px-1 text-[16px] font-bold text-white/70 hover:text-white"
         role="button"
         tabIndex={0}
         onClick={e => handleMenuClick(lane, e)}
@@ -764,7 +769,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           {/* Mobile */}
           <div className="desktop:hidden">
             <div className="sticky top-0 z-30 grid" style={gridTemplateColumnsMobile}>
-              <div className="sticky left-0 z-40 flex min-h-[60px] min-w-[68px] items-center justify-center border-b border-r border-gray-200 bg-gray-50 px-2 text-[11px] font-bold text-[#21295A]">
+              <div className="sticky left-0 z-40 flex min-h-[60px] min-w-[68px] items-center justify-center border-b border-r border-[rgba(255,255,255,0.19)] bg-[#336DC2] px-2 text-[11px] font-bold text-white">
                 Lane
               </div>
               {lanes.map(lane => renderLaneHeader(lane, true))}
@@ -782,7 +787,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           {/* Desktop */}
           <div className="hidden desktop:block">
             <div className="sticky top-0 z-30 grid" style={gridTemplateColumns}>
-              <div className="sticky left-0 z-40 flex min-h-[60px] min-w-[100px] items-center justify-center border-b border-r border-gray-200 bg-gray-50 px-4 text-[13px] font-bold text-[#21295A]">
+              <div className="sticky left-0 z-40 flex min-h-[60px] min-w-[100px] items-center justify-center border-b border-r border-[rgba(255,255,255,0.19)] bg-[#336DC2] px-4 text-[13px] font-bold text-white">
                 Lane No
               </div>
               {lanes.map(lane => renderLaneHeader(lane, false))}

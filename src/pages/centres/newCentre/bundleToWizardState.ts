@@ -4,8 +4,8 @@
  * wizard can open pre-filled for editing / activating an existing draft.
  *
  * Best-effort: fields the wizard never persisted to the bundle (the facilities
- * chip list, additional bookable facilities, centre discounts) fall back to
- * sensible defaults — the bundle is the source of truth for everything else.
+ * chip list, additional bookable facilities) fall back to sensible defaults —
+ * the bundle is the source of truth for everything else.
  */
 import { COUNTRY_ISO3_TO_CODE, DAYS } from '../constants';
 
@@ -342,7 +342,6 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     firstGuestFee: hasVal(reg.firstGuestFee) ? num(reg.firstGuestFee) : null,
     additionalGuestDiscountPct: hasVal(reg.additionalGuestDiscountPct) ? num(reg.additionalGuestDiscountPct) : null,
     extraSessionCost: hasVal(reg.extraSessionCost) ? num(reg.extraSessionCost) : null,
-    discounts: [],
     keyDates: facility.keyDates ?? {},
   };
 }

@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 
 import { has, num } from '../../../utils/format';
@@ -104,27 +103,13 @@ const PlansPricing: React.FC = () => {
     <div>
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
           marginBottom: 20,
-          gap: 12,
-          flexWrap: 'wrap',
         }}
       >
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Active Membership Plans</div>
-          <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
-            Plans currently offered at this centre with local pricing and slot allocations
-          </div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Active Membership Plans</div>
+        <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
+          Plans currently offered at this centre with local pricing and slot allocations
         </div>
-        <button
-          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3.5 py-2 text-[12.5px] font-semibold text-white transition-all hover:bg-[#2d3570]"
-          type="button"
-          onClick={() => toast('Add / edit plans from Centre Management → Edit')}
-        >
-          Add / Edit Plans
-        </button>
       </div>
 
       {plans.length === 0 ? (
@@ -157,31 +142,22 @@ const PlansPricing: React.FC = () => {
                 padding: '16px 20px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>{p.name}</span>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: p.color,
-                      background: `${p.color}14`,
-                      borderRadius: 20,
-                      padding: '2px 8px',
-                    }}
-                    title={hasOccupancy ? `${p.filled} filled · ${Math.max(0, p.slots - p.filled)} left` : undefined}
-                  >
-                    {hasOccupancy ? `${p.filled}/${p.slots} slots` : `${p.slots} slots`}
-                  </span>
-                </div>
-                <button
-                  className="inline-flex cursor-pointer items-center rounded-[7px] border border-cmx-border bg-white px-3 py-1 text-[12px] font-semibold text-sub transition-all hover:bg-gray-50"
-                  type="button"
-                  onClick={() => toast('Edit plans from Centre Management → Edit')}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>{p.name}</span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: p.color,
+                    background: `${p.color}14`,
+                    borderRadius: 20,
+                    padding: '2px 8px',
+                  }}
+                  title={hasOccupancy ? `${p.filled} filled · ${Math.max(0, p.slots - p.filled)} left` : undefined}
                 >
-                  Edit
-                </button>
+                  {hasOccupancy ? `${p.filled}/${p.slots} slots` : `${p.slots} slots`}
+                </span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, margin: '14px 0 12px' }}>

@@ -171,44 +171,52 @@ const CentreManagement: React.FC = () => {
         Select a centre to open its operations dashboard, or manage network-wide configuration.
       </div>
 
-      {/* Filter bar: status chips + search */}
-      <div
-        className="mb-5 flex flex-wrap items-end gap-3 rounded-[10px] border border-cmx-border bg-white px-[18px] py-3.5 shadow-cmx"
-        style={{ justifyContent: 'space-between', alignItems: 'center' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span className="cmx-eyebrow" style={{ margin: 0 }}>
-            Status:
-          </span>
-          {STATUS_FILTERS.map(f => (
-            <button
-              key={f.key || 'all'}
-              className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border bg-white px-2.5 py-1 text-xs font-medium transition-all ${
-                statusFilter === f.key ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : 'border-cmx-border text-sub'
-              }`}
-              type="button"
-              onClick={() => {
-                setStatusFilter(f.key);
-                setSkip(0);
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
+      {/* Filter bar: status segmented control + search */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e0e0e0] bg-white px-6 py-[18px]">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-[16px] font-semibold text-[#6e6e6e]">STATUS:</span>
+          <div className="flex items-center rounded-xl border border-[#b7a897] bg-[#eae5d8] p-1">
+            {STATUS_FILTERS.map(f => (
+              <button
+                key={f.key || 'all'}
+                className={`cursor-pointer select-none whitespace-nowrap rounded-xl px-6 py-2.5 text-[16px] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#336dc2] focus-visible:ring-offset-1 ${
+                  statusFilter === f.key
+                    ? 'border border-[#cbcbcb] bg-white text-[#202020] drop-shadow-[6px_0px_3.25px_rgba(183,168,151,0.31)]'
+                    : 'border border-transparent text-[#6e6e6e]'
+                }`}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(f.key);
+                  setSkip(0);
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <input
-          placeholder="Search name, code or city…"
-          style={{
-            border: '1px solid var(--border)',
-            borderRadius: 7,
-            padding: '7px 12px',
-            fontSize: 13,
-            minWidth: 240,
-          }}
-          type="text"
-          value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
-        />
+        <div className="flex h-11 w-[340px] items-center gap-2.5 rounded-xl border border-[#e0e0e0] px-3.5">
+          <svg
+            className="h-[18px] w-[18px] shrink-0 text-[#6e6e6e]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
+          </svg>
+          <input
+            className="w-full border-none bg-transparent text-[16px] text-[#202020] outline-none placeholder:text-[#6e6e6e]"
+            placeholder="Search name, code or city…"
+            type="text"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
@@ -218,7 +226,11 @@ const CentreManagement: React.FC = () => {
           {!isLoading && <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--sub)' }}> · {total}</span>}
         </div>
         {canManageCentres && (
-          <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => setWizardOpen(true)}>
+          <button
+            className="cmx-btn cmx-btn-navy !rounded-xl !px-5 !py-2.5 !text-[16px] !font-semibold"
+            type="button"
+            onClick={() => setWizardOpen(true)}
+          >
             New Centre
           </button>
         )}

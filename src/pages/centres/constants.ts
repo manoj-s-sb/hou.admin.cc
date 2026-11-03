@@ -285,12 +285,31 @@ export const countryFlag = (countryCode: string): string => {
   return FLAG_BY_CODE[code] ?? '🏟️';
 };
 
-/** Deterministic accent colour for a centre's card stripe, derived from its code. */
-const CENTRE_PALETTE = ['#21295A', '#008482', '#d97706', '#0891b2', '#7c3aed', '#d42b2b'];
+/**
+ * Centre accent colours — per the PRD's fixed table (Houston=Blue, New York=
+ * Green, Melbourne=Purple, New Jersey=Amber, Bangalore=Teal). Explicit
+ * mapping for the centres that table names (by facility code, once real);
+ * any other/future centre falls back to a deterministic hash over this same
+ * 5-colour palette, so it still always gets one of these colours — just not
+ * guaranteed to be the next *unused* one, since nothing today tracks which
+ * colours existing centres were assigned (there's no backend field for it).
+ */
+const PRD_CENTRE_COLOURS: Record<string, string> = {
+  HOU01: '#2563EB', // Houston — Blue
+  NYC01: '#16A34A', // New York — Green
+  BLR01: '#0891B2', // Bangalore — Teal
+  // Melbourne (Purple #7C3AED) and New Jersey (Amber #D97706) aren't live
+  // centres yet — add their facility codes here once they're created, so
+  // they get these exact colours instead of falling through to the hash.
+};
+
+const CENTRE_PALETTE = ['#2563EB', '#16A34A', '#7C3AED', '#D97706', '#0891B2'];
 
 export const centreColour = (code: string): string => {
+  const upper = (code || '').toUpperCase();
+  if (PRD_CENTRE_COLOURS[upper]) return PRD_CENTRE_COLOURS[upper];
   let hash = 0;
-  for (let i = 0; i < (code || '').length; i += 1) hash = (hash + code.charCodeAt(i)) % CENTRE_PALETTE.length;
+  for (let i = 0; i < upper.length; i += 1) hash = (hash + upper.charCodeAt(i)) % CENTRE_PALETTE.length;
   return CENTRE_PALETTE[hash];
 };
 
@@ -387,6 +406,30 @@ export const PLAN_COUNTRY_CHIPS = [
   { code: 'NZ', label: '🇳🇿 New Zealand' },
   { code: 'ZA', label: '🇿🇦 South Africa' },
 ];
+
+// A facility's countryCode isn't always stored in the same casing/alias as
+// PLAN_COUNTRY_CHIPS's codes (e.g. 'GB'/'USA') — normalizes to this app's
+// PLAN_COUNTRY_CHIPS code space. Shared by the New Centre wizard's own
+// country-chip picker and the Membership Plans page's centre filter, so both
+// stay in sync with a single source of truth.
+const PLAN_COUNTRY_CODE_ALIASES: Record<string, string> = { GB: 'UK', USA: 'US', IND: 'IN' };
+export const normalizePlanCountryCode = (code: string): string => {
+  const upper = (code || '').toUpperCase();
+  return PLAN_COUNTRY_CODE_ALIASES[upper] ?? upper;
+};
+
+/** Narrows PLAN_COUNTRY_CHIPS down to just the countries a REAL centre exists
+ * in right now, derived from whatever facility list the caller passes in —
+ * so a brand new country only ever shows up once an actual centre for it
+ * exists, instead of this list being a fixed hardcoded set. Falls back to
+ * the full candidate list when fewer than 2 real matches are found (e.g.
+ * nothing loaded yet), so the filter never degenerates to just "All
+ * countries" with nothing else to pick. */
+export function dynamicPlanCountryChips(facilities: { countryCode?: string }[]) {
+  const codes = new Set(facilities.map(f => normalizePlanCountryCode(f.countryCode || '')).filter(Boolean));
+  const real = PLAN_COUNTRY_CHIPS.filter(c => c.code === 'all' || codes.has(c.code));
+  return real.length > 1 ? real : PLAN_COUNTRY_CHIPS;
+}
 export const WIZARD_STATUS_LABEL: Record<string, string> = {
   draft: 'Draft',
   staging: 'Staging',
