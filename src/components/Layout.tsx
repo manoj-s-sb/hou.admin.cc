@@ -83,7 +83,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex min-h-screen">
         <Sidebar isOpen={isSidebarOpen || isDesktop} onClose={() => setIsSidebarOpen(false)} />
         <div className="flex h-screen w-full flex-col overflow-hidden lg:ml-64">
-          <header className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-[#21295A] bg-[#21295A] px-4 sm:px-6 lg:px-8">
+          <header
+            className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-[#21295A] px-4 sm:px-6 lg:px-8"
+            style={{ backgroundImage: 'linear-gradient(-79.8deg, #5FACFF 0%, #324B9C 108.02%)' }}
+          >
             {/* Mobile Menu Button */}
             <button
               aria-label="Open sidebar"
@@ -125,7 +128,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="flex items-center gap-3 rounded-xl border border-white/20 px-4 py-2.5 transition-all duration-200 hover:border-white/40 hover:bg-white/10"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-md ring-2 ring-white/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(255,255,255,0.33)] bg-[rgba(255,255,255,0.13)] text-[18px] font-semibold text-white">
                   {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'U'}
                 </div>
                 <div className="hidden flex-col items-start sm:flex">

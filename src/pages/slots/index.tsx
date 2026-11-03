@@ -46,22 +46,30 @@ const statCards = [
     key: 'totalBooked' as const,
     label: 'Total Booked',
     iconPath: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+    cardBg: 'rgba(33,41,90,0.08)',
+    accent: '#21295a',
   },
   {
     key: 'completed' as const,
     label: 'Completed',
     iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    cardBg: '#ebf4eb',
+    accent: '#3b8f3e',
   },
   {
     key: 'bookedWithCoach' as const,
     label: 'With Coach',
     iconPath: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+    cardBg: 'rgba(51,109,194,0.1)',
+    accent: '#336dc2',
   },
   {
     key: 'bookedWithGuest' as const,
     label: 'With Guest',
     iconPath:
       'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+    cardBg: '#fef3e2',
+    accent: '#a75c00',
   },
 ];
 
@@ -260,16 +268,19 @@ const SlotBookings: React.FC = () => {
         {statCards.map(card => (
           <div
             key={card.key}
-            className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3 py-3 shadow-sm"
+            className="flex items-center gap-2.5 rounded-xl border border-[#cbcbcb] px-3 py-3 shadow-sm"
+            style={{ backgroundColor: card.cardBg }}
           >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100">
-              <svg className="h-[15px] w-[15px] text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white">
+              <svg className="h-[15px] w-[15px]" fill="none" stroke={card.accent} viewBox="0 0 24 24">
                 <path d={card.iconPath} strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} />
               </svg>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{card.label}</p>
-              <p className="text-[20px] font-bold leading-tight text-[#21295A]">
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: card.accent }}>
+                {card.label}
+              </p>
+              <p className="text-[20px] font-bold leading-tight text-[#202020]">
                 {slotStats[card.key].toLocaleString()}
               </p>
             </div>

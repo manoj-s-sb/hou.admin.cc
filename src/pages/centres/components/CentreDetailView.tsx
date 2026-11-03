@@ -12,7 +12,7 @@ import type { CentreApiStatus } from '../../../store/centres/types';
 const PILL_BASE = 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold';
 
 const STATUS_PILL: Record<CentreApiStatus, { label: string; tone: string }> = {
-  active: { label: 'Active', tone: 'bg-cmx-green-bg text-cmx-green' },
+  active: { label: 'Active', tone: 'bg-[#ebf4eb] text-[#3b8f3e]' },
   draft: { label: 'Draft', tone: 'bg-cmx-amber-bg text-cmx-amber' },
   staging: { label: 'Staging', tone: 'bg-cmx-blue-light text-cmx-blue' },
   suspended: { label: 'Suspended', tone: 'bg-red-100 text-red-600' },
@@ -63,8 +63,10 @@ const CentreDetailView: React.FC<Props> = ({ code, children }) => {
           style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}
         >
           {facility && <span style={{ width: 6, height: 26, borderRadius: 3, background: centreColour(code) }} />}
-          {facility ? `${countryFlag(facility.countryCode)} ${facility.name}` : code}
-          {facility && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>· {facility.code}</span>}
+          <span className="uppercase text-[#202020]">
+            {facility ? `${countryFlag(facility.countryCode)} ${facility.name}` : code}
+          </span>
+          {facility && <span style={{ fontSize: 13, fontWeight: 600, color: '#21295a' }}>· {facility.code}</span>}
           {status && <span className={`${PILL_BASE} ${status.tone}`}>{status.label}</span>}
         </div>
       </div>
