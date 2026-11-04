@@ -4,7 +4,8 @@
  * frontend-only. Keep the enum arrays in sync with the backend.
  */
 import { getFacilityCode, getLocalUser } from '../../constants/user';
-import { getRole, isSuperAdmin } from '../../rbac/permissions';
+import { ACCESS_SCOPES } from '../../rbac/constants';
+import { getRole, isSuperAdmin, canWrite } from '../../rbac/permissions';
 
 import type { FreqUnit, TaskType, TemplatePriority, TaskTemplate, TemplateEnrich } from '../../store/maintenance/types';
 
@@ -12,14 +13,21 @@ export { getFacilityCode, getLocalUser };
 
 export const ALL_LANES = [1, 2, 3, 4, 5, 6, 7];
 
-// Template CRUD + scheduling are admin-only server-side (ADMIN_ROLES: superadmin,
-// super_admin, admin) — a role-identity gate, distinct from the module read/write
-// permission system. Route the superadmin half through the canonical isSuperAdmin()
-// (checks userType[] as well as role, unlike a raw string match) so a superadmin whose
-// `role` field doesn't literally say "superadmin" isn't incorrectly denied here.
+// Template CRUD + scheduling are admin-only server-side by role identity
+// (ADMIN_ROLES: superadmin, super_admin, admin) OR by an explicit write grant
+// on the Maintenance module's own permission override -- same OR the backend
+// now enforces in work_item_routes.py. A staff/coach account with no special
+// role but explicit Maintenance write access (granted via Staff Management)
+// must get the same buttons an admin does; a plain read-only grant (or no
+// grant at all) keeps them read-only. Route the superadmin half through the
+// canonical isSuperAdmin() (checks userType[] as well as role, unlike a raw
+// string match) so a superadmin whose `role` field doesn't literally say
+// "superadmin" isn't incorrectly denied here.
 const MAINTENANCE_EXTRA_ADMIN_ROLES = ['super_admin', 'admin'];
 export const canManageTasks = (): boolean =>
-  isSuperAdmin() || MAINTENANCE_EXTRA_ADMIN_ROLES.includes(getRole().toLowerCase());
+  isSuperAdmin() ||
+  MAINTENANCE_EXTRA_ADMIN_ROLES.includes(getRole().toLowerCase()) ||
+  canWrite(ACCESS_SCOPES.maintenance);
 
 export const EQUIPMENT_CUSTOM_SENTINEL = 'Other (custom)';
 export const EQUIPMENT_OPTIONS: string[] = [
