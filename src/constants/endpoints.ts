@@ -1,5 +1,4 @@
 // Every request path in this app is served behind an `/api` prefix (see the
-// backend's host.json routePrefix) — added once here so REACT_APP_API_BASE_URL
 // (.env.development/.env.uat/.env.production) never needs to know about it.
 const API_PREFIX = '/api';
 
