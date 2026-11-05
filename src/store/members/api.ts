@@ -57,10 +57,12 @@ export const activateUserSubscription = createAsyncThunk(
   async ({ userId, adminId, adminName }: ActivateSubscriptionRequest, { rejectWithValue }) => {
     try {
       const accessToken = store.getState().auth.tokens?.access_token || '';
-      //uat: 'https://century-subscription-func-uat-fkapb0bphngbgnfb.centralindia-01.azurewebsites.net/subscription/admin/activate',
-      //prod: 'https://subscription-func-g4dvhpbhemd9hsbd.centralus-01.azurewebsites.net/subscription/admin/activate',
+      // The subscription service is a separate host from the admin-portal API, so its
+      // base URL comes from its own per-environment env var (REACT_APP_SUBSCRIPTION_BASE_URL
+      // in .env.dev / .env.qa / .env.uat / .env.prod) — never hardcoded to one environment.
+      const subscriptionBaseUrl = process.env.REACT_APP_SUBSCRIPTION_BASE_URL ?? '';
       const response = await axios.post(
-        'https://subscription-func-g4dvhpbhemd9hsbd.centralus-01.azurewebsites.net/subscription/admin/activate',
+        `${subscriptionBaseUrl}/subscription/admin/activate`,
         {
           userId,
           adminId,
