@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
+import ProfileAvatar from '../../components/ProfileAvatar';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getStaffConfig, getStaffDetails, resendWelcomeEmail, setStaffStatus } from '../../store/staff/api';
 import { clearStaffDetails } from '../../store/staff/reducers';
@@ -43,18 +44,6 @@ const formatDate = (value: string | null | undefined): string => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-};
-
-const buildInitials = (firstName: string, lastName: string, email: string): string => {
-  const source = `${firstName ?? ''} ${lastName ?? ''}`.trim() || email || '?';
-  return (
-    source
-      .split(/\s+|@|\./)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(part => part.charAt(0).toUpperCase())
-      .join('') || '?'
-  );
 };
 
 const statusToneClass: Record<string, { label: string; className: string }> = {
@@ -198,7 +187,6 @@ const ViewStaffMember: React.FC = () => {
 
   const profile = staff.staffProfile ?? {};
   const fullName = `${staff.firstName ?? ''} ${staff.lastName ?? ''}`.trim() || staff.email;
-  const initials = buildInitials(staff.firstName, staff.lastName, staff.email);
   const statusKey = normalizeStatus(staff.status);
   const status = statusToneClass[statusKey];
   const rolesSource = profile.roles && profile.roles.length > 0 ? profile.roles : (staff.userType ?? []);
@@ -241,16 +229,14 @@ const ViewStaffMember: React.FC = () => {
             {photoUrl ? (
               <button
                 aria-label="View profile photo"
-                className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-indigo-100 p-0 transition hover:opacity-90"
+                className="rounded-xl p-0 transition hover:opacity-90"
                 type="button"
                 onClick={() => setIsPhotoModalOpen(true)}
               >
-                <img alt={fullName} className="h-full w-full object-cover" src={photoUrl} />
+                <ProfileAvatar alt={fullName} photoUrl={photoUrl} size={64} />
               </button>
             ) : (
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-[18px] font-bold text-indigo-700">
-                {initials}
-              </div>
+              <ProfileAvatar alt={fullName} photoUrl={null} size={64} />
             )}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
