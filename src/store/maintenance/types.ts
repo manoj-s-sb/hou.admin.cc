@@ -18,6 +18,7 @@ export interface TemplateStep {
   order: number;
   title: string;
   imageUrl: string | null;
+  videoUrl: string | null;
 }
 
 export interface TaskTemplate {
@@ -37,6 +38,10 @@ export interface TaskTemplate {
   priority: TemplatePriority;
   status: TemplateStatus;
   videoUrl: string | null;
+  // Optional per-task convenience: pre-fills ScheduleModal's Lane dropdown
+  // when this task is scheduled -- a suggestion only, never enforced. The
+  // task stays schedulable on any lane (or facility-wide) regardless.
+  defaultLane: number | null;
   createdAt: string;
   createdBy: string;
   createdByName: string;
@@ -61,6 +66,7 @@ export interface TemplateEnrich {
   priority: TemplatePriority;
   status: TemplateStatus;
   videoUrl: string | null;
+  defaultLane: number | null;
 }
 
 export interface ScheduleAttachment {
@@ -96,11 +102,13 @@ export interface TaskSchedule {
 
 /* ── Request payloads ── */
 
-/** A step on write: title, plus an optional image blobName (from upload_url).
- * Omit `imageUrl` to keep an existing step's image on update (merged by order). */
+/** A step on write: title, plus an optional image/video blobName (from
+ * upload_url). Omit `imageUrl`/`videoUrl` to keep an existing step's
+ * image/video on update (merged by order). */
 export interface StepInput {
   title: string;
   imageUrl?: string | null;
+  videoUrl?: string | null;
 }
 
 export interface CreateTemplatePayload {
@@ -116,6 +124,7 @@ export interface CreateTemplatePayload {
   steps?: StepInput[];
   priority: TemplatePriority;
   videoUrl?: string | null;
+  defaultLane?: number | null;
 }
 
 export interface UpdateTemplatePayload extends Partial<CreateTemplatePayload> {

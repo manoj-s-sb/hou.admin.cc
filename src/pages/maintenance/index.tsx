@@ -19,6 +19,7 @@ import { AppDispatch, RootState } from '../../store/store';
 
 import FlagIssueModal from './components/FlagIssueModal';
 import LaneTaskCard from './components/LaneTaskCard';
+import LaneTaskCardAllLanes from './components/LaneTaskCardAllLanes';
 import LogsView from './components/LogsView';
 import MaintenanceCalendarView from './components/MaintenanceCalendarView';
 import ScheduleCard from './components/ScheduleCard';
@@ -92,7 +93,9 @@ const Maintenance: React.FC = () => {
   const [scheduleDay, setScheduleDay] = useState<string>(toISODate(new Date())); // ISO date | 'overdue'
   const scheduleDateInputRef = useRef<HTMLInputElement>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [libLane, setLibLane] = useState<number>(1); // Task Library lane (centre)
+  // Task Library lane filter (centre) -- 'all' shows every task once with a
+  // badge per lane it's scheduled on, instead of one lane's view at a time.
+  const [libLane, setLibLane] = useState<number | 'all'>(1);
   // "My Schedule" view mode: day-tabs + list (existing), or the month-grid calendar
   // (reuses the same react-big-calendar UI as the unified Calendar page) — see
   // MaintenanceCalendarView. Purely a client-side re-view of already-loaded `schedules`.
@@ -151,19 +154,29 @@ const Maintenance: React.FC = () => {
     [schedules]
   );
 
-  // Frequency-tab status dot for the selected lane: red = something needs doing,
-  // green = all scheduled tasks done, null = nothing scheduled.
+  // Every schedule for a template, across ALL lanes (and facility-wide) --
+  // what the "All Lanes" tab's one-row-per-task view needs instead of a
+  // single per-lane lookup.
+  const schedulesForTemplate = useCallback(
+    (templateId: string): TaskSchedule[] => schedules.filter(s => s.templateId === templateId),
+    [schedules]
+  );
+
+  // Frequency-tab status dot for the selected lane (or across every lane when
+  // 'all' is selected): red = something needs doing, green = all scheduled
+  // tasks done, null = nothing scheduled.
   const bucketDot = useCallback(
     (bucketKey: string): 'red' | 'green' | null => {
-      const scheds = templates
-        .filter(t => centreBucket(t) === bucketKey)
-        .map(t => scheduleFor(t.id, libLane))
-        .filter((s): s is TaskSchedule => Boolean(s));
+      const bucketTemplates = templates.filter(t => centreBucket(t) === bucketKey);
+      const scheds =
+        libLane === 'all'
+          ? bucketTemplates.flatMap(t => schedulesForTemplate(t.id))
+          : bucketTemplates.map(t => scheduleFor(t.id, libLane)).filter((s): s is TaskSchedule => Boolean(s));
       if (!scheds.length) return null;
       if (scheds.some(s => s.status !== 'done')) return 'red';
       return 'green';
     },
-    [templates, scheduleFor, libLane]
+    [templates, scheduleFor, schedulesForTemplate, libLane]
   );
 
   // Day tabs — today + next 6 days, plus an Overdue tab. Tasks bucket by scheduledDate.
@@ -306,9 +319,13 @@ const Maintenance: React.FC = () => {
         </div>
       </div>
 
-      {/* Lane tabs — centre Task Library is tracked per lane. */}
+      {/* Lane tabs — centre Task Library is tracked per lane, or "All" for a
+          single cross-lane view (one row per task, badges per lane). */}
       {isCentre && (
         <div className="flex flex-wrap gap-1.5">
+          <button className={lanePillCls(libLane === 'all')} type="button" onClick={() => setLibLane('all')}>
+            All Lanes
+          </button>
           {ALL_LANES.map(n => (
             <button key={n} className={lanePillCls(libLane === n)} type="button" onClick={() => setLibLane(n)}>
               Lane {n}
@@ -328,16 +345,27 @@ const Maintenance: React.FC = () => {
         </div>
       ) : isCentre ? (
         <div className="space-y-3">
-          {visibleTemplates.map(t => (
-            <LaneTaskCard
-              key={t.id}
-              canManage={canManage}
-              schedule={scheduleFor(t.id, libLane)}
-              template={t}
-              onSchedule={tmpl => setScheduleTemplate(tmpl)}
-              onViewSteps={openTemplateSteps}
-            />
-          ))}
+          {visibleTemplates.map(t =>
+            libLane === 'all' ? (
+              <LaneTaskCardAllLanes
+                key={t.id}
+                canManage={canManage}
+                schedules={schedulesForTemplate(t.id)}
+                template={t}
+                onSchedule={tmpl => setScheduleTemplate(tmpl)}
+                onViewSteps={openTemplateSteps}
+              />
+            ) : (
+              <LaneTaskCard
+                key={t.id}
+                canManage={canManage}
+                schedule={scheduleFor(t.id, libLane)}
+                template={t}
+                onSchedule={tmpl => setScheduleTemplate(tmpl)}
+                onViewSteps={openTemplateSteps}
+              />
+            )
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3.5">
@@ -607,7 +635,13 @@ const Maintenance: React.FC = () => {
       )}
       {scheduleTemplate && (
         <ScheduleModal
-          defaultLane={libLane}
+          // The task's own default lane (set at creation, see TemplateModal)
+          // wins when present -- it's a per-task preference. Falls back to
+          // whichever specific lane tab is currently open in the Task Library
+          // when the task has no default of its own -- the "All Lanes" tab
+          // isn't a real lane, so it contributes no fallback (the admin picks
+          // one fresh in the dialog).
+          defaultLane={scheduleTemplate.defaultLane ?? (typeof libLane === 'number' ? libLane : null)}
           facilityCode={facilityCode}
           template={scheduleTemplate}
           onClose={() => setScheduleTemplate(null)}
