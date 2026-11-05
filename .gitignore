@@ -13,9 +13,10 @@ node_modules/
 
 # Misc
 .DS_Store
-.env.development
-.env.uat
-.env.production
+
+# Env files — all of them (.env, .env.dev, .env.qa, .env.uat, .env.prod, .env.local, …)
+.env
+.env.*
 
 # Logs
 npm-debug.log*

@@ -43,11 +43,13 @@
   },
   "scripts": {
     "start": "env-cmd -f .env.dev react-scripts start",
+    "start:local": "env-cmd -f .env.local react-scripts start",
     "start:dev": "env-cmd -f .env.dev react-scripts start",
     "start:qa": "env-cmd -f .env.qa react-scripts start",
     "start:uat": "env-cmd -f .env.uat react-scripts start",
     "start:prod": "env-cmd -f .env.prod react-scripts start",
     "build": "env-cmd -f .env.prod react-scripts build",
+    "build:local": "env-cmd -f .env.local react-scripts build",
     "build:dev": "env-cmd -f .env.dev react-scripts build",
     "build:qa": "env-cmd -f .env.qa react-scripts build",
     "build:uat": "env-cmd -f .env.uat react-scripts build",
