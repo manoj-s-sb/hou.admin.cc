@@ -1,7 +1,8 @@
 import React from 'react';
 
-import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
+
+import { has, num } from '../../../utils/format';
 
 import type { RootState } from '../../../store/store';
 
@@ -16,14 +17,6 @@ const PLAN_META: Record<string, { name: string; color: string; access: string }>
 
 // Display order matching the reference layout.
 const ORDER = ['premium', 'standard', 'family', 'offpeak', 'nightowl'];
-
-const num = (v: unknown): number => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-/** Present (not null/undefined) — guest pricing shows "—" rather than $0 when unset. */
-const has = (v: unknown): boolean => v !== undefined && v !== null;
 
 const money = (v: unknown): string =>
   `$${num(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -89,34 +82,34 @@ const PlansPricing: React.FC = () => {
   const share = (slots: number): number => (totalSlots > 0 ? Math.round((slots / totalSlots) * 100) : 0);
 
   // Guest / extra-session pricing is stored per plan; the centre view surfaces the
-  // first plan's rules (they're set network-wide in the wizard).
-  const guest = (memberships[0]?.bookingRules?.guestBookingRules ?? {}) as Record<string, unknown>;
+  // first plan's rules (they're set network-wide in the wizard). Real membership
+  // docs nest guest pricing under guestBookingRules.pricing (firstGuest /
+  // additionalGuests.discount) rather than flat fields — same shape the
+  // Membership Plans "Guest Charges" tab and mapApiPlan.ts already read.
+  const bookingRules = (memberships[0]?.bookingRules ?? {}) as {
+    guestBookingRules?: {
+      pricing?: { firstGuest?: number; additionalGuests?: { type?: string; discount?: number } };
+    };
+    slotPurchaseRules?: { price?: number };
+  };
+  const guestPricing = bookingRules.guestBookingRules?.pricing ?? {};
+  const additionalGuests = guestPricing.additionalGuests ?? {};
+  const firstGuestFee = guestPricing.firstGuest;
+  const additionalGuestDiscount = additionalGuests.discount;
+  const additionalGuestIsPct = additionalGuests.type === 'percentage';
+  const extraSessionCost = bookingRules.slotPurchaseRules?.price;
 
   return (
     <div>
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
           marginBottom: 20,
-          gap: 12,
-          flexWrap: 'wrap',
         }}
       >
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Active Membership Plans</div>
-          <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
-            Plans currently offered at this centre with local pricing and slot allocations
-          </div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Active Membership Plans</div>
+        <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
+          Plans currently offered at this centre with local pricing and slot allocations
         </div>
-        <button
-          className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3.5 py-2 text-[12.5px] font-semibold text-white transition-all hover:bg-[#2d3570]"
-          type="button"
-          onClick={() => toast('Add / edit plans from Centre Management → Edit')}
-        >
-          + Add / Edit Plans
-        </button>
       </div>
 
       {plans.length === 0 ? (
@@ -149,31 +142,22 @@ const PlansPricing: React.FC = () => {
                 padding: '16px 20px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>{p.name}</span>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: p.color,
-                      background: `${p.color}14`,
-                      borderRadius: 20,
-                      padding: '2px 8px',
-                    }}
-                    title={hasOccupancy ? `${p.filled} filled · ${Math.max(0, p.slots - p.filled)} left` : undefined}
-                  >
-                    {hasOccupancy ? `${p.filled}/${p.slots} slots` : `${p.slots} slots`}
-                  </span>
-                </div>
-                <button
-                  className="inline-flex cursor-pointer items-center rounded-[7px] border border-cmx-border bg-white px-3 py-1 text-[12px] font-semibold text-sub transition-all hover:bg-gray-50"
-                  type="button"
-                  onClick={() => toast('Edit plans from Centre Management → Edit')}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>{p.name}</span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: p.color,
+                    background: `${p.color}14`,
+                    borderRadius: 20,
+                    padding: '2px 8px',
+                  }}
+                  title={hasOccupancy ? `${p.filled} filled · ${Math.max(0, p.slots - p.filled)} left` : undefined}
                 >
-                  Edit
-                </button>
+                  {hasOccupancy ? `${p.filled}/${p.slots} slots` : `${p.slots} slots`}
+                </span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, margin: '14px 0 12px' }}>
@@ -208,17 +192,24 @@ const PlansPricing: React.FC = () => {
         {[
           {
             label: 'First Guest Fee',
-            value: has(guest.firstGuestFee) ? money(guest.firstGuestFee) : '—',
+            value: has(firstGuestFee) ? money(firstGuestFee) : '—',
+            suffix: '',
             note: 'Network default',
           },
           {
             label: 'Additional Guest Discount',
-            value: has(guest.additionalGuestDiscountPct) ? `${num(guest.additionalGuestDiscountPct)}%` : '—',
+            value: has(additionalGuestDiscount)
+              ? additionalGuestIsPct
+                ? `${num(additionalGuestDiscount)}%`
+                : money(additionalGuestDiscount)
+              : '—',
+            suffix: has(additionalGuestDiscount) && additionalGuestIsPct ? 'off' : '',
             note: 'Network default',
           },
           {
             label: 'Extra Session Cost',
-            value: has(guest.extraSessionCost) ? money(guest.extraSessionCost) : '—',
+            value: has(extraSessionCost) ? money(extraSessionCost) : '—',
+            suffix: '',
             note: 'Centre-specific',
           },
         ].map(c => (
@@ -227,7 +218,12 @@ const PlansPricing: React.FC = () => {
             style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}
           >
             <div style={{ fontSize: 12, color: 'var(--sub)' }}>{c.label}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)', margin: '4px 0 2px' }}>{c.value}</div>
+            <div style={{ margin: '4px 0 2px' }}>
+              <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)' }}>{c.value}</span>
+              {c.suffix && (
+                <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--sub)', marginLeft: 4 }}>{c.suffix}</span>
+              )}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--sub)' }}>{c.note}</div>
           </div>
         ))}

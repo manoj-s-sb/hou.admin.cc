@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
-import { AppDispatch } from '../../../store/store';
+import endpoints from '../../../constants/endpoints';
+import api from '../../../services';
+import { getMemberships } from '../../../store/memberships/api';
+import { AppDispatch, RootState } from '../../../store/store';
 import { submitTailgateReview } from '../../../store/tailgate/api';
 import { TailgateLog } from '../../../store/tailgate/types';
 import { getEventDisplayType, getLogDate, getLogStatus, getLogTime } from '../utils';
+
+import type { Member } from '../../../store/members/types';
 
 interface ReviewModalProps {
   log: TailgateLog;
@@ -17,8 +22,6 @@ const inputCls =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
 const labelCls = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
 
-const SUBSCRIPTIONS = ['Standard', 'Premium', 'Family', 'Offpeak'];
-
 const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const currentStatus = getLogStatus(log);
@@ -26,18 +29,188 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
   const evType = getEventDisplayType(log.eventType);
 
   const initMemberType = (): 'Member' | 'Non-Member' | '' => {
-    const mt = log.review?.memberType;
+    // Prefill from the admin review if it exists, else from the detection's actor
+    // (which already carries the matched member's type, when the upstream event
+    // sends it — most don't yet).
+    const mt = (log.review?.memberType ?? log.actor?.memberType ?? '').toLowerCase();
     if (mt === 'member') return 'Member';
     if (mt === 'non-member') return 'Non-Member';
+    // No explicit memberType on the event (the common case today) — infer it
+    // instead: a userId or bookingId on the actor means the door/camera system
+    // matched a real member who booked through the app, so default to "Member";
+    // a bare name/visitor entry (or nothing at all) defaults to "Non-Member".
+    // The admin can still change it manually either way.
+    if (!log.review?.reviewed) {
+      return log.actor?.userId || log.actor?.bookingId ? 'Member' : 'Non-Member';
+    }
     return '';
   };
+  const initSubscription = (): string => log.review?.subscription || log.actor?.subscription || '';
+
+  // The form's default values (from the review, else the detection's actor). Used both to
+  // seed the fields and to restore them when the admin clears a searched selection.
+  const defaultName = log.review?.memberName || log.actor?.name || '';
+  const defaultMemberId = log.review?.memberId || log.actor?.userId || '';
+  const defaultEmail = log.review?.email || log.actor?.email || '';
 
   const [isViolation, setIsViolation] = useState(currentStatus === 'violation' || (isPending && evType === 'Tailgate'));
   const [notes, setNotes] = useState(log.review?.comment || '');
-  const [memberName, setMemberName] = useState(log.review?.memberName || log.actor?.name || '');
+  const [memberName, setMemberName] = useState(defaultName);
   const [memberType, setMemberType] = useState<'Member' | 'Non-Member' | ''>(initMemberType());
-  const [memberId, setMemberId] = useState(log.review?.memberId || log.actor?.id || '');
-  const [subscription, setSubscription] = useState(log.review?.subscription || '');
+  const [memberId, setMemberId] = useState(defaultMemberId);
+  const [subscription, setSubscription] = useState(initSubscription());
+  const [email, setEmail] = useState(defaultEmail);
+
+  // ── Subscription dropdown — real plan codes from the Membership Plans
+  // catalogue (network-wide, since a member can be reviewed at a door that
+  // isn't their home centre), not a hardcoded guess. ──
+  const plans = useSelector((s: RootState) => s.memberships.plans);
+  // NOTE: the memberships slice's initialState defaults isLoading to `true`
+  // (no fetch has happened yet is indistinguishable from one being in
+  // flight) — so this can't gate the dispatch on "not already loading" or it
+  // would never fire on first mount. Fetch once per mount whenever the
+  // catalogue is still empty; the slice itself dedupes re-fulfilling state.
+  const plansLoading = useSelector((s: RootState) => s.memberships.isLoading);
+  const plansLoadedRef = useRef(false);
+  useEffect(() => {
+    if (plans.length === 0 && !plansLoadedRef.current) {
+      plansLoadedRef.current = true;
+      dispatch(getMemberships(undefined));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const subscriptionOptions = useMemo(() => {
+    const opts = plans.map(p => ({ code: p.code, name: p.name }));
+    // The resolved/saved value may not be in the catalogue (plan since archived,
+    // or a code the catalogue doesn't carry) — keep it selectable rather than
+    // silently dropping it from the list.
+    if (subscription && !opts.some(o => o.code.toLowerCase() === subscription.toLowerCase())) {
+      opts.push({ code: subscription, name: subscription });
+    }
+    return opts;
+  }, [plans, subscription]);
+
+  // ── Member search typeahead — type a name/email/id, pick a match, auto-fill. ──
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberResults, setMemberResults] = useState<Member[]>([]);
+  const [searchingMembers, setSearchingMembers] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [memberSelected, setMemberSelected] = useState(false);
+
+  useEffect(() => {
+    const q = memberQuery.trim();
+    if (q.length < 2) {
+      setMemberResults([]);
+      setShowResults(false);
+      return;
+    }
+    let cancelled = false;
+    setSearchingMembers(true);
+    setShowResults(true); // open the dropdown now so the loader is visible while searching
+    const t = setTimeout(() => {
+      // No facilityCode — a member can walk into a door at a centre that isn't
+      // their home/registered one, so this must search network-wide, not just
+      // this centre's roster (a centre-scoped search silently found nothing for
+      // a real member whose account was registered at a different centre).
+      api
+        .post(endpoints.members.list, { search: q, skip: 0, limit: 8 })
+        .then(res => {
+          if (cancelled) return;
+          setMemberResults((res.data?.data?.members as Member[]) ?? []);
+        })
+        .catch(() => {
+          if (!cancelled) setMemberResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setSearchingMembers(false);
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [memberQuery]);
+
+  const applyMember = (m: Member) => {
+    const fullName = `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
+    setMemberName(fullName);
+    setEmail(m.email ?? '');
+    setMemberId(m.userId ?? '');
+    setMemberType('Member');
+    setSubscription(m.subscription?.subscriptionCode ?? '');
+    setMemberSelected(true);
+  };
+
+  const selectMember = (m: Member) => {
+    applyMember(m);
+    setAutoMatched(false); // a manual pick overrides any earlier auto-match hint
+    setMemberQuery(''); // clear the search box so it doesn't re-trigger a search / reopen
+    setShowResults(false);
+  };
+
+  // ── Auto-lookup: the detection didn't resolve a userId/bookingId (so
+  // initMemberType() defaulted to "Non-Member"), but the actor may still carry a
+  // name or email — check the real members database before trusting that default.
+  // Email is an exact-match, unambiguous signal; a bare name only auto-applies when
+  // it resolves to exactly one member (ambiguous name matches are left for the
+  // admin to resolve via the search box above, rather than guessing). */
+  const [autoLookupLoading, setAutoLookupLoading] = useState(false);
+  const [autoMatched, setAutoMatched] = useState(false);
+  useEffect(() => {
+    if (log.review?.reviewed) return; // already reviewed — don't second-guess a saved review
+    if (log.actor?.userId || log.actor?.bookingId) return; // detection already resolved a real member
+    const actorEmail = (log.actor?.email || '').trim();
+    const actorName = (log.actor?.name || '').trim();
+    if (!actorEmail && !actorName) return; // nothing to search with
+
+    let cancelled = false;
+    setAutoLookupLoading(true);
+    // No facilityCode — same reason as the manual search above: a real member can
+    // enter through a door at a centre that isn't their registered home centre.
+    api
+      .post(endpoints.members.list, {
+        search: actorEmail || actorName,
+        skip: 0,
+        limit: 8,
+      })
+      .then(res => {
+        if (cancelled) return;
+        const results = (res.data?.data?.members as Member[]) ?? [];
+        const match = actorEmail
+          ? results.find(m => (m.email || '').toLowerCase() === actorEmail.toLowerCase())
+          : results.length === 1
+            ? results[0]
+            : undefined;
+        if (match) {
+          applyMember(match);
+          setAutoMatched(true);
+        }
+      })
+      .catch(() => {
+        /* no match found / lookup failed — keep the inferred "Non-Member" default */
+      })
+      .finally(() => {
+        if (!cancelled) setAutoLookupLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Runs once when the modal opens for this log — not on every keystroke/search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [log.id]);
+
+  // Undo a searched selection — put every field back to its default (pre-search) value.
+  const clearSelection = () => {
+    setMemberName(defaultName);
+    setMemberType(initMemberType());
+    setMemberId(defaultMemberId);
+    setSubscription(initSubscription());
+    setEmail(defaultEmail);
+    setMemberQuery('');
+    setShowResults(false);
+    setMemberSelected(false);
+    setAutoMatched(false);
+  };
   const initActualEventType = (): 'Entry' | 'Exit' | '' => {
     const saved = log.review?.actualEventType?.toLowerCase();
     if (saved === 'entry') return 'Entry';
@@ -60,6 +233,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
         memberName: memberName.trim() || null,
         memberType: memberType ? memberType.toLowerCase() : null,
         memberId: isMember ? memberId.trim() || null : null,
+        email: email.trim() || null,
         subscription: isMember ? subscription || null : null,
         isViolation,
         actualEventType: !isViolation ? (actualEventType ? actualEventType.toUpperCase() : null) : null,
@@ -101,6 +275,7 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
             </p>
           </div>
           <button
+            aria-label="Close"
             className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200"
             type="button"
             onClick={onClose}
@@ -166,6 +341,68 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
             </div>
 
             <div className="space-y-3">
+              {/* Member search — type a name, email or ID to auto-fill the fields below */}
+              <div className="relative">
+                <div className="mb-1 flex items-center justify-between">
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                    htmlFor="rv-search"
+                  >
+                    Find member
+                  </label>
+                  {memberSelected && (
+                    <button
+                      className="text-[11px] font-semibold text-[#21295A] hover:underline"
+                      type="button"
+                      onClick={clearSelection}
+                    >
+                      Clear selection
+                    </button>
+                  )}
+                </div>
+                {autoLookupLoading && <p className="mb-1 text-[11px] text-gray-400">Checking membership records…</p>}
+                {autoMatched && !autoLookupLoading && (
+                  <p className="mb-1 text-[11px] font-medium text-emerald-600">
+                    ✓ Auto-matched to a member record from the detection&apos;s name/email.
+                  </p>
+                )}
+                <input
+                  className={inputCls}
+                  id="rv-search"
+                  placeholder="Search by name, email or ID…"
+                  type="text"
+                  value={memberQuery}
+                  onChange={e => setMemberQuery(e.target.value)}
+                  onFocus={() => memberQuery.trim().length >= 2 && setShowResults(true)}
+                />
+                {showResults && (
+                  <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                    {searchingMembers ? (
+                      <p className="flex items-center gap-2 px-3 py-2 text-[12px] text-gray-400">
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-[#21295A]" />
+                        Searching…
+                      </p>
+                    ) : memberResults.length > 0 ? (
+                      memberResults.map(m => (
+                        <button
+                          key={m.userId}
+                          className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-gray-50"
+                          type="button"
+                          onClick={() => selectMember(m)}
+                        >
+                          <span className="text-[13px] font-semibold text-[#21295A]">
+                            {`${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() || '(no name)'}
+                          </span>
+                          <span className="text-[11px] text-gray-400">{m.email || m.userId}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-3 py-2 text-[12px] text-gray-400">No users found</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Name + Type row */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -198,6 +435,21 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
                 </div>
               </div>
 
+              {/* Email */}
+              <div>
+                <label className={labelCls} htmlFor="rv-email">
+                  Email
+                </label>
+                <input
+                  className={inputCls}
+                  id="rv-email"
+                  placeholder="name@example.com"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                />
+              </div>
+
               {/* Conditional: Member ID + Subscription */}
               {isMember && (
                 <div className="grid grid-cols-2 gap-3">
@@ -224,10 +476,10 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
                       value={subscription}
                       onChange={e => setSubscription(e.target.value)}
                     >
-                      <option value="">Select…</option>
-                      {SUBSCRIPTIONS.map(s => (
-                        <option key={s} value={s}>
-                          {s}
+                      <option value="">{plansLoading ? 'Loading…' : 'Select…'}</option>
+                      {subscriptionOptions.map(o => (
+                        <option key={o.code} value={o.code}>
+                          {o.name}
                         </option>
                       ))}
                     </select>

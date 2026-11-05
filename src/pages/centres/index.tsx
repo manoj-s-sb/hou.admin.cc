@@ -12,10 +12,11 @@ import { facilityScope } from '../../utils/facilityScope';
 
 import { LIVE_CENTRE_MODULES } from './centreModules';
 import CentreCard from './components/CentreCard';
-import { CENTRE_CREATION_ENABLED, CENTRE_EDIT_ENABLED, STATUS_FILTERS, PAGE_LIMIT } from './constants';
+import DeleteCentreModal from './components/DeleteCentreModal';
+import { STATUS_FILTERS, PAGE_LIMIT } from './constants';
 import NewCentreWizard from './newCentre/NewCentreWizard';
 
-import type { CentreApiStatus } from '../../store/centres/types';
+import type { CentreApiStatus, FacilitySummary } from '../../store/centres/types';
 
 /** Page numbers with ellipses, mirroring the DataTable pager used on Members. */
 function pageNumbers(current: number, totalPages: number): (number | '...')[] {
@@ -25,6 +26,12 @@ function pageNumbers(current: number, totalPages: number): (number | '...')[] {
   return [0, '...', current - 1, current, current + 1, '...', totalPages - 1];
 }
 
+/** The module to land on when opening a centre from the list. Which one
+ * doesn't matter for a Draft/Staging centre — CentreModuleRoute shows its own
+ * neutral "not active yet" note for every module on those, regardless of
+ * slug — so this only ever needs to pick the first module the user can read. */
+const firstModuleFor = (): { slug: string } | undefined => LIVE_CENTRE_MODULES.find(m => !m.scope || canRead(m.scope));
+
 const CentreManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'' | CentreApiStatus>('');
   const [searchInput, setSearchInput] = useState('');
@@ -33,8 +40,18 @@ const CentreManagement: React.FC = () => {
   const [wizardOpen, setWizardOpen] = useState(false);
   // Code of the draft centre being edited/activated directly from its card.
   const [editCode, setEditCode] = useState<string | null>(null);
+  // The Draft centre currently in the delete-confirmation flow, if any.
+  const [deleteTarget, setDeleteTarget] = useState<FacilitySummary | null>(null);
   const { closeCentre } = useCentreNav();
   const navigate = useNavigate();
+
+  // One shared clock for every card's "local time" — a single 1s interval here
+  // instead of one per CentreCard (which was N timers + N re-renders per second).
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // The list page shows the global sidebar with no centre open — clear any prior selection.
   useEffect(() => {
@@ -97,7 +114,7 @@ const CentreManagement: React.FC = () => {
     autoOpenedRef.current = true;
     const [centre] = facilities;
     facilityScope.set(centre.code);
-    const first = LIVE_CENTRE_MODULES.find(m => !m.scope || canRead(m.scope));
+    const first = firstModuleFor();
     navigate(buildRoute.centreModule(centre.code, first?.slug ?? 'members'), { replace: true });
   }, [isLoading, total, facilities, statusFilter, search, skip, navigate]);
 
@@ -154,44 +171,52 @@ const CentreManagement: React.FC = () => {
         Select a centre to open its operations dashboard, or manage network-wide configuration.
       </div>
 
-      {/* Filter bar: status chips + search */}
-      <div
-        className="mb-5 flex flex-wrap items-end gap-3 rounded-[10px] border border-cmx-border bg-white px-[18px] py-3.5 shadow-cmx"
-        style={{ justifyContent: 'space-between', alignItems: 'center' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span className="cmx-eyebrow" style={{ margin: 0 }}>
-            Status:
-          </span>
-          {STATUS_FILTERS.map(f => (
-            <button
-              key={f.key || 'all'}
-              className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border bg-white px-2.5 py-1 text-xs font-medium transition-all ${
-                statusFilter === f.key ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : 'border-cmx-border text-sub'
-              }`}
-              type="button"
-              onClick={() => {
-                setStatusFilter(f.key);
-                setSkip(0);
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
+      {/* Filter bar: status segmented control + search */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e0e0e0] bg-white px-6 py-[18px]">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-[16px] font-semibold text-[#6e6e6e]">STATUS:</span>
+          <div className="flex items-center rounded-xl border border-[#b7a897] bg-[#eae5d8] p-1">
+            {STATUS_FILTERS.map(f => (
+              <button
+                key={f.key || 'all'}
+                className={`cursor-pointer select-none whitespace-nowrap rounded-xl px-6 py-2.5 text-[16px] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#336dc2] focus-visible:ring-offset-1 ${
+                  statusFilter === f.key
+                    ? 'border border-[#cbcbcb] bg-white text-[#202020] drop-shadow-[6px_0px_3.25px_rgba(183,168,151,0.31)]'
+                    : 'border border-transparent text-[#6e6e6e]'
+                }`}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(f.key);
+                  setSkip(0);
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <input
-          placeholder="Search name, code or city…"
-          style={{
-            border: '1px solid var(--border)',
-            borderRadius: 7,
-            padding: '7px 12px',
-            fontSize: 13,
-            minWidth: 240,
-          }}
-          type="text"
-          value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
-        />
+        <div className="flex h-11 w-[340px] items-center gap-2.5 rounded-xl border border-[#e0e0e0] px-3.5">
+          <svg
+            className="h-[18px] w-[18px] shrink-0 text-[#6e6e6e]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
+          </svg>
+          <input
+            className="w-full border-none bg-transparent text-[16px] text-[#202020] outline-none placeholder:text-[#6e6e6e]"
+            placeholder="Search name, code or city…"
+            type="text"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
@@ -200,12 +225,12 @@ const CentreManagement: React.FC = () => {
           All Centres
           {!isLoading && <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--sub)' }}> · {total}</span>}
         </div>
-        {canManageCentres && CENTRE_CREATION_ENABLED && (
-          <button className="cmx-btn cmx-btn-navy" type="button" onClick={() => setWizardOpen(true)}>
-            <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
-              <line x1="12" x2="12" y1="5" y2="19" />
-              <line x1="5" x2="19" y1="12" y2="12" />
-            </svg>
+        {canManageCentres && (
+          <button
+            className="cmx-btn cmx-btn-navy !rounded-xl !px-5 !py-2.5 !text-[16px] !font-semibold"
+            type="button"
+            onClick={() => setWizardOpen(true)}
+          >
             New Centre
           </button>
         )}
@@ -215,6 +240,26 @@ const CentreManagement: React.FC = () => {
         <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
           <div className="text-sm font-bold text-navy">Loading centres…</div>
         </div>
+      ) : facilities.length === 0 && (statusFilter || search) ? (
+        // A search/status filter matching nothing used to render a bare grid
+        // with only "+ Add New Centre" — indistinguishable from "there are no
+        // centres at all" and no quick way back to the unfiltered list.
+        <div className="rounded-xl border border-cmx-border bg-white px-6 py-14 text-center text-sub">
+          <div className="mb-1 text-sm font-bold text-navy">No centres match</div>
+          <div className="mb-4 text-[13px]">Try a different search or status filter.</div>
+          <button
+            className="cmx-btn cmx-btn-outline"
+            type="button"
+            onClick={() => {
+              setStatusFilter('');
+              setSearchInput('');
+              setSearch('');
+              setSkip(0);
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3">
@@ -222,36 +267,30 @@ const CentreManagement: React.FC = () => {
               <CentreCard
                 key={c.id || c.code}
                 centre={c}
-                onEdit={canManageCentres && CENTRE_EDIT_ENABLED ? summary => startEdit(summary.code) : undefined}
+                now={now}
+                onDelete={canManageCentres ? summary => setDeleteTarget(summary) : undefined}
+                onEdit={canManageCentres ? summary => startEdit(summary.code) : undefined}
                 onOpen={summary => {
                   facilityScope.set(summary.code);
-                  // Land on the first module this user has read access to.
-                  const first = LIVE_CENTRE_MODULES.find(m => !m.scope || canRead(m.scope));
+                  // Land on the first module this user has read access to. A
+                  // Draft/Staging centre shows its own neutral "not active yet"
+                  // note on whichever module this resolves to (CentreModuleRoute
+                  // gates on status, not on which slug was requested).
+                  const first = firstModuleFor();
                   navigate(buildRoute.centreModule(summary.code, first?.slug ?? 'members'));
                 }}
               />
             ))}
 
             {/* Add New Centre dashed card — super-admin only, only alongside the
-                unfiltered/live view (All or Active), and only while centre creation
-                is enabled (see CENTRE_CREATION_ENABLED in ./constants). */}
-            {canManageCentres && CENTRE_CREATION_ENABLED && (statusFilter === '' || statusFilter === 'active') && (
+                unfiltered/live view (All or Active). */}
+            {canManageCentres && (statusFilter === '' || statusFilter === 'active') && (
               <button
                 aria-label="Add new centre"
                 className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"
                 type="button"
                 onClick={() => setWizardOpen(true)}
               >
-                <svg
-                  className="h-7 w-7 text-muted"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  viewBox="0 0 24 24"
-                >
-                  <line x1="12" x2="12" y1="5" y2="19" />
-                  <line x1="5" x2="19" y1="12" y2="12" />
-                </svg>
                 <span className="text-[13px] font-semibold text-sub">Add New Centre</span>
               </button>
             )}
@@ -304,6 +343,17 @@ const CentreManagement: React.FC = () => {
             </div>
           )}
         </>
+      )}
+
+      {deleteTarget && (
+        <DeleteCentreModal
+          centre={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            setSkip(0);
+            refetch();
+          }}
+        />
       )}
     </div>
   );

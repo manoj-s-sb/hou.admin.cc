@@ -6,6 +6,9 @@ interface StepFooterProps {
   nextStepLabel?: string;
   isEditMode: boolean;
   isSubmitting: boolean;
+  /** False when "Send welcome email" is unticked — nothing will actually be
+   * shared, so the primary button shouldn't promise it. */
+  willSendWelcomeEmail?: boolean;
   onBack: () => void;
   onNext: () => void;
   onCancel: () => void;
@@ -19,6 +22,7 @@ const StepFooter: React.FC<StepFooterProps> = ({
   nextStepLabel,
   isEditMode,
   isSubmitting,
+  willSendWelcomeEmail = true,
   onBack,
   onNext,
   onCancel,
@@ -86,7 +90,7 @@ const StepFooter: React.FC<StepFooterProps> = ({
                 strokeWidth={1.8}
               />
             </svg>
-            {isSubmitting ? 'Saving…' : isEditMode ? 'Save Changes' : 'Save & Share'}
+            {isSubmitting ? 'Saving…' : isEditMode ? 'Save Changes' : willSendWelcomeEmail ? 'Save & Share' : 'Save'}
           </button>
         </div>
       )}

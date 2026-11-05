@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
+import ProfileAvatar from '../../components/ProfileAvatar';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute, ROUTES } from '../../constants/routes';
@@ -20,8 +21,6 @@ type TabKey = 'all' | 'designations' | 'access';
 
 interface StaffRow {
   id: string;
-  initials: string;
-  initialsBg: string;
   photoUrl: string;
   name: string;
   subtitle: string;
@@ -31,6 +30,11 @@ interface StaffRow {
   twoFa: 'on' | 'off';
   documents: { count: number; tone: 'green' | 'red' | 'amber' };
   status: 'active' | 'invited' | 'draft' | 'inactive';
+  // A draft saved with Role and/or Access Level never filled in — still
+  // missing from the record (edit-mode saves already require both, so this
+  // can only ever be true for a draft). Flagged in the list so it's never
+  // mistaken for a fully set-up staff member.
+  isIncomplete: boolean;
   raw: StaffListRow;
 }
 
@@ -83,21 +87,6 @@ const matrixGrant = (scopeType: string, levelId: string, rowIndex: number): Gran
   return 'none';
 };
 
-const INITIALS_PALETTE = [
-  'bg-indigo-100 text-indigo-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700',
-  'bg-rose-100 text-rose-700',
-  'bg-sky-100 text-sky-700',
-  'bg-violet-100 text-violet-700',
-];
-
-const pickInitialsBg = (seed: string): string => {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash + seed.charCodeAt(i)) % INITIALS_PALETTE.length;
-  return INITIALS_PALETTE[hash];
-};
-
 const accessTone = (level: string | null): StaffRow['accessLevel']['tone'] => {
   if (!level) return 'admin';
   const v = level.toLowerCase();
@@ -118,27 +107,18 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
 const mapStaff = (
   row: StaffListRow,
   resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string,
-  resolveAccessLabel: (code: string | null) => string
+  resolveAccessLabel: (code: string | null) => string,
+  resolveRoleLabel: (code: string) => string
 ): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
   const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
-  const initialsSource = fullName || row.email || '?';
-  const initials =
-    initialsSource
-      .split(/\s+|@|\./)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(part => part.charAt(0).toUpperCase())
-      .join('') || '?';
 
-  const roles = (row.userType ?? []).map(role => ({ label: formatRoleLabel(role) }));
+  const roles = (row.userType ?? []).map(role => ({ label: resolveRoleLabel(role) }));
 
   const centres = resolveCentres(row.assignedCentres, row.facilityCode);
 
   return {
     id: row.staffId,
-    initials,
-    initialsBg: pickInitialsBg(row.staffId || row.email || displayName),
     photoUrl:
       row.photoSasUrl ??
       row.photoUrl ??
@@ -159,6 +139,7 @@ const mapStaff = (
       tone: (row.documentCount ?? 0) > 0 ? 'green' : 'red',
     },
     status: normalizeStatus(row.status),
+    isIncomplete: normalizeStatus(row.status) === 'draft' && ((row.userType ?? []).length === 0 || !row.accessLevel),
     raw: row,
   };
 };
@@ -168,6 +149,27 @@ const StaffManagement: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  // Defaults to "All Statuses" so a newly-created staff member (Invited, or
+  // Draft via "Save as Draft") is never silently hidden the moment you land
+  // back on this screen — narrow to a specific status deliberately instead.
+  // "Inactive" covers suspended staff too: the backend only ever writes
+  // 'active' or 'suspended' (see handleToggleStatus), and normalizeStatus
+  // already collapses 'suspended' into the same "Inactive" bucket the Status
+  // column displays — so there's no separate "Suspended" option.
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'invited' | 'draft' | 'inactive'>('all');
+  // Search + role/access-level/centre filters — all client-side over the
+  // already-loaded page (same approach the existing Status filter already
+  // uses), since the whole list is fetched in one page (limit 50) today.
+  const [searchInput, setSearchInput] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [accessFilter, setAccessFilter] = useState('all');
+  const [centreFilter, setCentreFilter] = useState('all');
+  // "All Staff" table pagination, lifted out of DataTable (which otherwise
+  // tracks this internally) so the S.No column below can offset by the
+  // current page instead of restarting at 1 on every page — same pattern
+  // src/pages/members/index.tsx and src/pages/induction/index.tsx already use.
+  const [staffPage, setStaffPage] = useState(0);
+  const [staffRowsPerPage, setStaffRowsPerPage] = useState(10);
   const { staffList, isListLoading, listError, staffConfig, isConfigLoading, configError } = useSelector(
     (state: RootState) => state.staff
   );
@@ -189,6 +191,18 @@ const StaffManagement: React.FC = () => {
     [staffConfig]
   );
 
+  // Role code → human designation name. Prefers the configured label from
+  // staff config (e.g. "facilitymgmt" -> "Facility Management"); falls back
+  // to formatRoleLabel's small built-in set + naive capitalize for anything
+  // else, same pattern already used by the Designations tab below.
+  const roleLabelOf = useCallback(
+    (code: string): string => {
+      const match = (staffConfig?.roles ?? []).find(r => r.id.toLowerCase() === code.toLowerCase());
+      return match?.label || formatRoleLabel(code);
+    },
+    [staffConfig]
+  );
+
   const loadStaff = useCallback(() => {
     dispatch(getStaffList(buildStaffListParams()));
   }, [dispatch]);
@@ -200,9 +214,48 @@ const StaffManagement: React.FC = () => {
   }, [dispatch, loadStaff]);
 
   const staff: StaffRow[] = useMemo(
-    () => staffList.map(row => mapStaff(row, centreLookup.text, accessLabelOf)),
-    [staffList, centreLookup.text, accessLabelOf]
+    () => staffList.map(row => mapStaff(row, centreLookup.text, accessLabelOf, roleLabelOf)),
+    [staffList, centreLookup.text, accessLabelOf, roleLabelOf]
   );
+
+  // Distinct centre codes actually present across the loaded staff, labelled via
+  // useCentreLookup — no separate "list all centres" fetch needed.
+  const centreOptions = useMemo(() => {
+    const codes = new Set<string>();
+    staffList.forEach(row => {
+      (row.assignedCentres ?? []).forEach(c => c && codes.add(c));
+      if (row.facilityCode) codes.add(row.facilityCode);
+    });
+    return Array.from(codes)
+      .sort()
+      .map(code => ({ code, label: centreLookup.label(code) }));
+  }, [staffList, centreLookup]);
+
+  const filteredStaff: StaffRow[] = useMemo(() => {
+    const needle = searchInput.trim().toLowerCase();
+    return staff.filter(s => {
+      if (statusFilter !== 'all' && s.status !== statusFilter) return false;
+      if (roleFilter !== 'all' && !(s.raw.userType ?? []).includes(roleFilter)) return false;
+      if (accessFilter !== 'all' && (s.raw.accessLevel ?? '') !== accessFilter) return false;
+      if (centreFilter !== 'all') {
+        const codes = [...(s.raw.assignedCentres ?? []), s.raw.facilityCode].filter(Boolean);
+        if (!codes.includes(centreFilter)) return false;
+      }
+      if (needle) {
+        const haystack = [s.name, s.raw.email, s.raw.phone].filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
+      return true;
+    });
+  }, [staff, statusFilter, searchInput, roleFilter, accessFilter, centreFilter]);
+
+  // A filter change can make the currently-viewed page go out of range (or
+  // simply confusing to stay on) — jump back to page 1, matching the other
+  // DataTable-paginated list pages' behavior.
+  useEffect(() => {
+    setStaffPage(0);
+  }, [statusFilter, searchInput, roleFilter, accessFilter, centreFilter]);
+
   const isLoading = isListLoading;
   const error = listError;
 
@@ -266,7 +319,9 @@ const StaffManagement: React.FC = () => {
       flex: 0.5,
       minWidth: 60,
       sortable: false,
-      renderCell: ({ index }) => <span className="text-[13px] font-medium text-gray-400">{index + 1}</span>,
+      renderCell: ({ index }) => (
+        <span className="text-[13px] font-medium text-gray-400">{staffPage * staffRowsPerPage + index + 1}</span>
+      ),
     },
     {
       field: 'name',
@@ -283,15 +338,7 @@ const StaffManagement: React.FC = () => {
             openProfile(row);
           }}
         >
-          <div
-            className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold ${row.photoUrl ? 'bg-gray-100' : row.initialsBg}`}
-          >
-            {row.photoUrl ? (
-              <img alt={row.name} className="h-full w-full object-cover" src={row.photoUrl} />
-            ) : (
-              row.initials
-            )}
-          </div>
+          <ProfileAvatar alt={row.name} photoUrl={row.photoUrl} />
           <div>
             <p className="text-[13px] font-semibold text-[#21295A] hover:underline">{row.name}</p>
             <p className="text-[11px] text-gray-400">{row.subtitle}</p>
@@ -307,11 +354,16 @@ const StaffManagement: React.FC = () => {
       sortable: false,
       renderCell: ({ row }) => (
         <div className="flex flex-wrap gap-1.5">
+          {/* Every role gets its own small badge, not just plain text — a
+              person holding 2+ roles (e.g. Coach + Facility Admin) previously
+              rendered as one run-on phrase with no visual separation between
+              them. The first role is tinted to read as the "primary" one at
+              a glance; any additional roles are a plain gray badge. */}
           {(row as StaffRow).primaryRoles.map((role, idx) => (
             <span
               key={idx}
-              className={`text-[12px] font-medium ${
-                role.tone === 'muted' ? 'rounded-md bg-gray-100 px-2 py-0.5 text-gray-600' : 'text-gray-700'
+              className={`rounded-md px-2 py-0.5 text-[12px] font-medium ${
+                idx === 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'
               }`}
             >
               {role.label}
@@ -372,8 +424,21 @@ const StaffManagement: React.FC = () => {
       minWidth: 100,
       sortable: false,
       renderCell: ({ row }) => {
-        const status = statusToneClass[(row as StaffRow).status];
-        return <span className={`text-[12px] font-semibold ${status.className}`}>{status.label}</span>;
+        const r = row as StaffRow;
+        const status = statusToneClass[r.status];
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-[12px] font-semibold ${status.className}`}>{status.label}</span>
+            {r.isIncomplete && (
+              <span
+                className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
+                title="Missing Role and/or Access Level — finish this draft in Edit before activating it"
+              >
+                Incomplete
+              </span>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -439,7 +504,12 @@ const StaffManagement: React.FC = () => {
           </span>
           <div>
             <p className="text-[13px] font-bold text-[#21295A]">{row.label}</p>
-            <p className="line-clamp-1 max-w-[260px] text-[11px] text-gray-400">{row.description}</p>
+            <p
+              className="line-clamp-2 max-w-[260px] whitespace-normal text-[11px] text-gray-400"
+              title={row.description}
+            >
+              {row.description}
+            </p>
           </div>
         </div>
       ),
@@ -522,6 +592,68 @@ const StaffManagement: React.FC = () => {
               {error}
             </div>
           )}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <input
+              className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+              placeholder="Search by name, email, or phone"
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="staff-role-filter"
+                value={roleFilter}
+                onChange={e => setRoleFilter(e.target.value)}
+              >
+                <option value="all">All Roles</option>
+                {(staffConfig?.roles ?? []).map(role => (
+                  <option key={role.id} value={role.id}>
+                    {role.label || formatRoleLabel(role.id)}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="staff-access-filter"
+                value={accessFilter}
+                onChange={e => setAccessFilter(e.target.value)}
+              >
+                <option value="all">All Access Levels</option>
+                {(staffConfig?.accessLevels ?? []).map(level => (
+                  <option key={level.id} value={level.id}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="staff-centre-filter"
+                value={centreFilter}
+                onChange={e => setCentreFilter(e.target.value)}
+              >
+                <option value="all">All Centres</option>
+                {centreOptions.map(c => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="staff-status-filter"
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="invited">Invited</option>
+                <option value="draft">Draft</option>
+              </select>
+            </div>
+          </div>
           <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <DataTable
               columns={staffColumns.map(
@@ -538,15 +670,21 @@ const StaffManagement: React.FC = () => {
                       : undefined,
                 })
               )}
-              data={staff}
+              data={filteredStaff}
               emptyState={{
                 title: 'No staff members yet',
                 subtitle: 'Click "Add Staff Member" to add your first one.',
               }}
               getRowId={(row: StaffRow) => row.id}
               loading={isLoading}
-              rowsPerPage={15}
+              page={staffPage}
+              rowsPerPage={staffRowsPerPage}
+              onPageChange={setStaffPage}
               onRowClick={(row: StaffRow) => openProfile(row)}
+              onRowsPerPageChange={rows => {
+                setStaffRowsPerPage(rows);
+                setStaffPage(0);
+              }}
             />
           </div>
         </>

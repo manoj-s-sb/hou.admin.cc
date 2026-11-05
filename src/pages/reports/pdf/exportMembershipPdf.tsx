@@ -20,6 +20,7 @@ const fetchTab = async (req: ReportsRequest, tab: 'overview' | 'membership') => 
       period: req.period,
       startDate: req.startDate || undefined,
       endDate: req.endDate || undefined,
+      includeNonActive: req.includeNonActive || undefined,
     },
   });
   return res.data?.data;

@@ -245,6 +245,55 @@ export interface ActivateSubscriptionRequest {
   adminName: string;
 }
 
+/** One admin note on a member — see src/pages/members/components/AdminNotesSection.tsx. */
+export interface MemberNoteItem {
+  id: string;
+  userId: string;
+  noteText: string;
+  createdById: string | null;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+/** One attachment reference on a sent member email — see SendEmailSection.tsx. */
+export interface MemberEmailAttachment {
+  blobName: string;
+  fileName: string;
+  contentType?: string | null;
+  sizeBytes?: number | null;
+}
+
+/** One custom email sent to a member — see src/pages/members/components/SendEmailSection.tsx. */
+export interface MemberEmailItem {
+  id: string;
+  userId: string;
+  subject: string;
+  body: string;
+  attachments: MemberEmailAttachment[];
+  sentById: string | null;
+  sentByName: string;
+  sentAt: string;
+  status: 'sent' | 'failed';
+}
+
+/** One recipient's outcome from a bulk send — see BulkSendEmailModal.tsx. */
+export interface BulkMemberEmailResult {
+  userId: string;
+  status: 'sent' | 'failed' | 'skipped_no_email';
+}
+
+/** Response for POST /admin/members/email/bulk-send. Counts are synchronous —
+ * 'sent' means successfully queued/direct-sent (same meaning as MemberEmailItem's
+ * status), not confirmed delivery. */
+export interface BulkMemberEmailResponse {
+  totalSelected: number;
+  sentCount: number;
+  failedCount: number;
+  skippedNoEmail: number;
+  results: BulkMemberEmailResult[];
+}
+
 export interface MembersCountResponse {
   premiumFortnightly: number;
   premiumAnnual: number;
@@ -287,10 +336,32 @@ export interface MembersInitialState {
   isPurchasedSlotsLoading: boolean;
   error: string | null;
   membersList: MemberListResponse;
+  /** requestId of the most recently DISPATCHED getMembers call. Nothing else
+   * writes membersList unless a response's own requestId still matches this
+   * -- an older, slower request (e.g. an unfiltered list still in flight
+   * when the user quickly applies a Plan/Status filter) can otherwise land
+   * AFTER the newer, filtered response and silently overwrite it with stale
+   * data. See reducers.ts. */
+  latestMembersRequestId: string | null;
   memberDetails: MemberDetailsResponse | null;
   isSubscriptionActivation: boolean;
   membersCount: MembersCountResponse | null;
   purchasedSlotsData: PurchasedSlotsData | null;
+  /** Admin Notes — kept separate from `memberDetails` so a note add/edit/delete
+   * never has to refetch the whole member object. */
+  memberNotes: MemberNoteItem[];
+  memberNotesLoading: boolean;
+  memberNotesError: string | null;
+  /** Custom emails sent to a member — kept separate from `memberDetails` for
+   * the same reason `memberNotes` is (see above). */
+  memberEmails: MemberEmailItem[];
+  memberEmailsLoading: boolean;
+  memberEmailsError: string | null;
+  memberEmailSending: boolean;
+  /** Bulk send (Members grid row selection) — kept separate from the
+   * single-member email state above for the same reason memberEmails is. */
+  memberEmailBulkSending: boolean;
+  memberEmailBulkResult: BulkMemberEmailResponse | null;
 }
 
 export const initialState: MembersInitialState = {
@@ -304,8 +375,18 @@ export const initialState: MembersInitialState = {
     skip: 0,
     total: 0,
   },
+  latestMembersRequestId: null,
   memberDetails: null,
   isSubscriptionActivation: false,
+  memberNotes: [],
+  memberNotesLoading: false,
+  memberNotesError: null,
+  memberEmails: [],
+  memberEmailsLoading: false,
+  memberEmailsError: null,
+  memberEmailSending: false,
+  memberEmailBulkSending: false,
+  memberEmailBulkResult: null,
   membersCount: null,
   purchasedSlotsData: null,
 };

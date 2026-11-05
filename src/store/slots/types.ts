@@ -23,9 +23,19 @@ export interface BookingDetails {
   }[];
   facilityPin: string;
   lanePin: string;
+  // SA-8: `code` is always present when a coach is genuinely attached, even
+  // if `name` couldn't be resolved (an inactive/deleted coach record, or a
+  // code the self-service system wrote that this portal's coach list doesn't
+  // recognize) — callers must check `code` to detect "has a coach", not
+  // `name`, or a booking with a real but unresolved coach silently counts as
+  // having none (see slot_calendar_service.py's matching comment).
   coach: {
+    code?: string;
     name: string;
   };
+  // Set only when an admin booked this on someone's behalf via "Book for
+  // Someone" — absent for a member's own self-booking.
+  bookedByName?: string;
 }
 
 export interface Slot {
@@ -37,6 +47,19 @@ export interface Slot {
   booking?: Partial<BookingDetails>;
   disableReason?: string;
   disabledAt?: string;
+  // Admin userId (JWT sub) who blocked it — audit trail, not a display name.
+  disabledBy?: string;
+  // Display name typed in the Block modal's "Blocked by" field (defaults to the
+  // logged-in user's name, editable — e.g. a shared/generic login used by
+  // different physical staff). Shown in the modal as "Blocked by".
+  disabledByName?: string;
+  // Set by RecurringBlocks (recurringblocks module) when this slot was blocked
+  // by an active weekly series rather than the one-off Block action. 'one_time'
+  // for an ordinary block, undefined when never blocked.
+  source?: 'one_time' | 'series';
+  seriesId?: string;
+  occurrenceDate?: string;
+  isException?: boolean;
 }
 
 export interface Lanes {
@@ -67,6 +90,82 @@ export interface UpdateLaneStatusRequest {
   slotCode?: string | string[];
   blockLaneApp?: boolean;
   startTime?: string;
+  // Display name of who is blocking the slot — see Slot.disabledByName.
+  blockedByName?: string;
+}
+
+/** "Book for someone" — an admin books a lane slot on a walk-in/phone
+ * caller's behalf. Always free/comp; no payment fields exist on this
+ * request. */
+export interface CreateBookingRequest {
+  slotCode: string;
+  firstName: string;
+  lastName?: string;
+  email: string;
+  dateOfBirth: string; // YYYY-MM-DD
+  notes?: string;
+}
+
+export interface CreateBookingResponse {
+  bookingCode: string;
+  bookingId: string;
+  userId: string;
+  userCreated: boolean;
+  slotCode: string;
+  status: string;
+  date: string;
+  startTime: string;
+  notified: boolean;
+  alreadyExisted: boolean;
+}
+
+/** "Shift Lane" — moves an existing booking to a different lane's slot at the
+ * same time (e.g. the current lane has an issue). Keeps the same booking
+ * code, PINs and guests — only the lane/slot changes. */
+export interface EditBookingRequest {
+  bookingCode: string;
+  slotCode: string;
+  reason?: string;
+}
+
+export interface EditBookingResponse {
+  bookingCode: string;
+  bookingId: string;
+  userId: string;
+  previousSlotCode: string;
+  slotCode: string;
+  date?: string;
+  startTime?: string;
+  status: string;
+  notified: boolean;
+}
+
+/** Cancel one booking: refund + DB write + push/email, via CancelBookingService. */
+export interface CancelBookingRequest {
+  bookingIds: string[];
+  reason?: string;
+}
+
+export interface CancelledBooking {
+  bookingCode: string;
+  userId: string;
+  refundAmount: number;
+  slotCode?: string;
+  notified: boolean;
+  /** False means the booking was cancelled/refunded but the lane slot itself
+   * could not be freed — it may still show as booked on the calendar. */
+  slotReleased: boolean;
+}
+
+export interface FailedCancellation {
+  bookingCode: string;
+  reason: string;
+}
+
+export interface CancelBookingResponse {
+  cancelled: CancelledBooking[];
+  failed: FailedCancellation[];
+  totalRefunded: number;
 }
 
 export interface CoachSlotsRequest {
@@ -78,10 +177,38 @@ export interface CoachSlotsRequest {
 export interface CoachSlot {
   coachSlotCode: string;
   endTime: string;
+  // `isAvailable: false` alone does NOT mean booked — it's also set on non-bookable
+  // 'disabled' placeholder slots (e.g. off-hours). A real booking is identified by
+  // status === 'confirmed' (equivalently, bookingId being set) — check that, not
+  // isAvailable, to decide whether a slot represents an actual booking.
   isAvailable: boolean;
   startTime: string;
+  status?: string;
+  bookingId?: string;
   bookingCode?: string;
   bookingType?: string;
+  // Lane the coach session is booked on, when known — parsed server-side from
+  // the linked regular slot's code, display-only.
+  laneNo?: number;
+  // The member who booked this coach session — resolved server-side via bookingId,
+  // same join the regular Slot Bookings calendar uses. Absent when the booking
+  // doesn't resolve (a data-integrity gap, not a rendering issue).
+  memberName?: string;
+  memberEmail?: string;
+  memberPhone?: string;
+  // Free-text reason the slot was disabled (e.g. 'Sick leave') — shown in the
+  // slot's own detail modal, NOT used to detect Holiday (see isHoliday).
+  disableReason?: string;
+  // True only when this slot was disabled via the whole-day-off quick action.
+  // The grid always labels such slots 'Holiday' regardless of disableReason's
+  // text. Never set by an ordinary single-cell Mark Unavailable.
+  isHoliday?: boolean;
+  // CenturyBackend pre-creates every coachslot doc with this already set (e.g.
+  // ['regular','induction'] or ['regular','induction','tour']) — this app never
+  // creates a coachslot, only reads/bulk-edits this field. Defaults effectively
+  // to ['regular'] server-side when absent on an old/malformed doc.
+  supportedSessionTypes?: string[];
+  duration?: number;
 }
 
 export interface Availability {
@@ -116,6 +243,11 @@ export interface SlotsInitialState {
   slots: GetSlotsResponse | null;
   isBlockLaneLoading: boolean;
   coachSlotsList: CoachSlotsResponse[] | null;
+  // Kept separate from coachSlotsList (never reused) so navigating between
+  // the Team Schedule page's Coach and Staff tabs can never show one tab's
+  // stale data (or loading state) under the other's selection.
+  isStaffLoading: boolean;
+  staffSlotsList: CoachSlotsResponse[] | null;
 }
 
 export const initialState: SlotsInitialState = {
@@ -124,4 +256,6 @@ export const initialState: SlotsInitialState = {
   slots: null,
   isBlockLaneLoading: false,
   coachSlotsList: null,
+  isStaffLoading: false,
+  staffSlotsList: null,
 };

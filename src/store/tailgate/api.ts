@@ -16,6 +16,7 @@ export const submitTailgateReview = createAsyncThunk(
       memberName: string | null;
       memberType: string | null;
       memberId: string | null;
+      email: string | null;
       subscription: string | null;
       isViolation: boolean;
       actualEventType: string | null;
@@ -31,6 +32,7 @@ export const submitTailgateReview = createAsyncThunk(
         memberName: payload.memberName,
         memberType: payload.memberType,
         memberId: payload.memberId,
+        email: payload.email,
         subscription: payload.subscription,
         isViolation: payload.isViolation,
         actualEventType: payload.isViolation ? null : payload.actualEventType,

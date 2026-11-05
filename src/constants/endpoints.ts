@@ -1,4 +1,5 @@
 // Every request path in this app is served behind an `/api` prefix (see the
+// backend's host.json routePrefix) — added once here so REACT_APP_API_BASE_URL
 // (.env.development/.env.uat/.env.production) never needs to know about it.
 const API_PREFIX = '/api';
 
@@ -7,7 +8,61 @@ const endpoints = {
     list: `${API_PREFIX}/admin/slots/calendar`,
     updateLaneStatus: `${API_PREFIX}/admin/slots/status/update`,
     coachSlots: `${API_PREFIX}/admin/coach/calendar`,
+    // Bulk status (+ optional supportedSessionTypes) update over an arbitrary
+    // admin-picked list of coach slot codes — see CoachScheduleGrid's
+    // click/drag multi-select. No day-of-week/day-of-month pattern involved.
     updateCoachSlots: `${API_PREFIX}/admin/coach/status/update`,
+    // Fills in missing coachslot inventory for a coach over a plain date
+    // range when CenturyBackend hasn't pre-created that far out yet. Separate
+    // from updateCoachSlots: this creates new disabled/unavailable slots,
+    // it never sets availability itself.
+    generateCoachSlots: `${API_PREFIX}/admin/coach/slots/generate`,
+    // Staff Schedule's equivalents of the two above — same mechanism, same
+    // coachslot-shaped documents, just over the facility's staff roster
+    // instead of its coaches.
+    staffSlots: `${API_PREFIX}/admin/staff/calendar`,
+    generateStaffSlots: `${API_PREFIX}/admin/staff/slots/generate`,
+    // Same request/response shape and service method as updateCoachSlots —
+    // a separate route purely so edit access is gated by the 'staffschedule'
+    // permission instead of 'coachschedule' (otherwise someone granted only
+    // Staff Schedule access could view but never edit the staff calendar).
+    updateStaffSlots: `${API_PREFIX}/admin/staff/slots/status/update`,
+    // "Book for someone" — admin books a lane slot for a walk-in/phone caller.
+    createBooking: `${API_PREFIX}/admin/bookings/create`,
+    // "Shift Lane" — moves an existing booking to another lane's slot at the same time.
+    editBooking: `${API_PREFIX}/admin/bookings/edit`,
+    // Cancel one booking: refund + DB write + push/email, via CancelBookingService.
+    // POST { bookingIds: [bookingId], reason }.
+    cancelBooking: `${API_PREFIX}/admin/bookings/cancel`,
+  },
+  recurringBlocks: {
+    // Conflict preview — read-only, nothing written.
+    preview: `${API_PREFIX}/admin/recurringblocks/preview`,
+    // Creates the series — idempotent on `idempotencyKey`; requires
+    // conflictResolutions for EVERY conflicting booking the preview surfaced
+    // (member or coach) — nothing is cancelled/refunded/notified without one.
+    create: `${API_PREFIX}/admin/recurringblocks/create`,
+    // Fetch one series + its current _etag — read before skip/cancel/edit.
+    getSeries: `${API_PREFIX}/admin/recurringblocks/series/get`,
+    // Skip one occurrence — frees the slot if blocked, series keeps running.
+    skip: `${API_PREFIX}/admin/recurringblocks/skip`,
+    // Stops future generation only; already-blocked dates stay blocked.
+    cancel: `${API_PREFIX}/admin/recurringblocks/cancel`,
+    // scope: 'this_one' | 'this_and_following' | 'all'.
+    edit: `${API_PREFIX}/admin/recurringblocks/edit`,
+    // Series list view — each entry's remainingBlockedDates come straight from
+    // the slot docs, not re-derived from the pattern.
+    list: `${API_PREFIX}/admin/recurringblocks/list`,
+    // Frees every date still actually blocked by one series; does not change
+    // the series' own status (Cancel is the separate action for that).
+    unblockAll: `${API_PREFIX}/admin/recurringblocks/unblock-all`,
+    // Every live, currently-unresolved member/coach conflict across every
+    // ACTIVE series' upcoming occurrences — recomputed fresh on every call,
+    // never read from an old background-job log. POST { facilityCode? }.
+    conflictsList: `${API_PREFIX}/admin/recurringblocks/conflicts/list`,
+    // Act on one flagged conflict: keep (skip that date) or cancel+reason
+    // (cancel the booking, refund, notify, then block the freed slot).
+    conflictsResolve: `${API_PREFIX}/admin/recurringblocks/conflicts/resolve`,
   },
   login: `${API_PREFIX}/admin/auth/login`,
   me: `${API_PREFIX}/admin/auth/me`,
@@ -19,9 +74,24 @@ const endpoints = {
     list: `${API_PREFIX}/admin/members/list`,
     membersDetails: `${API_PREFIX}/admin/member/details`,
     membersCount: `${API_PREFIX}/admin/members/stats`,
+    notesList: `${API_PREFIX}/admin/member/notes/list`,
+    notesAdd: `${API_PREFIX}/admin/member/notes/add`,
+    notesUpdate: `${API_PREFIX}/admin/member/notes/update`,
+    notesDelete: `${API_PREFIX}/admin/member/notes/delete`,
+    emailsList: `${API_PREFIX}/admin/member/emails/list`,
+    emailsSend: `${API_PREFIX}/admin/member/emails/send`,
+    emailsBulkSend: `${API_PREFIX}/admin/members/email/bulk-send`,
+    emailUploadUrl: `${API_PREFIX}/admin/members/email/upload-url`,
   },
   tour: {
     updateTourStatus: `${API_PREFIX}/admin/bookings/tour/status/update`,
+    addNote: `${API_PREFIX}/admin/bookings/tour/notes/add`,
+  },
+  // Gym/Podcast room bookings for the Calendar page — colour pills + per-day
+  // counts (data lives in the same txn-container bookings the rest of this
+  // "bookings" family covers, so it rides the same endpoint group).
+  gymPodcast: {
+    calendar: `${API_PREFIX}/admin/bookings/gym-podcast/calendar`,
   },
   // Maintenance & Tasks — ONE action-dispatched endpoint. Body always carries an
   // `action` (list_templates | create_template | update_template | archive_template |
@@ -39,6 +109,10 @@ const endpoints = {
     create: `${API_PREFIX}/admin/staff/create`,
     details: `${API_PREFIX}/admin/staff/details`,
     update: `${API_PREFIX}/admin/staff/update`,
+    // Status-only toggle (active <-> suspended) for the Suspend/Activate button —
+    // deliberately NOT the full-record `update` above, which re-validates/re-saves
+    // the whole profile just to flip one field.
+    updateStatus: `${API_PREFIX}/admin/staff/status/update`,
     // Generates a new temp password and emails it — body-based { staffId }, matching
     // the rest of these mutation routes.
     resendWelcomeEmail: `${API_PREFIX}/admin/staff/resend-welcome-email`,
@@ -56,6 +130,11 @@ const endpoints = {
     updateBookingStatus: `${API_PREFIX}/admin/induction/bookingstatus/update`,
     activateSubscription: `${API_PREFIX}/subscription/admin/activate`,
     userInductionDetails: `${API_PREFIX}/admin/induction/details`,
+    // POST { userId } — records which admin activated this member's subscription
+    // after induction (attribution only; doesn't change booking status, which
+    // already auto-completes when the member finishes onboarding). Shown on the
+    // Calendar's induction event as "Completed By".
+    markActivated: `${API_PREFIX}/admin/induction/activated`,
   },
   centres: {
     // New doc-bundle model (live backend) — all POST.
@@ -63,6 +142,8 @@ const endpoints = {
     centreDetails: `${API_PREFIX}/admin/centres/details`, // POST { code }
     centreCreate: `${API_PREFIX}/admin/centres/create`, // POST { facility, lanes[], memberships[], membershipSalesFlow }
     centreUpdate: `${API_PREFIX}/admin/centres/update`, // POST { centreId, facility } — edit facility / activate draft
+    centreDelete: `${API_PREFIX}/admin/centres/delete`, // POST { centreId } — soft-delete a Draft centre (status="deleted", recoverable; superadmin only)
+    uploadImageUrl: `${API_PREFIX}/admin/centres/upload_url`, // POST { facilityCode, fileName, contentType? } — mints a blob write-SAS for a product image
     // Legacy model (ops dashboard + update/suspend/delete — not re-wired yet).
     list: `${API_PREFIX}/admin/centres`,
     wizardStart: `${API_PREFIX}/admin/centres/wizard/start`,
@@ -128,6 +209,23 @@ const endpoints = {
   // period, startDate, endDate) are passed as query params; the `tab` selects the
   // response shape (overview | membership | utilisation | sessions | capacity).
   reports: `${API_PREFIX}/admin/reports`,
+  wallets: {
+    // POST — every filter optional; {} returns the newest page across all members.
+    transactionsList: `${API_PREFIX}/admin/wallets/transactions/list`,
+    // POST { userIds: string[] } (max 100) — real balances for a page of members
+    // already resolved elsewhere (the Members list), not a search of its own.
+    balances: `${API_PREFIX}/admin/wallets/balances`,
+    // POST — superadmin only (403 for every other role). { userId | email, amount, reason }.
+    credit: `${API_PREFIX}/admin/wallets/credit`,
+  },
+  // NE-1: central notifications log. GET, every filter optional (recipient_email,
+  // email_type, facility_code, start_date, end_date, skip, limit) — called with
+  // none of them, lists every outbound email across the whole portal, newest first.
+  emailLogs: `${API_PREFIX}/admin/email-logs`,
+  // Manual retry for a failed, retryable email — POST { retryDocId, facilityCode? }.
+  // Surfaced as "Resend" on a failed row that still has an actionable emailretry
+  // entry (see the backend's EmailLogService._project).
+  emailLogsResend: `${API_PREFIX}/admin/email-logs/resend`,
 };
 
 export default endpoints;

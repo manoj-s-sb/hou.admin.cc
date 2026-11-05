@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -8,9 +8,7 @@ import { getCentres } from '../../store/centres/api';
 import { getReport } from '../../store/reports/api';
 import { AppDispatch, RootState } from '../../store/store';
 
-import FilterBar, { type CentreOption } from './components/FilterBar';
-import { fetchReportData } from './pdf/exportMembershipPdf';
-import PdfPreviewModal from './pdf/PdfPreviewModal';
+import FilterBar, { PERIODS, type CentreOption } from './components/FilterBar';
 import CapacityTab from './tabs/CapacityTab';
 import MembershipTab from './tabs/MembershipTab';
 import OverviewTab from './tabs/OverviewTab';
@@ -29,6 +27,10 @@ import type {
   UtilisationData,
 } from '../../store/reports/types';
 
+// The PDF engine (@react-pdf/renderer) is heavy, so the preview modal — and the
+// export module it uses — are loaded on demand, only when the user exports.
+const PdfPreviewModal = lazy(() => import('./pdf/PdfPreviewModal'));
+
 const TABS: { key: ReportTab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'membership', label: 'Membership' },
@@ -46,12 +48,17 @@ const Reports: React.FC = () => {
   const [facilities, setFacilities] = useState<FacilitySummary[]>([]);
   const [exporting, setExporting] = useState(false);
   const [previewData, setPreviewData] = useState<PdfReportData | null>(null);
-  const exportedBy = useSelector((s: RootState) => s.auth.user?.email) || getLocalUser().name || '—';
+  // Prefer the logged-in user's display name (matches the "Uday Reddy" shown in the
+  // top-right profile widget) over their raw login email, which is what the
+  // Export PDF header should read — only fall back to email when no name is set.
+  const userEmail = useSelector((s: RootState) => s.auth.user?.email);
+  const exportedBy = getLocalUser().name || userEmail || '—';
 
   // Fetch + shape the data, then open the preview (download happens from there).
   const handleExport = async () => {
     setExporting(true);
     try {
+      const { fetchReportData } = await import('./pdf/exportMembershipPdf');
       const reportData = await fetchReportData(applied, exportedBy);
       setPreviewData(reportData);
     } catch (e) {
@@ -61,9 +68,10 @@ const Reports: React.FC = () => {
     }
   };
 
-  // Centre catalogue powers the filter dropdowns.
+  // Centre catalogue powers the filter dropdowns. Active only — a Draft/Staging/
+  // Suspended centre has no real operational data to report on yet.
   useEffect(() => {
-    dispatch(getCentres({ skip: 0, limit: 200 }))
+    dispatch(getCentres({ status: 'active', skip: 0, limit: 200 }))
       .unwrap()
       .then(res => setFacilities(res.facilities ?? []))
       .catch(() => setFacilities([]));
@@ -75,6 +83,14 @@ const Reports: React.FC = () => {
   }, [dispatch, applied]);
 
   const centres: CentreOption[] = useMemo(() => facilities.map(f => ({ code: f.code, name: f.name })), [facilities]);
+
+  // Reflects whichever centre is actually applied — was hard-coded to the
+  // network-wide line even in Single Centre view, so a Houston-only report
+  // still claimed to cover "all centres".
+  const subtitle =
+    applied.view === 'centre' && applied.centreId
+      ? `Analytics for ${centres.find(c => c.code === applied.centreId)?.name ?? applied.centreId}.`
+      : 'Network-wide analytics across all centres.';
 
   const setTab = (tab: ReportTab) => setApplied(prev => ({ ...prev, tab }));
 
@@ -103,7 +119,7 @@ const Reports: React.FC = () => {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[22px] font-bold text-[#21295A]">Reports</h1>
-          <p className="mt-0.5 text-[13px] text-gray-500">Network-wide analytics across all centres.</p>
+          <p className="mt-0.5 text-[13px] text-gray-500">{subtitle}</p>
         </div>
         <button
           className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#2d3570] disabled:opacity-50 print:hidden"
@@ -122,6 +138,15 @@ const Reports: React.FC = () => {
           onApply={next => setApplied(next)}
           onReset={() => setApplied({ ...DEFAULT_REQ })}
         />
+        {/* RP-3: the Centre Management card always shows a FIXED last-30-days
+            snapshot, while these figures follow the period picked above — name
+            the active period so the two are never silently compared window-to-window. */}
+        <p className="mt-2 text-[11.5px] text-gray-400">
+          Showing{' '}
+          <span className="font-semibold text-gray-500">{PERIODS.find(p => p.value === applied.period)?.label}</span>.
+          Centre Management cards always show a fixed last-30-days snapshot — figures here only line up with those when
+          &ldquo;Last 30 days&rdquo; is selected.
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-1 border-b border-gray-100 print:hidden">
@@ -143,7 +168,11 @@ const Reports: React.FC = () => {
 
       {renderTab()}
 
-      {previewData && <PdfPreviewModal data={previewData} onClose={() => setPreviewData(null)} />}
+      {previewData && (
+        <Suspense fallback={null}>
+          <PdfPreviewModal data={previewData} onClose={() => setPreviewData(null)} />
+        </Suspense>
+      )}
     </div>
   );
 };

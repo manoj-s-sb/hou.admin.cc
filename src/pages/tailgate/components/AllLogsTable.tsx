@@ -171,7 +171,7 @@ const AllLogsTable = ({
                   gradient: '',
                 };
                 const sc = statusConfig[status] || statusConfig.pending;
-                const reviewMemberId = row.review?.reviewed ? (row.review.memberId ?? null) : (row.actor?.id ?? null);
+                const contactEmail = row.actor?.email ?? null;
                 return (
                   <tr
                     key={row.id}
@@ -191,14 +191,10 @@ const AllLogsTable = ({
                     </td>
                     <td className="px-4 py-3">{renderIdentity(row)}</td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      {reviewMemberId ? (
-                        <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-gray-600">
-                          {reviewMemberId}
-                        </span>
+                      {contactEmail ? (
+                        <span className="text-[12px] text-gray-700">{contactEmail}</span>
                       ) : (
-                        <span className="rounded bg-yellow-50 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">
-                          —
-                        </span>
+                        <span className="text-[12px] text-gray-400">—</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">

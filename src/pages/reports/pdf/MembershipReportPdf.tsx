@@ -1,8 +1,13 @@
 import React from 'react';
 
-import { Circle, Document, Page, Path, Rect, StyleSheet, Svg, Text, View } from '@react-pdf/renderer';
+import { Circle, Document, Font, Page, Path, Rect, StyleSheet, Svg, Text, View } from '@react-pdf/renderer';
 
-import type { PdfCountry, PdfReportData } from './reportPdfData';
+import type { PdfCentre, PdfReportData } from './reportPdfData';
+
+// Disable automatic hyphenation network-wide for this PDF — react-pdf's default
+// hyphenation engine was breaking short words mid-syllable in narrow cells
+// ("Pre-mi-um", "Stan-dard") instead of keeping them on one line.
+Font.registerHyphenationCallback(word => [word]);
 
 const C = {
   headerBlue: '#0C447C',
@@ -27,7 +32,18 @@ const TINT: Record<string, { bg: string; border: string; text: string }> = {
 };
 
 const s = StyleSheet.create({
-  page: { paddingHorizontal: 32, paddingVertical: 20, fontFamily: 'Helvetica', fontSize: 10, color: C.ink },
+  // paddingBottom is deliberately larger than the footer's own height + its
+  // `bottom` offset (20) — the footer is position:absolute and reserves no
+  // space of its own, so without this the last content block (insight cards)
+  // could grow tall enough to render underneath it instead of above it.
+  page: {
+    paddingHorizontal: 32,
+    paddingTop: 20,
+    paddingBottom: 54,
+    fontFamily: 'Helvetica',
+    fontSize: 10,
+    color: C.ink,
+  },
 
   // 1. header
   header: {
@@ -148,10 +164,15 @@ const s = StyleSheet.create({
   },
 });
 
-// column widths (spec): Country 22, counts 10 each (×5=50), Active Rate 14, Plan Mix 8, Trend 6
-const W = { country: '22%', count: '10%', rate: '14%', mix: '8%', trend: '6%' };
+// column widths: Centre 22, counts 10 each (×5=50), Active Rate 14, Top Plan 10, Trend 4.
+// Top Plan widened (was 8%) and Trend narrowed (was 6%) to give short plan names
+// (e.g. "Premium") enough room to never wrap at all.
+const W = { centre: '22%', count: '10%', rate: '14%', mix: '10%', trend: '4%' };
 
-const Delta: React.FC<{ delta: number }> = ({ delta }) => {
+// delta is null when there's no genuine trend value for this KPI — the row is
+// omitted entirely rather than showing an arrow with no number next to it.
+const Delta: React.FC<{ delta: number | null }> = ({ delta }) => {
+  if (delta === null) return null;
   const color = delta > 0 ? C.green : delta < 0 ? C.red : C.gray;
   return (
     <View style={s.deltaRow}>
@@ -164,12 +185,18 @@ const Delta: React.FC<{ delta: number }> = ({ delta }) => {
           <Rect fill={color} height={1.6} width={7} y={2.2} />
         )}
       </Svg>
-      <Text style={[s.deltaTxt, { color }]}>vs last period</Text>
+      <Text style={[s.deltaTxt, { color }]}>
+        {delta > 0 ? '+' : ''}
+        {delta}% vs last period
+      </Text>
     </View>
   );
 };
 
 const Sparkline: React.FC<{ values: number[] }> = ({ values }) => {
+  // A genuinely flat zero series (e.g. a QA/test centre with no members at all
+  // in any month) reads as "data broken" rendered as bars — show "—" instead.
+  if (values.every(v => v === 0)) return <Text style={{ fontSize: 9, color: C.sub }}>—</Text>;
   const max = Math.max(...values, 1);
   return (
     <Svg height={16} width={38}>
@@ -215,12 +242,17 @@ const Badge: React.FC<{ label: string; color: string }> = ({ label, color }) => 
   <Text style={[s.badge, { color, borderColor: color, backgroundColor: `${color}18` }]}>{label}</Text>
 );
 
-const CountRow: React.FC<{ c: PdfCountry; alt: boolean; bold?: boolean }> = ({ c, alt, bold }) => {
+const CountRow: React.FC<{ c: PdfCentre; alt: boolean; bold?: boolean }> = ({ c, alt, bold }) => {
   const font = bold ? 'Helvetica-Bold' : 'Helvetica';
   return (
     <View style={[s.tr, alt ? s.trAlt : {}]}>
-      <View style={[{ width: W.country, flexDirection: 'row', alignItems: 'center', padding: 6 }]}>
-        {!bold && <Text style={s.codeChip}>{c.name.slice(0, 2).toUpperCase()}</Text>}
+      {/* Code chip above the name (not side-by-side) so a long centre name always
+          has the cell's full width to wrap into, instead of fighting the chip for
+          space on one line and overflowing into the TOTAL column next to it. */}
+      <View style={[{ width: W.centre, padding: 6, overflow: 'hidden' }]}>
+        {!bold && (
+          <Text style={[s.codeChip, { alignSelf: 'flex-start', marginBottom: 2 }]}>{c.code.toUpperCase()}</Text>
+        )}
         <Text style={[{ fontSize: 11, fontFamily: font, color: C.ink }]}>{c.name}</Text>
       </View>
       <Text style={[s.td, { width: W.count, fontFamily: font }]}>{c.total.toLocaleString()}</Text>
@@ -251,14 +283,14 @@ const CountRow: React.FC<{ c: PdfCountry; alt: boolean; bold?: boolean }> = ({ c
 };
 
 const MembershipReportPdf: React.FC<{ data: PdfReportData }> = ({ data }) => {
-  const totalsRow: PdfCountry = {
-    flag: '',
-    name: 'All Regions',
-    total: data.countries.reduce((a, c) => a + c.total, 0),
-    active: data.countries.reduce((a, c) => a + c.active, 0),
-    inactive: data.countries.reduce((a, c) => a + c.inactive, 0),
-    suspended: data.countries.reduce((a, c) => a + c.suspended, 0),
-    expired: data.countries.reduce((a, c) => a + c.expired, 0),
+  const totalsRow: PdfCentre = {
+    code: '',
+    name: 'All Centres',
+    total: data.centres.reduce((a, c) => a + c.total, 0),
+    active: data.centres.reduce((a, c) => a + c.active, 0),
+    inactive: data.centres.reduce((a, c) => a + c.inactive, 0),
+    suspended: data.centres.reduce((a, c) => a + c.suspended, 0),
+    expired: data.centres.reduce((a, c) => a + c.expired, 0),
     activeRate: 0,
     planMix: { label: '—', color: C.gray },
     trend: [],
@@ -337,7 +369,7 @@ const MembershipReportPdf: React.FC<{ data: PdfReportData }> = ({ data }) => {
             ))}
           </View>
           <View style={s.card}>
-            <Text style={s.cardTitle}>Members by Region</Text>
+            <Text style={s.cardTitle}>Members by Centre</Text>
             <View style={s.donutWrap}>
               <Donut regions={data.regions} />
               <View style={s.legendCol}>
@@ -353,21 +385,21 @@ const MembershipReportPdf: React.FC<{ data: PdfReportData }> = ({ data }) => {
           </View>
         </View>
 
-        {/* 5. country summary table */}
+        {/* 5. centre summary table */}
         <View style={s.table}>
           <View style={s.thead}>
-            <Text style={[s.th, { width: W.country }]}>COUNTRY</Text>
+            <Text style={[s.th, { width: W.centre }]}>CENTRE</Text>
             <Text style={[s.th, { width: W.count }]}>TOTAL</Text>
             <Text style={[s.th, { width: W.count }]}>ACTIVE</Text>
             <Text style={[s.th, { width: W.count }]}>INACTIVE</Text>
             <Text style={[s.th, { width: W.count }]}>SUSP.</Text>
             <Text style={[s.th, { width: W.count }]}>EXPIRED</Text>
             <Text style={[s.th, { width: W.rate }]}>ACTIVE RATE</Text>
-            <Text style={[s.th, { width: W.mix }]}>PLAN</Text>
+            <Text style={[s.th, { width: W.mix }]}>TOP PLAN</Text>
             <Text style={[s.th, { width: W.trend }]}>TREND</Text>
           </View>
-          {data.countries.map((c, i) => (
-            <CountRow key={c.name} alt={i % 2 === 1} c={c} />
+          {data.centres.map((c, i) => (
+            <CountRow key={c.code} alt={i % 2 === 1} c={c} />
           ))}
           <CountRow bold alt={false} c={totalsRow} />
         </View>
@@ -375,7 +407,14 @@ const MembershipReportPdf: React.FC<{ data: PdfReportData }> = ({ data }) => {
         {/* 6. insight callouts */}
         <View style={s.insightRow}>
           <View style={[s.insightCard, { backgroundColor: '#eafaf3', borderColor: '#a7e8cd' }]}>
-            <Text style={[s.insightTitle, { color: C.green }]}>▲ Strong Performers</Text>
+            {/* An SVG triangle, not the "▲" Unicode character — Helvetica (the only font
+                this PDF embeds) has no glyph for it, so it was rendering as a stray "²". */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+              <Svg height={7} width={8}>
+                <Path d="M0,7 L4,0 L8,7 Z" fill={C.green} />
+              </Svg>
+              <Text style={[s.insightTitle, { color: C.green, marginBottom: 0 }]}>Strong Performers</Text>
+            </View>
             <Text style={s.insightBody}>{data.insights.top}</Text>
           </View>
           <View style={[s.insightCard, { backgroundColor: '#fdf6e6', borderColor: '#f3d998' }]}>

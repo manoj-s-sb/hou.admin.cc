@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { User } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute } from '../../constants/routes';
-import { getFacilityCode } from '../../constants/user';
-import { decodeToken } from '../../helpers';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
+import { canEditModule } from '../../rbac/permissions';
 import { getMembers, getMembersCount } from '../../store/members/api';
-import { MemberRequest } from '../../store/members/types';
+import { Member, MemberRequest } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
+import { decodeToken } from '../../utils/decodeToken';
 
-const user_svg = '/assets/user.svg';
+import BulkSendEmailModal from './components/BulkSendEmailModal';
 
 type FilterState = {
   search: string;
@@ -47,10 +49,10 @@ function filtersToSearchParams(filters: FilterState): Record<string, string> {
 }
 
 const planConfig: Record<string, { label: string; color: string; dot: string }> = {
-  standard: { label: 'Standard', color: 'text-blue-700', dot: 'bg-blue-500' },
-  premium: { label: 'Premium', color: 'text-purple-700', dot: 'bg-purple-500' },
-  family: { label: 'Family', color: 'text-pink-700', dot: 'bg-pink-500' },
-  offpeak: { label: 'Offpeak', color: 'text-orange-700', dot: 'bg-orange-500' },
+  standard: { label: 'Standard', color: 'text-[#21295a]', dot: 'bg-[#21295a]' },
+  premium: { label: 'Premium', color: 'text-[#336dc2]', dot: 'bg-[#336dc2]' },
+  family: { label: 'Family', color: 'text-[#3b8f3e]', dot: 'bg-[#3b8f3e]' },
+  offpeak: { label: 'Offpeak', color: 'text-[#cc6900]', dot: 'bg-[#cc6900]' },
 };
 
 const subscriptionStatusMap: Record<string, { label: string; className: string }> = {
@@ -69,11 +71,78 @@ const Members = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { membersList: membersListData, isLoading, membersCount } = useSelector((state: RootState) => state.members);
+  // Scope to the centre in the URL (opened from Centre Management) for every role;
+  // falls back to the role default / token on the global Members page.
+  const facilityCode = useScopedFacilityCode() || decodeToken()?.facilityCode || '';
 
   const [filters, setFilters] = useState<FilterState>(() => parseFiltersFromSearchParams(searchParams));
 
+  // Bulk email — row selection on this grid. Keyed by userId, but stores each
+  // row's name/email AT SELECTION TIME (not re-derived from the current page's
+  // data) — otherwise paging away after selecting would silently drop those
+  // recipients from the send while the "N selected" count kept claiming they
+  // were still included.
+  const canBulkEmail = canEditModule('members');
+  const [selectedUserIds, setSelectedUserIds] = useState<Map<string, { userId: string; name: string; email: string }>>(
+    new Map()
+  );
+  const [showBulkEmail, setShowBulkEmail] = useState(false);
+  const toggleSelected = useCallback((row: Member) => {
+    setSelectedUserIds(prev => {
+      const next = new Map(prev);
+      if (next.has(row.userId)) next.delete(row.userId);
+      else
+        next.set(row.userId, { userId: row.userId, name: `${row.firstName} ${row.lastName}`.trim(), email: row.email });
+      return next;
+    });
+  }, []);
+  const selectedMembers = useMemo(() => Array.from(selectedUserIds.values()), [selectedUserIds]);
+  // "Select all" only ever affects the members currently loaded on this page —
+  // selections made on other pages (already in the map) are left untouched.
+  const pageMemberIds = membersListData.members.map(m => m.userId);
+  const allOnPageSelected = pageMemberIds.length > 0 && pageMemberIds.every(id => selectedUserIds.has(id));
+  const someOnPageSelected = !allOnPageSelected && pageMemberIds.some(id => selectedUserIds.has(id));
+  // Native checkbox "indeterminate" (the dash state for "some but not all") is a
+  // DOM property, not an HTML attribute React can set via JSX — has to go through
+  // a ref. Shows at a glance whether this page is fully, partly, or not selected,
+  // instead of the checkbox silently looking "off" while rows are actually selected.
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someOnPageSelected;
+  }, [someOnPageSelected]);
+  const toggleSelectAllOnPage = useCallback(() => {
+    setSelectedUserIds(prev => {
+      const next = new Map(prev);
+      const allSelected = membersListData.members.length > 0 && membersListData.members.every(m => next.has(m.userId));
+      membersListData.members.forEach(m => {
+        if (allSelected) next.delete(m.userId);
+        else next.set(m.userId, { userId: m.userId, name: `${m.firstName} ${m.lastName}`.trim(), email: m.email });
+      });
+      return next;
+    });
+  }, [membersListData.members]);
+
   const membersColumns: ColumnDef[] = useMemo(
     () => [
+      ...(canBulkEmail
+        ? [
+            {
+              field: 'select',
+              headerName: '',
+              width: 40,
+              sortable: false,
+              renderCell: (params: { row: Member }) => (
+                <input
+                  checked={selectedUserIds.has(params.row.userId)}
+                  className="h-4 w-4 rounded border-gray-300 text-[#21295A] focus:ring-[#21295A]"
+                  type="checkbox"
+                  onChange={() => toggleSelected(params.row)}
+                  onClick={e => e.stopPropagation()}
+                />
+              ),
+            },
+          ]
+        : []),
       {
         field: 'sno',
         headerName: 'S.No',
@@ -96,21 +165,25 @@ const Members = () => {
         minWidth: 220,
         sortable: false,
         renderCell: params => {
-          const imageUrl = params.row?.profileImageUrl || user_svg;
-          const isDefaultImage = !params.row?.profileImageUrl;
           const fullName = `${params.row?.firstName} ${params.row?.lastName}`.trim();
           return (
             <div className="flex items-center gap-3">
-              <img
-                alt="Profile"
-                className={`h-9 w-9 rounded-full border border-gray-200 object-cover ${isDefaultImage ? 'p-1.5' : ''}`}
-                src={imageUrl}
-                onError={e => {
-                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
-                }}
-              />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#e0e0e0] bg-white">
+                {params.row?.profileImageUrl ? (
+                  <img
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                    src={params.row.profileImageUrl}
+                    onError={e => {
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
+                    }}
+                  />
+                ) : (
+                  <User className="h-5 w-5 text-[#336DC2]" />
+                )}
+              </div>
               <div>
-                <p className="text-[13px] font-semibold text-[#21295A]">{fullName}</p>
+                <p className="text-[16px] font-semibold text-[#202020]">{fullName}</p>
                 <p className="text-[11px] text-gray-400">{params.row?.email || ''}</p>
               </div>
             </div>
@@ -223,7 +296,7 @@ const Members = () => {
               onClick={e => {
                 e.stopPropagation();
                 navigate(buildRoute.viewMembers(params.row.userId), {
-                  state: { listSearch: location.search, facilityCode: getFacilityCode() },
+                  state: { listSearch: location.search, facilityCode },
                 });
               }}
             >
@@ -233,10 +306,17 @@ const Members = () => {
         },
       },
     ],
-    [membersListData.skip, navigate, location.search]
+    [membersListData.skip, navigate, location.search, facilityCode, canBulkEmail, selectedUserIds, toggleSelected]
   );
 
   const currentLimit = membersListData.limit || 20;
+  // Lets the filters/search-reset effect below read the latest page size
+  // without re-running every time the page size itself changes (see that
+  // effect's own comment for why that distinction matters).
+  const currentLimitRef = useRef(currentLimit);
+  useEffect(() => {
+    currentLimitRef.current = currentLimit;
+  }, [currentLimit]);
 
   const buildRequestPayload = useCallback(
     (overrides?: Partial<MemberRequest>, appliedFilters: FilterState = filters): MemberRequest => {
@@ -244,7 +324,7 @@ const Members = () => {
       const payload: MemberRequest = {
         skip: overrides?.skip ?? 0,
         limit,
-        facilityCode: getFacilityCode(),
+        facilityCode,
       };
 
       const trimmedSearch = appliedFilters.search.trim();
@@ -263,10 +343,8 @@ const Members = () => {
 
       return payload;
     },
-    [filters, membersListData.limit]
+    [filters, membersListData.limit, facilityCode]
   );
-
-  const facilityCode = getFacilityCode() || decodeToken()?.facilityCode;
 
   useEffect(() => {
     setFilters(parseFiltersFromSearchParams(searchParams));
@@ -286,8 +364,8 @@ const Members = () => {
     const applied = parseFiltersFromSearchParams(searchParams);
     const payload: MemberRequest = {
       skip: 0,
-      limit: currentLimit,
-      facilityCode: getFacilityCode(),
+      limit: currentLimitRef.current,
+      facilityCode,
     };
     const trimmedSearch = applied.search.trim();
     if (trimmedSearch) payload.search = trimmedSearch;
@@ -295,7 +373,18 @@ const Members = () => {
     if (applied.subscriptionType) payload.subscriptionCode = applied.subscriptionType;
     if (applied.status) payload.subscriptionStatus = applied.status;
     dispatch(getMembers(payload));
-  }, [dispatch, currentLimit, facilityCode, searchParams]);
+    // currentLimit deliberately NOT a dependency here: this effect's job is
+    // "filters/search/centre changed -> reset to page 1", and it must fire
+    // ONLY for that. membersListData.limit (currentLimit's source) is itself
+    // updated by onPageChange/onRowsPerPageChange below -- if it were a
+    // dependency, picking "100 rows per page" (or just paging) would update
+    // that Redux value, which would re-trigger THIS effect, which
+    // unconditionally resets skip back to 0 and silently snaps the user back
+    // to page 1 a moment after they just changed page/page-size. Read via a
+    // ref instead so a facility/filter change still uses the latest page
+    // size without the effect re-firing just because the page size changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, facilityCode, searchParams]);
 
   useEffect(() => {
     dispatch(
@@ -365,7 +454,7 @@ const Members = () => {
           </div>
 
           {/* Section label — Subscription Plans */}
-          <p className="col-span-5 mt-1 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+          <p className="col-span-5 mt-1 text-[11px] font-semibold uppercase tracking-widest text-[#6e6e6e]">
             Subscription Plans
           </p>
 
@@ -380,14 +469,14 @@ const Members = () => {
             return (
               <div
                 key={plan.key}
-                className="flex flex-col gap-1 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
+                className="flex flex-col gap-1 rounded-2xl border border-[#cbcbcb] bg-white px-4 py-3 shadow-sm"
               >
                 <div className="flex items-center gap-1.5">
                   <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
                   <p className={`text-[10px] font-semibold uppercase tracking-widest ${cfg.color}`}>{cfg.label}</p>
                 </div>
-                <p className="text-[22px] font-bold text-[#21295A]">{total.toLocaleString()}</p>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-[22px] font-bold text-[#202020]">{total.toLocaleString()}</p>
+                <p className="text-[11px] text-[#6e6e6e]">
                   {plan.annual ?? 0} annual · {plan.fortnightly ?? 0} fortnightly
                 </p>
               </div>
@@ -518,6 +607,53 @@ const Members = () => {
         </div>
       </div>
 
+      {/* One bar, one message at a time: idle = just the "select all" control;
+          the moment anything is selected, the bar itself turns navy-tinted and
+          the label switches to the count — instead of both captions competing
+          for attention side by side. */}
+      {canBulkEmail && pageMemberIds.length > 0 && (
+        <div
+          className={`mb-3 flex items-center justify-between rounded-xl border px-4 py-2.5 transition-colors ${
+            selectedUserIds.size > 0 ? 'border-[#21295A]/15 bg-[#21295A]/[0.04]' : 'border-gray-100 bg-gray-50'
+          }`}
+        >
+          <label className="flex cursor-pointer select-none items-center gap-2.5 text-[13px]">
+            <input
+              ref={selectAllRef}
+              checked={allOnPageSelected}
+              className="h-4 w-4 rounded border-gray-300 text-[#21295A] focus:ring-[#21295A]"
+              type="checkbox"
+              onChange={toggleSelectAllOnPage}
+            />
+            {selectedUserIds.size > 0 ? (
+              <span className="font-semibold text-[#21295A]">
+                {selectedUserIds.size} member{selectedUserIds.size === 1 ? '' : 's'} selected
+              </span>
+            ) : (
+              <span className="font-medium text-gray-600">Select all {pageMemberIds.length} on this page</span>
+            )}
+          </label>
+          {selectedUserIds.size > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                type="button"
+                onClick={() => setSelectedUserIds(new Map())}
+              >
+                Clear
+              </button>
+              <button
+                className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#2d3570]"
+                type="button"
+                onClick={() => setShowBulkEmail(true)}
+              >
+                ✉ Email Selected ({selectedUserIds.size})
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Members Table ───────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         <DataTable
@@ -551,7 +687,7 @@ const Members = () => {
           }}
           onRowClick={row => {
             navigate(buildRoute.viewMembers(row.userId), {
-              state: { listSearch: location.search, facilityCode: getFacilityCode() },
+              state: { listSearch: location.search, facilityCode },
             });
           }}
           onRowsPerPageChange={(rowsPerPage: number) => {
@@ -559,6 +695,14 @@ const Members = () => {
           }}
         />
       </div>
+
+      {showBulkEmail && selectedMembers.length > 0 && (
+        <BulkSendEmailModal
+          recipients={selectedMembers}
+          onClose={() => setShowBulkEmail(false)}
+          onSent={() => setSelectedUserIds(new Map())}
+        />
+      )}
     </div>
   );
 };

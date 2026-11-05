@@ -48,6 +48,10 @@ export interface StaffDetails {
   lastLoginAt: string | null;
   countryCode?: string | null;
   staffProfile?: StaffProfile;
+  // Coach code + descriptive profile — present only when this person has
+  // been set up as a bookable coach.
+  code?: string | null;
+  coachProfile?: CoachProfilePayload | null;
   // Saved per-module permissions, used to pre-fill the edit grid. The backend may
   // return either a custompermission map or a resolved permissions.modules map.
   custompermission?: Record<string, string[]>;
@@ -58,6 +62,7 @@ export interface StaffListRow {
   staffId: string;
   userId: string;
   email: string;
+  phone?: string;
   firstName: string;
   lastName: string;
   userType: string[];
@@ -158,6 +163,11 @@ export interface StaffListRequest {
   // Omit both to list every staff member network-wide (global/superadmin viewers).
   facilityCode?: string;
   countryCode?: string;
+  // Name/email/phone substring match (case-insensitive), filter by userType[0]
+  // (role) and by accessLevel — all supported server-side.
+  search?: string;
+  role?: string;
+  accessLevel?: string;
   limit: number;
   offset: number;
 }
@@ -183,6 +193,18 @@ export interface StaffProfilePayload {
   twoFactorMethod: string;
 }
 
+// Descriptive coach-profile fields — only sent when 'coach' is one of the
+// selected roles. Weekly availability/non-availability is deliberately not
+// part of this shape; that's set separately via the coach calendar editor.
+export interface CoachProfilePayload {
+  specialization: string[];
+  coachDescription?: string;
+  experienceYears?: number | null;
+  certifications: string[];
+  hourlyRate?: number | null;
+  profileImageUrl?: string;
+}
+
 export interface CreateStaffRequest {
   firstName: string;
   lastName: string;
@@ -204,6 +226,14 @@ export interface CreateStaffRequest {
   custompermission?: Record<string, string[]>;
   draftMode: boolean;
   sendWelcomeEmail: boolean;
+  // Coach code + descriptive profile — only meaningful when 'coach' is one of
+  // the selected userType roles. `code` auto-generates server-side if omitted.
+  code?: string;
+  coachProfile?: CoachProfilePayload;
+  // Inline base64 coach photo — same shape as `profileImageUrl` above, but
+  // uploaded into coachProfile.photoBlobName instead of staffProfile's.
+  coachProfileImageUrl?: string;
+  coachProfileImageContentType?: string;
 }
 
 export type WelcomeEmailStatus = 'sent' | 'failed' | 'skipped_no_email';
@@ -235,6 +265,15 @@ export interface UpdateStaffRequest {
   status: string;
   staffProfile: StaffProfilePayload;
   profileImageUrl?: string;
+  // Coach code + descriptive profile — only meaningful when 'coach' is one of
+  // the selected userType roles. Omitted entirely if 'coach' isn't selected,
+  // so an existing coachProfile is left untouched server-side.
+  code?: string;
+  coachProfile?: CoachProfilePayload;
+  // Inline base64 coach photo — see CreateStaffRequest. Omitted ⇒ an existing
+  // photo is left untouched server-side.
+  coachProfileImageUrl?: string;
+  coachProfileImageContentType?: string;
 }
 
 // ─────────────────────────────────────────────────────────────

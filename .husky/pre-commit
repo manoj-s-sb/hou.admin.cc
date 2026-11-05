@@ -1,1 +1,6 @@
-npx lint-staged
+# This repo sits nested inside another project's node_modules path (see AdminPortal-Frontend's
+# location under TestCaseGen/frontend). ESLint 8.57's default flat-config discovery walks up
+# ancestor directories and picks up that unrelated outer project's eslint.config.js instead of
+# this repo's own .eslintrc.js, then fails because the outer project lacks typescript-eslint.
+# Forcing legacy config mode makes ESLint use this repo's .eslintrc.js as intended.
+ESLINT_USE_FLAT_CONFIG=false npx lint-staged

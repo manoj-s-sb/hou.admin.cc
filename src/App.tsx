@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 
 import { Toaster } from 'react-hot-toast';
 import { Provider, useDispatch, useSelector } from 'react-redux';
@@ -10,12 +10,34 @@ import { Loader } from './components/Loader';
 import SessionExpiredModal from './components/SessionExpiredModal';
 import menus, { MENU_ITEM_BY_MODULE } from './constants/menus';
 import { ROUTES } from './constants/routes';
-import { Login, ForgotPassword, ViewInduction, ViewMembers, CentreManagement, CentreModuleRoute } from './pages';
-import ComingSoon from './pages/centres/components/ComingSoon';
+import ForgotPassword from './pages/forgotPassword';
+import Login from './pages/login';
 import { ACCESS_SCOPES, canRead, PermissionRoute, RestrictedAccess, sidebarItems } from './rbac';
 import { setSessionExpiredCallback } from './services';
 import { fetchMe } from './store/auth/api';
 import store, { persistor, AppDispatch, RootState } from './store/store';
+
+// Route pages are code-split so the initial bundle stays small — each page (and any
+// heavy libs it pulls in) downloads only when the user first navigates to it. Login
+// and ForgotPassword stay eager above: they're the entry screens, needed immediately.
+const UserList = lazy(() => import('./pages/users'));
+const Induction = lazy(() => import('./pages/induction'));
+const ViewInduction = lazy(() => import('./pages/induction/viewInduction'));
+const Tours = lazy(() => import('./pages/tours'));
+const Members = lazy(() => import('./pages/members'));
+const ViewMembers = lazy(() => import('./pages/members/viewMembers'));
+const SlotBookings = lazy(() => import('./pages/slots'));
+const TeamSchedule = lazy(() => import('./pages/teamSchedule'));
+const Tailgate = lazy(() => import('./pages/tailgate'));
+const StaffManagement = lazy(() => import('./pages/staff'));
+const AddStaffMember = lazy(() => import('./pages/staff/AddStaffMember'));
+const ViewStaffMember = lazy(() => import('./pages/staff/ViewStaffMember'));
+const CentreManagement = lazy(() => import('./pages/centres'));
+const CentreModuleRoute = lazy(() => import('./pages/centres/CentreModuleRoute'));
+const MembershipPlans = lazy(() => import('./pages/membership'));
+const Tickets = lazy(() => import('./pages/tickets'));
+const Reports = lazy(() => import('./pages/reports'));
+const Maintenance = lazy(() => import('./pages/maintenance'));
 
 const DefaultLanding: React.FC<{ bootChecked: boolean }> = ({ bootChecked }) => {
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
@@ -75,16 +97,10 @@ const AppRoutes: React.FC = () => {
         <Routes>
           <Route element={<Login />} path={ROUTES.LOGIN.path} />
           <Route element={<ForgotPassword />} path={ROUTES.FORGOT_PASSWORD.path} />
-          {/* Pre-launch: Centre Management is the only functional area of the app right
-              now (see the New York rollout plan). Every other module below keeps its real
-              route/permission gate — so it still appears in the sidebar and stays
-              reachable — but renders a "Coming Soon" placeholder instead of its real page.
-              Re-enabling one later is just swapping its <ComingSoon .../> back for the
-              real component (still imported above, untouched). */}
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.reports}>
-                <ComingSoon moduleLabel="Reports" />
+                <Reports />
               </PermissionRoute>
             }
             path={ROUTES.REPORTS.path}
@@ -92,7 +108,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.superAdmin}>
-                <ComingSoon moduleLabel="User List" />
+                <UserList />
               </PermissionRoute>
             }
             path={ROUTES.USERS.path}
@@ -100,15 +116,11 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.induction}>
-                <ComingSoon moduleLabel="Induction" />
+                <Induction />
               </PermissionRoute>
             }
             path={ROUTES.INDUCTION.path}
           />
-          {/* Not a standalone global menu — it's the "View" drill-down reached from
-              the per-centre Induction module, which IS live (e.g. Houston). Gating
-              this behind Coming Soon breaks that live flow, so it keeps its real
-              component regardless of the placeholders above/below. */}
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.induction}>
@@ -120,7 +132,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.tour}>
-                <ComingSoon moduleLabel="Tour Details" />
+                <Tours />
               </PermissionRoute>
             }
             path={ROUTES.TOUR.path}
@@ -128,13 +140,11 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.members}>
-                <ComingSoon moduleLabel="Members" />
+                <Members />
               </PermissionRoute>
             }
             path={ROUTES.MEMBERS.path}
           />
-          {/* Same reasoning as VIEW_INDUCTION above — the "View" drill-down from the
-              live per-centre Members module, not a standalone global menu. */}
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.members}>
@@ -146,23 +156,23 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.slots}>
-                <ComingSoon moduleLabel="Slot Bookings" />
+                <SlotBookings />
               </PermissionRoute>
             }
             path={ROUTES.SLOT_BOOKINGS.path}
           />
           <Route
             element={
-              <PermissionRoute module={ACCESS_SCOPES.coaches}>
-                <ComingSoon moduleLabel="Coach Schedule" />
+              <PermissionRoute module={ACCESS_SCOPES.teamSchedule}>
+                <TeamSchedule />
               </PermissionRoute>
             }
-            path={ROUTES.COACH_SCHEDULE.path}
+            path={ROUTES.TEAM_SCHEDULE.path}
           />
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.maintenance}>
-                <ComingSoon moduleLabel="Maintenance & Tasks" />
+                <Maintenance />
               </PermissionRoute>
             }
             path={ROUTES.MAINTENANCE.path}
@@ -170,7 +180,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.tailgate}>
-                <ComingSoon moduleLabel="Tailgate Logs" />
+                <Tailgate />
               </PermissionRoute>
             }
             path={ROUTES.TAILGATE.path}
@@ -178,7 +188,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.staff}>
-                <ComingSoon moduleLabel="Staff Management" />
+                <StaffManagement />
               </PermissionRoute>
             }
             path={ROUTES.STAFF_MANAGEMENT.path}
@@ -186,7 +196,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.staff}>
-                <ComingSoon moduleLabel="Staff Management" />
+                <AddStaffMember />
               </PermissionRoute>
             }
             path={ROUTES.STAFF_MANAGEMENT_ADD.path}
@@ -194,7 +204,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.staff}>
-                <ComingSoon moduleLabel="Staff Management" />
+                <AddStaffMember />
               </PermissionRoute>
             }
             path={ROUTES.STAFF_MANAGEMENT_EDIT.path}
@@ -202,7 +212,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.staff}>
-                <ComingSoon moduleLabel="Staff Management" />
+                <ViewStaffMember />
               </PermissionRoute>
             }
             path={ROUTES.STAFF_MANAGEMENT_VIEW.path}
@@ -216,9 +226,7 @@ const AppRoutes: React.FC = () => {
             path={ROUTES.CENTRES.path}
           />
           {/* One generic centre-scoped route — the module is resolved from :moduleSlug and
-              permission-gated inside CentreModuleRoute (so no fixed module here). Centre
-              Management stays fully live — CentreModuleRoute has its own separate
-              "Coming Soon" gate for New York's non-waitlist modules only. */}
+              permission-gated inside CentreModuleRoute (so no fixed module here). */}
           <Route
             element={
               <PermissionRoute>
@@ -230,7 +238,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.membershipPlans}>
-                <ComingSoon moduleLabel="Membership Plans" />
+                <MembershipPlans />
               </PermissionRoute>
             }
             path={ROUTES.MEMBERSHIP_PLANS.path}
@@ -238,7 +246,7 @@ const AppRoutes: React.FC = () => {
           <Route
             element={
               <PermissionRoute module={ACCESS_SCOPES.tickets}>
-                <ComingSoon moduleLabel="Tickets / Incidents" />
+                <Tickets />
               </PermissionRoute>
             }
             path={ROUTES.TICKETS.path}

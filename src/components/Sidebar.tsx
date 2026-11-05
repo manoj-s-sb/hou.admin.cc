@@ -6,10 +6,10 @@ import endpoints from '../constants/endpoints';
 import { MENU_GROUPS, type MenuItem } from '../constants/menus';
 import { ROUTES, buildRoute } from '../constants/routes';
 import { useCentreNav } from '../contexts/CentreNavContext';
-import { CENTRE_MODULE_GROUPS } from '../pages/centres/centreModules';
+import { CENTRE_MODULE_GROUPS, isCentreOperational } from '../pages/centres/centreModules';
 import { centreColour, countryFlag } from '../pages/centres/constants';
 import { ACCESS_SCOPES } from '../rbac/constants';
-import { canRead, isSuperAdmin, sidebarItems } from '../rbac/permissions';
+import { allowedFacilities, canRead, isGlobalScope, isSuperAdmin, scopeType, sidebarItems } from '../rbac/permissions';
 import api from '../services';
 
 /**
@@ -35,15 +35,38 @@ const CENTRE_ONLY_MODULES = new Set([
   'tour',
   'waitlistleads',
   'coachschedule',
+  'staffschedule',
   'facilities',
   'planspricing',
 ]);
 
+// Tickets/Incidents, Tailgate Logs, and Maintenance & Tasks each carry ONE
+// flat permission (no separate "centre" vs "all centres" grant survives to
+// storage — the Staff Management grid's two rows for these modules are
+// merged into a single value before save; see ModulePermissionsSection's
+// mergeDualScope and its own comment). So a staff member scoped to exactly
+// one centre, granted only so they can use the module inside that one
+// centre, is indistinguishable in storage from someone granted it network-
+// wide — `sidebarItems()` alone can't tell the two apart. Gate these three on
+// genuine multi-centre/country/global reach too, so a single-centre grant
+// (the only kind that login could have meant) never surfaces the global nav
+// item; a real multi-centre or country/global-scoped member still does.
+const DUAL_SCOPE_MODULES = new Set(['ticketsincidents', 'tailgate', 'maintenance']);
+
+const hasMultiCentreReach = (): boolean => {
+  if (isGlobalScope()) return true;
+  const type = scopeType();
+  if (type === 'country' || type === 'regional') return true;
+  return allowedFacilities().length > 1;
+};
+
 const groupsFromBackendSidebar = (): { group: string; items: MenuItem[] }[] => {
+  const multiCentre = hasMultiCentreReach();
   const allowedIds = new Set(
     sidebarItems()
       .map(entry => entry.id)
       .filter(id => !CENTRE_ONLY_MODULES.has(id)) // hide centre-scoped modules from global nav
+      .filter(id => multiCentre || !DUAL_SCOPE_MODULES.has(id)) // see comment above
   );
   if (allowedIds.size === 0) return [];
 
@@ -73,7 +96,7 @@ const STATUS_DOT: Record<CentreApiStatus, string> = {
 /** One source of truth for nav-item styling — used by both the global and centre menus. */
 const itemClass = (active: boolean): string =>
   `group relative mx-2.5 my-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm no-underline transition-colors duration-150 ${
-    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-[#9096be] hover:bg-white/10 hover:text-white'
+    active ? 'bg-white font-semibold text-[#21295A] shadow-sm' : 'text-white hover:bg-white/10'
   }`;
 
 /** Shared inner: active accent bar + icon + label + optional red count badge. */
@@ -92,7 +115,7 @@ const NavInner: React.FC<{ active: boolean; icon: React.ReactNode; label: string
     >
       {icon}
     </span>
-    <span className="truncate">{label}</span>
+    <span className="truncate font-mona-condensed text-[15px] leading-[20px]">{label}</span>
     {typeof badge === 'number' && badge > 0 && (
       <span className="ml-auto min-w-[18px] rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
         {badge}
@@ -160,9 +183,7 @@ const useSidebarBadges = (enabled: boolean): Record<string, number> => {
 };
 
 const GroupLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="px-5 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#9096be] first:pt-2">
-    {children}
-  </div>
+  <div className="px-5 pb-1.5 pt-5 text-[14px] font-semibold uppercase text-white first:pt-2">{children}</div>
 );
 
 interface SidebarProps {
@@ -236,10 +257,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 bg-white shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-gray-200 shadow-sm transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        style={{ backgroundImage: 'linear-gradient(-79.8deg, #5FACFF 0%, #324B9C 108.02%)' }}
       >
         {/* Header with close button for mobile */}
-        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 bg-[#21295A] px-4">
+        <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 px-4">
           <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-light.svg" />
           <button
             aria-label="Close sidebar"
@@ -252,7 +274,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
 
         {/* Navigation — swaps to the centre's module nav while a centre is open */}
         {activeCentre ? (
-          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto py-3">
             {/* Back to Centres */}
             <button
               className="group mx-2.5 mb-2 flex w-[calc(100%-1.25rem)] items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.04em] text-white/50 transition-colors hover:bg-white/10 hover:text-white"
@@ -299,36 +321,58 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               </div>
             </div>
 
-            {CENTRE_MODULE_GROUPS.map(g => {
-              const visibleItems = g.items.filter(m => !m.scope || canRead(m.scope));
-              if (!visibleItems.length) return null;
-              return (
-                <React.Fragment key={g.group}>
-                  <GroupLabel>{g.group}</GroupLabel>
-                  {visibleItems.map(m => {
-                    const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
-                    const isActive = location.pathname === modulePath;
-                    return (
-                      <button
-                        key={m.key}
-                        aria-current={isActive ? 'page' : undefined}
-                        className={`${itemClass(isActive)} w-[calc(100%-1.25rem)] text-left`}
-                        type="button"
-                        onClick={() => {
-                          navigate(modulePath);
-                          closeOnMobile();
-                        }}
-                      >
-                        <NavInner active={isActive} icon={m.icon} label={m.label} />
-                      </button>
-                    );
-                  })}
-                </React.Fragment>
-              );
-            })}
+            {isCentreOperational(activeCentre.status) ? (
+              CENTRE_MODULE_GROUPS.map(g => {
+                const visibleItems = g.items.filter(m => !m.scope || canRead(m.scope));
+                if (!visibleItems.length) return null;
+                return (
+                  <React.Fragment key={g.group}>
+                    <GroupLabel>{g.group}</GroupLabel>
+                    {visibleItems.map(m => {
+                      const modulePath = buildRoute.centreModule(activeCentre.code, m.slug);
+                      // Member Details (/members/:userId) and View Induction
+                      // (/view-induction/:userId) are standalone routes outside the
+                      // centre-module shell (see ROUTES.VIEW_MEMBERS/VIEW_INDUCTION) —
+                      // an exact-path match alone leaves Members/Induction
+                      // unhighlighted while viewing either, exactly the gap the OTHER
+                      // nav branch below already closes for its own
+                      // '/view-members'/'/view-induction' routes.
+                      const isActive =
+                        location.pathname === modulePath ||
+                        (m.key === 'members' && location.pathname.startsWith('/members/')) ||
+                        (m.key === 'induction' && location.pathname.startsWith('/view-induction'));
+                      return (
+                        <button
+                          key={m.key}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={`${itemClass(isActive)} w-[calc(100%-1.25rem)] text-left`}
+                          type="button"
+                          onClick={() => {
+                            navigate(modulePath);
+                            closeOnMobile();
+                          }}
+                        >
+                          <NavInner active={isActive} icon={m.icon} label={m.label} />
+                        </button>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })
+            ) : (
+              // Draft/Staging has never gone live — nothing real to manage yet, so
+              // no module nav at all. Setup happens only through Edit & Activate
+              // from the centre list; CentreModuleRoute shows the matching neutral
+              // note in the main content area.
+              <div className="mx-2.5 mt-1 rounded-lg bg-white/5 px-3 py-2.5 text-[11.5px] leading-snug text-white/60">
+                This centre isn&apos;t active yet. Use{' '}
+                <span className="font-semibold text-white/80">Edit &amp; Activate</span> from the centre list to finish
+                setup.
+              </div>
+            )}
           </nav>
         ) : (
-          <nav className="flex-1 space-y-px overflow-y-auto bg-[#21295A] py-3">
+          <nav className="flex-1 space-y-px overflow-y-auto py-3">
             {visibleGroups.map(g => (
               <React.Fragment key={g.group}>
                 <GroupLabel>{g.group}</GroupLabel>
@@ -337,7 +381,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                     location.pathname === item.path ||
                     location.pathname.startsWith(`${item.path}/`) ||
                     (item.path === ROUTES.INDUCTION.path && location.pathname.startsWith('/view-induction')) ||
-                    (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members'));
+                    (item.path === ROUTES.MEMBERS.path && location.pathname.startsWith('/view-members')) ||
+                    // Member Details (/members/:userId) has no top-level nav item of its
+                    // own -- "Members" only exists inside a centre's own module nav. Landing
+                    // here directly (e.g. from a notification link) with no centre "open"
+                    // would otherwise highlight nothing at all, making the page look
+                    // disconnected from Centre Management, where it conceptually belongs.
+                    (item.path === ROUTES.CENTRES.path && location.pathname.startsWith('/members/'));
 
                   return (
                     <Link

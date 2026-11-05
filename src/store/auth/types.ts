@@ -5,6 +5,10 @@ export interface User {
   firstName: string;
   lastName: string;
   userType: string[];
+  // This login's own coachCode/staffCode-shaped identity (e.g. "C001"), when
+  // one exists — drives Team Schedule's self-login scoping. Absent on a
+  // plain admin account.
+  code?: string | null;
   facilityCode: string | null;
   countryCode?: string | null;
   status: 'active' | 'inactive';

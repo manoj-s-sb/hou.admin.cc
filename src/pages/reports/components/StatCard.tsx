@@ -5,7 +5,9 @@ interface StatCardProps {
   value: string | number;
   subtitle?: string;
   // Optional trend indicator (e.g. growth %). positive → green up, else red down.
-  trend?: { value: number; positive?: boolean };
+  // value is null when there's no previous-period baseline to compare against —
+  // rendered as a neutral "New" badge instead of a misleading 0%/100%.
+  trend?: { value: number | null; positive?: boolean };
   accent?: string; // tailwind gradient classes, e.g. "from-indigo-500 to-blue-500"
   icon?: React.ReactNode;
 }
@@ -37,15 +39,20 @@ const StatCard: React.FC<StatCardProps> = ({
         </div>
         <p className="text-[26px] font-bold leading-none text-gray-900">{displayValue}</p>
         <div className="mt-1.5 flex items-center gap-2">
-          {trend && (
-            <span
-              className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold ${
-                (trend.positive ?? trend.value >= 0) ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-              }`}
-            >
-              {(trend.positive ?? trend.value >= 0) ? '▲' : '▼'} {Math.abs(trend.value)}%
-            </span>
-          )}
+          {trend &&
+            (trend.value === null ? (
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-500">
+                New
+              </span>
+            ) : (
+              <span
+                className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-bold ${
+                  (trend.positive ?? trend.value >= 0) ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                }`}
+              >
+                {(trend.positive ?? trend.value >= 0) ? '▲' : '▼'} {Math.abs(trend.value)}%
+              </span>
+            ))}
           {subtitle && <span className="text-xs font-medium text-gray-400">{subtitle}</span>}
         </div>
       </div>

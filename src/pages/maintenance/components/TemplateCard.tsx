@@ -24,7 +24,7 @@ const TemplateCard: React.FC<Props> = ({
   onEdit,
   onArchiveToggle,
 }) => {
-  const type = taskTypeMeta(template.taskType);
+  const type = taskTypeMeta(template.taskType, template.taskTypeCustom);
   const prio = priorityMeta(template.priority);
   const archived = template.status === 'archived';
   const equipmentText = template.equipmentCustom || template.equipment || 'General';

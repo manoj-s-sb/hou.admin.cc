@@ -14,15 +14,18 @@ import { handleApiError } from '../../utils/errorUtils';
 import type {
   CompleteTaskPayload,
   CreateTemplatePayload,
+  EndSeriesPayload,
   FlagIssuePayload,
   FlagIssueResponse,
   ListSchedulesPayload,
   ListSchedulesResponse,
   ListTemplatesPayload,
   ListTemplatesResponse,
+  RescheduleNextTaskPayload,
   ScheduleTaskPayload,
   TaskSchedule,
   TaskTemplate,
+  UndoCompleteTaskPayload,
   UnscheduleTaskPayload,
   UpdateTemplatePayload,
 } from './types';
@@ -32,11 +35,19 @@ import type {
  * the Tickets module imports this helper too. Do NOT remove.
  */
 export const uploadFileToBlob = async (uploadUrl: string, file: File): Promise<void> => {
-  await fetch(uploadUrl, {
+  const res = await fetch(uploadUrl, {
     method: 'PUT',
     headers: { 'x-ms-blob-type': 'BlockBlob' },
     body: file,
   });
+  // fetch() only rejects on a network-level failure (DNS, CORS block, connection
+  // reset) — an HTTP error status (e.g. an expired/invalid SAS, a transient 5xx)
+  // resolves normally and would otherwise be silently treated as a successful
+  // upload, leaving the caller pointing an attachment record at a blob that was
+  // never actually written.
+  if (!res.ok) {
+    throw new Error(`Blob upload failed (${res.status})`);
+  }
 };
 
 // Drop undefined keys so the action body only carries what the caller set.
@@ -179,6 +190,21 @@ export const flagIssue = createAsyncThunk<FlagIssueResponse, FlagIssuePayload, {
   }
 );
 
+/** Non-destructive reschedule (moves `nextDueDate` only, no lane change,
+ * no delete/recreate) — use this instead of unschedule+scheduleTask whenever
+ * only the date is changing, since that combo's recreate step can spuriously
+ * conflict with the schedule's own still-future sibling occurrences. */
+export const rescheduleNextTask = createAsyncThunk<TaskSchedule, RescheduleNextTaskPayload, { rejectValue: string }>(
+  'maintenance/rescheduleNextTask',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await post<TaskSchedule>('reschedule_next', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not reschedule the task'));
+    }
+  }
+);
+
 export const unscheduleTask = createAsyncThunk<
   { id: string; deleted: boolean },
   UnscheduleTaskPayload,
@@ -190,3 +216,26 @@ export const unscheduleTask = createAsyncThunk<
     return rejectWithValue(handleApiError(error, 'Could not remove the schedule'));
   }
 });
+
+export const endSeries = createAsyncThunk<
+  { seriesId: string | null; deletedCount: number },
+  EndSeriesPayload,
+  { rejectValue: string }
+>('maintenance/endSeries', async (payload, { rejectWithValue }) => {
+  try {
+    return await post<{ seriesId: string | null; deletedCount: number }>('end_series', { ...payload });
+  } catch (error) {
+    return rejectWithValue(handleApiError(error, 'Could not end the series'));
+  }
+});
+
+export const undoCompleteTask = createAsyncThunk<TaskSchedule, UndoCompleteTaskPayload, { rejectValue: string }>(
+  'maintenance/undoCompleteTask',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await post<TaskSchedule>('undo_complete_task', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not undo the completion'));
+    }
+  }
+);

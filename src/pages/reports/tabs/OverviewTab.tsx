@@ -1,6 +1,9 @@
 import React from 'react';
 
+import { useNavigate } from 'react-router-dom';
+
 import { DataTable, TableColumn } from '../../../components/Table';
+import { buildRoute } from '../../../constants/routes';
 import { CentreSummaryRow, OverviewData } from '../../../store/reports/types';
 import { centreColour, countryFlag } from '../../centres/constants';
 import BarChart from '../components/BarChart';
@@ -78,8 +81,11 @@ const columns: TableColumn<CentreSummaryRow>[] = [
   },
   { id: 'active', label: 'Active', align: 'right', sortable: true, renderCell: v => Number(v).toLocaleString() },
   {
+    // RP-3: this is a sum of booking DURATIONS, not a booking count (that's the
+    // Centre Management card's "Bookings · 30d" stat) — label it as such so the
+    // two are never mistaken for the same metric.
     id: 'bookingHrs',
-    label: 'Bookings',
+    label: 'Booking Hrs',
     align: 'right',
     sortable: true,
     renderCell: v => `${Number(v).toLocaleString()} hrs`,
@@ -97,6 +103,7 @@ const columns: TableColumn<CentreSummaryRow>[] = [
 
 const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
   const { stats } = data;
+  const navigate = useNavigate();
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -104,15 +111,15 @@ const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
           accent="from-indigo-500 to-blue-500"
           subtitle="vs previous period"
           title="Total Members"
-          trend={{ value: stats.membersTrendPct, positive: stats.membersTrendPct >= 0 }}
+          trend={{ value: stats.membersTrendPct, positive: (stats.membersTrendPct ?? 0) >= 0 }}
           value={stats.totalMembers}
         />
         <StatCard
           accent="from-violet-500 to-purple-500"
-          subtitle="hrs / day · vs previous period"
-          title="Booking Hours / Day"
-          trend={{ value: stats.bookingsTrendPct, positive: stats.bookingsTrendPct >= 0 }}
-          value={stats.bookingsPerDay}
+          subtitle="vs previous period"
+          title="Bookings"
+          trend={{ value: stats.bookingsTrendPct, positive: (stats.bookingsTrendPct ?? 0) >= 0 }}
+          value={stats.totalBookings}
         />
         <StatCard
           accent="from-emerald-500 to-teal-500"
@@ -150,13 +157,14 @@ const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
         </ChartCard>
       </div>
 
-      <ChartCard subtitle="Per-centre rollup" title="Centre Summary">
+      <ChartCard subtitle="Per-centre rollup — click a row to open that centre's Members" title="Centre Summary">
         <DataTable<CentreSummaryRow>
           sortable
           columns={columns}
           data={data.centreSummary}
           emptyState={{ title: 'No centres match these filters' }}
           getRowId={row => row.centreId}
+          onRowClick={row => navigate(buildRoute.centreModule(row.centreId, 'members'))}
         />
       </ChartCard>
     </div>

@@ -1,34 +1,27 @@
 import React, { lazy } from 'react';
 
 import { ACCESS_SCOPES } from '../../rbac/constants';
-import CoachSchedule from '../coach';
 import Induction from '../induction';
 import Members from '../members';
 import SlotBookings from '../slots';
 import Tailgate from '../tailgate';
+import TeamSchedule from '../teamSchedule';
 import Tickets from '../tickets';
 import Tours from '../tours';
 import WaitlistLeads from '../waitlist';
+import WalletTransactions from '../wallet';
 
-import ComingSoon from './components/ComingSoon';
+import Facilities from './facilities';
+import PlansPricing from './plans';
 
 import type { CentreModuleKey } from '../../contexts/CentreNavContext';
+import type { CentreApiStatus } from '../../store/centres/types';
 
 // Maintenance is a large page kept in its own chunk (see App.tsx) — lazy-load it here too
 // so the registry (imported by the Sidebar) doesn't pull it into the main bundle.
 const Maintenance = lazy(() => import('../maintenance'));
-
-// Temporary: Plans & Pricing shows real per-centre data behind a Coming Soon
-// placeholder for now — the PlansPricing import above stays wired so restoring
-// it later is just swapping this back for `PlansPricing` as the module's
-// `component`. Frontend-only; the backend routes are untouched.
-const PlansPricingComingSoon: React.FC = () => <ComingSoon moduleLabel="Plans & Pricing" />;
-
-// Temporary: Facilities shows real per-centre data behind a Coming Soon
-// placeholder for now — restoring it later is just re-importing `Facilities`
-// from './facilities' and swapping this back in as the module's `component`.
-// Frontend-only; the backend routes are untouched.
-const FacilitiesComingSoon: React.FC = () => <ComingSoon moduleLabel="Facilities" />;
+// Calendar pulls in react-big-calendar — same chunking rationale as Maintenance above.
+const Calendar = lazy(() => import('../calendar'));
 
 export interface CentreModuleDef {
   key: CentreModuleKey;
@@ -168,11 +161,14 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
       },
       {
         // Not shown in the mockup — kept here (appended) so it isn't removed.
-        key: 'coach',
-        label: 'Coach Schedule',
-        slug: 'coach-schedule',
-        component: CoachSchedule,
-        scope: ACCESS_SCOPES.coaches,
+        // Merges the former separate Coach Schedule / Staff Schedule entries
+        // into one nav item with a Coach/Staff tab toggle inside — the grids
+        // themselves are unchanged, only the navigation was consolidated.
+        key: 'teamSchedule',
+        label: 'Team Schedule',
+        slug: 'team-schedule',
+        component: TeamSchedule,
+        scope: ACCESS_SCOPES.teamSchedule,
         icon: I(
           <>
             <rect height="18" rx="2" width="18" x="3" y="4" />
@@ -183,6 +179,50 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
           </>
         ),
       },
+      {
+        // Placed last (below Coach Schedule) per request — a unified calendar view.
+        // Assignable per staff member, like every other module here — see
+        // ACCESS_SCOPES.calendar / constants/menus.ts's matching entry.
+        key: 'calendar',
+        label: 'Calendar',
+        slug: 'calendar',
+        component: Calendar,
+        scope: ACCESS_SCOPES.calendar,
+        icon: I(
+          <>
+            <rect height="18" rx="2" width="18" x="3" y="4" />
+            <line x1="16" x2="16" y1="2" y2="6" />
+            <line x1="8" x2="8" y1="2" y2="6" />
+            <line x1="3" x2="21" y1="10" y2="10" />
+            <rect fill="currentColor" height="4" stroke="none" width="4" x="7" y="13" />
+          </>
+        ),
+      },
+      {
+        // Its own grantable module (see shared/menu_permissions.py's
+        // /admin/wallets -> "wallettransactions" mapping, and the live
+        // menupermission doc, which now carries this id too) — a staff
+        // member's Role & Access grid controls who can even reach this page.
+        // Crediting is separately hard-gated to superadmin only, checked
+        // directly (isSuperAdmin()), independent of this module scope.
+        key: 'wallet',
+        label: 'Wallet Transactions',
+        slug: 'wallet',
+        component: WalletTransactions,
+        scope: ACCESS_SCOPES.walletTransactions,
+        icon: I(
+          <>
+            <rect height="16" rx="2" width="20" x="2" y="4" />
+            <path d="M2 9h20" />
+            <circle cx="17" cy="14.5" fill="currentColor" r="1.5" stroke="none" />
+          </>
+        ),
+      },
+      // NE-1's central notifications log lives behind a bell icon in the top
+      // bar now (src/components/Layout.tsx + NotificationsLogModal), not as
+      // its own sidebar entry — kept out of this nav per request. The
+      // disabled Notifications COMPOSER mockup this slot used to hold stays
+      // untouched at ../notifications if it's ever revived separately.
     ],
   },
   {
@@ -192,7 +232,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         key: 'facilities',
         label: 'Facilities',
         slug: 'facilities',
-        component: FacilitiesComingSoon,
+        component: Facilities,
         scope: ACCESS_SCOPES.facilities,
         icon: I(
           <>
@@ -206,7 +246,7 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
         key: 'plans',
         label: 'Plans & Pricing',
         slug: 'plans-pricing',
-        component: PlansPricingComingSoon,
+        component: PlansPricing,
         scope: ACCESS_SCOPES.plansPricing,
         icon: I(
           <>
@@ -228,3 +268,15 @@ export const CENTRE_MODULE_GROUPS: { group: string; items: CentreModuleDef[] }[]
 
 /** Flat list of live modules — the generic centre route resolves a slug against this. */
 export const LIVE_CENTRE_MODULES: CentreModuleDef[] = CENTRE_MODULE_GROUPS.flatMap(g => g.items);
+
+/**
+ * Whether a centre has anything real for an admin to manage yet. Active and
+ * Suspended both keep full access to every module — a Suspended centre was
+ * live before and still holds real members, bookings and tickets; suspending
+ * it only stops NEW member-app activity, not an admin's ability to look at or
+ * manage what's already there. Draft and Staging have never gone live, so
+ * there is nothing real to manage — every module, including Facilities and
+ * Plans & Pricing, is blocked until the centre is actually activated via the
+ * Edit & Activate wizard. See CentreModuleRoute (route guard) and Sidebar (nav).
+ */
+export const isCentreOperational = (status: CentreApiStatus): boolean => status === 'active' || status === 'suspended';

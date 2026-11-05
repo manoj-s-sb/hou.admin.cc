@@ -1,7 +1,17 @@
 import React from 'react';
 
+import PhoneCodeSearchSelect from '../../../components/PhoneCodeSearchSelect';
 import { ConfigOption, OTHER_QUALIFICATION, ProfileFormState } from '../types';
-import { getConfigOtherQualificationId, INPUT_CLASS, LABEL_CLASS } from '../utils';
+import {
+  dialCodeOf,
+  getConfigOtherQualificationId,
+  INPUT_CLASS,
+  isBelowMinimumAge,
+  LABEL_CLASS,
+  maxDobForMinAge,
+  MIN_STAFF_AGE_YEARS,
+  stripDialCode,
+} from '../utils';
 
 import ProfilePhotoUploader from './ProfilePhotoUploader';
 
@@ -17,7 +27,13 @@ interface ProfileStepProps {
   isConfigLoading: boolean;
   configError: string | null;
   onToggleCertification: (id: string) => void;
+  /** True once the admin has tried to leave this step with a required field
+   * still blank — turns on the red borders/inline messages below. */
+  showErrors?: boolean;
 }
+
+const ERROR_INPUT_CLASS = `${INPUT_CLASS} border-red-400 focus:border-red-400 focus:ring-red-100`;
+const ERROR_TEXT_CLASS = 'mt-1 text-[11px] font-medium text-red-500';
 
 const ProfileStep: React.FC<ProfileStepProps> = ({
   profile,
@@ -31,12 +47,20 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
   isConfigLoading,
   configError,
   onToggleCertification,
+  showErrors,
 }) => {
   // Use the backend's "Other" option if it exists; otherwise fall back to a
   // synthetic one. Either way, only one "Other" entry is shown.
   const configOtherId = getConfigOtherQualificationId(qualifications);
   const otherId = configOtherId ?? OTHER_QUALIFICATION;
   const isOtherSelected = profile.highestQualification === otherId;
+
+  const firstNameInvalid = !!showErrors && !profile.firstName.trim();
+  const lastNameInvalid = !!showErrors && !profile.lastName.trim();
+  const emailInvalid = !!showErrors && !profile.email.trim();
+  const dobInvalid = !!showErrors && !profile.dob.trim();
+  const maxDob = maxDobForMinAge();
+  const dobTooYoung = isBelowMinimumAge(profile.dob);
 
   return (
     <div className="space-y-6">
@@ -55,64 +79,86 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
               First Name *
             </label>
             <input
-              className={INPUT_CLASS}
+              className={firstNameInvalid ? ERROR_INPUT_CLASS : INPUT_CLASS}
               id="first-name"
               placeholder="e.g. James"
               type="text"
               value={profile.firstName}
               onChange={e => onChange('firstName', e.target.value)}
             />
+            {firstNameInvalid && <p className={ERROR_TEXT_CLASS}>First name is required</p>}
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="last-name">
               Last Name *
             </label>
             <input
-              className={INPUT_CLASS}
+              className={lastNameInvalid ? ERROR_INPUT_CLASS : INPUT_CLASS}
               id="last-name"
               placeholder="e.g. Thornton"
               type="text"
               value={profile.lastName}
               onChange={e => onChange('lastName', e.target.value)}
             />
+            {lastNameInvalid && <p className={ERROR_TEXT_CLASS}>Last name is required</p>}
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="email">
               Email Address *
             </label>
             <input
-              className={INPUT_CLASS}
+              className={emailInvalid ? ERROR_INPUT_CLASS : INPUT_CLASS}
               id="email"
               placeholder="james@example.com"
               type="email"
               value={profile.email}
               onChange={e => onChange('email', e.target.value)}
             />
+            {emailInvalid && <p className={ERROR_TEXT_CLASS}>Email is required</p>}
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="phone">
               Phone Number
             </label>
-            <input
-              className={INPUT_CLASS}
-              id="phone"
-              placeholder="+1 555 000 0000"
-              type="tel"
-              value={profile.phone}
-              onChange={e => onChange('phone', e.target.value)}
-            />
+            <div className="flex gap-2">
+              <PhoneCodeSearchSelect
+                className={INPUT_CLASS}
+                value={dialCodeOf(profile.phone)}
+                wrapperStyle={{ flex: '0 0 92px' }}
+                onChange={code => onChange('phone', `${code} ${stripDialCode(profile.phone)}`.trim())}
+              />
+              <input
+                className={INPUT_CLASS}
+                id="phone"
+                inputMode="tel"
+                placeholder="555 000 0000"
+                style={{ flex: '1 1 auto' }}
+                type="tel"
+                value={stripDialCode(profile.phone)}
+                onChange={e => {
+                  // Digits + spaces/hyphens/parens for formatting — no letters.
+                  const cleaned = e.target.value.replace(/[^\d\s\-()]/g, '');
+                  onChange('phone', `${dialCodeOf(profile.phone)} ${cleaned}`.trim());
+                }}
+              />
+            </div>
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="dob">
               Date of Birth *
             </label>
             <input
-              className={INPUT_CLASS}
+              className={dobInvalid || dobTooYoung ? ERROR_INPUT_CLASS : INPUT_CLASS}
               id="dob"
+              max={maxDob}
               type="date"
               value={profile.dob}
               onChange={e => onChange('dob', e.target.value)}
             />
+            {dobInvalid && <p className={ERROR_TEXT_CLASS}>Date of birth is required</p>}
+            {!dobInvalid && dobTooYoung && (
+              <p className={ERROR_TEXT_CLASS}>Staff member must be at least {MIN_STAFF_AGE_YEARS} years old</p>
+            )}
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="gender">

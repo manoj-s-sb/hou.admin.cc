@@ -9,13 +9,16 @@ export type CentreModuleKey =
   // Operations
   | 'members'
   | 'bookings'
-  | 'coach'
+  | 'teamSchedule'
   | 'induction'
   | 'tours'
   | 'tailgate'
   | 'maintenance'
   | 'waitlist'
   | 'tickets'
+  | 'calendar'
+  | 'wallet'
+  | 'notifications'
   // Centre config
   | 'facilities'
   | 'plans';

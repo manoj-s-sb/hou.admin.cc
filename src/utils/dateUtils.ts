@@ -205,3 +205,83 @@ export const formatTimeRangeChicago = (startTime: DateInput, endTime: DateInput)
 
   return `${start} - ${end}`;
 };
+
+// ========================================
+// Offset-preserving formatters ("as authored")
+// ========================================
+//
+// The formatters above always convert into America/Chicago wall-clock time —
+// correct for a Chicago-based centre, but WRONG for any other centre (e.g.
+// BLR01/India), because the ISO timestamps these events carry already embed
+// that facility's own local offset (e.g. "...T15:00:00+05:30" for 3:00 PM IST).
+// Converting that into Chicago time shifts it by the offset difference (~10.5
+// hours for IST), producing a nonsense displayed time. These formatters instead
+// read the offset already present in the string and display THAT wall-clock
+// time verbatim — correct for whichever facility authored the timestamp,
+// regardless of the browser's or a hardcoded timezone.
+
+interface ParsedIsoLocal {
+  year: number;
+  month: number; // 1-12
+  day: number;
+  hour: number;
+  minute: number;
+}
+
+const parseIsoLocal = (iso: string): ParsedIsoLocal | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
+  if (!m) return null;
+  return { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]), hour: Number(m[4]), minute: Number(m[5]) };
+};
+
+/**
+ * Format a time (e.g. "3:00 PM") from the offset already embedded in the ISO
+ * string — see the "as authored" note above.
+ */
+export const formatTimeAsAuthored = (dateValue: string | null | undefined): string => {
+  const p = dateValue ? parseIsoLocal(dateValue) : null;
+  if (!p) return 'Invalid Date';
+  const ampm = p.hour >= 12 ? 'PM' : 'AM';
+  const hour12 = p.hour % 12 || 12;
+  return `${hour12}:${String(p.minute).padStart(2, '0')} ${ampm}`;
+};
+
+/** Time range version of formatTimeAsAuthored — see its doc comment. */
+export const formatTimeRangeAsAuthored = (
+  startTime: string | null | undefined,
+  endTime: string | null | undefined
+): string => {
+  const start = formatTimeAsAuthored(startTime);
+  const end = formatTimeAsAuthored(endTime);
+  if (start === 'Invalid Date' || end === 'Invalid Date') return 'Invalid Date';
+  return `${start} - ${end}`;
+};
+
+/**
+ * Format a full date + time (e.g. "Wed, Sep 9, 2026, 3:00 PM") from the offset
+ * already embedded in the ISO string — see the "as authored" note above.
+ */
+export const formatDateTimeAsAuthored = (dateValue: string | null | undefined): string => {
+  const p = dateValue ? parseIsoLocal(dateValue) : null;
+  if (!p) return 'Invalid Date';
+  // Constructed at local midnight from the parsed Y/M/D — only used to derive
+  // weekday/month names, which can't cross a calendar boundary from midnight.
+  const dateForNames = new Date(p.year, p.month - 1, p.day);
+  const weekday = dateForNames.toLocaleDateString(DEFAULT_LOCALE, { weekday: 'short' });
+  const month = dateForNames.toLocaleDateString(DEFAULT_LOCALE, { month: 'short' });
+  return `${weekday}, ${month} ${p.day}, ${p.year}, ${formatTimeAsAuthored(dateValue)}`;
+};
+
+/**
+ * Format a date only (e.g. "Wed, Sep 9, 2026") from the offset already embedded
+ * in the ISO string — see the "as authored" note above. Date-only counterpart
+ * of formatDateChicago, for callers that don't want the time-of-day appended.
+ */
+export const formatDateAsAuthored = (dateValue: string | null | undefined): string => {
+  const p = dateValue ? parseIsoLocal(dateValue) : null;
+  if (!p) return 'Invalid Date';
+  const dateForNames = new Date(p.year, p.month - 1, p.day);
+  const weekday = dateForNames.toLocaleDateString(DEFAULT_LOCALE, { weekday: 'short' });
+  const month = dateForNames.toLocaleDateString(DEFAULT_LOCALE, { month: 'short' });
+  return `${weekday}, ${month} ${p.day}, ${p.year}`;
+};

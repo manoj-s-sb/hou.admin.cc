@@ -6,6 +6,7 @@ import { useDispatch } from 'react-redux';
 import { createTemplate, updateTemplate, uploadMaintenanceFile } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
 import {
+  ALL_LANES,
   CATEGORY_OPTIONS,
   EQUIPMENT_CUSTOM_SENTINEL,
   EQUIPMENT_OPTIONS,
@@ -35,9 +36,13 @@ interface Props {
 interface StepRow {
   title: string;
   keepImageUrl: string | null; // existing image (display only; preserved server-side on save)
-  newBlobName: string | null; // freshly uploaded blobName to send
-  previewUrl: string | null; // local preview for a fresh upload
-  uploading: boolean;
+  newBlobName: string | null; // freshly uploaded image blobName to send
+  previewUrl: string | null; // local preview for a fresh image upload
+  uploading: boolean; // image upload in flight
+  keepVideoUrl: string | null; // existing video (display only; preserved server-side on save)
+  newVideoBlobName: string | null; // freshly uploaded video blobName to send
+  videoName: string; // uploaded video's original filename, for display only
+  uploadingVideo: boolean; // video upload in flight
 }
 
 const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
@@ -60,7 +65,15 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
   const [equipment, setEquipment] = useState(initialEquip);
   const [equipmentCustom, setEquipmentCustom] = useState(template?.equipmentCustom ?? '');
   const [taskType, setTaskType] = useState<TaskType>(template?.taskType ?? 'mech');
-  const [freqN, setFreqN] = useState<number>(template?.freqN ?? 1);
+  const [taskTypeCustom, setTaskTypeCustom] = useState(template?.taskTypeCustom ?? '');
+  // Kept as a string, not a number, so the field can be transiently empty
+  // while typing (e.g. backspacing a single digit) -- `setFreqN(parseInt(v,
+  // 10) || 1)` on every keystroke used to snap straight back to "1" the
+  // moment the field was cleared, making backspace look broken. Coerced to a
+  // real number (min 1) only where actually needed: freqNValue below, and
+  // again at save time.
+  const [freqN, setFreqN] = useState<string>(String(template?.freqN ?? 1));
+  const freqNValue = Math.max(1, parseInt(freqN, 10) || 1);
   const [freqUnit, setFreqUnit] = useState<FreqUnit>(template?.freqUnit ?? 'week');
   const [stepRows, setStepRows] = useState<StepRow[]>(
     (template?.steps ?? []).map(s => ({
@@ -69,9 +82,22 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
       newBlobName: null,
       previewUrl: null,
       uploading: false,
+      keepVideoUrl: s.videoUrl,
+      newVideoBlobName: null,
+      videoName: '',
+      uploadingVideo: false,
     }))
   );
   const [priority, setPriority] = useState<TemplatePriority>(template?.priority ?? 'medium');
+  // Optional convenience only, never enforced at scheduling time (see
+  // ScheduleModal's own `defaultLane` prop). Three distinct states: '' = no
+  // default (inherit whatever lane tab is open when scheduling), '0' =
+  // explicitly Facility-wide, '1'..'7' = a specific lane. Checked against
+  // both null and undefined explicitly (not a truthy check) so an existing
+  // Facility-wide default (0) isn't mistaken for "no default" when editing.
+  const [defaultLane, setDefaultLane] = useState<string>(
+    template?.defaultLane !== null && template?.defaultLane !== undefined ? String(template.defaultLane) : ''
+  );
   const [status, setStatus] = useState(template?.status ?? 'active');
   const [videoUrl, setVideoUrl] = useState<string | null>(template?.videoUrl ?? null);
   const [videoName, setVideoName] = useState('');
@@ -82,10 +108,12 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
   const isCustomEquip = equipment === EQUIPMENT_CUSTOM_SENTINEL;
   const isCustomCat = category === 'other';
+  const isCustomType = taskType === 'other';
   const errors = {
     title: !title.trim() ? 'Title is required' : '',
     categoryCustom: isCustomCat && !categoryCustom.trim() ? 'Enter the category' : '',
     equipmentCustom: isCustomEquip && !equipmentCustom.trim() ? 'Enter the equipment name' : '',
+    taskTypeCustom: isCustomType && !taskTypeCustom.trim() ? 'Enter the type name' : '',
   };
   const hasErrors = Object.values(errors).some(Boolean);
 
@@ -108,7 +136,17 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
   const addStep = () =>
     setStepRows(rows => [
       ...rows,
-      { title: '', keepImageUrl: null, newBlobName: null, previewUrl: null, uploading: false },
+      {
+        title: '',
+        keepImageUrl: null,
+        newBlobName: null,
+        previewUrl: null,
+        uploading: false,
+        keepVideoUrl: null,
+        newVideoBlobName: null,
+        videoName: '',
+        uploadingVideo: false,
+      },
     ]);
   const removeStep = (i: number) => setStepRows(rows => rows.filter((_, j) => j !== i));
   const uploadStepImage = async (i: number, file: File | null) => {
@@ -122,18 +160,33 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
       patchStep(i, { uploading: false, previewUrl: null });
     }
   };
-
-  const anyUploading = uploadingVideo || stepRows.some(s => s.uploading);
+  const uploadStepVideo = async (i: number, file: File | null) => {
+    if (!file) return;
+    patchStep(i, { uploadingVideo: true });
+    try {
+      const blobName = await uploadMaintenanceFile('GLOBAL', file);
+      patchStep(i, { newVideoBlobName: blobName, videoName: file.name, uploadingVideo: false });
+    } catch {
+      toast.error('Could not upload the video');
+      patchStep(i, { uploadingVideo: false });
+    }
+  };
+  const anyUploading = uploadingVideo || stepRows.some(s => s.uploading || s.uploadingVideo);
 
   const handleSave = async () => {
     setTried(true);
     if (hasErrors || anyUploading) return;
     setSaving(true);
-    // Only send imageUrl for steps with a fresh upload; on update the backend keeps
-    // an existing step's image (matched by order) when imageUrl is omitted.
+    // Only send imageUrl/videoUrl for steps with a fresh upload; on update the
+    // backend keeps an existing step's image/video (matched by order) when
+    // either is omitted.
     const stepPayload = stepRows
       .filter(s => s.title.trim())
-      .map(s => ({ title: s.title.trim(), ...(s.newBlobName ? { imageUrl: s.newBlobName } : {}) }));
+      .map(s => ({
+        title: s.title.trim(),
+        ...(s.newBlobName ? { imageUrl: s.newBlobName } : {}),
+        ...(s.newVideoBlobName ? { videoUrl: s.newVideoBlobName } : {}),
+      }));
     const base: CreateTemplatePayload = {
       title: title.trim(),
       description: description.trim(),
@@ -141,11 +194,13 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
       equipment: isCustomEquip ? EQUIPMENT_CUSTOM_SENTINEL : equipment,
       equipmentCustom: isCustomEquip ? equipmentCustom.trim() : null,
       taskType,
-      freqN: Math.max(1, freqN || 1),
+      taskTypeCustom: isCustomType ? taskTypeCustom.trim() : null,
+      freqN: freqNValue,
       freqUnit,
       steps: stepPayload,
       priority,
       videoUrl,
+      defaultLane: defaultLane !== '' ? parseInt(defaultLane, 10) : null,
     };
     try {
       if (editing && template) {
@@ -251,6 +306,21 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
             </div>
           )}
 
+          {isCustomType && (
+            <div>
+              <span className={labelCls}>Custom Type *</span>
+              <input
+                className={`${inputCls}${errRing(errors.taskTypeCustom)}`}
+                placeholder="Enter type name"
+                value={taskTypeCustom}
+                onChange={e => setTaskTypeCustom(e.target.value)}
+              />
+              {tried && errors.taskTypeCustom && (
+                <p className="mt-1 text-[11px] text-red-500">{errors.taskTypeCustom}</p>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <span className={labelCls}>Machine / Equipment</span>
@@ -278,6 +348,23 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
             </div>
           </div>
 
+          <div>
+            <span className={labelCls}>Default Lane (optional)</span>
+            <select className={inputCls} value={defaultLane} onChange={e => setDefaultLane(e.target.value)}>
+              <option value="">No default (choose the lane when scheduling)</option>
+              <option value="0">All Lanes (Facility-wide)</option>
+              {ALL_LANES.map(n => (
+                <option key={n} value={n}>
+                  Lane {n}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-gray-400">
+              Just a suggestion — pre-fills the Lane field when this task is scheduled. It can always be changed there,
+              and the task stays schedulable on any lane.
+            </p>
+          </div>
+
           {isCustomEquip && (
             <div>
               <span className={labelCls}>Custom Equipment *</span>
@@ -303,7 +390,8 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                 min={1}
                 type="number"
                 value={freqN}
-                onChange={e => setFreqN(parseInt(e.target.value, 10) || 1)}
+                onBlur={() => setFreqN(String(freqNValue))}
+                onChange={e => setFreqN(e.target.value.replace(/[^0-9]/g, ''))}
               />
               <select
                 className={`${freqCtrlCls} min-w-0 flex-1`}
@@ -317,7 +405,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                 ))}
               </select>
               <span className="whitespace-nowrap rounded-full bg-[#ecedf4] px-3 py-1 text-[11px] font-semibold text-[#21295A]">
-                {freqLabel(Math.max(1, freqN || 1), freqUnit)}
+                {freqLabel(freqNValue, freqUnit)}
               </span>
             </div>
             <p className="mt-1 text-[11px] text-gray-400">
@@ -389,6 +477,35 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                           />
                         </label>
                       )}
+                      <span className={`${labelCls} mt-2`}>Video (optional)</span>
+                      {s.keepVideoUrl || s.newVideoBlobName ? (
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1.5 text-[11.5px] text-gray-500">
+                            🎬 {s.videoName || 'Video attached'}
+                          </span>
+                          <label className="cursor-pointer text-[11.5px] font-semibold text-indigo-600 hover:text-indigo-700">
+                            {s.uploadingVideo ? 'Uploading…' : 'Replace'}
+                            <input
+                              accept="video/*"
+                              className="hidden"
+                              disabled={s.uploadingVideo}
+                              type="file"
+                              onChange={e => uploadStepVideo(i, e.target.files?.[0] ?? null)}
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2.5 text-[12px] font-semibold text-gray-500 hover:border-indigo-300 hover:text-indigo-600">
+                          🎬 {s.uploadingVideo ? 'Uploading…' : 'Upload Video'}
+                          <input
+                            accept="video/*"
+                            className="hidden"
+                            disabled={s.uploadingVideo}
+                            type="file"
+                            onChange={e => uploadStepVideo(i, e.target.files?.[0] ?? null)}
+                          />
+                        </label>
+                      )}
                     </div>
                   );
                 })}
@@ -400,7 +517,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
               type="button"
               onClick={addStep}
             >
-              + Add Step
+              Add Step
             </button>
           </div>
 

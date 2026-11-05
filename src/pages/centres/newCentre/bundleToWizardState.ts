@@ -4,10 +4,10 @@
  * wizard can open pre-filled for editing / activating an existing draft.
  *
  * Best-effort: fields the wizard never persisted to the bundle (the facilities
- * chip list, additional bookable facilities, centre discounts) fall back to
- * sensible defaults — the bundle is the source of truth for everything else.
+ * chip list, additional bookable facilities) fall back to sensible defaults —
+ * the bundle is the source of truth for everything else.
  */
-import { DAYS, PLAN_CATALOGUE } from '../constants';
+import { COUNTRY_ISO3_TO_CODE, DAYS } from '../constants';
 
 import { makeAdditionalFacility } from './AdditionalFacilitiesStep';
 
@@ -15,10 +15,10 @@ import type {
   AdditionalFacility,
   AdditionalFacilityType,
   ApiMembership,
+  ApiProduct,
   CentreBundle,
   OperatingHoursDay,
   OperatingHoursMap,
-  PlanId,
   WizardPlanRow,
   WizardState,
 } from '../../../store/centres/types';
@@ -41,36 +41,166 @@ const num = (v: unknown): number => {
 /** Present (not null/undefined) — used to keep guest-pricing blank when unset. */
 const hasVal = (v: unknown): boolean => v !== undefined && v !== null;
 
-const FEATURE_TYPES: AdditionalFacilityType[] = ['gym', 'podcast', 'meeting', 'gaming', 'custom'];
+/** Products already surfaced via the Lanes step — never reconstructed as additional facilities. */
+const LANE_PRODUCT_CODES = new Set(['batting', 'bowling', 'hybrid', 'multipurpose']);
+
+/** Map a product's `code` back to the wizard's facility type — mirrors productCodeFor in buildCreatePayload.ts. */
+const facilityTypeFromCode = (code: string): AdditionalFacilityType => {
+  const c = code.toLowerCase();
+  if (c === 'gym') return 'gym';
+  if (c === 'gaming') return 'gaming';
+  if (c.startsWith('podcastroom')) return 'podcast';
+  if (c.startsWith('meetingroom')) return 'meeting';
+  return 'custom';
+};
 
 /**
- * Rebuild the wizard's additional-facilities list from the saved `facility.features`
- * map so editing a centre shows the ones already configured (and re-saving keeps
- * them instead of replacing the map with only the newly-added one).
+ * Rebuild the wizard's additional-facilities list from the real `product` docs
+ * (bundle.products) so editing a centre shows the ones already configured. Best-effort:
+ * the real docs' nested shape (slotPricing/sessionRules/guestPolicy) is mapped back onto
+ * the wizard's flatter fields — see buildCreatePayload.ts's buildProducts for the forward
+ * direction. Note products are CREATE-ONLY on save (see facility_models.py), so re-saving
+ * an unchanged facility here never overwrites its real DB values.
  */
-const featuresToAdditional = (features: Record<string, unknown> | undefined): AdditionalFacility[] => {
+const productsToAdditional = (products: ApiProduct[] | undefined): AdditionalFacility[] => {
   const out: AdditionalFacility[] = [];
-  Object.entries(features ?? {}).forEach(([type, val]) => {
-    if (!FEATURE_TYPES.includes(type as AdditionalFacilityType)) return;
-    const entries = Array.isArray(val) ? val : val && typeof val === 'object' ? [val] : [];
-    entries.forEach((raw, i) => {
-      const e = raw as Record<string, unknown>;
-      const base = makeAdditionalFacility(type as AdditionalFacilityType, i + 1);
+  (products ?? []).forEach((p, i) => {
+    const code = (p.code ?? '').toLowerCase();
+    if (!code || LANE_PRODUCT_CODES.has(code)) return;
+    const type = facilityTypeFromCode(code);
+    const base = makeAdditionalFacility(type, i + 1);
+
+    const images = (p.images ?? []).map(img => ({ blobName: img.blobName, previewUrl: img.url }));
+
+    if (p.bookingModel === 'membership_addon') {
+      // Membership add-on shape (addonPricing/freeTrial/ageRules/pinRules) —
+      // distinct from the pay-per-slot mapping below. See buildProducts in
+      // buildCreatePayload.ts for the forward direction.
       out.push({
         ...base,
-        name: (e.name as string) || base.name,
-        fortnightlyPrice: num(e.fortnightlyPrice),
-        annualDiscountPct: num(e.annualDiscountPct),
-        totalCapacity: num(e.totalCapacity) || base.totalCapacity,
-        concurrentCapacity: num(e.concurrentCapacity) || base.concurrentCapacity,
-        slotDuration: (e.slotDuration as string) || base.slotDuration,
-        guestSessionPrice: num(e.guestSessionPrice),
-        freeGuestVisits: num(e.freeGuestVisits),
-        openTime: (e.openTime as string) || base.openTime,
-        closeTime: (e.closeTime as string) || base.closeTime,
-        psUnits: hasVal(e.psUnits) ? num(e.psUnits) : base.psUnits,
-        chargePerHour: hasVal(e.chargePerHour) ? num(e.chargePerHour) : base.chargePerHour,
+        name: p.name || base.name,
+        description: p.description ?? base.description,
+        images,
+        bookingModel: 'membership_addon',
+        annualDiscountPct: hasVal(p.annualDiscountPct) ? num(p.annualDiscountPct) : base.annualDiscountPct,
+        openTime: p.openTime ?? base.openTime,
+        closeTime: p.closeTime ?? base.closeTime,
+        fortnightlyPrice: hasVal(
+          (p.pricing as { individual?: { fortnightly?: number } } | undefined)?.individual?.fortnightly
+        )
+          ? num((p.pricing as { individual?: { fortnightly?: number } } | undefined)?.individual?.fortnightly)
+          : base.fortnightlyPrice,
+        annualPrice: hasVal(p.addonPricing?.annualPriceOverride)
+          ? num(p.addonPricing?.annualPriceOverride)
+          : base.annualPrice,
+        slotDuration: hasVal(p.sessionRules?.durationMinutes)
+          ? `${p.sessionRules?.durationMinutes} minutes`
+          : base.slotDuration,
+        slotStartIntervalMinutes: hasVal(p.sessionRules?.slotIncrementMinutes)
+          ? num(p.sessionRules?.slotIncrementMinutes)
+          : base.slotStartIntervalMinutes,
+        maxMembersPerSlot: hasVal(p.sessionRules?.slotCapacity)
+          ? num(p.sessionRules?.slotCapacity)
+          : base.maxMembersPerSlot,
+        gapHoursByPlan: p.sessionRules?.bookingFrequency ?? base.gapHoursByPlan,
+        advanceBookingDays: hasVal(p.sessionRules?.advanceBookingDays)
+          ? num(p.sessionRules?.advanceBookingDays)
+          : base.advanceBookingDays,
+        guestSessionPrice: hasVal(p.guestPolicy?.additionalGuestPrice)
+          ? num(p.guestPolicy?.additionalGuestPrice)
+          : base.guestSessionPrice,
+        freeGuestVisits: hasVal(p.guestPolicy?.freeGuestsPerBillingCycle)
+          ? num(p.guestPolicy?.freeGuestsPerBillingCycle)
+          : base.freeGuestVisits,
+        freeGymEntryWithLaneBooking: p.guestPolicy?.laneGuestFreeGymSameDay ?? base.freeGymEntryWithLaneBooking,
+        freeTrialSlots: (p.freeTrial?.slotsPerMembershipLifetime ?? base.freeTrialSlots) as 0 | 1 | 2,
+        minimumAge: hasVal(p.ageRules?.minAge) ? num(p.ageRules?.minAge) : base.minimumAge,
+        parentPresentFrom: hasVal(p.ageRules?.supervisedRange?.min)
+          ? num(p.ageRules?.supervisedRange?.min)
+          : base.parentPresentFrom,
+        parentPresentTo: hasVal(p.ageRules?.supervisedRange?.max)
+          ? num(p.ageRules?.supervisedRange?.max)
+          : base.parentPresentTo,
+        consentFrom: hasVal(p.ageRules?.consentRange?.min) ? num(p.ageRules?.consentRange?.min) : base.consentFrom,
+        consentTo: hasVal(p.ageRules?.consentRange?.max) ? num(p.ageRules?.consentRange?.max) : base.consentTo,
+        gymPinBefore: hasVal(
+          (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.[p.code ?? '']?.preAccessTime
+        )
+          ? num(
+              (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.[p.code ?? '']?.preAccessTime
+            )
+          : base.gymPinBefore,
+        facilityPinBefore: hasVal(
+          (p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.mainDoor?.preAccessTime
+        )
+          ? num((p.accessControl as Record<string, { preAccessTime?: number }> | undefined)?.mainDoor?.preAccessTime)
+          : base.facilityPinBefore,
+        inductionRequired: p.inductionRequired ?? base.inductionRequired,
       });
+      return;
+    }
+
+    // Pay-per-slot is hourly on every stored doc now (pricing.perHour, a member
+    // picks any whole hour count in sessionRules.minHours..maxHours) — and
+    // accessControl is the SAME per-door map shape addon facilities use.
+    const hourlyPricing = p.pricing as { perHour?: number } | undefined;
+    const access = p.accessControl as Record<string, { preAccessTime?: number }> | undefined;
+    const doorPinBefore = hasVal(access?.[p.code ?? '']?.preAccessTime)
+      ? num(access?.[p.code ?? '']?.preAccessTime)
+      : base.doorPinBefore;
+    const roomFacilityPinBefore = hasVal(access?.mainDoor?.preAccessTime)
+      ? num(access?.mainDoor?.preAccessTime)
+      : base.roomFacilityPinBefore;
+
+    if (type === 'gaming') {
+      // Gaming's own fields (psUnits/chargePerHour/minSession/maxSession) are
+      // the wizard's UI for the same hourly pricing — see buildCreatePayload.ts's
+      // toHours for the forward (hours → "N minutes") direction.
+      out.push({
+        ...base,
+        name: p.name || base.name,
+        description: p.description ?? base.description,
+        images,
+        bookingModel: 'pay_per_slot',
+        chargePerHour: hasVal(hourlyPricing?.perHour) ? num(hourlyPricing?.perHour) : base.chargePerHour,
+        psUnits: hasVal(p.totalCapacity) ? num(p.totalCapacity) : base.psUnits,
+        minSession: hasVal(p.sessionRules?.minHours)
+          ? `${num(p.sessionRules?.minHours) * 60} minutes`
+          : base.minSession,
+        maxSession: hasVal(p.sessionRules?.maxHours)
+          ? `${num(p.sessionRules?.maxHours) * 60} minutes`
+          : base.maxSession,
+        doorPinBefore,
+        roomFacilityPinBefore,
+      });
+      return;
+    }
+
+    // podcast / meeting / custom-pay-per-slot.
+    out.push({
+      ...base,
+      name: p.name || base.name,
+      description: p.description ?? base.description,
+      images,
+      bookingModel: 'pay_per_slot',
+      fortnightlyPrice: hasVal(hourlyPricing?.perHour) ? num(hourlyPricing?.perHour) : base.fortnightlyPrice,
+      guestSessionPrice: hasVal(p.guestPolicy?.additionalGuestPrice)
+        ? num(p.guestPolicy?.additionalGuestPrice)
+        : base.guestSessionPrice,
+      freeGuestVisits: hasVal(p.freeGuestVisits) ? num(p.freeGuestVisits) : base.freeGuestVisits,
+      totalCapacity: hasVal(p.totalCapacity) ? num(p.totalCapacity) : base.totalCapacity,
+      concurrentCapacity: hasVal(p.sessionRules?.slotCapacity)
+        ? num(p.sessionRules?.slotCapacity)
+        : base.concurrentCapacity,
+      maxBookableHours: hasVal(p.sessionRules?.maxHours) ? num(p.sessionRules?.maxHours) : base.maxBookableHours,
+      maxBookingsPerDay: hasVal(p.sessionRules?.maxBookingsPerDay)
+        ? num(p.sessionRules?.maxBookingsPerDay)
+        : base.maxBookingsPerDay,
+      advanceBookingDays: hasVal(p.sessionRules?.advanceBookingDays)
+        ? num(p.sessionRules?.advanceBookingDays)
+        : base.advanceBookingDays,
+      doorPinBefore,
+      roomFacilityPinBefore,
     });
   });
   return out;
@@ -90,24 +220,16 @@ const toWizardHours = (hours: OperatingHoursMap | undefined): OperatingHoursDay[
   });
 
 const is24x7Hours = (hours: OperatingHoursMap | undefined): boolean =>
-  !!hours && DAY_KEYS.every(k => (hours[k] ?? [])[0] === '00:00-23:59');
+  !!hours &&
+  DAY_KEYS.every(k => {
+    const [range] = hours[k] ?? [];
+    return range === '00:00-24:00' || range === '00:00-23:59';
+  });
 
-/** Base plan rows (all disabled) — enabled rows get overlaid from the bundle. */
-const basePlanRows = (): WizardPlanRow[] =>
-  PLAN_CATALOGUE.map(p => ({
-    planId: p.id,
-    enabled: false,
-    fortnightlyPrice: p.fortnightly,
-    annualPrice: p.annual,
-    allocatedSlots: p.defaultSlots,
-    joiningFee: 0,
-    memberCap: p.defaultSlots,
-    isFoundationEligible: p.defaultFoundation,
-    availableCountries: ['all'],
-    firstGuestFee: null,
-    additionalGuestDiscountPct: null,
-    extraSessionCost: null,
-  }));
+/** Inverse of buildCreatePayload.ts's toIso3 — maps a stored ISO alpha-3 code
+ * (either case) back to the wizard dropdown's code so the Country <select>
+ * shows the right option when editing an existing centre. */
+const fromIso3 = (code: string): string => COUNTRY_ISO3_TO_CODE[code.toUpperCase()] ?? code;
 
 const guestRulesOf = (m: ApiMembership): Record<string, unknown> =>
   (m.bookingRules?.guestBookingRules as Record<string, unknown>) ?? {};
@@ -136,26 +258,37 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     return null;
   };
 
-  // Pass 1: overlay enabled memberships; record which ones had no saved allocation.
-  const unknownAlloc: PlanId[] = [];
+  // Pass 1: one row per ACTUAL enabled membership on this centre — not filtered
+  // through any fixed catalogue, so a plan created after this centre was set up
+  // (or one whose code was never in the old static PLAN_CATALOGUE) still shows
+  // up correctly when editing. Record which ones had no saved allocation.
+  const unknownAlloc: string[] = [];
   let knownAllocSum = 0;
-  const plans = basePlanRows().map(row => {
-    const m = memberships.find(mm => mm.code === row.planId);
-    if (!m) return row;
+  const plans: WizardPlanRow[] = memberships.map(m => {
     const regular = (m.pricing?.regular ?? {}) as Record<string, unknown>;
     const guest = guestRulesOf(m);
     const countries = ((m.accessControl as Record<string, unknown>)?.availableCountries as string[]) ?? ['all'];
-    const alloc = lookupAlloc(row.planId, m);
-    if (alloc === null) unknownAlloc.push(row.planId);
+    const alloc = lookupAlloc(m.code, m);
+    if (alloc === null) unknownAlloc.push(m.code);
     else knownAllocSum += alloc;
+    const allocatedSlots = alloc ?? 0;
     return {
-      ...row,
+      planId: m.code,
       enabled: true,
-      fortnightlyPrice: num(regular.fortnightly) || row.fortnightlyPrice,
-      annualPrice: num(regular.annual) || row.annualPrice,
-      allocatedSlots: alloc ?? row.allocatedSlots,
-      joiningFee: num(m.registrationFee),
-      isFoundationEligible: row.isFoundationEligible,
+      fortnightlyPrice: num(regular.fortnightly),
+      // This centre's OWN saved choice — distinct from the global template's
+      // offersAnnual, since a centre can turn annual off even where the
+      // template offers it (default to offered when the doc predates this field).
+      offersAnnual: (m.pricing?.billingCycles ?? ['fortnightly', 'annual']).includes('annual'),
+      annualPrice: num(regular.annual),
+      allocatedSlots,
+      // registrationFee is an object on real docs ({enabled, amount, ...}, see
+      // buildCreatePayload.ts's buildMemberships) — a bare number is only ever a
+      // legacy/malformed doc, tolerated as a fallback.
+      joiningFee: num((m.registrationFee as { amount?: unknown })?.amount ?? m.registrationFee),
+      memberCap: allocatedSlots,
+      // Not carried on ApiMembership — best-effort default; user can re-set in step 4.
+      isFoundationEligible: false,
       availableCountries: countries.length ? countries : ['all'],
       firstGuestFee: hasVal(guest.firstGuestFee) ? num(guest.firstGuestFee) : null,
       additionalGuestDiscountPct: hasVal(guest.additionalGuestDiscountPct)
@@ -186,7 +319,7 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
     city: addr?.city ?? facility.cityCode ?? '',
     state: addr?.state ?? facility.stateCode ?? '',
     postcode: addr?.postcode ?? '',
-    country: addr?.country ?? facility.countryCode ?? '',
+    country: fromIso3(addr?.country || facility.countryCode || ''),
     timezone: facility.timezone ?? '',
     phone: facility.contact?.phones?.[0]?.phone ?? '',
     email: facility.contact?.email ?? '',
@@ -199,16 +332,16 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
       '',
     battingLanes: laneCount('batting'),
     bowlingLanes: laneCount('bowling'),
-    multipurposeLanes: laneCount('multipurpose'),
+    // Real lane documents use "hybrid" — see buildCreatePayload.ts.
+    multipurposeLanes: laneCount('hybrid'),
     facilities: facility.amenities?.length ? facility.amenities : ['Batting Lanes', 'Bowling Lanes'],
     slotDurationMinutes: num(slotCfg.slotDurationMinutes) || 45,
     advanceBookingWindowDays: num(slotCfg.advanceBookingWindowDays) || 7,
-    additionalFacilities: featuresToAdditional(facility.features),
+    additionalFacilities: productsToAdditional(bundle.products),
     plans,
     firstGuestFee: hasVal(reg.firstGuestFee) ? num(reg.firstGuestFee) : null,
     additionalGuestDiscountPct: hasVal(reg.additionalGuestDiscountPct) ? num(reg.additionalGuestDiscountPct) : null,
     extraSessionCost: hasVal(reg.extraSessionCost) ? num(reg.extraSessionCost) : null,
-    discounts: [],
     keyDates: facility.keyDates ?? {},
   };
 }

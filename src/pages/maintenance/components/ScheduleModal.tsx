@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
-import { scheduleTask, unscheduleTask } from '../../../store/maintenance/api';
+import { getCentreDetails } from '../../../store/centres/api';
+import { rescheduleNextTask, scheduleTask, unscheduleTask } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
 import {
   ALL_LANES,
@@ -38,7 +39,7 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
   const [lane, setLane] = useState<string>(
     existing ? (existing.laneNo ? String(existing.laneNo) : '') : defaultLane ? String(defaultLane) : ''
   ); // '' = facility-wide
-  const type = taskTypeMeta(template.taskType);
+  const type = taskTypeMeta(template.taskType, template.taskTypeCustom);
   const prio = priorityMeta(template.priority);
   // For a done/recurred task, default to its next occurrence date (not the past
   // completed date); otherwise use the current scheduled date.
@@ -51,24 +52,63 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
   );
   const [saving, setSaving] = useState(false);
 
+  // MT-9: the Lane dropdown shows this centre's REAL configured lanes, not the
+  // broad static 1-7 range — fails open to that static range (ALL_LANES) if
+  // the lookup fails or the centre has no lane docs yet, same fail-open
+  // philosophy as the backend's own validation.
+  const [realLanes, setRealLanes] = useState<number[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    dispatch(getCentreDetails(facilityCode))
+      .unwrap()
+      .then(bundle => {
+        if (cancelled) return;
+        const nums = (bundle.lanes ?? [])
+          .map(l => l.laneNo)
+          .filter((n): n is number => typeof n === 'number')
+          .sort((a, b) => a - b);
+        setRealLanes(nums.length ? nums : null);
+      })
+      .catch(() => {
+        if (!cancelled) setRealLanes(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, facilityCode]);
+  const laneOptions = realLanes ?? ALL_LANES;
+
   const handleSave = async () => {
     if (!scheduledDate) {
-      toast.error('Pick a date');
+      toast.error('Pick a date', { id: 'schedule-modal-validation' });
       return;
     }
+    if (scheduledDate < todayStr()) {
+      toast.error("Scheduled date can't be in the past", { id: 'schedule-modal-validation' });
+      return;
+    }
+    const laneChanged = existing ? (existing.laneNo ?? null) !== (lane ? parseInt(lane, 10) : null) : false;
     setSaving(true);
     try {
-      // Reschedule = drop the old schedule then re-create it on the new date/lane
-      // (the backend rejects a duplicate schedule, so the old one must go first).
-      if (existing) await dispatch(unscheduleTask({ id: existing.id, facilityCode })).unwrap();
-      await dispatch(
-        scheduleTask({
-          templateId: template.id,
-          facilityCode,
-          laneNo: lane ? parseInt(lane, 10) : null,
-          scheduledDate,
-        })
-      ).unwrap();
+      if (existing && !laneChanged) {
+        // Date-only change on an existing schedule — move `nextDueDate` in place.
+        // Does NOT delete/recreate, so it can't conflict with this same series'
+        // other still-future occurrences (unlike the unschedule+recreate path below).
+        await dispatch(rescheduleNextTask({ id: existing.id, facilityCode, nextDueDate: scheduledDate })).unwrap();
+      } else {
+        // New schedule, or the lane itself changed: the backend has no
+        // "move to a different lane" endpoint, so fall back to drop-then-recreate
+        // (the backend rejects a duplicate schedule, so the old one must go first).
+        if (existing) await dispatch(unscheduleTask({ id: existing.id, facilityCode })).unwrap();
+        await dispatch(
+          scheduleTask({
+            templateId: template.id,
+            facilityCode,
+            laneNo: lane ? parseInt(lane, 10) : null,
+            scheduledDate,
+          })
+        ).unwrap();
+      }
       toast.success(isReschedule ? 'Task rescheduled' : 'Task scheduled');
       onScheduled();
     } catch (e) {
@@ -128,7 +168,7 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
               <span className={labelCls}>Lane</span>
               <select className={inputCls} value={lane} onChange={e => setLane(e.target.value)}>
                 <option value="">Facility-wide</option>
-                {ALL_LANES.map(n => (
+                {laneOptions.map(n => (
                   <option key={n} value={n}>
                     Lane {n}
                   </option>
@@ -139,6 +179,7 @@ const ScheduleModal: React.FC<Props> = ({ template, facilityCode, defaultLane, e
               <span className={labelCls}>Scheduled date</span>
               <input
                 className={inputCls}
+                min={todayStr()}
                 type="date"
                 value={scheduledDate}
                 onChange={e => setScheduledDate(e.target.value)}

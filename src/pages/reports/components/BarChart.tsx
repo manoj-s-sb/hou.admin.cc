@@ -44,12 +44,27 @@ const axisStyle = { fontSize: '12px', fontWeight: 600 } as const;
 // Truncate long category labels so every tick fits (full value stays in the tooltip).
 const truncate = (s: string, n = 15): string => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+// Past this many categories, horizontal labels at `interval={0}` run into each
+// other (e.g. 6 centre names, or 12+ months on "This year") — rotate instead.
+const ROTATE_THRESHOLD = 5;
+
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any -- recharts injects x/y/payload */
-const CategoryTick = ({ x, y, payload }: any) => (
-  <text fill="#6b7280" fontSize={11} fontWeight={600} textAnchor="middle" x={x} y={y + 12}>
-    {truncate(String(payload?.value ?? ''))}
-  </text>
-);
+const CategoryTick = ({ x, y, payload, rotate }: any) =>
+  rotate ? (
+    <text
+      fill="#6b7280"
+      fontSize={11}
+      fontWeight={600}
+      textAnchor="end"
+      transform={`translate(${x},${y + 6}) rotate(-35)`}
+    >
+      {truncate(String(payload?.value ?? ''), 18)}
+    </text>
+  ) : (
+    <text fill="#6b7280" fontSize={11} fontWeight={600} textAnchor="middle" x={x} y={y + 12}>
+      {truncate(String(payload?.value ?? ''))}
+    </text>
+  );
 
 const BarChart: React.FC<BarChartProps> = ({
   data,
@@ -60,16 +75,17 @@ const BarChart: React.FC<BarChartProps> = ({
   showLegend = true,
   showValueLabels = false,
 }) => {
+  const rotate = data.length > ROTATE_THRESHOLD;
   return (
     <ResponsiveContainer height={height} width="100%">
-      <ReBarChart data={data} margin={{ top: 16, right: 8, left: -8, bottom: 0 }}>
+      <ReBarChart data={data} margin={{ top: 16, right: 8, left: -8, bottom: rotate ? 28 : 0 }}>
         <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3" vertical={false} />
         <XAxis
           dataKey={xKey}
           interval={0}
           stroke="#6b7280"
           style={axisStyle}
-          tick={<CategoryTick />}
+          tick={<CategoryTick rotate={rotate} />}
           tickLine={false}
         />
         <YAxis allowDecimals={false} stroke="#6b7280" style={axisStyle} tickLine={false} />

@@ -62,16 +62,19 @@ export const mergeDualScope = (grid: PermGrid, moduleId: string): { view: boolea
 
 const CENTRE_SUB_MODULE_ORDER = [
   'members',
+  'wallettransactions',
   'slotbooking',
   'induction',
   'tour',
   'waitlistleads',
   'coachschedule',
+  'staffschedule',
   'ticketsincidents', // "Centre view"
   'tailgate', // "Centre view"
   'maintenance', // "Centre view"
   'facilities',
   'planspricing',
+  'calendar',
 ];
 
 interface RowProps {
@@ -146,6 +149,25 @@ const ModuleRow: React.FC<RowProps> = ({
   );
 };
 
+/** A column-header "select all" checkbox — checked when every applicable row
+ * already has that column on. Visually distinct (smaller, no border box) from
+ * a per-row checkbox so it reads as "toggle the whole column", not "a row". */
+const SelectAllCheckbox: React.FC<{ label: string; checked: boolean; onToggle: () => void }> = ({
+  label,
+  checked,
+  onToggle,
+}) => (
+  <label className="flex w-14 cursor-pointer items-center justify-center" title={`Select all — ${label}`}>
+    <input
+      aria-label={`Select all ${label}`}
+      checked={checked}
+      className="h-3.5 w-3.5 accent-[#21295A]"
+      type="checkbox"
+      onChange={onToggle}
+    />
+  </label>
+);
+
 const ModulePermissionsSection: React.FC<Props> = ({
   menus,
   value,
@@ -159,7 +181,14 @@ const ModulePermissionsSection: React.FC<Props> = ({
   const [centreExpanded, setCentreExpanded] = useState(false);
 
   const isCustomized = (id: string): boolean => {
-    if (!defaults) return false;
+    // While the real role-defaults fetch is in flight (e.g. right after
+    // landing on Edit), `defaults` is either not loaded yet or still the
+    // stale value from before the role selection changed — comparing the
+    // member's actual (already-granted) permissions against that momentarily
+    // empty/stale set made EVERY granted module look "customized" until the
+    // fetch resolved. Suppress the dot entirely until we have a trustworthy
+    // snapshot to compare against.
+    if (!defaults || loadingDefaults) return false;
     const cur = value[id] ?? { view: false, edit: false };
     const def = defaults[id] ?? { view: false, edit: false };
     return cur.view !== def.view || cur.edit !== def.edit;
@@ -196,15 +225,48 @@ const ModulePermissionsSection: React.FC<Props> = ({
     setRow(id, { view: edit ? true : cur.view, edit });
   };
 
+  // Column-level "select all" for a given set of row ids — same semantics as
+  // the single-row toggles above (edit implies view; turning view off also
+  // clears edit), just applied to every row in `ids` at once instead of one.
+  const toggleAllView = (ids: string[]) => {
+    const allOn = ids.length > 0 && ids.every(id => value[id]?.view);
+    const next: PermGrid = { ...value };
+    ids.forEach(id => {
+      const cur = value[id] ?? { view: false, edit: false };
+      next[id] = { view: !allOn, edit: allOn ? false : cur.edit };
+    });
+    onChange(next);
+  };
+
+  const toggleAllEdit = (ids: string[]) => {
+    const allOn = ids.length > 0 && ids.every(id => value[id]?.edit);
+    const next: PermGrid = { ...value };
+    ids.forEach(id => {
+      const cur = value[id] ?? { view: false, edit: false };
+      next[id] = { view: allOn ? cur.view : true, edit: !allOn };
+    });
+    onChange(next);
+  };
+
   const topLevel = TOP_LEVEL_ORDER.filter(id => showGlobalRow || !DUAL_SCOPE_IDS.has(id))
     .map(id => byId[id])
     .filter(Boolean);
   const centreSubs = CENTRE_SUB_MODULE_ORDER.map(id => byId[id]).filter(Boolean);
   const subGranted = centreSubs.filter(s => value[s.id]?.view || value[s.id]?.edit).length;
 
+  // Row ids the top-level column select-alls apply to — "Centre Management"
+  // has no checkboxes of its own (it's the accordion toggle, handled
+  // separately below), so it's excluded here.
+  const topLevelRowIds = topLevel
+    .filter(m => m.id !== 'centremanagement')
+    .map(m => (DUAL_SCOPE_IDS.has(m.id) ? globalKey(m.id) : m.id));
+  const centreSubIds = centreSubs.map(s => s.id);
+
   return (
     <div>
-      <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Module Permissions</p>
+      <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+        Module Permissions <span className="text-red-400">*</span>
+      </p>
 
       <button
         aria-expanded={open}
@@ -236,6 +298,15 @@ const ModulePermissionsSection: React.FC<Props> = ({
         <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
           <p className="mb-2 px-2 text-[12px] text-gray-600">
             Fine-tune what this member can see and change per module. Defaults come from the selected role(s).
+            {menus.some(m => isCustomized(m.id)) && (
+              <>
+                {' '}
+                <span className="inline-flex items-center gap-1 align-middle">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" /> means this module was changed from
+                  the role&rsquo;s default.
+                </span>
+              </>
+            )}
           </p>
 
           <div className="flex items-center gap-2 px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
@@ -243,6 +314,23 @@ const ModulePermissionsSection: React.FC<Props> = ({
             <span className="w-14 text-center">View</span>
             <span className="w-14 text-center">Edit</span>
           </div>
+          {topLevelRowIds.length > 0 && (
+            <div className="flex items-center gap-2 px-3 pb-1.5">
+              <span className="flex-1 text-right text-[10.5px] font-semibold normal-case tracking-normal text-gray-400">
+                Select all
+              </span>
+              <SelectAllCheckbox
+                checked={topLevelRowIds.every(id => value[id]?.view)}
+                label="View"
+                onToggle={() => toggleAllView(topLevelRowIds)}
+              />
+              <SelectAllCheckbox
+                checked={topLevelRowIds.every(id => value[id]?.edit)}
+                label="Edit"
+                onToggle={() => toggleAllEdit(topLevelRowIds)}
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             {topLevel.map(m => {
@@ -276,7 +364,7 @@ const ModulePermissionsSection: React.FC<Props> = ({
                           {subGranted}/{centreSubs.length} inside
                         </span>
                       )}
-                      {/* Clicking this tick grants View to ALL sub-modules (or revokes all) */}
+                      {/* Clicking this tick grants View+Edit to ALL sub-modules (or revokes all) */}
                       <span
                         aria-checked={cmOn}
                         aria-label="Toggle all centre sub-modules"
@@ -292,9 +380,11 @@ const ModulePermissionsSection: React.FC<Props> = ({
                               next[s.id] = { view: false, edit: false };
                             });
                           } else {
-                            // grant View to all sub-modules
+                            // grant full View+Edit to all sub-modules — whatever
+                            // a staff member is granted access to inside a
+                            // module, every function in it should work.
                             centreSubs.forEach(s => {
-                              next[s.id] = { view: true, edit: next[s.id]?.edit ?? false };
+                              next[s.id] = { view: true, edit: true };
                             });
                             setCentreExpanded(true);
                           }
@@ -338,9 +428,20 @@ const ModulePermissionsSection: React.FC<Props> = ({
                           <span className="text-[10px] font-bold uppercase tracking-widest text-[#21295A]/50">
                             Inside Centre
                           </span>
-                          <div className="ml-auto flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[#21295A]/40">
-                            <span className="w-14 text-center">View</span>
-                            <span className="w-14 text-center">Edit</span>
+                          <span className="ml-auto text-[10px] font-semibold normal-case tracking-normal text-[#21295A]/40">
+                            Select all
+                          </span>
+                          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[#21295A]/40">
+                            <SelectAllCheckbox
+                              checked={centreSubIds.length > 0 && centreSubIds.every(id => value[id]?.view)}
+                              label="View"
+                              onToggle={() => toggleAllView(centreSubIds)}
+                            />
+                            <SelectAllCheckbox
+                              checked={centreSubIds.length > 0 && centreSubIds.every(id => value[id]?.edit)}
+                              label="Edit"
+                              onToggle={() => toggleAllEdit(centreSubIds)}
+                            />
                           </div>
                         </div>
                         {centreSubs.map((sub, i) => (

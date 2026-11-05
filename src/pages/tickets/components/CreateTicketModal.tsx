@@ -1,31 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
 import { AppDispatch } from '../../../store/store';
 import { createTicket, uploadTicketFile } from '../../../store/tickets/api';
+import { EMAIL_RE } from '../../../utils/validation';
 import {
   ALL_LANES,
   CATEGORY_META,
   EQUIPMENT_LIST,
   PRIORITY_META,
-  ROLE_LABELS,
   TICKET_CATEGORIES,
   TICKET_PRIORITIES,
-  TICKET_ROLES,
 } from '../constants';
 
 import EmailTagInput from './EmailTagInput';
 import StaffAssigneeSelect, { SelectedStaff } from './StaffAssigneeSelect';
 
-import type {
-  CreateTicketRequest,
-  Ticket,
-  TicketCategory,
-  TicketPriority,
-  TicketRole,
-} from '../../../store/tickets/types';
+import type { CreateTicketRequest, Ticket, TicketCategory, TicketPriority } from '../../../store/tickets/types';
 
 interface CentreOption {
   code: string;
@@ -88,25 +81,38 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const [customerEmail, setCustomerEmail] = useState('');
   const [task, setTask] = useState('');
   const [priority, setPriority] = useState<TicketPriority>('medium');
-  const [assignedTo, setAssignedTo] = useState<TicketRole>('noc');
   const [assignees, setAssignees] = useState<SelectedStaff[]>([]);
   const [additionalRecipients, setAdditionalRecipients] = useState<string[]>([]);
   const [lanes, setLanes] = useState<number[]>([]);
   const [equipment, setEquipment] = useState<string[]>([]);
+  const [customEquipmentInput, setCustomEquipmentInput] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [triedSubmit, setTriedSubmit] = useState(false);
+  // In-page preview for picked-but-not-yet-uploaded files (these have no server URL
+  // yet, so we preview straight from the local File via an object URL).
+  const [localPreview, setLocalPreview] = useState<number | null>(null);
+
+  // One object URL per picked file, recreated whenever the file list changes and
+  // revoked on cleanup so we don't leak blob URLs as files are added/removed.
+  const fileUrls = useMemo(() => files.map(f => URL.createObjectURL(f)), [files]);
+  useEffect(() => {
+    return () => {
+      fileUrls.forEach(u => URL.revokeObjectURL(u));
+    };
+  }, [fileUrls]);
 
   // Field-level validation surfaced inline — required inputs like Centre (dropdown)
   // and Lanes (chips) are easy to miss, so we show the reason on the field itself
   // rather than relying only on a transient toast.
   const isCustomerSupport = category === 'customer_support';
-  const emailInvalid = Boolean(customerEmail.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim());
+  const emailInvalid = Boolean(customerEmail.trim()) && !EMAIL_RE.test(customerEmail.trim());
   const errors = {
     centre: !centre ? 'Select a centre' : '',
     title: !title.trim() ? 'Title is required' : '',
     description: !description.trim() ? 'Description is required' : '',
-    assigneeName: assignedTo === 'others' && assignees.length === 0 ? 'Select at least one assignee' : '',
+    // Assign To is optional — a ticket can be filed under the centre with
+    // nobody assigned yet, to be picked up later.
     customerEmail: isCustomerSupport
       ? !customerEmail.trim()
         ? 'Customer email is required'
@@ -121,10 +127,25 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
   const toggle = <T,>(list: T[], value: T, set: (v: T[]) => void) =>
     set(list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
 
+  // Equipment not in the fixed EQUIPMENT_LIST (e.g. something new on site) —
+  // typed in free text, added as its own selected chip, same pattern as the
+  // New Centre wizard's "Add a facility not listed above".
+  const addCustomEquipment = () => {
+    const trimmed = customEquipmentInput.trim();
+    if (!trimmed) return;
+    const allKnown = [...EQUIPMENT_LIST, ...equipment];
+    if (allKnown.some(e => e.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error('That equipment is already in the list.');
+      return;
+    }
+    setEquipment(prev => [...prev, trimmed]);
+    setCustomEquipmentInput('');
+  };
+
   const handleSubmit = async () => {
     setTriedSubmit(true);
     if (hasErrors) {
-      toast.error('Please complete the required fields highlighted below');
+      toast.error('Please complete the required fields highlighted below', { id: 'ticket-create-validation' });
       return;
     }
 
@@ -139,8 +160,11 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         blobNames = await Promise.all(files.map(f => uploadTicketFile(centre, f)));
       } catch {
         setSubmitting(false);
+        // Could be storage CORS not configured for this origin, or the upload itself
+        // failing/timing out (expired SAS, transient error) — either way surface it
+        // rather than silently creating the ticket without its attachment.
         toast.error(
-          'Attachment upload failed — the tickets storage needs CORS enabled for this site. Remove the file to create without it, or fix storage CORS and retry.'
+          'Attachment upload failed — check storage CORS is enabled for this site, or retry. Remove the file to create the ticket without it.'
         );
         return;
       }
@@ -151,6 +175,13 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
       // first person picked becomes that; anyone picked after that has no formal
       // "assignee" slot yet, so they're CC'd via additionalRecipients so they're still
       // notified. See StaffAssigneeSelect's doc comment.
+      // assignedTo is a backend role-bucket enum ('noc'/'centre_staff'/'admin'/'others'/
+      // 'unassigned') used only to special-case the NOC queue's initial status —
+      // picking a specific person here always goes through 'others', which also
+      // keeps new tickets 'open' until the assignee acts on them, same as any
+      // other named assignment. Leaving Assign To empty sends 'unassigned'
+      // instead — the ticket is still created and filed under the centre, just
+      // with nobody assigned yet.
       const [primaryAssignee, ...extraAssignees] = assignees;
       const recipients = [...additionalRecipients, ...extraAssignees.map(a => a.email)];
       const payload: CreateTicketRequest = {
@@ -161,9 +192,9 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
         customerEmail: isCustomerSupport && customerEmail.trim() ? customerEmail.trim() : undefined,
         task: task.trim() || null,
         priority,
-        assignedTo,
-        assignedToId: assignedTo === 'others' && primaryAssignee ? primaryAssignee.staffId : undefined,
-        assignedToName: assignedTo === 'others' && primaryAssignee ? primaryAssignee.name : undefined,
+        assignedTo: primaryAssignee ? 'others' : 'unassigned',
+        assignedToId: primaryAssignee?.staffId,
+        assignedToName: primaryAssignee?.name,
         laneNo: lanes.length ? lanes : null,
         equipment: equipment.length ? equipment : null,
         attachments: blobNames.length ? blobNames : undefined,
@@ -189,7 +220,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
       <div className="flex max-h-[90vh] w-full max-w-[640px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[#21295A]">+ Create Ticket</h2>
+            <h2 className="text-[16px] font-bold text-[#21295A]">Create Ticket</h2>
             <p className="mt-0.5 text-[12px] text-gray-400">Raise a ticket or incident — assigned to NOC or Staff</p>
           </div>
           <button
@@ -309,52 +340,36 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className={labelClass}>Assign To *</span>
-              <select
-                className={fieldClass}
-                value={assignedTo}
-                onChange={e => setAssignedTo(e.target.value as TicketRole)}
-              >
-                {TICKET_ROLES.map(r => (
-                  <option key={r} value={r}>
-                    {ROLE_LABELS[r]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <span className={labelClass}>Task</span>
-              <input
-                className={fieldClass}
-                placeholder="e.g. Cooling Fans"
-                type="text"
-                value={task}
-                onChange={e => setTask(e.target.value)}
-              />
-            </div>
+          <div>
+            <span className={labelClass}>Task</span>
+            <input
+              className={fieldClass}
+              placeholder="e.g. Cooling Fans"
+              type="text"
+              value={task}
+              onChange={e => setTask(e.target.value)}
+            />
           </div>
 
-          {assignedTo === 'others' && (
-            <div>
-              <span className={labelClass}>Assignee(s) *</span>
-              <StaffAssigneeSelect
-                className={`${fieldClass}${errClass(errors.assigneeName)}`}
-                facilityCode={centre || undefined}
-                value={assignees}
-                onChange={setAssignees}
-              />
-              {assignees.length > 1 && (
-                <p className="mt-1 text-[11px] text-gray-400">
-                  Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
-                </p>
-              )}
-              {triedSubmit && errors.assigneeName && (
-                <p className="mt-1 text-[11px] text-red-500">{errors.assigneeName}</p>
-              )}
-            </div>
-          )}
+          <div>
+            <span className={labelClass}>Assign To (optional)</span>
+            <StaffAssigneeSelect
+              className={fieldClass}
+              facilityCode={centre || undefined}
+              value={assignees}
+              onChange={setAssignees}
+            />
+            {assignees.length === 0 && (
+              <p className="mt-1 text-[11px] text-gray-400">
+                Leave empty to file this ticket under the centre with nobody assigned yet.
+              </p>
+            )}
+            {assignees.length > 1 && (
+              <p className="mt-1 text-[11px] text-gray-400">
+                Only the first (★) is the formal assignee — the rest are CC&apos;d on notifications.
+              </p>
+            )}
+          </div>
 
           <EmailTagInput emails={additionalRecipients} onChange={setAdditionalRecipients} />
 
@@ -386,39 +401,125 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
                   {item}
                 </Chip>
               ))}
-            </div>
-          </div>
-
-          <div>
-            <span className={labelClass}>Attachments</span>
-            <input
-              multiple
-              accept="image/*,video/*"
-              className="block w-full text-[12px] text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-gray-700"
-              type="file"
-              onChange={e => {
-                setFiles(prev => [...prev, ...Array.from(e.target.files ?? [])]);
-                // Reset so the input fires again next time, instead of just extending this selection.
-                e.target.value = '';
-              }}
-            />
-            {files.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {files.map((f, i) => (
+              {/* Custom equipment the admin has typed in below — not part of the fixed
+                  EQUIPMENT_LIST, so shown as its own removable chip (always selected,
+                  since adding it IS selecting it — nothing to toggle back to). */}
+              {equipment
+                .filter(item => !EQUIPMENT_LIST.includes(item))
+                .map(item => (
                   <span
-                    key={`${f.name}-${i}`}
-                    className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-600"
+                    key={item}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#9096be] bg-[#ecedf4] py-1 pl-2.5 pr-1.5 text-xs font-medium text-[#21295a]"
                   >
-                    📎 {f.name.length > 20 ? `${f.name.slice(0, 20)}…` : f.name}
+                    {item}
                     <button
-                      className="text-red-400 hover:text-red-600"
+                      aria-label={`Remove ${item}`}
+                      className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-[#21295a]/70 hover:text-[#21295a]"
                       type="button"
-                      onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
+                      onClick={() => setEquipment(prev => prev.filter(e => e !== item))}
                     >
                       ×
                     </button>
                   </span>
                 ))}
+            </div>
+            <div className="mt-2 flex gap-2">
+              <input
+                className={`${fieldClass} max-w-[260px]`}
+                placeholder="Add equipment not listed above…"
+                type="text"
+                value={customEquipmentInput}
+                onChange={e => setCustomEquipmentInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addCustomEquipment();
+                  }
+                }}
+              />
+              <button
+                className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                type="button"
+                onClick={addCustomEquipment}
+              >
+                + Add
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <span className={labelClass}>Attachments</span>
+            <div className="flex items-center gap-2">
+              {/* Visually hidden but NOT display:none (`hidden`/display:none on a file
+                  input is unreliable in some browsers — the click still opens the OS
+                  picker, but the resulting change event can silently get dropped while
+                  the surrounding form re-renders from typing elsewhere). Keeping it
+                  genuinely present in the layout, just invisible, avoids that. */}
+              <label className="relative inline-flex cursor-pointer items-center rounded-lg bg-gray-100 px-3 py-1.5 text-[12px] font-semibold text-gray-700 hover:bg-gray-200">
+                Choose Files
+                <input
+                  multiple
+                  accept="image/*,video/*"
+                  className="absolute h-px w-px overflow-hidden opacity-0"
+                  type="file"
+                  onChange={e => {
+                    // Capture the picked files into a plain array BEFORE resetting the input below.
+                    // setFiles's updater callback runs slightly later than this synchronous handler,
+                    // so if it read e.target.files itself, it would see the empty FileList left by
+                    // the reset instead of the files that were actually just picked.
+                    const picked = Array.from(e.target.files ?? []);
+                    setFiles(prev => [...prev, ...picked]);
+                    // Reset so the input fires again next time, instead of just extending this selection.
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              <span className="text-[12px] text-gray-500">
+                {files.length === 0 ? 'No file chosen' : `${files.length} file${files.length > 1 ? 's' : ''} chosen`}
+              </span>
+            </div>
+            {files.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {files.map((f, i) => {
+                  const isVideo = f.type.startsWith('video/');
+                  const isImage = f.type.startsWith('image/');
+                  return (
+                    <span
+                      key={`${f.name}-${i}`}
+                      className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 py-1 pl-1 pr-2 text-[11px] font-medium text-gray-600"
+                    >
+                      {isImage || isVideo ? (
+                        <button
+                          aria-label={`Preview ${f.name}`}
+                          className="relative h-7 w-7 flex-shrink-0 overflow-hidden rounded"
+                          type="button"
+                          onClick={() => setLocalPreview(i)}
+                        >
+                          {isVideo ? (
+                            // eslint-disable-next-line jsx-a11y/media-has-caption
+                            <video muted className="h-full w-full object-cover" preload="metadata" src={fileUrls[i]} />
+                          ) : (
+                            <img alt="" className="h-full w-full object-cover" src={fileUrls[i]} />
+                          )}
+                        </button>
+                      ) : (
+                        '📎'
+                      )}
+                      {f.name.length > 20 ? `${f.name.slice(0, 20)}…` : f.name}
+                      <button
+                        aria-label="Remove file"
+                        className="text-red-400 hover:text-red-600"
+                        type="button"
+                        onClick={() => {
+                          setFiles(prev => prev.filter((_, j) => j !== i));
+                          setLocalPreview(p => (p === null ? null : p === i ? null : p > i ? p - 1 : p));
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -443,6 +544,44 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           </button>
         </div>
       </div>
+
+      {/* In-page preview for a picked-but-not-yet-uploaded file — click the
+          backdrop or the × button (top right) to close. Mirrors the ticket
+          detail drawer's attachment lightbox. */}
+      {localPreview !== null && files[localPreview] && (
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+        <div
+          className="fixed inset-0 z-[700] flex items-center justify-center bg-black/80 p-6"
+          onClick={() => setLocalPreview(null)}
+        >
+          <button
+            aria-label="Close preview"
+            className="fixed right-5 top-5 z-[701] flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            type="button"
+            onClick={() => setLocalPreview(null)}
+          >
+            <svg fill="none" height={18} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width={18}>
+              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {files[localPreview].type.startsWith('video/') ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              autoPlay
+              controls
+              className="max-h-full max-w-full rounded-lg"
+              src={fileUrls[localPreview]}
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <img
+              alt="attachment preview"
+              className="max-h-full max-w-full rounded-lg object-contain"
+              src={fileUrls[localPreview]}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };

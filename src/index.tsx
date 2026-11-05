@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 
 import './index.css';
 import App from './App';
+import ErrorBoundary from './components/ErrorBoundary';
 import reportWebVitals from './reportWebVitals';
 import { attachStore } from './services';
 import store from './store/store';
@@ -9,7 +10,11 @@ import store from './store/store';
 attachStore(store);
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
-root.render(<App />);
+root.render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
 
 // Dev: surface Core Web Vitals in the console. Prod: wire up a real sink (Sentry, GA, Datadog) here.
 if (process.env.NODE_ENV !== 'production') {

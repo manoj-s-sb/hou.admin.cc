@@ -1,0 +1,211 @@
+import { safeDate } from '../../utils/dateUtils';
+import { Induction } from '../induction/types';
+import { Coach, GetSlotsResponse } from '../slots/types';
+
+import { EVENT_TYPE_CONFIG } from './eventTypeConfig';
+import { CalendarEvent, CalendarEventType, GymPodcastBookingItem } from './types';
+
+/**
+ * Pure, framework-free normalization/merging for the Calendar feature. Kept
+ * separate from the Redux thunk (api.ts) so it can be unit tested without any
+ * store/network setup — see normalize.test.ts.
+ */
+
+const isValidTimeSlot = (startTime?: string, endTime?: string): boolean =>
+  Boolean(safeDate(startTime) && safeDate(endTime));
+
+/** Induction bookings come from `POST admin/bookings/list` with type "inductionbooking". */
+export const normalizeInductionEvent = (item: Induction): CalendarEvent | null => {
+  if (!isValidTimeSlot(item.timeSlot?.startTime, item.timeSlot?.endTime)) return null;
+  const name = `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim();
+  return {
+    id: `induction-${item.bookingCode || item.userId}`,
+    title: name || 'Induction',
+    start: item.timeSlot.startTime,
+    end: item.timeSlot.endTime,
+    type: 'induction',
+    color: EVENT_TYPE_CONFIG.induction.color,
+    meta: { ...item },
+  };
+};
+
+/**
+ * Tour bookings come from the SAME `POST admin/bookings/list` endpoint with
+ * type "tourbooking" — there is no separate tours API. See booking_service.py.
+ */
+export const normalizeTourEvent = (item: Induction): CalendarEvent | null => {
+  if (!isValidTimeSlot(item.timeSlot?.startTime, item.timeSlot?.endTime)) return null;
+  const name = `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim();
+  return {
+    id: `tour-${item.bookingCode || item.userId}`,
+    title: name || 'Tour',
+    start: item.timeSlot.startTime,
+    end: item.timeSlot.endTime,
+    type: 'tour',
+    color: EVENT_TYPE_CONFIG.tour.color,
+    meta: { ...item },
+  };
+};
+
+/**
+ * Coach bookings come from `POST admin/coach/calendar`, which returns every
+ * coach's full day-by-day slot grid (available, disabled, AND booked). The
+ * endpoint doesn't expose which member booked a slot — only `status`/`bookingId`
+ * mark it taken — so a coach_booking event's meta is limited to the coach + slot,
+ * unlike induction/tour events which carry full member details.
+ *
+ * IMPORTANT: `isAvailable: false` is NOT the same as "booked" — it's also set on
+ * non-bookable 'disabled' placeholder slots (e.g. off-hours), which would
+ * otherwise flood the calendar with fake "Booked" entries every day. Only
+ * status === 'confirmed' (equivalently, bookingId being set) is a real booking.
+ *
+ * A coach session is always booked on top of a regular lane slot (same
+ * bookingId) — see slot_calendar_service.py's `_lane_no_from_slot_code` — so
+ * every coach booking already shows up once as a Slot Booking event. Pass that
+ * event set's booking ids in `excludeBookingIds` so the same booking isn't
+ * rendered twice; the coach's name is already carried in the Slot Booking
+ * event's own `meta.coach`.
+ */
+export const extractCoachBookingEvents = (
+  coaches: Coach[],
+  excludeBookingIds: Set<string> = new Set()
+): CalendarEvent[] => {
+  const events: CalendarEvent[] = [];
+  for (const coach of coaches ?? []) {
+    for (const day of coach.availability ?? []) {
+      for (const slot of day.slots ?? []) {
+        if (slot.status !== 'confirmed' && !slot.bookingId) continue; // only real bookings are "events"
+        if (slot.bookingId && excludeBookingIds.has(slot.bookingId)) continue; // already shown as a Slot Booking event
+        if (!isValidTimeSlot(slot.startTime, slot.endTime)) continue;
+        events.push({
+          id: `coach-${slot.coachSlotCode}`,
+          // Show the MEMBER who booked, same as Slot Booking/Induction/Tour titles
+          // (person-first, generic label only when unresolvable) — not the coach's
+          // own name, which stays visible in the popup's "Coach" detail row instead.
+          title: slot.memberName || 'Coach Booking',
+          start: slot.startTime,
+          end: slot.endTime,
+          type: 'coach_booking',
+          color: EVENT_TYPE_CONFIG.coach_booking.color,
+          meta: {
+            coachCode: coach.coachCode,
+            coachName: coach.name,
+            laneNo: slot.laneNo,
+            memberName: slot.memberName,
+            memberEmail: slot.memberEmail,
+            memberPhone: slot.memberPhone,
+            date: day.date,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+          },
+        });
+      }
+    }
+  }
+  return events;
+};
+
+/**
+ * Slot bookings come from `POST admin/slots/calendar` (the same endpoint the
+ * Slot Bookings admin page uses), called with a startDate/endDate range and
+ * returning one day-grid (lanes -> slots) per date. Only booked slots become
+ * events; an available/unbooked slot isn't a calendar event.
+ */
+export const extractSlotBookingEvents = (days: GetSlotsResponse[]): CalendarEvent[] => {
+  const events: CalendarEvent[] = [];
+  for (const day of days ?? []) {
+    for (const lane of day.lanes ?? []) {
+      for (const slot of lane.slots ?? []) {
+        if (!slot.isBooked || !slot.booking) continue;
+        if (!isValidTimeSlot(slot.startTime, slot.endTime)) continue;
+        const { user } = slot.booking;
+        const name = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+        // A coach-assisted booking stays a single merged event (see mergeCalendarEvents'
+        // dedupe against the Coach Booking feed) but is colored like one, so it's
+        // still visually flagged as involving a coach on the calendar grid.
+        // SA-8: check `code`, not `name` — a coach stays "attached" even when
+        // the display name failed to resolve (see types.ts's matching comment).
+        const hasCoach = Boolean(slot.booking.coach?.code);
+        events.push({
+          id: `booking-${slot.booking.bookingCode || slot.slotCode}`,
+          title: name || 'Slot Booking',
+          start: slot.startTime,
+          end: slot.endTime,
+          type: 'booking',
+          color: hasCoach ? EVENT_TYPE_CONFIG.coach_booking.color : EVENT_TYPE_CONFIG.booking.color,
+          meta: { ...slot.booking, slotCode: slot.slotCode, laneCode: lane.laneCode, date: day.date },
+        });
+      }
+    }
+  }
+  return events;
+};
+
+/** Maps a GymPodcastBookingItem.productType to its Calendar event type/label. */
+const GYM_PODCAST_EVENT_TYPE: Record<GymPodcastBookingItem['productType'], CalendarEventType> = {
+  gym: 'gym_booking',
+  podcast: 'podcast_booking',
+  meeting: 'meeting_booking',
+};
+
+/**
+ * Gym/podcast/meeting room bookings come from
+ * `POST admin/bookings/gym-podcast/calendar` — one flat list for the whole
+ * range (no day/lane grid, unlike slot bookings). `productType` picks the
+ * event type/color; cancelled bookings are never returned by the backend, so
+ * every item here is an event.
+ */
+export const extractGymPodcastBookingEvents = (bookings: GymPodcastBookingItem[]): CalendarEvent[] => {
+  const events: CalendarEvent[] = [];
+  for (const booking of bookings ?? []) {
+    if (!isValidTimeSlot(booking.startTime, booking.endTime)) continue;
+    const name = `${booking.firstName ?? ''} ${booking.lastName ?? ''}`.trim();
+    const type = GYM_PODCAST_EVENT_TYPE[booking.productType];
+    events.push({
+      id: `${booking.productType}-${booking.bookingCode || booking.bookingId}`,
+      title: name || EVENT_TYPE_CONFIG[type].label,
+      start: booking.startTime,
+      end: booking.endTime,
+      type,
+      color: EVENT_TYPE_CONFIG[type].color,
+      meta: { ...booking },
+    });
+  }
+  return events;
+};
+
+/** Merges the five source lists into one normalized, sorted event list. */
+export const mergeCalendarEvents = (
+  inductions: Induction[],
+  tours: Induction[],
+  coaches: Coach[],
+  slotBookingDays: GetSlotsResponse[] = [],
+  gymPodcastBookings: GymPodcastBookingItem[] = []
+): CalendarEvent[] => {
+  const slotBookingEvents = extractSlotBookingEvents(slotBookingDays);
+  const slotBookingIds = new Set(
+    slotBookingEvents.map(e => e.meta?.bookingId).filter((id): id is string => Boolean(id))
+  );
+
+  const events: CalendarEvent[] = [
+    ...(inductions ?? []).map(normalizeInductionEvent),
+    ...(tours ?? []).map(normalizeTourEvent),
+    ...extractCoachBookingEvents(coaches, slotBookingIds),
+    ...slotBookingEvents,
+    ...extractGymPodcastBookingEvents(gymPodcastBookings),
+  ].filter((e): e is CalendarEvent => e !== null);
+
+  // Cross-day order stays purely chronological. WITHIN the same day, Coach
+  // Booking always sorts after every other type — react-big-calendar stacks a
+  // day cell's events in this array's order, and Coach Booking chips should
+  // appear at the bottom of that stack, not interleaved by time.
+  return events.sort((a, b) => {
+    const aDay = a.start.slice(0, 10);
+    const bDay = b.start.slice(0, 10);
+    if (aDay !== bDay) return new Date(a.start).getTime() - new Date(b.start).getTime();
+    const aCoach = a.type === 'coach_booking' ? 1 : 0;
+    const bCoach = b.type === 'coach_booking' ? 1 : 0;
+    if (aCoach !== bCoach) return aCoach - bCoach;
+    return new Date(a.start).getTime() - new Date(b.start).getTime();
+  });
+};

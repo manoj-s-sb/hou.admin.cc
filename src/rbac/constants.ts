@@ -17,8 +17,11 @@ export const SUPER_ADMIN_ONLY = '__superadmin__';
 // below) until every backend environment is on the same schema.
 export const MODULES = {
   MEMBERS: 'members',
+  WALLET_TRANSACTIONS: 'wallettransactions',
   SLOT_BOOKING: 'slotbooking',
   COACH_SCHEDULE: 'coachschedule',
+  STAFF_SCHEDULE: 'staffschedule',
+  RECURRING_BLOCKS: 'recurringblocks',
   REPORTS: 'reports',
   INDUCTION: 'induction',
   TOUR: 'tour',
@@ -37,6 +40,10 @@ export const MODULES = {
   WAITLIST_LEADS: 'waitlistleads',
   FACILITIES: 'facilities',
   PLANS_PRICING: 'planspricing',
+  CALENDAR: 'calendar',
+  // Not yet sent by the backend's permissions payload — visible to superadmins only
+  // (via the isSuperAdmin() bypass in hasPermission()) until the backend registers it.
+  NOTIFICATIONS: 'notifications',
   SUPER_ADMIN: SUPER_ADMIN_ONLY,
 } as const;
 
@@ -44,8 +51,14 @@ export const MODULES = {
 // required action on ANY of the modules listed here.
 export const ACCESS_SCOPES = {
   members: [MODULES.MEMBERS],
+  walletTransactions: [MODULES.WALLET_TRANSACTIONS],
   slots: [MODULES.SLOT_BOOKING],
   coaches: [MODULES.COACH_SCHEDULE],
+  staffSchedule: [MODULES.STAFF_SCHEDULE],
+  // Team Schedule merges the Coach Schedule and Staff Schedule nav entries —
+  // granted by either underlying module so existing permission grants for
+  // either one still work unchanged.
+  teamSchedule: [MODULES.COACH_SCHEDULE, MODULES.STAFF_SCHEDULE],
   reports: [MODULES.REPORTS],
   induction: [MODULES.INDUCTION],
   tour: [MODULES.TOUR],
@@ -58,5 +71,7 @@ export const ACCESS_SCOPES = {
   waitlistLeads: [MODULES.WAITLIST_LEADS],
   facilities: [MODULES.FACILITIES],
   plansPricing: [MODULES.PLANS_PRICING],
+  calendar: [MODULES.CALENDAR],
+  notifications: [MODULES.NOTIFICATIONS],
   superAdmin: [MODULES.SUPER_ADMIN],
 } as const;

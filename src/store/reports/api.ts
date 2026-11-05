@@ -18,6 +18,7 @@ export const getReport = createAsyncThunk('reports/getReport', async (params: Re
         period: params.period,
         startDate: params.startDate || undefined,
         endDate: params.endDate || undefined,
+        includeNonActive: params.includeNonActive || undefined,
       },
     });
     return response.data;

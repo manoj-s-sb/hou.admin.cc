@@ -3,7 +3,7 @@
  *
  * Three layers live here:
  *   1. Backend contract (doc-bundle API): FacilitySummary, CentreBundle, …
- *   2. Domain / wizard models the UI speaks: Centre, WizardState, CentreMember, …
+ *   2. Domain / wizard models the UI speaks: Centre, WizardState, PlanMeta, …
  *   3. The Redux slice state shape (CentresInitialState + initialState).
  *
  * Spellings are kept verbatim from the backend spec (note `freeSolts`).
@@ -139,12 +139,30 @@ export interface FacilityHoliday {
   name: string;
 }
 
+/** One entry of `facility.addons[0]` — tab config for a bookable area (lane/gym/
+ * podcastroom/meetingroom/...), distinct from the `product` docs which carry the
+ * actual pricing/booking rules for the same feature. */
+export interface FacilityAddonEntry {
+  status: string;
+  isTab: boolean;
+  group: string;
+  order: number;
+  label: string;
+  equipmentCount?: number;
+  areaSqm?: number;
+}
+
+/** `facility.addons` is an array containing ONE object keyed by addon id
+ * ("lane" | "gym" | "podcastroom" | "meetingroom" | ...) — matches the real DB shape. */
+export type FacilityAddonsMap = Record<string, FacilityAddonEntry>;
+
 export interface ApiFacility {
   type: 'facility';
   code: string; // 3–10, UPPER, unique
   name: string;
   cityCode: string;
   countryCode: string;
+  regionCode: string;
   stateCode: string;
   timezone: string;
   status: CentreApiStatus;
@@ -162,6 +180,9 @@ export interface ApiFacility {
   contact: FacilityContact;
   operatingHours: OperatingHoursMap;
   holidays: FacilityHoliday[];
+  // Tab config for bookable areas (lane always present, plus whichever
+  // additional facilities are enabled) — see FacilityAddonsMap.
+  addons: FacilityAddonsMap[];
   // Collected partially / not at all by the wizard today — refine on real JSON.
   security?: Record<string, unknown>;
   features?: Record<string, unknown>;
@@ -189,7 +210,7 @@ export interface LanePitchBox {
 export interface ApiLane {
   type: 'lane';
   laneNo: number;
-  laneType: 'batting' | 'bowling' | 'multipurpose';
+  laneType: 'batting' | 'bowling' | 'hybrid';
   status: string;
   code: string;
   lanePitchMapping: Record<string, LanePitchBox>; // "60".."160"
@@ -212,15 +233,20 @@ export interface ApiMembership {
   type: 'membership';
   code: string; // premium | standard | offpeak | nightowl | family
   name: string;
+  status?: string;
   isPopular: boolean;
+  cityCode?: string;
+  countryCode?: string;
+  stateCode?: string;
+  facilityCode?: string;
   pricing: MembershipPricing;
-  registrationFee: number;
+  registrationFee: Record<string, unknown>;
   access: Record<string, unknown>;
   bookingRules: Record<string, unknown>;
-  memberTypes: unknown[];
+  memberTypes: Record<string, unknown>;
   accessControl: Record<string, unknown>;
   membershipPolicies: Record<string, unknown>;
-  description: string;
+  description: Record<string, unknown>;
   stripe: Record<string, unknown>;
   benefits: string[];
   id?: string;
@@ -243,16 +269,326 @@ export interface ApiMembershipSalesFlow {
   id?: string;
 }
 
+/**
+ * Bookable facility product (podcast room, meeting room, gym, ...), `type: "product"`,
+ * linked to its centre via `facilityCode`. Lives alongside facility/lane/membership docs
+ * in the same bundle; the Facilities page renders these directly (see facilities/index.tsx).
+ */
+/** `bookingModel: "membership_addon"` WRITE (wire) shapes — what the Facilities
+ * page's Add/Edit form actually sends. CentreService transforms these into the
+ * reference-schema READ shapes below (ApiGymPricing / ApiGymAccessDoor / ...) —
+ * see _gym_pricing / _gym_access_control / _gym_free_trial / _gym_age_rules. */
+export interface ApiGymAddonPricingInput {
+  fortnightlyPrice?: number;
+  /** Optional override of the calculated annual price (fortnightlyPrice × 26 ×
+   * (1 - annualDiscountPct/100)). `null` (not just absent) means "use
+   * calculated" — always send this key explicitly so a cleared override
+   * actually clears, rather than the backend preserving a stale one. */
+  annualPrice?: number | null;
+}
+export interface ApiGymFreeTrialInput {
+  slotsPerMember?: 0 | 1 | 2;
+}
+export interface ApiGymAgeRangeInput {
+  from?: number;
+  to?: number;
+}
+export interface ApiGymAgeRulesInput {
+  minimumAge?: number;
+  parentMustBePresent?: ApiGymAgeRangeInput;
+  parentalConsentRequired?: ApiGymAgeRangeInput;
+}
+export interface ApiGymPinWindowInput {
+  beforeMinutes?: number;
+}
+export interface ApiGymPinRulesInput {
+  /** PIN window for the gym's own access zone/door. */
+  gymPinWindow?: ApiGymPinWindowInput;
+  /** Separate general-facility entry PIN window, for a gym-only booking with no
+   * lane booking to otherwise get the member through the building's front door. */
+  facilityPinWindow?: ApiGymPinWindowInput;
+}
+
+/** `bookingModel: "membership_addon"` READ shapes — the reference schema real,
+ * hand-created gym docs use (see hou01-gym). Built server-side from the WRITE
+ * shapes above; never sent as-is by this form. */
+export interface ApiGymPricing {
+  billingCycles?: string[];
+  individual?: {
+    fortnightly?: number;
+    annual?: number;
+    currency?: string;
+    savings?: { annual?: { percentage?: number } };
+  };
+  /** Always null here — no separate family/bundled plan is admin-configured. */
+  bundled?: unknown;
+}
+/** Shared by both bookingModels — accessControl is always a per-door map keyed
+ * by door/room code (the room's own code, or "mainDoor" for the facility's main
+ * entrance), each holding just a minutes-before window. No on/off flag, no
+ * "minutes after" for either bookingModel. */
+export interface ApiGymAccessDoor {
+  preAccessTime?: number;
+}
+/** Pay-per-slot (podcast/meeting/gaming/custom) hourly pricing — a member picks
+ * any whole number of hours and pays perHour × hours. */
+export interface ApiPayPerSlotPricing {
+  perHour?: number;
+  currency?: string;
+}
+export interface ApiGymFreeTrialRead {
+  slotsPerMembershipLifetime?: number;
+  enabled?: boolean;
+  guestsAllowed?: unknown;
+  enforceAllTogether?: unknown;
+  consumeOn?: unknown;
+  adminOverrideAllowed?: unknown;
+}
+export interface ApiGymAgeRangeRead {
+  min?: number;
+  max?: number;
+  guardianMustAttend?: boolean;
+  documents?: unknown;
+}
+export interface ApiGymAgeRulesRead {
+  minAge?: number;
+  supervisedRange?: ApiGymAgeRangeRead;
+  consentRange?: ApiGymAgeRangeRead;
+  unrestrictedAge?: number;
+}
+
+export interface ApiProduct {
+  type: 'product';
+  id?: string;
+  code: string;
+  facilityCode: string;
+  isAddon?: boolean;
+  bookingModel?: string; // "pay_per_slot" (default) | "membership_addon" (Gym)
+  name: string;
+  description?: string;
+  /** Resolved server-side on every read (see CentreService._resolve_product_images).
+   * `blobName` is the STABLE identifier to send back unchanged in an edit that
+   * doesn't touch images — `url` is a temporary SAS read URL and expires; never
+   * send it back as if it were a blobName. */
+  images?: { blobName: string; url: string }[];
+  benefits?: string[];
+  status: string; // e.g. "active" | "commingsoon"
+  version?: number;
+  sessionRules?: {
+    maxBookingsPerDay?: number;
+    maxActiveBookings?: number;
+    advanceBookingDays?: number;
+    noWalkIns?: boolean;
+    // Pay-per-slot (podcast/meeting/gaming/custom) — hourly, variable-length
+    // booking: a member picks any whole number of hours in [minHours, maxHours]
+    // and pays pricing.perHour × hours.
+    minHours?: number;
+    maxHours?: number;
+    // Gym-specific (reference field names). Gym's own "Session duration" is
+    // fixed, unlike the hourly model above — unaffected by it.
+    durationMinutes?: number;
+    slotIncrementMinutes?: number;
+    slotCapacity?: number;
+    /** Minimum gap (hours) between a member's gym sessions — per membership
+     * plan code assigned to this centre (e.g. {"premium": 4, "standard": 8}),
+     * not a fixed tier split. See FacilityProductModal.tsx's gapHoursByPlan. */
+    bookingFrequency?: Record<string, number>;
+  };
+  guestPolicy?: {
+    maxGuestsPerSlot?: number;
+    additionalGuestPrice?: number;
+    // Gym-specific.
+    guestsCountTowardCapacity?: boolean;
+    laneGuestFreeGymSameDay?: boolean;
+    freeGuestsPerBillingCycle?: number;
+  };
+  // Stored as real top-level fields (not squeezed into the nested shapes above) —
+  // see CentreService._build_product_doc / update_centre_bundle's product-edit step.
+  annualDiscountPct?: number;
+  totalCapacity?: number;
+  concurrentCapacity?: number;
+  seatingCapacity?: number;
+  /** Pay-per-slot only — gym uses guestPolicy.freeGuestsPerBillingCycle instead. */
+  freeGuestVisits?: number;
+  openTime?: string;
+  closeTime?: string;
+  // Membership add-on (Gym) — reference schema fields. `pricing`/`accessControl`
+  // `pricing`'s shape depends on bookingModel (ApiGymPricing vs
+  // ApiPayPerSlotPricing); `accessControl` is the SAME per-door map shape for
+  // both (see ApiGymAccessDoor) — just keyed by whichever doors that
+  // bookingModel's form configures.
+  pricing?: ApiGymPricing | ApiPayPerSlotPricing;
+  /** Admin-only override tracking — NOT part of the reference schema (see
+   * ApiGymAddonPricingInput.annualPrice). null/absent = use the calculated
+   * annual price in pricing.individual.annual. */
+  addonPricing?: { annualPriceOverride?: number | null };
+  accessControl?: Record<string, ApiGymAccessDoor>;
+  freeTrial?: ApiGymFreeTrialRead;
+  ageRules?: ApiGymAgeRulesRead;
+  inductionRequired?: boolean;
+  // Outside the admin form's scope — populated by another process, read back
+  // (and round-tripped) verbatim if present, otherwise null/absent.
+  subType?: string;
+  cityCode?: string;
+  countryCode?: string;
+  stateCode?: string;
+  model?: unknown;
+  stripe?: unknown;
+  violationPolicy?: unknown;
+  inductionRules?: unknown;
+}
+
 /** Grouped bundle returned by /details and /create. */
 export interface CentreBundle {
   facility: ApiFacility;
   lanes: ApiLane[];
   memberships: ApiMembership[];
   membershipSalesFlow: ApiMembershipSalesFlow;
+  products?: ApiProduct[];
 }
 
-/** Create body — same bundle, server fills id/timestamps. */
-export type CentreCreateRequest = CentreBundle;
+/**
+ * Write payload for one product (New Centre wizard's Additional Facilities step →
+ * /admin/centres/create or /update). The server always persists the SAME nested
+ * structure the real docs use (slotPricing/sessionRules/guestPolicy) — see
+ * CentreService._build_product_doc — mapping these flatter fields into it.
+ * CREATE-ONLY on /update: a `code` that already exists is left untouched, never
+ * overwritten or deleted (see buildCreatePayload.ts / bundleToWizardState.ts).
+ */
+export interface ApiProductInput {
+  type: 'product';
+  code: string;
+  name: string;
+  description?: string;
+  /** blobNames from uploadProductImage — see ApiProduct.images for the resolved shape. */
+  images?: string[];
+  status?: string;
+  isAddon?: boolean;
+  fortnightlyPrice?: number;
+  guestSessionPrice?: number;
+  totalCapacity?: number;
+  concurrentCapacity?: number;
+  seatingCapacity?: number;
+  slotDuration?: string;
+  freeGuestVisits?: number;
+  // Already-nested shape (matches the real docs) — sent as-is instead of the
+  // flat wizard fields above when the caller already has the real structure
+  // (e.g. the Facilities page's "Add New" form). See ProductInput (backend).
+  // Pay-per-slot (podcast/meeting/gaming/custom) hourly pricing.
+  pricing?: ApiPayPerSlotPricing;
+  sessionRules?: {
+    maxBookingsPerDay?: number;
+    advanceBookingDays?: number;
+    noWalkIns?: boolean;
+    // Pay-per-slot hourly booking range.
+    minHours?: number;
+    maxHours?: number;
+    // Gym-specific.
+    durationMinutes?: number;
+    slotStartIntervalMinutes?: number;
+    maxMembersPerSlot?: number;
+    /** Per-plan minimum gap hours, keyed by this centre's own membership plan codes. */
+    bookingFrequency?: Record<string, number>;
+    slotCapacity?: number;
+  };
+  guestPolicy?: {
+    maxGuestsPerSlot?: number;
+    additionalGuestPrice?: number;
+    // Gym-specific.
+    guestsCountTowardCapacity?: boolean;
+    freeGymEntryWithLaneBooking?: boolean;
+  };
+  // Door PIN windows for pay-per-slot facilities — same {beforeMinutes} shape
+  // as Gym's, no "minutes after": `doorPin` is the room's own door, `facilityPin`
+  // the building's main entrance (same two-door idea as Gym's gymPinWindow/
+  // facilityPinWindow).
+  doorPin?: ApiGymPinWindowInput;
+  facilityPin?: ApiGymPinWindowInput;
+  // Stored verbatim as top-level fields (not mapped into the nested shapes above).
+  annualDiscountPct?: number;
+  openTime?: string;
+  closeTime?: string;
+  // Membership add-on (Gym) — bookingModel: "membership_addon" for the Gym,
+  // omit for the default "pay_per_slot". These groups are stored verbatim,
+  // same shape as ApiProduct's.
+  bookingModel?: string;
+  addonPricing?: ApiGymAddonPricingInput;
+  freeTrial?: ApiGymFreeTrialInput;
+  ageRules?: ApiGymAgeRulesInput;
+  pinRules?: ApiGymPinRulesInput;
+  inductionRequired?: boolean;
+}
+
+/** Create/update body — same bundle shape, but `products` is the write-side (flatter) shape. */
+export type CentreCreateRequest = Omit<CentreBundle, 'products'> & { products?: ApiProductInput[] };
+
+/**
+ * Partial edit of an EXISTING product (Facilities page's per-product "Edit"
+ * action) → /admin/centres/update's `productUpdates`. Only the fields actually
+ * set are sent; the backend merges them into the stored doc's real nested
+ * shape, leaving anything unset exactly as it was. Distinct from
+ * `ApiProductInput`/`products` (create-only, bulk, wizard-driven).
+ */
+export interface ApiProductUpdateInput {
+  code: string;
+  name?: string;
+  description?: string;
+  /** blobNames — always sent as the FULL current list (even [] to clear every
+   * image), unlike every other field here where omitting means "unchanged". */
+  images?: string[];
+  status?: string;
+  // Pay-per-slot (podcast/meeting/gaming/custom) hourly pricing — replaces the
+  // old fixed price/durationMinutes model entirely.
+  pricePerHour?: number;
+  minHours?: number;
+  maxHours?: number;
+  /** Door PIN windows for these same facilities — minutes-before only, no
+   * "after". doorPin = the room's own door; facilityPin = the building's main
+   * entrance (same two-door idea as Gym's). */
+  doorPinBeforeMinutes?: number;
+  facilityPinBeforeMinutes?: number;
+  // Gym's own fixed "Session duration" — unaffected by the hourly model above.
+  durationMinutes?: number;
+  slotCapacity?: number;
+  maxBookingsPerDay?: number;
+  advanceBookingDays?: number;
+  maxGuestsPerSlot?: number;
+  additionalGuestPrice?: number;
+  annualDiscountPct?: number;
+  totalCapacity?: number;
+  concurrentCapacity?: number;
+  seatingCapacity?: number;
+  freeGuestVisits?: number;
+  openTime?: string;
+  closeTime?: string;
+  // Membership add-on (Gym) fields.
+  bookingModel?: string;
+  addonPricing?: ApiGymAddonPricingInput;
+  freeTrial?: ApiGymFreeTrialInput;
+  ageRules?: ApiGymAgeRulesInput;
+  pinRules?: ApiGymPinRulesInput;
+  inductionRequired?: boolean;
+  slotStartIntervalMinutes?: number;
+  maxMembersPerSlot?: number;
+  /** Per-plan minimum gap hours, keyed by this centre's own membership plan
+   * codes — always the FULL current map (same convention as `images`). */
+  bookingFrequency?: Record<string, number>;
+  noWalkIns?: boolean;
+  guestsCountTowardCapacity?: boolean;
+  freeGymEntryWithLaneBooking?: boolean;
+}
+
+/**
+ * Lightweight body for the Facilities page's own edits (amenities, add/edit a
+ * bookable facility) — a narrow slice of /admin/centres/update's full bundle
+ * shape, since this page never touches lanes/memberships/sales-flow.
+ */
+export interface FacilitiesPatchRequest {
+  centreId: string;
+  facility?: { amenities?: string[] };
+  products?: ApiProductInput[];
+  productUpdates?: ApiProductUpdateInput[];
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
  *  2. Domain / wizard models
@@ -327,27 +663,6 @@ export interface CentreKPISnapshot {
 /** A centre row joined with its latest KPI snapshot — what the card grid renders. */
 export interface CentreWithKPI extends Centre {
   kpi: CentreKPISnapshot;
-}
-
-export interface CentreMember {
-  id: string;
-  name: string;
-  email: string;
-  plan: string;
-  memberType: string;
-  joinDate: string;
-  bookings: number;
-  status: 'Active' | 'On Hold' | 'Suspended';
-}
-
-export interface CentreBooking {
-  id: string;
-  member: string;
-  lane: string;
-  date: string;
-  time: string;
-  sessionType: string;
-  status: 'Confirmed' | 'Completed' | 'No-show' | 'Cancelled' | 'Waitlisted';
 }
 
 /** An admin-authored note attached to a waitlist or lead entry. */
@@ -452,19 +767,14 @@ export interface LeadEntry {
 
 /* ── Wizard form models ── */
 
-export interface CentreDiscount {
-  id: string;
-  name: string;
-  type: 'percentage' | 'fixed' | 'free_sessions';
-  value: number;
-  appliesTo: string;
-  promoCode: string;
-}
-
 export interface WizardPlanRow {
-  planId: PlanId;
+  /** Plan code — one of the fixed catalogue ids, or any live global plan's code. */
+  planId: PlanId | string;
   enabled: boolean;
   fortnightlyPrice: number;
+  /** Whether THIS centre offers annual billing for this plan — a centre's own
+   * choice, independent of the global template's own offersAnnual flag. */
+  offersAnnual: boolean;
   annualPrice: number;
   allocatedSlots: number;
   joiningFee: number;
@@ -511,7 +821,6 @@ export interface WizardState {
   firstGuestFee: number | null;
   additionalGuestDiscountPct: number | null;
   extraSessionCost: number | null;
-  discounts: CentreDiscount[];
   // Review — optional scheduling metadata, all UTC ISO 8601. Not yet consumed by any
   // backend action (no lifecycle endpoint exists) — carried through as a facility
   // field for whenever that lands. Empty/absent = not scheduled for that behavior.
@@ -530,9 +839,14 @@ export interface CentreKeyDates {
 
 export type AdditionalFacilityType = 'gym' | 'podcast' | 'meeting' | 'gaming' | 'custom';
 
-export interface FacilityPhoto {
-  name: string;
+/** An uploaded facility image — same shape/upload flow as the Facilities
+ * page's Edit modal (see uploadProductImage): `blobName` is the stable
+ * identifier submitted with the facility, `previewUrl` is what's rendered
+ * (a local object URL while mid-upload, or the resolved SAS URL on edit). */
+export interface WizardFacilityImage {
+  blobName: string;
   previewUrl: string;
+  uploading?: boolean;
 }
 
 export interface AdditionalFacility {
@@ -554,12 +868,65 @@ export interface AdditionalFacility {
   // Operating hours
   openTime: string;
   closeTime: string;
-  photos?: FacilityPhoto[];
+  /** When true, this facility is open 24 hours — openTime/closeTime are kept
+   * (as '00:00'/'23:59') for display/back-compat but the two time inputs are
+   * hidden in favour of a single "24 Hours" toggle. */
+  is24Hours?: boolean;
+  images?: WizardFacilityImage[];
+  /** Shown to members/guests — same field as the Facilities page's Edit
+   * modal's "Rules and Guidelines" textarea (ApiProductInput.description). */
+  description?: string;
+  /** How many days ahead a member can book this facility — same field as the
+   * Facilities page's Edit modal (ApiProductInput.sessionRules.advanceBookingDays). */
+  advanceBookingDays?: number;
+  /** Pay-per-slot only (podcast/meeting/gaming/custom) — gym has no equivalent
+   * field in either form (see FacilityProductModal.tsx's `!isGym` gate). */
+  maxBookingsPerDay?: number;
   // Gaming-specific
   psUnits?: number;
   chargePerHour?: number;
   minSession?: string;
   maxSession?: string;
+  // Gym-specific (bookingModel="membership_addon" — billed with the member's
+  // plan rather than paid per slot). `fortnightlyPrice` above doubles as the
+  // gym's fortnightly add-on price. See ApiGym*/FacilityProductModal.tsx for
+  // the matching Facilities-page fields this mirrors. A family's gym charge is
+  // just fortnightlyPrice × however many family members have the add-on — no
+  // separate rate is configured.
+  /** Optional override of the calculated annual price — see ApiGymPricingTier. */
+  annualPrice?: number;
+  gymModel?: 'bundled' | 'standalone' | 'both';
+  slotStartIntervalMinutes?: number;
+  maxMembersPerSlot?: number;
+  /** Minimum gap (hours) between a member's gym sessions, per membership plan
+   * code assigned to this centre — same shape/convention as the Facilities
+   * page's Edit modal (FacilityProductModal.tsx's gapHoursByPlan). Keyed by
+   * WizardPlanRow.planId. */
+  gapHoursByPlan?: Record<string, number>;
+  freeGymEntryWithLaneBooking?: boolean;
+  freeTrialSlots?: 0 | 1 | 2;
+  minimumAge?: number;
+  parentPresentFrom?: number;
+  parentPresentTo?: number;
+  consentFrom?: number;
+  consentTo?: number;
+  gymPinBefore?: number;
+  facilityPinBefore?: number;
+  inductionRequired?: boolean;
+  // Custom facilities only — lets "Add custom facility" choose the same two
+  // facility types the Facilities page offers: paid per booking (hourly), or
+  // a membership add-on like Gym (reuses all the gym-specific fields above).
+  bookingModel?: 'pay_per_slot' | 'membership_addon';
+  // Pay-per-slot (podcast/meeting/gaming/custom) hourly pricing — a member
+  // picks any whole number of hours from 1 up to maxBookableHours (no
+  // separate "min", it's always 1); `fortnightlyPrice` above doubles as the
+  // hourly rate for these types too.
+  maxBookableHours?: number;
+  // Door PIN windows for pay-per-slot facilities — minutes-before only, same
+  // two-door idea as Gym's gymPinBefore/facilityPinBefore: `doorPinBefore` is
+  // this room's own door, `roomFacilityPinBefore` the building's main entrance.
+  doorPinBefore?: number;
+  roomFacilityPinBefore?: number;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -594,12 +961,6 @@ export interface CentresInitialState {
   // ── Create / update ──
   saving: boolean;
 
-  // ── Ops dashboard ──
-  members: CentreMember[];
-  membersLoading: boolean;
-  bookings: CentreBooking[];
-  bookingsLoading: boolean;
-
   // ── Waitlist / Leads ──
   waitlist: WaitlistEntry[];
   waitlistLoading: boolean;
@@ -627,11 +988,6 @@ export const initialState: CentresInitialState = {
   detailsError: null,
 
   saving: false,
-
-  members: [],
-  membersLoading: false,
-  bookings: [],
-  bookingsLoading: false,
 
   waitlist: [],
   waitlistLoading: false,

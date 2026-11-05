@@ -18,6 +18,13 @@ interface Props {
   onViewSteps: (s: TaskSchedule) => void;
   onReschedule?: (s: TaskSchedule) => void;
   onUnschedule?: (s: TaskSchedule) => void;
+  /** MT-2: bulk-stop every future occurrence of a recurring series. Only
+   * meaningful (and only ever shown) when the schedule actually has a
+   * seriesId — a legacy one-at-a-time schedule keeps using Remove. */
+  onEndSeries?: (s: TaskSchedule) => void;
+  /** MT-7: reverse an accidental Mark Done. Available to anyone who can
+   * complete a task, not just canManage. */
+  onUndo?: (s: TaskSchedule) => void;
 }
 
 const fmtShort = (d: string | null): string =>
@@ -34,10 +41,12 @@ const ScheduleCard: React.FC<Props> = ({
   onViewSteps,
   onReschedule,
   onUnschedule,
+  onEndSeries,
+  onUndo,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const t = schedule.template;
-  const type = taskTypeMeta(t.taskType);
+  const type = taskTypeMeta(t.taskType, t.taskTypeCustom);
   const prio = priorityMeta(t.priority);
   const isDone = schedule.status === 'done';
   const isOverdue = schedule.status === 'overdue';
@@ -187,6 +196,7 @@ const ScheduleCard: React.FC<Props> = ({
               >
                 📎 {f.name.length > 12 ? `${f.name.slice(0, 12)}…` : f.name}
                 <button
+                  aria-label="Remove file"
                   className="text-red-400 hover:text-red-600"
                   type="button"
                   onClick={() => setFiles(files.filter((_, j) => j !== i))}
@@ -211,6 +221,16 @@ const ScheduleCard: React.FC<Props> = ({
             {saving ? 'Saving…' : '✓ Mark Done'}
           </button>
         )}
+        {isDone && onUndo && (
+          <button
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+            title="Reverse an accidental Mark Done"
+            type="button"
+            onClick={() => onUndo(schedule)}
+          >
+            ↺ Undo
+          </button>
+        )}
         <button
           className="flex items-center justify-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600 transition hover:bg-red-600 hover:text-white"
           type="button"
@@ -219,15 +239,19 @@ const ScheduleCard: React.FC<Props> = ({
           ⚑ Flag Issue
         </button>
         {!isDone && (
-          <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-500 transition hover:bg-gray-50">
+          <label className="relative flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-500 transition hover:bg-gray-50">
             📎 Attach
             <input
               multiple
               accept="image/*,video/*"
-              className="hidden"
+              className="absolute h-px w-px overflow-hidden opacity-0"
               type="file"
               onChange={e => {
-                setFiles(prev => [...prev, ...Array.from(e.target.files ?? [])]);
+                // Capture into a plain array BEFORE resetting the input below — setFiles's
+                // updater runs slightly later than this handler, so reading e.target.files
+                // lazily inside it would see the empty FileList left by the reset instead.
+                const picked = Array.from(e.target.files ?? []);
+                setFiles(prev => [...prev, ...picked]);
                 e.target.value = '';
               }}
             />
@@ -249,14 +273,26 @@ const ScheduleCard: React.FC<Props> = ({
             📅 {fmtShort(schedule.nextDueDate || schedule.scheduledDate)}
           </span>
         )}
-        {canManage && onUnschedule && (
+        {canManage && schedule.seriesId && onEndSeries ? (
           <button
-            className="flex items-center justify-center rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-semibold text-gray-400 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-600"
+            className="flex items-center justify-center rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-semibold text-gray-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            title="Stop every future occurrence of this recurring task; completed ones are kept"
             type="button"
-            onClick={() => onUnschedule(schedule)}
+            onClick={() => onEndSeries(schedule)}
           >
-            Remove
+            End Series
           </button>
+        ) : (
+          canManage &&
+          onUnschedule && (
+            <button
+              className="flex items-center justify-center rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-semibold text-gray-400 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-600"
+              type="button"
+              onClick={() => onUnschedule(schedule)}
+            >
+              Remove
+            </button>
+          )
         )}
       </div>
 

@@ -31,7 +31,7 @@ const MembershipTab: React.FC<{ data: MembershipData }> = ({ data }) => {
             accent={ACCENTS[i % ACCENTS.length]}
             subtitle={`${card.percentageOfTotal}% of total`}
             title={card.planName}
-            trend={{ value: card.growthPct, positive: card.growthPct >= 0 }}
+            trend={{ value: card.growthPct, positive: (card.growthPct ?? 0) >= 0 }}
             value={card.count}
           />
         ))}

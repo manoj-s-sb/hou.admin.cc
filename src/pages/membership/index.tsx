@@ -4,12 +4,15 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { canEditModule } from '../../rbac';
 import { MODULES } from '../../rbac/constants';
+import { getCentres } from '../../store/centres/api';
 import { getFxRates, getMemberships } from '../../store/memberships/api';
 import { upsertPlan as upsertPlanAction } from '../../store/memberships/reducers';
 import { AppDispatch, RootState } from '../../store/store';
+import { num } from '../../utils/format';
+import { dynamicPlanCountryChips } from '../centres/constants';
 
 import PlanDrawer from './components/PlanDrawer';
-import { CURRENCIES, PLAN_REGION_FILTERS, SLOT_DURATION_MINUTES, type CurrencyOption } from './constants';
+import { CURRENCIES, SLOT_DURATION_MINUTES, type CurrencyOption } from './constants';
 
 import type { MembershipPlan } from '../../store/memberships/types';
 
@@ -24,16 +27,25 @@ const TABS: { key: PlanTab; label: string }[] = [
 
 const TD = 'border-b border-gray-100 px-3.5 py-[11px] align-middle';
 
-// Each country/centre filter maps to the currency its prices should display in.
+// Each country/centre filter maps to the currency its prices should display
+// in — keyed on PLAN_COUNTRY_CHIPS's own codes (src/pages/centres/constants.ts),
+// the same codes dynamicPlanCountryChips below hands back.
 const REGION_CURRENCY: Record<string, string> = {
   all: 'USD',
-  USA: 'USD',
-  AUS: 'AUD',
-  IND: 'INR',
+  US: 'USD',
+  AU: 'AUD',
+  IN: 'INR',
+  UK: 'GBP',
+  NZ: 'NZD',
+  ZA: 'ZAR',
 };
 
-const money = (usd: number, cur: CurrencyOption) =>
-  `${cur.symbol}${(usd * cur.rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// `amount` is stored in the currency whose USD-rate is `sourceRate` (1 = already
+// USD). Normalise to USD, then convert to the display currency `cur`. When the
+// price is already in the selected currency, sourceRate === cur.rate, so the two
+// cancel and the exact stored value is shown (no lossy re-conversion).
+const money = (amount: number, cur: CurrencyOption, sourceRate = 1) =>
+  `${cur.symbol}${((amount / sourceRate) * cur.rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /* ── Small cell helpers ──────────────────────────────────────────────────── */
 
@@ -108,21 +120,49 @@ const MembershipPlans: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { plans, isLoading } = useSelector((state: RootState) => state.memberships);
 
-  // Live daily FX rates (with the static CURRENCIES table as the offline fallback).
-  const [liveRates, setLiveRates] = useState<Record<string, number> | null>(null);
+  // Live daily FX rates, plus enough context to tell the admin whether they're
+  // seeing today's rate or the static offline fallback (which drifts over time).
+  const [fx, setFx] = useState<{
+    rates: Record<string, number> | null;
+    asOf?: string;
+    status: 'loading' | 'live' | 'fallback';
+  }>({ rates: null, status: 'loading' });
 
   useEffect(() => {
     dispatch(getMemberships(undefined));
     dispatch(getFxRates())
       .unwrap()
-      .then(r => setLiveRates(r.rates ?? null))
+      .then(r => setFx({ rates: r.rates ?? null, asOf: r.asOf, status: 'live' }))
       .catch(() => {
-        // Endpoint unavailable — keep the static reference rates.
+        // Endpoint unavailable — fall back to the static reference rates, but
+        // flag it so the UI can warn the admin the rate may be stale.
+        setFx({ rates: null, status: 'fallback' });
       });
+    // Only to discover which countries a real centre already exists in (see
+    // dynamicPlanCountryChips below) — not this page's own list, so a big
+    // single page comfortably covers every centre today. Centre Management's
+    // own mount effect always re-fetches its own paginated view immediately
+    // on next visit, so this doesn't clobber anything there.
+    dispatch(getCentres({ skip: 0, limit: 500 }));
   }, [dispatch]);
+
+  // Narrows the full country-chip candidate list down to just the countries
+  // a real centre exists in right now — same dynamic derivation the New
+  // Centre wizard's own country picker already uses, so creating a centre in
+  // a new country (e.g. South Africa) makes it show up here too, with no
+  // code change needed.
+  const existingCentres = useSelector((state: RootState) => state.centres.facilities);
+  const planRegionFilters = useMemo(
+    () => [{ code: 'all', label: 'All centres' }, ...dynamicPlanCountryChips(existingCentres).slice(1)],
+    [existingCentres]
+  );
 
   const [tab, setTab] = useState<PlanTab>('fortnightly');
   const [region, setRegion] = useState('all');
+  // MP-1: archived plans are hidden by default — an archived plan is meant to be
+  // retired from new assignments, not a permanent fixture of the list an admin
+  // has to visually filter out of every time.
+  const [showArchived, setShowArchived] = useState(false);
   const [currencyCode, setCurrencyCode] = useState('USD');
   const [drawerPlan, setDrawerPlan] = useState<MembershipPlan | null>(null);
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | null>(null);
@@ -131,12 +171,21 @@ const MembershipPlans: React.FC = () => {
   const currencyOptions = useMemo(
     () =>
       CURRENCIES.map(c => {
-        const rate = liveRates?.[c.code];
+        const rate = fx.rates?.[c.code];
         return typeof rate === 'number' ? { ...c, rate } : c;
       }),
-    [liveRates]
+    [fx.rates]
   );
   const currency = currencyOptions.find(c => c.code === currencyCode) ?? currencyOptions[0];
+
+  // USD→<code> rate for a price's OWN stored currency, so a non-USD price is
+  // normalised to USD before display conversion. Uses the same live table as the
+  // display rates, so a price already in the selected currency round-trips exactly.
+  const rateOf = (code?: string): number => {
+    const c = (code || 'USD').toUpperCase();
+    if (c === 'USD') return 1;
+    return fx.rates?.[c] ?? CURRENCIES.find(x => x.code === c)?.rate ?? 1;
+  };
 
   // Changing the country/centre filter also switches the displayed currency so the
   // plan prices below update to that region. Currency can still be overridden manually.
@@ -147,9 +196,15 @@ const MembershipPlans: React.FC = () => {
   };
 
   const visiblePlans = useMemo(
-    () => plans.filter(p => region === 'all' || p.regions.includes('all') || p.regions.includes(region)),
-    [plans, region]
+    () =>
+      plans.filter(
+        p =>
+          (region === 'all' || p.regions.includes('all') || p.regions.includes(region)) &&
+          (showArchived || p.status !== 'archived')
+      ),
+    [plans, region, showArchived]
   );
+  const archivedCount = useMemo(() => plans.filter(p => p.status === 'archived').length, [plans]);
 
   const openCreate = () => {
     setDrawerPlan(null);
@@ -193,17 +248,31 @@ const MembershipPlans: React.FC = () => {
           <span className="text-xs font-bold uppercase tracking-[0.06em] text-sub" style={{ margin: 0 }}>
             Centre:
           </span>
-          {PLAN_REGION_FILTERS.map(f => (
+          {planRegionFilters.map(f => (
             <button
-              key={f.key}
-              className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${region === f.key ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : 'border-cmx-border bg-white text-sub'}`}
+              key={f.code}
+              className={`inline-flex cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${region === f.code ? 'border-[#9096be] bg-[#ecedf4] text-[#21295a]' : 'border-cmx-border bg-white text-sub'}`}
               type="button"
-              onClick={() => selectRegion(f.key)}
+              onClick={() => selectRegion(f.code)}
             >
               {f.label}
             </button>
           ))}
         </div>
+        {archivedCount > 0 && (
+          <label
+            className="inline-flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-sub"
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            <input
+              checked={showArchived}
+              className="h-3.5 w-3.5 rounded border-cmx-border"
+              type="checkbox"
+              onChange={e => setShowArchived(e.target.checked)}
+            />
+            Show archived ({archivedCount})
+          </label>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="text-xs font-bold uppercase tracking-[0.06em] text-sub" style={{ margin: 0 }}>
             Currency:
@@ -222,6 +291,10 @@ const MembershipPlans: React.FC = () => {
           </div>
           <span style={{ fontSize: 11, color: 'var(--sub)' }}>
             {currency.code === 'USD' ? 'Base currency' : `1 USD ≈ ${currency.rate.toFixed(3)} ${currency.code}`}
+            {currency.code !== 'USD' && fx.status === 'live' && fx.asOf && ` · rates as of ${fx.asOf}`}
+            {currency.code !== 'USD' && fx.status === 'fallback' && (
+              <span style={{ color: 'var(--cmx-amber, #d97706)' }}> · ⚠ offline — reference rate, may be outdated</span>
+            )}
           </span>
         </div>
       </div>
@@ -246,10 +319,6 @@ const MembershipPlans: React.FC = () => {
             type="button"
             onClick={openCreate}
           >
-            <svg fill="none" height={13} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width={13}>
-              <line x1="12" x2="12" y1="5" y2="19" />
-              <line x1="5" x2="19" y1="12" y2="12" />
-            </svg>
             New Plan
           </button>
         )}
@@ -262,10 +331,20 @@ const MembershipPlans: React.FC = () => {
       ) : (
         <>
           {tab === 'fortnightly' && (
-            <FortnightlyTab currency={currency} plans={visiblePlans} onEdit={canEdit ? openEdit : undefined} />
+            <FortnightlyTab
+              currency={currency}
+              plans={visiblePlans}
+              rateOf={rateOf}
+              onEdit={canEdit ? openEdit : undefined}
+            />
           )}
           {tab === 'annual' && (
-            <AnnualTab currency={currency} plans={visiblePlans} onEdit={canEdit ? openEdit : undefined} />
+            <AnnualTab
+              currency={currency}
+              plans={visiblePlans}
+              rateOf={rateOf}
+              onEdit={canEdit ? openEdit : undefined}
+            />
           )}
           {tab === 'booking' && <BookingAccessTab plans={visiblePlans} />}
           {tab === 'guests' && <GuestChargesTab currency={currency} plans={visiblePlans} />}
@@ -280,8 +359,9 @@ const MembershipPlans: React.FC = () => {
 const FortnightlyTab: React.FC<{
   plans: MembershipPlan[];
   currency: CurrencyOption;
+  rateOf: (code?: string) => number;
   onEdit?: (p: MembershipPlan) => void;
-}> = ({ plans, currency, onEdit }) => (
+}> = ({ plans, currency, rateOf, onEdit }) => (
   <div>
     <div
       style={{
@@ -305,7 +385,7 @@ const FortnightlyTab: React.FC<{
             <FeatureLabel>Fortnightly Price</FeatureLabel>
             {plans.map(p => (
               <td key={p.id} className={TD}>
-                <strong>{money(p.fortnightlyPrice, currency)}</strong>
+                <strong>{money(p.fortnightlyPrice, currency, rateOf(p.currency))}</strong>
               </td>
             ))}
           </tr>
@@ -352,7 +432,7 @@ const FortnightlyTab: React.FC<{
             {plans.map(p => (
               <td key={p.id} className={TD}>
                 {p.extraSessionEnabled ? (
-                  <Pill tone="blue">{money(p.extraSessionPrice, currency)} · 1/day max</Pill>
+                  <Pill tone="blue">{money(p.extraSessionPrice, currency, rateOf(p.currency))} · 1/day max</Pill>
                 ) : (
                   <Pill tone="gray">Not available</Pill>
                 )}
@@ -372,7 +452,7 @@ const FortnightlyTab: React.FC<{
             {plans.map(p => (
               <td key={p.id} className={TD}>
                 {p.additionalMemberFee !== null ? (
-                  `${money(p.additionalMemberFee, currency)} per member`
+                  `${money(p.additionalMemberFee, currency, rateOf(p.currency))} per member`
                 ) : (
                   <Pill tone="gray">N/A</Pill>
                 )}
@@ -434,25 +514,10 @@ const FortnightlyTab: React.FC<{
 const AnnualTab: React.FC<{
   plans: MembershipPlan[];
   currency: CurrencyOption;
+  rateOf: (code?: string) => number;
   onEdit?: (p: MembershipPlan) => void;
-}> = ({ plans, currency, onEdit }) => (
+}> = ({ plans, currency, rateOf, onEdit }) => (
   <div>
-    <div
-      style={{
-        background: '#fef9f0',
-        border: '1px solid #fed7aa',
-        borderRadius: 8,
-        padding: '12px 16px',
-        marginBottom: 16,
-        fontSize: 12.5,
-        color: '#92400e',
-      }}
-    >
-      <strong>Billing is annual — but slot limits still operate in fortnightly (2-week) cycles.</strong> A member on
-      Annual Premium gets the same per-fortnight slots as the fortnightly plan; annual billing just means they pay once
-      a year. Extra session purchase is <strong>not available</strong> on annual plans.
-    </div>
-
     <div className="flex items-center gap-2 text-sm font-bold text-navy" style={{ marginBottom: 10 }}>
       <span className="h-[7px] w-[7px] rounded-full bg-cmx-blue" />
       Pricing
@@ -465,7 +530,9 @@ const AnnualTab: React.FC<{
             <FeatureLabel>Annual Price (billed once)</FeatureLabel>
             {plans.map(p => (
               <td key={p.id} className={TD}>
-                <strong>{money(p.annualPrice, currency)}</strong>
+                {/* MP-8: a plan with no annual option shows "Not offered", never
+                    $0.00 — $0 used to be the only (wrong) way this was representable. */}
+                <strong>{p.offersAnnual ? money(p.annualPrice, currency, rateOf(p.currency)) : 'Not offered'}</strong>
               </td>
             ))}
           </tr>
@@ -473,7 +540,7 @@ const AnnualTab: React.FC<{
             <FeatureLabel>Equiv. per fortnight</FeatureLabel>
             {plans.map(p => (
               <td key={p.id} className={TD} style={{ color: 'var(--sub)', fontSize: 12 }}>
-                ~{money(p.annualPrice / 26, currency)}
+                {p.offersAnnual ? `~${money(p.annualPrice / 26, currency, rateOf(p.currency))}` : '—'}
               </td>
             ))}
           </tr>
@@ -481,10 +548,10 @@ const AnnualTab: React.FC<{
             <FeatureLabel>Savings vs fortnightly</FeatureLabel>
             {plans.map(p => {
               const yearly = p.fortnightlyPrice * 26;
-              const pct = yearly > 0 ? Math.round((1 - p.annualPrice / yearly) * 100) : 0;
+              const pct = p.offersAnnual && yearly > 0 ? Math.round((1 - p.annualPrice / yearly) * 100) : 0;
               return (
                 <td key={p.id} className={TD}>
-                  {pct > 0 ? <Pill tone="green">~{pct}% off</Pill> : <Pill tone="gray">—</Pill>}
+                  {p.offersAnnual && pct > 0 ? <Pill tone="green">~{pct}% off</Pill> : <Pill tone="gray">—</Pill>}
                 </td>
               );
             })}
@@ -745,10 +812,6 @@ interface GuestRules {
 }
 
 const GuestChargesTab: React.FC<{ plans: MembershipPlan[]; currency: CurrencyOption }> = ({ plans, currency }) => {
-  const num = (v: unknown): number => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
   // A present value → String; otherwise the descriptive fallback for that feature.
   const str = (v: unknown, fallback: string): string =>
     v === null || v === undefined || v === '' ? fallback : String(v);

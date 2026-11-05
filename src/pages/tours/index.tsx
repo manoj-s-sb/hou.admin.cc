@@ -6,10 +6,23 @@ import { useDispatch, useSelector } from 'react-redux';
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
-import { getFacilityCode } from '../../constants/user';
-import { inductionList, updateTourStatus } from '../../store/induction/api';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
+import { addTourNote, inductionList, updateTourStatus } from '../../store/induction/api';
+import { Induction } from '../../store/induction/types';
 import { AppDispatch, RootState } from '../../store/store';
-import { formatDateChicago, formatTimeRangeChicago } from '../../utils/dateUtils';
+import { formatDateAsAuthored, formatDateTimeAsAuthored, formatTimeRangeAsAuthored } from '../../utils/dateUtils';
+import { logger } from '../../utils/logger';
+import { AddLeadModal } from '../waitlist';
+
+/** The backend's `BookingListRequest` rejects a request with neither `date` nor
+ * `startDate`+`endDate` set (see booking_models.py's _validate_date_or_range) —
+ * there is no "no date filter, return everything" mode. So whenever no exact
+ * date is picked, fall back to a startDate/endDate range wide enough to be
+ * "everything in practice" (2000-01-01 through 2099-12-31), rather than
+ * restricting to just the current calendar month — a narrower default was
+ * silently hiding real past/future tours any time the admin hadn't already
+ * set an exact date. */
+const ALL_TIME_RANGE = { startDate: '2000-01-01', endDate: '2099-12-31' };
 
 const statusMap: Record<string, { label: string; className: string }> = {
   completed: { label: 'Completed', className: 'bg-green-100 text-green-700' },
@@ -25,16 +38,36 @@ const Tours = () => {
 
   const [selectedDate, setSelectedDate] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('pending');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
-  const facilityCode = getFacilityCode();
+  // NS-6: the row currently open in the View detail panel. Kept as just the
+  // bookingCode + a snapshot for display — the LIVE row (with up-to-date
+  // notes) is looked up from the Redux list below on every render, so a note
+  // just added shows immediately without needing a refetch.
+  const [viewBookingCode, setViewBookingCode] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+  // NS-7: Enquires stays manual — this only pre-fills the existing Add Enquiry
+  // form with the tour visitor's details so staff don't retype them.
+  const [addLeadFor, setAddLeadFor] = useState<Induction | null>(null);
+  const facilityCode = useScopedFacilityCode();
+
+  const viewRow = viewBookingCode
+    ? (inductionListData.bookings.find(b => b.bookingCode === viewBookingCode) ?? null)
+    : null;
 
   const currentLimit = inductionListData.limit || 20;
 
   const applyFilters = (page = 1, limit = currentLimit) => {
+    // No exact date picked → default to the current month (same range the unified
+    // Calendar page shows by default), instead of sending date: '' which the
+    // backend rejects outright (previously caused the list to silently show
+    // "No tours found" even when a tour existed later this month).
+    const dateParams = selectedDate ? { date: selectedDate } : ALL_TIME_RANGE;
     dispatch(
       inductionList({
-        date: selectedDate,
+        date: '',
+        ...dateParams,
         page,
         type: 'tourbooking',
         listLimit: limit,
@@ -100,9 +133,9 @@ const Tours = () => {
       flex: 1,
       sortable: false,
       renderCell: params => (
-        <span className="text-[13px] text-gray-700">{formatDateChicago(params.row?.timeSlot?.startTime)}</span>
+        <span className="text-[13px] text-gray-700">{formatDateAsAuthored(params.row?.timeSlot?.startTime)}</span>
       ),
-      valueGetter: params => formatDateChicago(params.row?.timeSlot?.startTime),
+      valueGetter: params => formatDateAsAuthored(params.row?.timeSlot?.startTime),
     },
     {
       field: 'Slot Time',
@@ -113,13 +146,13 @@ const Tours = () => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
         if (!startTime || !endTime) return <span className="text-gray-400">—</span>;
-        return <span className="text-[13px] text-gray-700">{formatTimeRangeChicago(startTime, endTime)}</span>;
+        return <span className="text-[13px] text-gray-700">{formatTimeRangeAsAuthored(startTime, endTime)}</span>;
       },
       valueGetter: params => {
         const startTime = params.row?.timeSlot?.startTime;
         const endTime = params.row?.timeSlot?.endTime;
         if (!startTime || !endTime) return '';
-        return formatTimeRangeChicago(startTime, endTime);
+        return formatTimeRangeAsAuthored(startTime, endTime);
       },
     },
     {
@@ -134,9 +167,17 @@ const Tours = () => {
       },
     },
     {
+      field: 'updatedByName',
+      headerName: 'Completed By',
+      flex: 1,
+      sortable: false,
+      renderCell: params => <span className="text-[13px] text-gray-700">{params.row?.updatedByName || '—'}</span>,
+      valueGetter: params => params.row?.updatedByName || '',
+    },
+    {
       field: 'actions',
       headerName: 'Actions',
-      width: 210,
+      width: 280,
       sortable: false,
       renderCell: params => {
         const handleStatusUpdate = (status: string) => {
@@ -157,28 +198,43 @@ const Tours = () => {
               }
             })
             .catch(err => {
-              console.error('Failed to update tour status:', err);
+              logger.error('Failed to update tour status', err);
               toast.error(err || 'Failed to update tour status!');
             });
         };
 
+        // NS-6: View is always available, regardless of status — it's the only
+        // way to see a tour's details or write a follow-up note.
+        const viewButton = (
+          <button
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition-all hover:bg-gray-50"
+            onClick={() => setViewBookingCode(params.row.bookingCode)}
+          >
+            View
+          </button>
+        );
+
         if (params.row?.status === 'noshow') {
           return (
-            <button
-              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 transition-all hover:bg-blue-600 hover:text-white"
-              onClick={() => setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode })}
-            >
-              Undo
-            </button>
+            <div className="flex items-center gap-2">
+              {viewButton}
+              <button
+                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 transition-all hover:bg-blue-600 hover:text-white"
+                onClick={() => setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode })}
+              >
+                Undo
+              </button>
+            </div>
           );
         }
 
         if (params.row?.status !== 'confirmed') {
-          return <span className="text-gray-400">—</span>;
+          return <div className="flex items-center gap-2">{viewButton}</div>;
         }
 
         return (
           <div className="flex items-center gap-2">
+            {viewButton}
             <button
               className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-[12px] font-semibold text-green-700 transition-all hover:bg-green-600 hover:text-white"
               onClick={() => handleStatusUpdate('completed')}
@@ -292,6 +348,7 @@ const Tours = () => {
                 dispatch(
                   inductionList({
                     date: '',
+                    ...ALL_TIME_RANGE,
                     page: 1,
                     type: 'tourbooking',
                     listLimit: currentLimit,
@@ -417,6 +474,154 @@ const Tours = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Tour Detail / Notes Modal (NS-6) ───────────────────── */}
+      {viewRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+              <div>
+                <h3 className="text-[15px] font-bold text-[#21295A]">
+                  {`${viewRow.firstName || ''} ${viewRow.lastName || ''}`.trim() || 'Tour visitor'}
+                </h3>
+                <p className="mt-0.5 text-[12px] text-gray-400">{viewRow.email || '—'}</p>
+              </div>
+              <button
+                aria-label="Close"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+                type="button"
+                onClick={() => {
+                  setViewBookingCode(null);
+                  setNoteText('');
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <div className="mb-5 grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-[13px]">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Phone</p>
+                  <p className="text-gray-700">{viewRow.phone || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</p>
+                  {(() => {
+                    const { label, className } = statusMap[viewRow.status] || statusMap.confirmed;
+                    return (
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}
+                      >
+                        {label}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Booking Date</p>
+                  <p className="text-gray-700">{formatDateAsAuthored(viewRow.timeSlot?.startTime)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Slot Time</p>
+                  <p className="text-gray-700">
+                    {viewRow.timeSlot?.startTime && viewRow.timeSlot?.endTime
+                      ? formatTimeRangeAsAuthored(viewRow.timeSlot.startTime, viewRow.timeSlot.endTime)
+                      : '—'}
+                  </p>
+                </div>
+                {viewRow.updatedByName && (
+                  <div className="col-span-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Completed By</p>
+                    <p className="text-gray-700">{viewRow.updatedByName}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-2 text-[12px] font-bold uppercase tracking-wider text-gray-400">Notes</div>
+              <div className="mb-3 space-y-2">
+                {(viewRow.notes ?? []).length === 0 ? (
+                  <p className="text-[13px] text-gray-400">No notes yet.</p>
+                ) : (
+                  (viewRow.notes ?? []).map((note, i) => (
+                    <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
+                      <p className="text-[13px] text-gray-700">{note.text}</p>
+                      <p className="mt-1 text-[11px] text-gray-400">
+                        {note.createdByName || 'Admin'} · {formatDateTimeAsAuthored(note.createdAt)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <textarea
+                className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                placeholder="Add a note about how the tour went, next steps, etc…"
+                rows={2}
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+              />
+              <div className="mt-2 flex justify-end">
+                <button
+                  className="rounded-lg bg-[#21295A] px-3.5 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#2d3570] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!noteText.trim() || addingNote}
+                  type="button"
+                  onClick={() => {
+                    setAddingNote(true);
+                    dispatch(
+                      addTourNote({ userId: viewRow.userId, bookingCode: viewRow.bookingCode, text: noteText.trim() })
+                    )
+                      .unwrap()
+                      .then(() => {
+                        setNoteText('');
+                        toast.success('Note added');
+                      })
+                      .catch(err => toast.error(err || 'Failed to add note'))
+                      .finally(() => setAddingNote(false));
+                  }}
+                >
+                  {addingNote ? 'Adding…' : 'Add Note'}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3">
+              {/* NS-7: still fully manual — this just saves retyping the visitor's details */}
+              <button
+                className="rounded-lg border border-gray-200 px-3.5 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+                type="button"
+                onClick={() => setAddLeadFor(viewRow)}
+              >
+                + Add as Enquiry
+              </button>
+              <button
+                className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+                type="button"
+                onClick={() => {
+                  setViewBookingCode(null);
+                  setNoteText('');
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Enquiry, pre-filled from a tour visitor (NS-7 — still manual) ── */}
+      {addLeadFor && (
+        <AddLeadModal
+          facilityCode={addLeadFor.facilityCode || facilityCode || ''}
+          initial={{
+            name: `${addLeadFor.firstName || ''} ${addLeadFor.lastName || ''}`.trim(),
+            email: addLeadFor.email,
+            phone: addLeadFor.phone,
+          }}
+          onAdded={() => setAddLeadFor(null)}
+          onClose={() => setAddLeadFor(null)}
+        />
       )}
     </div>
   );

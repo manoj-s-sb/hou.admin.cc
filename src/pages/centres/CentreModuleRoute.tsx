@@ -3,12 +3,11 @@ import React from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 
 import { ROUTES } from '../../constants/routes';
+import { useCentreNav } from '../../contexts/CentreNavContext';
 import { canRead, RestrictedAccess } from '../../rbac';
 
-import { LIVE_CENTRE_MODULES } from './centreModules';
+import { isCentreOperational, LIVE_CENTRE_MODULES } from './centreModules';
 import CentreDetailView from './components/CentreDetailView';
-import ComingSoon from './components/ComingSoon';
-import { PRE_LAUNCH_FACILITY_CODES } from './constants';
 import { useCentreScope } from './useCentreScope';
 
 /**
@@ -22,9 +21,37 @@ import { useCentreScope } from './useCentreScope';
 const CentreModuleRoute: React.FC = () => {
   const { facilityCode = '', moduleSlug = '' } = useParams<{ facilityCode: string; moduleSlug: string }>();
   useCentreScope(facilityCode);
+  const { activeCentre } = useCentreNav();
 
   const mod = LIVE_CENTRE_MODULES.find(m => m.slug === moduleSlug);
   if (!mod?.component) return <Navigate replace to={ROUTES.CENTRES.path} />;
+
+  // A Draft/Staging centre has never gone live — there's nothing real to
+  // manage yet, so no module is reachable here (not even Facilities/Plans &
+  // Pricing, even if someone reaches the URL directly). Setup happens only
+  // through the Edit & Activate wizard from the centre list. A neutral note
+  // instead of an error — this is the centre's normal, expected state before
+  // it's activated, not a problem to flag.
+  if (activeCentre && !isCentreOperational(activeCentre.status)) {
+    return (
+      <CentreDetailView code={facilityCode}>
+        <div
+          style={{
+            fontSize: 13,
+            color: '#374151',
+            background: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: 10,
+            padding: '16px 18px',
+          }}
+        >
+          This centre isn&apos;t active yet. Use <strong>Edit &amp; Activate</strong> from the centre list to finish
+          setup and go live.
+        </div>
+      </CentreDetailView>
+    );
+  }
+
   if (!canRead(mod.scope)) {
     // Redirect to the first module this user can access instead of showing Restricted Access.
     const first = LIVE_CENTRE_MODULES.find(m => m.slug !== moduleSlug && canRead(m.scope));
@@ -32,21 +59,10 @@ const CentreModuleRoute: React.FC = () => {
     return <RestrictedAccess />;
   }
 
-  // Pre-launch centres (e.g. New York) have no real data yet outside Waitlist/Leads —
-  // every other module shows a "Coming Soon" placeholder instead of an empty/broken page.
-  const isPreLaunch = PRE_LAUNCH_FACILITY_CODES.has(facilityCode.toUpperCase());
   const Page = mod.component;
-
   return (
     <CentreDetailView code={facilityCode}>
-      {isPreLaunch && mod.slug !== 'waitlist' ? (
-        <ComingSoon
-          description={`This centre hasn't opened yet, so ${mod.label.toLowerCase()} isn't available here yet. Check back once the centre goes live.`}
-          moduleLabel={mod.label}
-        />
-      ) : (
-        <Page />
-      )}
+      <Page />
     </CentreDetailView>
   );
 };

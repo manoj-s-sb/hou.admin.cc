@@ -1,6 +1,18 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-import { getMembers, getSingleMemberDetails, activateUserSubscription, getMembersCount } from './api';
+import {
+  getMembers,
+  getSingleMemberDetails,
+  activateUserSubscription,
+  getMembersCount,
+  getMemberNotes,
+  addMemberNote,
+  updateMemberNote,
+  deleteMemberNote,
+  getMemberEmails,
+  sendMemberEmail,
+  bulkSendMemberEmail,
+} from './api';
 import { initialState } from './types';
 
 const membersSlice = createSlice({
@@ -8,15 +20,25 @@ const membersSlice = createSlice({
   initialState,
   reducers: {},
   extraReducers: builder => {
-    builder.addCase(getMembers.pending, state => {
+    // getMembers fires again on every page/rows-per-page/filter change, and
+    // nothing guaranteed the responses land back in the same order they were
+    // dispatched in -- an older, slower request (e.g. the initial unfiltered
+    // list) resolving AFTER a newer, faster, filtered one used to silently
+    // clobber the correct filtered result with stale data. Tracking the
+    // latest dispatched requestId and ignoring any response that isn't it
+    // fixes that race without touching the backend at all.
+    builder.addCase(getMembers.pending, (state, action) => {
       state.isLoading = true;
       state.error = '';
+      state.latestMembersRequestId = action.meta.requestId;
     });
     builder.addCase(getMembers.fulfilled, (state, action) => {
+      if (action.meta.requestId !== state.latestMembersRequestId) return;
       state.isLoading = false;
       state.membersList = action.payload?.data || [];
     });
     builder.addCase(getMembers.rejected, (state, action) => {
+      if (action.meta.requestId !== state.latestMembersRequestId) return;
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to fetch members list';
     });
@@ -58,6 +80,97 @@ const membersSlice = createSlice({
     builder.addCase(getMembersCount.rejected, (state, action) => {
       state.membersCountLoading = false;
       state.error = (action.payload as string) || 'Failed to fetch members count';
+    });
+
+    // Admin Notes — a dedicated loading/error pair, separate from the member
+    // details fetch's, so a note action never shows a spinner over the rest
+    // of the page (and vice versa).
+    builder.addCase(getMemberNotes.pending, state => {
+      state.memberNotesLoading = true;
+      state.memberNotesError = null;
+    });
+    builder.addCase(getMemberNotes.fulfilled, (state, action) => {
+      state.memberNotesLoading = false;
+      state.memberNotes = action.payload?.data?.notes || [];
+    });
+    builder.addCase(getMemberNotes.rejected, (state, action) => {
+      state.memberNotesLoading = false;
+      state.memberNotesError = (action.payload as string) || 'Failed to fetch notes';
+    });
+
+    builder.addCase(addMemberNote.pending, state => {
+      state.memberNotesError = null;
+    });
+    builder.addCase(addMemberNote.fulfilled, (state, action) => {
+      const note = action.payload?.data;
+      if (note) state.memberNotes = [note, ...state.memberNotes];
+    });
+    builder.addCase(addMemberNote.rejected, (state, action) => {
+      state.memberNotesError = (action.payload as string) || 'Failed to add note';
+    });
+
+    builder.addCase(updateMemberNote.pending, state => {
+      state.memberNotesError = null;
+    });
+    builder.addCase(updateMemberNote.fulfilled, (state, action) => {
+      const updated = action.payload?.data;
+      if (updated) state.memberNotes = state.memberNotes.map(n => (n.id === updated.id ? updated : n));
+    });
+    builder.addCase(updateMemberNote.rejected, (state, action) => {
+      state.memberNotesError = (action.payload as string) || 'Failed to update note';
+    });
+
+    builder.addCase(deleteMemberNote.pending, state => {
+      state.memberNotesError = null;
+    });
+    builder.addCase(deleteMemberNote.fulfilled, (state, action) => {
+      const { noteId } = action.payload;
+      state.memberNotes = state.memberNotes.filter(n => n.id !== noteId);
+    });
+    builder.addCase(deleteMemberNote.rejected, (state, action) => {
+      state.memberNotesError = (action.payload as string) || 'Failed to delete note';
+    });
+
+    // Custom emails sent to a member — same separate loading/error pair
+    // reasoning as Admin Notes above.
+    builder.addCase(getMemberEmails.pending, state => {
+      state.memberEmailsLoading = true;
+      state.memberEmailsError = null;
+    });
+    builder.addCase(getMemberEmails.fulfilled, (state, action) => {
+      state.memberEmailsLoading = false;
+      state.memberEmails = action.payload?.data?.emails || [];
+    });
+    builder.addCase(getMemberEmails.rejected, (state, action) => {
+      state.memberEmailsLoading = false;
+      state.memberEmailsError = (action.payload as string) || 'Failed to fetch sent emails';
+    });
+
+    builder.addCase(sendMemberEmail.pending, state => {
+      state.memberEmailSending = true;
+      state.memberEmailsError = null;
+    });
+    builder.addCase(sendMemberEmail.fulfilled, (state, action) => {
+      state.memberEmailSending = false;
+      const email = action.payload?.data;
+      if (email) state.memberEmails = [email, ...state.memberEmails];
+    });
+    builder.addCase(sendMemberEmail.rejected, (state, action) => {
+      state.memberEmailSending = false;
+      state.memberEmailsError = (action.payload as string) || 'Failed to send email';
+    });
+
+    builder.addCase(bulkSendMemberEmail.pending, state => {
+      state.memberEmailBulkSending = true;
+      state.memberEmailsError = null;
+    });
+    builder.addCase(bulkSendMemberEmail.fulfilled, (state, action) => {
+      state.memberEmailBulkSending = false;
+      state.memberEmailBulkResult = action.payload?.data || null;
+    });
+    builder.addCase(bulkSendMemberEmail.rejected, (state, action) => {
+      state.memberEmailBulkSending = false;
+      state.memberEmailsError = (action.payload as string) || 'Failed to send bulk email';
     });
   },
 });

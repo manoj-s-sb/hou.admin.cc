@@ -3,12 +3,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import LoaderComponent from '../../components/Loader';
-import { getFacilityCode } from '../../constants/user';
+import endpoints from '../../constants/endpoints';
+import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
+import { canEditModule } from '../../rbac';
+import { MODULES } from '../../rbac/constants';
+import api from '../../services';
 import { getSlots } from '../../store/slots/api';
 import { AppDispatch, RootState } from '../../store/store';
 
 import CalendarBody from './components/CalendarBody';
 import CalendarHeader from './components/CalendarHeader';
+import ConflictsModal from './components/ConflictsModal';
+import NewSeriesModal from './components/NewSeriesModal';
+import SeriesListModal from './components/SeriesListModal';
 
 const TIMEZONE = 'America/Chicago';
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -39,29 +46,42 @@ const statCards = [
     key: 'totalBooked' as const,
     label: 'Total Booked',
     iconPath: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+    cardBg: 'rgba(33,41,90,0.08)',
+    accent: '#21295a',
   },
   {
     key: 'completed' as const,
     label: 'Completed',
     iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    cardBg: '#ebf4eb',
+    accent: '#3b8f3e',
   },
   {
     key: 'bookedWithCoach' as const,
     label: 'With Coach',
     iconPath: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+    cardBg: 'rgba(51,109,194,0.1)',
+    accent: '#336dc2',
   },
   {
     key: 'bookedWithGuest' as const,
     label: 'With Guest',
     iconPath:
       'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+    cardBg: '#fef3e2',
+    accent: '#a75c00',
   },
 ];
 
 const SlotBookings: React.FC = () => {
   const { slots, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
-  const facilityCode = getFacilityCode();
+  const facilityCode = useScopedFacilityCode();
+  const canCreateSeries = canEditModule(MODULES.RECURRING_BLOCKS);
+  const [showNewSeriesModal, setShowNewSeriesModal] = useState(false);
+  const [showSeriesListModal, setShowSeriesListModal] = useState(false);
+  const [showConflictsModal, setShowConflictsModal] = useState(false);
+  const [conflictsCount, setConflictsCount] = useState(0);
 
   const nextSevenDates = useMemo(() => getNextSevenDates(), []);
   const [selectedDate, setSelectedDate] = useState<{ day: number; month: number; fullDate?: Date }>({
@@ -87,6 +107,69 @@ const SlotBookings: React.FC = () => {
     dispatch(getSlots({ date: formattedDate, facilityCode }));
   }, [dispatch, formattedDate, facilityCode]);
 
+  // Live count for the Conflicts badge — recomputed fresh server-side on
+  // every call (never from an old background-job log), so this always
+  // reflects reality even if a flagged booking resolved itself elsewhere.
+  useEffect(() => {
+    if (!canCreateSeries) return;
+    let cancelled = false;
+    api
+      .post(endpoints.recurringBlocks.conflictsList, { facilityCode })
+      .then(res => {
+        if (!cancelled) setConflictsCount(res.data?.data?.totalCount || 0);
+      })
+      .catch(() => {
+        /* Badge just stays at its last known count — not worth surfacing an error for. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [facilityCode, canCreateSeries]);
+
+  // Slot bookings don't carry the member's plan — look it up per booked userId via the
+  // same member-details endpoint the "View" modal already uses successfully, kept out of
+  // the members Redux slice so it can't stomp on the Members page's own membersList state.
+  const [planByUserId, setPlanByUserId] = useState<Record<string, string>>({});
+  const bookedUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    (slots?.lanes || []).forEach(lane => {
+      lane.slots?.forEach(slot => {
+        const userId = slot.booking?.user?.userId;
+        if (slot.isBooked && slot.status?.toLowerCase() === 'confirmed' && userId) ids.add(userId);
+      });
+    });
+    return Array.from(ids);
+  }, [slots]);
+
+  useEffect(() => {
+    const missing = bookedUserIds.filter(id => !(id in planByUserId));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      missing.map(userId =>
+        api
+          .post(endpoints.members.membersDetails, { userId })
+          .then(res => [userId, res.data?.data?.subscription?.subscriptionCode || ''] as const)
+          .catch(() => [userId, ''] as const)
+      )
+    ).then(entries => {
+      if (cancelled) return;
+      setPlanByUserId(prev => {
+        // Always record the userId, even with an empty plan — otherwise a failed/planless
+        // lookup would keep re-triggering the fetch effect on every render.
+        const next = { ...prev };
+        entries.forEach(([userId, plan]) => {
+          next[userId] = plan;
+        });
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookedUserIds]);
+
   const slotStats = useMemo(() => {
     const lanes = slots?.lanes || [];
     let totalBooked = 0,
@@ -98,7 +181,10 @@ const SlotBookings: React.FC = () => {
         if (slot.isBooked && slot.booking) {
           totalBooked++;
           if (slot.booking.bookingStatus === 'completed' || slot.booking.bookingStatus === 'played') completed++;
-          if (slot.booking.coach?.name) bookedWithCoach++;
+          // SA-8: a coach is "attached" when `code` is set, regardless of
+          // whether the display name resolved — see the matching comment on
+          // BookingDetails['coach'] in store/slots/types.ts.
+          if (slot.booking.coach?.code) bookedWithCoach++;
           if (slot.booking.guests && slot.booking.guests.length > 0) bookedWithGuest++;
         }
       });
@@ -114,11 +200,67 @@ const SlotBookings: React.FC = () => {
   return (
     <div className="w-full">
       {/* ── Page Header ─────────────────────────────────────── */}
-      <div className="mb-5 border-b border-gray-100 pb-4">
-        <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Slot Bookings</h1>
-        <p className="mt-1 text-[12px] font-medium text-gray-400">
-          {selectedDayName}, {selectedMonthName} {selectedDate.day} · {facilityCode}
-        </p>
+      <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-4">
+        <div>
+          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Slot Bookings</h1>
+          <p className="mt-1 text-[12px] font-medium text-gray-400">
+            {selectedDayName}, {selectedMonthName} {selectedDate.day} · {facilityCode}
+          </p>
+        </div>
+        {canCreateSeries && (
+          <div className="flex items-center gap-2">
+            {conflictsCount > 0 && (
+              <button
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-red-200 bg-red-50 px-3 py-1.5 text-[12.5px] font-semibold text-red-700 transition-all hover:bg-red-100"
+                type="button"
+                onClick={() => setShowConflictsModal(true)}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+                Conflicts
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                  {conflictsCount > 99 ? '99+' : conflictsCount}
+                </span>
+              </button>
+            )}
+            <button
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-[#21295A]/20 px-3 py-1.5 text-[12.5px] font-semibold text-[#21295A] transition-all hover:bg-[#21295A]/5"
+              type="button"
+              onClick={() => setShowSeriesListModal(true)}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114-3.5M19.5 15a8 8 0 01-14 3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+              Series
+            </button>
+            <button
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] bg-[#21295A] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:opacity-90"
+              type="button"
+              onClick={() => setShowNewSeriesModal(true)}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                />
+              </svg>
+              New Series
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Stats Row ───────────────────────────────────────── */}
@@ -126,16 +268,19 @@ const SlotBookings: React.FC = () => {
         {statCards.map(card => (
           <div
             key={card.key}
-            className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-white px-3 py-3 shadow-sm"
+            className="flex items-center gap-2.5 rounded-xl border border-[#cbcbcb] px-3 py-3 shadow-sm"
+            style={{ backgroundColor: card.cardBg }}
           >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100">
-              <svg className="h-[15px] w-[15px] text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white">
+              <svg className="h-[15px] w-[15px]" fill="none" stroke={card.accent} viewBox="0 0 24 24">
                 <path d={card.iconPath} strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} />
               </svg>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{card.label}</p>
-              <p className="text-[20px] font-bold leading-tight text-[#21295A]">
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: card.accent }}>
+                {card.label}
+              </p>
+              <p className="text-[20px] font-bold leading-tight text-[#202020]">
                 {slotStats[card.key].toLocaleString()}
               </p>
             </div>
@@ -164,10 +309,40 @@ const SlotBookings: React.FC = () => {
             date={formattedDate}
             facilityCode={facilityCode}
             lanes={slots?.lanes || []}
+            planByUserId={planByUserId}
             timeSlots={slots?.timeSlots || []}
           />
         </div>
       </div>
+
+      {canCreateSeries && (
+        <>
+          <NewSeriesModal
+            facilityCode={facilityCode}
+            initialDate={formattedDate}
+            isOpen={showNewSeriesModal}
+            lanes={slots?.lanes || []}
+            timeSlots={slots?.timeSlots || []}
+            timezone={TIMEZONE}
+            onClose={() => setShowNewSeriesModal(false)}
+            onCreated={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
+          />
+          <SeriesListModal
+            facilityCode={facilityCode}
+            isOpen={showSeriesListModal}
+            lanes={slots?.lanes || []}
+            onChanged={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
+            onClose={() => setShowSeriesListModal(false)}
+          />
+          <ConflictsModal
+            facilityCode={facilityCode}
+            isOpen={showConflictsModal}
+            onChanged={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
+            onClose={() => setShowConflictsModal(false)}
+            onCountChanged={setConflictsCount}
+          />
+        </>
+      )}
     </div>
   );
 };

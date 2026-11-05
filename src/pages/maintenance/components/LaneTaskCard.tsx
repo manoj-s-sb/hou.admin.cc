@@ -22,7 +22,7 @@ const fmtShort = (d: string | null): string =>
  * in "My Schedule".
  */
 const LaneTaskCard: React.FC<Props> = ({ template, schedule, canManage, onSchedule, onViewSteps }) => {
-  const type = taskTypeMeta(template.taskType);
+  const type = taskTypeMeta(template.taskType, template.taskTypeCustom);
   const equipmentText = template.equipmentCustom || template.equipment || 'General';
   const scheduled = Boolean(schedule);
   const isDone = schedule?.status === 'done';

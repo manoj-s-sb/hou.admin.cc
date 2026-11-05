@@ -1,12 +1,12 @@
 import React from 'react';
 
-import { PLAN_CATALOGUE } from '../constants';
-
 import type { WizardPlanRow } from '../../../store/centres/types';
+import type { PlanMeta } from '../constants';
 
 interface Props {
   capacity: number;
   plans: WizardPlanRow[];
+  catalogue: PlanMeta[];
 }
 
 /**
@@ -14,13 +14,13 @@ interface Props {
  * renders a coloured segment per plan + a grey buffer. Turns red and surfaces
  * an over-allocation error when SUM(allocatedSlots) > capacity.
  */
-const AllocationBar: React.FC<Props> = ({ capacity, plans }) => {
+const AllocationBar: React.FC<Props> = ({ capacity, plans, catalogue }) => {
   const enabled = plans.filter(p => p.enabled);
   const used = enabled.reduce((sum, p) => sum + (Number(p.allocatedSlots) || 0), 0);
   const buffer = capacity - used;
   const over = buffer < 0;
 
-  const meta = (id: string) => PLAN_CATALOGUE.find(p => p.id === id) ?? { name: id, colour: '#9ca3af' };
+  const meta = (id: string) => catalogue.find(p => p.id === id) ?? { name: id, colour: '#9ca3af' };
 
   return (
     <div
@@ -73,7 +73,7 @@ const AllocationBar: React.FC<Props> = ({ capacity, plans }) => {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', fontSize: 11 }}>
-        {PLAN_CATALOGUE.map(p => (
+        {catalogue.map(p => (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sub)' }}>
             <div style={{ width: 8, height: 8, borderRadius: 2, background: p.colour }} />
             {p.name}

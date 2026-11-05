@@ -8,7 +8,7 @@
 export type TicketStatus = 'open' | 'noc' | 'inprogress' | 'verify' | 'closed';
 export type TicketCategory = 'customer_support' | 'maintenance' | 'general' | 'suggestion';
 export type TicketPriority = 'high' | 'medium' | 'low';
-export type TicketRole = 'noc' | 'centre_staff' | 'admin' | 'others';
+export type TicketRole = 'noc' | 'centre_staff' | 'admin' | 'others' | 'unassigned';
 export type TicketActionType =
   | 'raised'
   | 'assigned'
@@ -142,6 +142,9 @@ export interface ListTicketsRequest {
   category?: TicketCategory;
   priority?: TicketPriority;
   search?: string;
+  /** Restricts to tickets past their SLA deadline and not yet closed — same
+   * definition as TicketCounts.overdue. Independent of `status`/`view`. */
+  overdueOnly?: boolean;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   page?: number;

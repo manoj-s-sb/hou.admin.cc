@@ -58,46 +58,45 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
 
   const today = nextSevenDates?.[0];
   const isTodaySelected = Boolean(today && selectedDate?.day === today.day && selectedDate?.month === today.month);
-  const currentDateIndex = displayedDates.findIndex(
-    date => date.day === selectedDate?.day && date.month === selectedDate?.month
-  );
-  // Disabled purely on "is today selected" (a real calendar floor), not on the
-  // selected tile's position within the current 7-day window — that used to
-  // disable this on first load (today always starts as the window's first
-  // tile), permanently, since a disabled button can never be clicked to shift
-  // the window and escape its own disabled state.
-  const isPrevDisabled = isTodaySelected;
-  const isNextDisabled = currentDateIndex === -1 || currentDateIndex >= displayedDates.length - 1;
+
+  // Bookings can be viewed for ANY date, past or future — Prev/Next are never
+  // disabled. (They used to be gated on the selected date's index within
+  // `displayedDates`, but that index never changes when Prev/Next shift the
+  // window by the same one day the selection moves — window and selection
+  // always slide together — so the index stayed frozen at whatever it was on
+  // mount (0, i.e. "today"), permanently disabling Prev the moment the page
+  // loaded. See the date-math below: Prev/Next now move the selection off
+  // `selectedDate` directly, not by looking up a stale array index.)
 
   const handleNavigatePrevious = () => {
-    if (isPrevDisabled || !selectedDate?.fullDate) return;
-
-    const previousDate = new Date(selectedDate.fullDate);
+    const base = selectedDate?.fullDate ?? getTodayInChicago();
+    const previousDate = new Date(base);
     previousDate.setDate(previousDate.getDate() - 1);
 
     setDateOffset(prev => prev - 1);
+    setSelectedDate({ day: previousDate.getDate(), month: previousDate.getMonth(), fullDate: previousDate });
+
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
         left: scrollContainerRef.current.scrollLeft - 60,
         behavior: 'smooth',
       });
     }
-    setSelectedDate({ day: previousDate.getDate(), month: previousDate.getMonth(), fullDate: previousDate });
   };
 
   const handleNavigateNext = () => {
+    const base = selectedDate?.fullDate ?? getTodayInChicago();
+    const nextDate = new Date(base);
+    nextDate.setDate(nextDate.getDate() + 1);
+
     setDateOffset(prev => prev + 1);
+    setSelectedDate({ day: nextDate.getDate(), month: nextDate.getMonth(), fullDate: nextDate });
+
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
         left: scrollContainerRef.current.scrollLeft + 60,
         behavior: 'smooth',
       });
-    }
-    if (isNextDisabled) return;
-
-    const nextDate = displayedDates[currentDateIndex + 1];
-    if (nextDate) {
-      setSelectedDate({ day: nextDate.day, month: nextDate.month, fullDate: nextDate.fullDate });
     }
   };
 
@@ -134,8 +133,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
       <div className="flex items-end gap-2">
         {/* Prev button — self-end aligns with the date number row */}
         <button
-          className="mb-0 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-[#21295A] hover:bg-[#21295A] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={isPrevDisabled}
+          className="mb-0 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-[#21295A] hover:bg-[#21295A] hover:text-white"
           type="button"
           onClick={handleNavigatePrevious}
         >
@@ -181,8 +179,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
 
         {/* Next button */}
         <button
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-[#21295A] hover:bg-[#21295A] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={isNextDisabled}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-[#21295A] hover:bg-[#21295A] hover:text-white"
           type="button"
           onClick={handleNavigateNext}
         >

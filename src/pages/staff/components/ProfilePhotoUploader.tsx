@@ -1,10 +1,14 @@
 import React, { useRef } from 'react';
 
+import ProfileAvatar from '../../../components/ProfileAvatar';
+
 interface ProfilePhotoUploaderProps {
   imageDataUrl: string;
   existingUrl: string;
   onSelect: (file: File | null) => void;
   onRemove: () => void;
+  label?: string;
+  helpText?: string;
 }
 
 const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({
@@ -12,6 +16,8 @@ const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({
   existingUrl,
   onSelect,
   onRemove,
+  label = 'Profile Photo',
+  helpText = 'JPG or PNG, max 2MB. Displayed on staff profiles and member-facing interfaces.',
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const hasImage = Boolean(imageDataUrl || existingUrl);
@@ -19,25 +25,10 @@ const ProfilePhotoUploader: React.FC<ProfilePhotoUploaderProps> = ({
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
       <div className="flex items-center gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-gray-400 shadow-sm">
-          {hasImage ? (
-            <img alt="Profile preview" className="h-full w-full object-cover" src={imageDataUrl || existingUrl} />
-          ) : (
-            <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-              />
-            </svg>
-          )}
-        </div>
+        <ProfileAvatar alt="Profile preview" photoUrl={imageDataUrl || existingUrl} size={64} />
         <div className="flex-1">
-          <p className="text-[13px] font-semibold text-[#21295A]">Profile Photo</p>
-          <p className="text-[11px] text-gray-500">
-            JPG or PNG, max 2MB. Displayed on staff profiles and member-facing interfaces.
-          </p>
+          <p className="text-[13px] font-semibold text-[#21295A]">{label}</p>
+          <p className="text-[11px] text-gray-500">{helpText}</p>
           <input
             ref={inputRef}
             accept="image/png,image/jpeg"

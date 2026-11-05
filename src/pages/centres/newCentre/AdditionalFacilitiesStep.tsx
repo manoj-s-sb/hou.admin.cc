@@ -1,8 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import NumberInput from '../../../components/NumberInput';
+import { uploadProductImage } from '../../../store/centres/api';
 
-import type { AdditionalFacility, AdditionalFacilityType, FacilityPhoto } from '../../../store/centres/types';
+import type {
+  AdditionalFacility,
+  AdditionalFacilityType,
+  WizardFacilityImage,
+  WizardPlanRow,
+} from '../../../store/centres/types';
 
 const PANELS: {
   type: AdditionalFacilityType;
@@ -55,8 +61,17 @@ const SLOT_OPTIONS = [
   'No fixed slots (open access)',
 ];
 
+const SLOT_START_INTERVAL_OPTIONS = [15, 30, 60];
+const FREE_TRIAL_OPTIONS = [0, 1, 2] as const;
+
 const FF_INPUT =
   'w-full rounded-[7px] border border-cmx-border bg-white px-2.5 py-2 text-[13px] text-cmx-text outline-none focus:border-cmx-blue focus:shadow-[0_0_0_2px_rgba(37,99,235,0.1)] disabled:bg-gray-50 disabled:text-muted';
+const FIELD_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.04em] text-sub';
+const FIELD_ERROR = 'text-[11px] text-red-600';
+const HELPER_TEXT = 'text-[11px] text-sub';
+
+const money = (n: number): string =>
+  `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 let seq = 0;
 const uid = (type: string) => {
@@ -76,25 +91,63 @@ export const makeAdditionalFacility = (type: AdditionalFacilityType, index = 1):
         : type === 'custom'
           ? `New Facility ${index}`
           : `${type === 'podcast' ? 'Podcast' : 'Meeting'} Room ${index}`,
-  fortnightlyPrice: 0,
+  fortnightlyPrice: type === 'gym' ? 19.95 : 0,
   annualDiscountPct: 0,
   totalCapacity: type === 'gym' ? 200 : 12,
   concurrentCapacity: type === 'gym' ? 30 : 1,
   seatingCapacity: type === 'meeting' ? 12 : type === 'podcast' ? 4 : undefined,
   slotDuration: '60 minutes',
   guestSessionPrice: 0,
-  freeGuestVisits: 0,
+  freeGuestVisits: type === 'gym' ? 1 : 0,
   openTime: type === 'gaming' ? '10:00' : type === 'gym' ? '05:00' : '08:00',
   closeTime: type === 'gaming' ? '22:00' : type === 'gym' ? '22:00' : '20:00',
   psUnits: type === 'gaming' ? 4 : undefined,
   chargePerHour: type === 'gaming' ? 0 : undefined,
   minSession: type === 'gaming' ? '60 minutes' : undefined,
   maxSession: type === 'gaming' ? '120 minutes' : undefined,
+  // Gym-specific — same defaults as the Facilities page's Add/Edit form. Also
+  // defaulted for 'custom' so they're ready the moment an admin flips a custom
+  // facility's type to "Membership Add-On" (see bookingModel below).
+  slotStartIntervalMinutes: type === 'gym' || type === 'custom' ? 15 : undefined,
+  maxMembersPerSlot: type === 'gym' || type === 'custom' ? 10 : undefined,
+  gapHoursByPlan: type === 'gym' || type === 'custom' ? {} : undefined,
+  freeGymEntryWithLaneBooking: type === 'gym' || type === 'custom' ? true : undefined,
+  freeTrialSlots: type === 'gym' || type === 'custom' ? 1 : undefined,
+  minimumAge: type === 'gym' || type === 'custom' ? 13 : undefined,
+  parentPresentFrom: type === 'gym' || type === 'custom' ? 13 : undefined,
+  parentPresentTo: type === 'gym' || type === 'custom' ? 14 : undefined,
+  consentFrom: type === 'gym' || type === 'custom' ? 15 : undefined,
+  consentTo: type === 'gym' || type === 'custom' ? 17 : undefined,
+  gymPinBefore: type === 'gym' || type === 'custom' ? 15 : undefined,
+  facilityPinBefore: type === 'gym' || type === 'custom' ? 15 : undefined,
+  inductionRequired: type === 'gym' || type === 'custom' ? true : undefined,
+  description: '',
+  images: [],
+  // Custom facilities default to "Pay Per Booking" — the Facility type selector
+  // lets the admin flip to "Membership Add-On" (reusing the gym-style fields
+  // above) right in the panel.
+  bookingModel: type === 'custom' ? 'pay_per_slot' : undefined,
+  // Pay-per-slot hourly booking range — podcast/meeting/custom (gaming keeps
+  // its own minSession/maxSession; gym keeps its fixed slotDuration). No
+  // separate "min", it's always 1 hour.
+  maxBookableHours: type === 'podcast' || type === 'meeting' || type === 'custom' ? 2 : undefined,
+  // Door PIN windows — every non-gym type (gym has its own gymPinBefore/
+  // facilityPinBefore pair already).
+  doorPinBefore: type !== 'gym' ? 15 : undefined,
+  roomFacilityPinBefore: type !== 'gym' ? 15 : undefined,
 });
 
 interface Props {
   facilities: AdditionalFacility[];
   onChange: (next: AdditionalFacility[]) => void;
+  /** This centre's short code (Step 1) — used to key the image-upload SAS URL;
+   * works before the centre doc itself exists (see WizardImageUpload). */
+  facilityCode: string;
+  /** Enabled plan rows from Step 4 (Plans & Pricing) — drives the per-plan
+   * "minimum gap between sessions" rows (Gym only), same data Step 4 edits.
+   * Empty until the admin has visited that step, same as Form B's own
+   * "no membership plans assigned yet" fallback. */
+  plans: WizardPlanRow[];
 }
 
 const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -112,34 +165,81 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   </div>
 );
 
+const MAX_IMAGES = 4;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
-const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: FacilityPhoto[]) => void }> = ({
-  photos = [],
-  onChange,
-}) => {
+/**
+ * Real upload via a write-SAS URL (same uploadProductImage flow as the
+ * Facilities page's Edit modal, ImageUpload in FacilityProductModal.tsx) —
+ * keyed by the centre's short code, which is already known at this step
+ * (Step 1 collects it) even though the centre doc itself doesn't exist yet.
+ * Unlike the old wizard PhotoUpload, these blobNames are actually submitted
+ * in the create payload (see buildCreatePayload.ts's buildProducts).
+ */
+const WizardImageUpload: React.FC<{
+  facilityCode: string;
+  images?: WizardFacilityImage[];
+  onChange: (images: WizardFacilityImage[]) => void;
+}> = ({ facilityCode, images = [], onChange }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Revoke every object URL still held when this facility card unmounts.
   useEffect(() => {
-    const urls = photos.map(p => p.previewUrl);
+    const urls = images.map(i => i.previewUrl).filter(u => u.startsWith('blob:'));
     return () => urls.forEach(url => URL.revokeObjectURL(url));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pickFiles = (files: File[]) => {
-    const oversized = files.find(f => f.size > MAX_PHOTO_BYTES);
-    if (oversized) {
-      window.alert('Image too large — must be 5 MB or less.');
+  const isUploading = images.some(i => i.uploading);
+
+  const pickFiles = async (files: File[]) => {
+    setError(null);
+    if (isUploading) {
+      setError('Please wait for the current upload to finish.');
       return;
     }
-    onChange([...photos, ...files.map(f => ({ name: f.name, previewUrl: URL.createObjectURL(f) }))]);
+    if (images.length + files.length > MAX_IMAGES) {
+      setError(`You can upload at most ${MAX_IMAGES} images.`);
+      return;
+    }
+    const oversized = files.find(f => f.size > MAX_PHOTO_BYTES);
+    if (oversized) {
+      setError('Image too large — must be 5 MB or less.');
+      return;
+    }
+
+    const startIdx = images.length;
+    const placeholders: WizardFacilityImage[] = files.map(f => ({
+      blobName: '',
+      previewUrl: URL.createObjectURL(f),
+      uploading: true,
+    }));
+    const withPlaceholders = [...images, ...placeholders];
+    onChange(withPlaceholders);
+
+    const results = await Promise.allSettled(files.map(file => uploadProductImage(facilityCode, file)));
+    const next = [...withPlaceholders];
+    let anyFailed = false;
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        next[startIdx + i] = { blobName: r.value, previewUrl: placeholders[i].previewUrl, uploading: false };
+      } else {
+        anyFailed = true;
+      }
+    });
+    if (anyFailed) {
+      onChange(next.filter((img, idx) => !(idx >= startIdx && img.uploading)));
+      setError('Some images failed to upload — please try again.');
+    } else {
+      onChange(next);
+    }
   };
 
   const removeAt = (index: number) => {
-    URL.revokeObjectURL(photos[index].previewUrl);
-    onChange(photos.filter((_, i) => i !== index));
+    const url = images[index].previewUrl;
+    if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    onChange(images.filter((_, i) => i !== index));
   };
 
   const inputEl = (
@@ -147,13 +247,14 @@ const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: Facil
       ref={inputRef}
       multiple
       accept="image/png,image/jpeg"
+      disabled={isUploading}
       style={{ display: 'none' }}
       type="file"
       onChange={e => {
         const files = Array.from(e.target.files ?? []);
         // Reset immediately so re-picking the same file (e.g. after Remove) still fires onChange.
         e.target.value = '';
-        if (files.length) pickFiles(files);
+        if (files.length) void pickFiles(files);
       }}
     />
   );
@@ -170,12 +271,12 @@ const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: Facil
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'flex-start',
-          justifyContent: photos.length ? 'flex-start' : 'center',
+          justifyContent: images.length ? 'flex-start' : 'center',
           gap: 12,
           background: '#fff',
         }}
       >
-        {photos.length === 0 && (
+        {images.length === 0 && (
           <label
             style={{
               display: 'flex',
@@ -195,31 +296,29 @@ const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: Facil
             {inputEl}
           </label>
         )}
-        {photos.map((p, i) => (
+        {images.map((img, i) => (
           <div
-            key={p.previewUrl}
+            key={img.previewUrl}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 84 }}
           >
             <button
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'zoom-in' }}
-              title="Click to preview"
-              type="button"
-              onClick={() => setLightboxUrl(p.previewUrl)}
-            >
-              <img alt="Preview" src={p.previewUrl} style={{ height: 40, borderRadius: 4, objectFit: 'cover' }} />
-            </button>
-            <span
               style={{
-                fontSize: 11,
-                color: 'var(--sub)',
-                maxWidth: 84,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: img.uploading ? 'default' : 'zoom-in',
               }}
+              title={img.uploading ? 'Uploading…' : 'Click to preview'}
+              type="button"
+              onClick={() => !img.uploading && setLightboxUrl(img.previewUrl)}
             >
-              {p.name}
-            </span>
+              <img
+                alt="Preview"
+                src={img.previewUrl}
+                style={{ height: 40, borderRadius: 4, objectFit: 'cover', opacity: img.uploading ? 0.5 : 1 }}
+              />
+            </button>
+            <span style={{ fontSize: 11, color: 'var(--sub)' }}>{img.uploading ? 'Uploading…' : 'Image'}</span>
             <button
               style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: 11, cursor: 'pointer' }}
               type="button"
@@ -229,7 +328,7 @@ const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: Facil
             </button>
           </div>
         ))}
-        {photos.length > 0 && (
+        {images.length > 0 && images.length < MAX_IMAGES && (
           <label
             style={{
               display: 'flex',
@@ -247,11 +346,12 @@ const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: Facil
               fontWeight: 600,
             }}
           >
-            + Add
+            Add
             {inputEl}
           </label>
         )}
       </div>
+      {error && <span className={FIELD_ERROR}>{error}</span>}
       {lightboxUrl && (
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <div
@@ -279,7 +379,7 @@ const PhotoUpload: React.FC<{ photos?: FacilityPhoto[]; onChange: (photos: Facil
   );
 };
 
-const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => {
+const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange, facilityCode, plans }) => {
   const patch = (id: string, p: Partial<AdditionalFacility>) =>
     onChange(facilities.map(f => (f.id === id ? { ...f, ...p } : f)));
 
@@ -303,6 +403,319 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
 
   // ── per-facility config form ──
   const renderConfig = (f: AdditionalFacility, roomLabel?: string) => {
+    // Custom facilities can be either facility type the Facilities page
+    // offers — this selector drives which config form (below) renders.
+    const facilityTypeSelector = f.type === 'custom' && (
+      <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
+        <span className={FIELD_LABEL}>Facility type</span>
+        <select
+          className={FF_INPUT}
+          value={f.bookingModel ?? 'pay_per_slot'}
+          onChange={e => patch(f.id, { bookingModel: e.target.value as 'pay_per_slot' | 'membership_addon' })}
+        >
+          <option value="pay_per_slot">Pay Per Booking</option>
+          <option value="membership_addon">Membership Add-On</option>
+        </select>
+      </label>
+    );
+    const isAddonConfig = f.type === 'gym' || (f.type === 'custom' && f.bookingModel === 'membership_addon');
+    const addonLabel = f.type === 'gym' ? 'Gym' : 'Add-on';
+
+    if (isAddonConfig) {
+      const minAge = f.minimumAge ?? 0;
+      const pFrom = f.parentPresentFrom ?? 0;
+      const pTo = f.parentPresentTo ?? 0;
+      const cFrom = f.consentFrom ?? 0;
+      const cTo = f.consentTo ?? 0;
+      const ageErrors: Record<string, string> = {};
+      if (minAge > pFrom) ageErrors.minimumAge = 'Minimum age must be at or below the start of the next age range.';
+      if (pFrom > pTo) ageErrors.parentPresent = '"From" must not be after "To".';
+      if (cFrom > cTo) ageErrors.parentalConsent = '"From" must not be after "To".';
+      if (pFrom <= pTo && cFrom <= cTo && pTo >= cFrom) {
+        ageErrors.ageOverlap =
+          'Age ranges overlap — the "parental consent" range must start after the "parent present" range ends.';
+      }
+      const annualGymPrice = f.fortnightlyPrice * 26 * (1 - (f.annualDiscountPct ?? 0) / 100);
+
+      return (
+        <>
+          {facilityTypeSelector}
+          <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
+            <span className={FIELD_LABEL}>Rules and Guidelines</span>
+            <textarea
+              className={FF_INPUT}
+              placeholder="Cancellation policy, room rules, usage guidelines shown to members and guests…"
+              rows={3}
+              style={{ resize: 'vertical' }}
+              value={f.description ?? ''}
+              onChange={e => patch(f.id, { description: e.target.value })}
+            />
+          </label>
+          <SectionLabel>{addonLabel} Pricing</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Fortnightly {addonLabel.toLowerCase()} price ($) *</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                step={0.01}
+                value={f.fortnightlyPrice}
+                onValueChange={v => patch(f.id, { fortnightlyPrice: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Annual price ($)</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                placeholder={money(annualGymPrice)}
+                step={0.01}
+                value={f.annualPrice ?? null}
+                onValueChange={v => patch(f.id, { annualPrice: v })}
+              />
+              <span className={HELPER_TEXT}>Leave blank to use the calculated price ({money(annualGymPrice)}).</span>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Annual discount (%)</span>
+              <NumberInput
+                className={FF_INPUT}
+                max={100}
+                min={0}
+                value={f.annualDiscountPct}
+                onValueChange={v => patch(f.id, { annualDiscountPct: v })}
+              />
+            </label>
+          </div>
+
+          <SectionLabel>Capacity &amp; Booking</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Session duration</span>
+              <select
+                className={FF_INPUT}
+                value={f.slotDuration}
+                onChange={e => patch(f.id, { slotDuration: e.target.value })}
+              >
+                {SLOT_OPTIONS.filter(o => o !== 'No fixed slots (open access)').map(o => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Slot start interval</span>
+              <select
+                className={FF_INPUT}
+                value={f.slotStartIntervalMinutes ?? 15}
+                onChange={e => patch(f.id, { slotStartIntervalMinutes: Number(e.target.value) })}
+              >
+                {SLOT_START_INTERVAL_OPTIONS.map(m => (
+                  <option key={m} value={m}>
+                    {m} minutes
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Max members per slot *</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={1}
+                value={f.maxMembersPerSlot ?? 10}
+                onValueChange={v => patch(f.id, { maxMembersPerSlot: v })}
+              />
+            </label>
+          </div>
+
+          <SectionLabel>Guest Access</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Extra guest price ($)</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                step={0.01}
+                value={f.guestSessionPrice}
+                onValueChange={v => patch(f.id, { guestSessionPrice: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Free guests per billing cycle</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.freeGuestVisits}
+                onValueChange={v => patch(f.id, { freeGuestVisits: v })}
+              />
+              <span className={HELPER_TEXT}>Billing cycle is fortnightly.</span>
+            </label>
+          </div>
+          <label className="flex items-center gap-1.5 text-[12px] font-medium" style={{ marginBottom: 12 }}>
+            <input
+              checked={f.freeGymEntryWithLaneBooking ?? true}
+              type="checkbox"
+              onChange={e => patch(f.id, { freeGymEntryWithLaneBooking: e.target.checked })}
+            />
+            Free gym entry for guests on the same day&apos;s lane booking
+          </label>
+
+          <SectionLabel>Free Trial</SectionLabel>
+          <div style={{ marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Free trial gym slots per member</span>
+              <select
+                className={FF_INPUT}
+                value={f.freeTrialSlots ?? 1}
+                onChange={e => patch(f.id, { freeTrialSlots: Number(e.target.value) as 0 | 1 | 2 })}
+              >
+                {FREE_TRIAL_OPTIONS.map(n => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <span className={HELPER_TEXT}>Once per member lifetime. Not available for guests.</span>
+            </label>
+          </div>
+
+          <SectionLabel>Age Rules</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 4 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Minimum age</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.minimumAge ?? 0}
+                onValueChange={v => patch(f.id, { minimumAge: v })}
+              />
+              {ageErrors.minimumAge && <span className={FIELD_ERROR}>{ageErrors.minimumAge}</span>}
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Parent must be present (from — to)</span>
+              <div className="flex items-center gap-2">
+                <NumberInput
+                  className={FF_INPUT}
+                  min={0}
+                  value={f.parentPresentFrom ?? 0}
+                  onValueChange={v => patch(f.id, { parentPresentFrom: v })}
+                />
+                <span>–</span>
+                <NumberInput
+                  className={FF_INPUT}
+                  min={0}
+                  value={f.parentPresentTo ?? 0}
+                  onValueChange={v => patch(f.id, { parentPresentTo: v })}
+                />
+              </div>
+              {ageErrors.parentPresent && <span className={FIELD_ERROR}>{ageErrors.parentPresent}</span>}
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Parental consent required (from — to)</span>
+              <div className="flex items-center gap-2">
+                <NumberInput
+                  className={FF_INPUT}
+                  min={0}
+                  value={f.consentFrom ?? 0}
+                  onValueChange={v => patch(f.id, { consentFrom: v })}
+                />
+                <span>–</span>
+                <NumberInput
+                  className={FF_INPUT}
+                  min={0}
+                  value={f.consentTo ?? 0}
+                  onValueChange={v => patch(f.id, { consentTo: v })}
+                />
+              </div>
+              {ageErrors.parentalConsent && <span className={FIELD_ERROR}>{ageErrors.parentalConsent}</span>}
+            </label>
+          </div>
+          {ageErrors.ageOverlap && (
+            <div className={FIELD_ERROR} style={{ marginBottom: 8 }}>
+              {ageErrors.ageOverlap}
+            </div>
+          )}
+          <p className={HELPER_TEXT} style={{ marginBottom: 12 }}>
+            Age limits for non-US centres are not yet decided — review before launch outside the US.
+          </p>
+
+          <SectionLabel>Booking Rules</SectionLabel>
+          <div style={{ marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Advance booking (days)</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.advanceBookingDays ?? null}
+                onValueChange={v => patch(f.id, { advanceBookingDays: v ?? undefined })}
+              />
+            </label>
+          </div>
+          <span className={FIELD_LABEL}>Minimum gap between sessions (hours) — per membership plan</span>
+          <p className={HELPER_TEXT} style={{ marginTop: 2, marginBottom: 8 }}>
+            How long a member on each plan must wait before their next {addonLabel.toLowerCase()} session that same day.
+          </p>
+          {plans.length === 0 ? (
+            <p className={HELPER_TEXT} style={{ marginBottom: 12 }}>
+              No membership plans are enabled yet — enable one in the Plans &amp; Pricing step, then come back here.
+            </p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              {plans.map(pl => (
+                <label key={pl.planId} className="flex flex-col gap-1">
+                  <span className={FIELD_LABEL}>{pl.planId.charAt(0).toUpperCase() + pl.planId.slice(1)}</span>
+                  <NumberInput
+                    className={FF_INPUT}
+                    min={0}
+                    value={f.gapHoursByPlan?.[pl.planId] ?? 0}
+                    onValueChange={v => patch(f.id, { gapHoursByPlan: { ...f.gapHoursByPlan, [pl.planId]: v ?? 0 } })}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+
+          <SectionLabel>Access &amp; PINs</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>{addonLabel} PIN active — minutes before slot start</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.gymPinBefore ?? 15}
+                onValueChange={v => patch(f.id, { gymPinBefore: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Facility PIN (gym-only bookings) — minutes before</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.facilityPinBefore ?? 15}
+                onValueChange={v => patch(f.id, { facilityPinBefore: v })}
+              />
+            </label>
+          </div>
+
+          <SectionLabel>Induction</SectionLabel>
+          <label className="flex items-center gap-1.5 text-[12px] font-medium" style={{ marginBottom: 12 }}>
+            <input
+              checked={f.inductionRequired ?? true}
+              type="checkbox"
+              onChange={e => patch(f.id, { inductionRequired: e.target.checked })}
+            />
+            Induction required before first booking
+          </label>
+
+          <SectionLabel>Operating Hours</SectionLabel>
+          <OperatingHours f={f} patch={patch} />
+          <WizardImageUpload
+            facilityCode={facilityCode}
+            images={f.images}
+            onChange={images => patch(f.id, { images })}
+          />
+        </>
+      );
+    }
+
     if (f.type === 'gaming') {
       const minMins = Number(/^\d+/.exec(f.minSession ?? '')?.[0] ?? 0);
       const maxMins = f.maxSession === 'No limit' ? Infinity : Number(/^\d+/.exec(f.maxSession ?? '')?.[0] ?? 0);
@@ -364,15 +777,43 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               Min session must be ≤ Max session.
             </div>
           )}
+
+          <SectionLabel>Access &amp; PINs</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Door PIN active — minutes before slot start</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.doorPinBefore ?? 15}
+                onValueChange={v => patch(f.id, { doorPinBefore: v })}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={FIELD_LABEL}>Facility PIN (main entrance) — minutes before</span>
+              <NumberInput
+                className={FF_INPUT}
+                min={0}
+                value={f.roomFacilityPinBefore ?? 15}
+                onValueChange={v => patch(f.id, { roomFacilityPinBefore: v })}
+              />
+            </label>
+          </div>
+
           <OperatingHours f={f} patch={patch} />
-          <PhotoUpload photos={f.photos} onChange={photos => patch(f.id, { photos })} />
+          <WizardImageUpload
+            facilityCode={facilityCode}
+            images={f.images}
+            onChange={images => patch(f.id, { images })}
+          />
         </>
       );
     }
 
-    // gym / podcast / meeting
+    // podcast / meeting / custom-pay-per-slot (addon config and gaming are handled above)
     return (
       <>
+        {facilityTypeSelector}
         {roomLabel && (
           <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Room name</span>
@@ -384,12 +825,21 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
             />
           </label>
         )}
+        <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
+          <span className={FIELD_LABEL}>Rules and Guidelines</span>
+          <textarea
+            className={FF_INPUT}
+            placeholder="Cancellation policy, room rules, usage guidelines shown to members and guests…"
+            rows={3}
+            style={{ resize: 'vertical' }}
+            value={f.description ?? ''}
+            onChange={e => patch(f.id, { description: e.target.value })}
+          />
+        </label>
         <SectionLabel>Pricing</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              Fortnightly price ($)
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Price per hour ($)</span>
             <NumberInput
               className={FF_INPUT}
               min={0}
@@ -398,62 +848,39 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
               value={f.fortnightlyPrice}
               onValueChange={v => patch(f.id, { fortnightlyPrice: v })}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Annual discount (%)</span>
-            <NumberInput
-              className={FF_INPUT}
-              max={100}
-              min={0}
-              placeholder="e.g. 15"
-              value={f.annualDiscountPct}
-              onValueChange={v => patch(f.id, { annualDiscountPct: v })}
-            />
+            <span className={HELPER_TEXT}>Charged per hour — a 3-hour booking costs 3 × this price.</span>
           </label>
         </div>
 
         <SectionLabel>Capacity &amp; Access</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              {f.type === 'gym' ? 'Total capacity (members)' : 'Seating capacity'}
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Total booking hours</span>
             <NumberInput
               className={FF_INPUT}
               min={1}
-              value={f.type === 'gym' ? f.totalCapacity : (f.seatingCapacity ?? 0)}
-              onValueChange={v => patch(f.id, f.type === 'gym' ? { totalCapacity: v } : { seatingCapacity: v })}
+              value={f.maxBookableHours ?? 2}
+              onValueChange={v => patch(f.id, { maxBookableHours: v })}
             />
+            <span className={HELPER_TEXT}>A member picks any whole number of hours, from 1 up to this.</span>
           </label>
+        </div>
+        <div style={{ marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Max concurrent users</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Total capacity</span>
             <NumberInput
               className={FF_INPUT}
-              min={1}
-              value={f.concurrentCapacity}
-              onValueChange={v => patch(f.id, { concurrentCapacity: v })}
+              min={0}
+              value={f.totalCapacity}
+              onValueChange={v => patch(f.id, { totalCapacity: v ?? 0 })}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Slot duration</span>
-            <select
-              className={FF_INPUT}
-              value={f.slotDuration}
-              onChange={e => patch(f.id, { slotDuration: e.target.value })}
-            >
-              {SLOT_OPTIONS.map(o => (
-                <option key={o}>{o}</option>
-              ))}
-            </select>
           </label>
         </div>
 
         <SectionLabel>Guest Access</SectionLabel>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              Guest session price ($)
-            </span>
+            <span className={FIELD_LABEL}>Extra guest price ($)</span>
             <NumberInput
               className={FF_INPUT}
               min={0}
@@ -463,9 +890,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              Free guest visits / month
-            </span>
+            <span className={FIELD_LABEL}>Free guests per billing cycle</span>
             <NumberInput
               className={FF_INPUT}
               min={0}
@@ -475,9 +900,57 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
           </label>
         </div>
 
+        <SectionLabel>Booking Rules</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <label className="flex flex-col gap-1">
+            <span className={FIELD_LABEL}>Max bookings / day</span>
+            <NumberInput
+              className={FF_INPUT}
+              min={0}
+              value={f.maxBookingsPerDay ?? null}
+              onValueChange={v => patch(f.id, { maxBookingsPerDay: v ?? undefined })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={FIELD_LABEL}>Advance booking (days)</span>
+            <NumberInput
+              className={FF_INPUT}
+              min={0}
+              value={f.advanceBookingDays ?? null}
+              onValueChange={v => patch(f.id, { advanceBookingDays: v ?? undefined })}
+            />
+          </label>
+        </div>
+
+        <SectionLabel>Access &amp; PINs</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+              Door PIN active — minutes before slot start
+            </span>
+            <NumberInput
+              className={FF_INPUT}
+              min={0}
+              value={f.doorPinBefore ?? 15}
+              onValueChange={v => patch(f.id, { doorPinBefore: v })}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+              Facility PIN (main entrance) — minutes before
+            </span>
+            <NumberInput
+              className={FF_INPUT}
+              min={0}
+              value={f.roomFacilityPinBefore ?? 15}
+              onValueChange={v => patch(f.id, { roomFacilityPinBefore: v })}
+            />
+          </label>
+        </div>
+
         <SectionLabel>Operating Hours</SectionLabel>
         <OperatingHours f={f} patch={patch} />
-        <PhotoUpload photos={f.photos} onChange={photos => patch(f.id, { photos })} />
+        <WizardImageUpload facilityCode={facilityCode} images={f.images} onChange={images => patch(f.id, { images })} />
       </>
     );
   };
@@ -622,7 +1095,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
                         type="button"
                         onClick={() => addRoom(panel.type)}
                       >
-                        + Add another {panel.title.replace(/s$/, '').toLowerCase()}
+                        Add another {panel.title.replace(/s$/, '').toLowerCase()}
                       </button>
                     </div>
                   </>
@@ -721,7 +1194,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange }) => 
             type="button"
             onClick={() => addRoom('custom')}
           >
-            + Add custom facility
+            Add custom facility
           </button>
         </div>
       </div>
@@ -733,26 +1206,51 @@ const OperatingHours: React.FC<{
   f: AdditionalFacility;
   patch: (id: string, p: Partial<AdditionalFacility>) => void;
 }> = ({ f, patch }) => (
-  <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
-    <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Operating hours</span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <input
-        className={FF_INPUT}
-        style={{ width: 130 }}
-        type="time"
-        value={f.openTime}
-        onChange={e => patch(f.id, { openTime: e.target.value })}
-      />
-      <span style={{ fontSize: 12, color: 'var(--sub)' }}>to</span>
-      <input
-        className={FF_INPUT}
-        style={{ width: 130 }}
-        type="time"
-        value={f.closeTime}
-        onChange={e => patch(f.id, { closeTime: e.target.value })}
-      />
+  <div className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Operating hours</span>
+      <label className="flex cursor-pointer items-center gap-1.5">
+        <span className="text-[11px] font-medium text-sub">24 Hours</span>
+        <span className="relative inline-block h-[18px] w-8 flex-shrink-0">
+          <input
+            aria-label="Open 24 hours"
+            checked={Boolean(f.is24Hours)}
+            className="peer sr-only"
+            type="checkbox"
+            onChange={e =>
+              patch(f.id, {
+                is24Hours: e.target.checked,
+                ...(e.target.checked ? { openTime: '00:00', closeTime: '23:59' } : {}),
+              })
+            }
+          />
+          <span className="absolute inset-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-navy" />
+          <span className="absolute left-[2px] top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform peer-checked:translate-x-[14px]" />
+        </span>
+      </label>
     </div>
-  </label>
+    {f.is24Hours ? (
+      <div style={{ fontSize: 12, color: 'var(--sub)' }}>Open around the clock — no closing hours.</div>
+    ) : (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          className={FF_INPUT}
+          style={{ width: 130 }}
+          type="time"
+          value={f.openTime}
+          onChange={e => patch(f.id, { openTime: e.target.value })}
+        />
+        <span style={{ fontSize: 12, color: 'var(--sub)' }}>to</span>
+        <input
+          className={FF_INPUT}
+          style={{ width: 130 }}
+          type="time"
+          value={f.closeTime}
+          onChange={e => patch(f.id, { closeTime: e.target.value })}
+        />
+      </div>
+    )}
+  </div>
 );
 
 export default AdditionalFacilitiesStep;

@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 import { centreColour, countryFlag } from '../constants';
 
 import type { CentreApiStatus, FacilitySummary } from '../../../store/centres/types';
 
 const STATUS_META: Record<CentreApiStatus, { label: string; pill: string; dot: string }> = {
-  active: { label: 'Active', pill: 'bg-cmx-green-bg text-cmx-green', dot: 'bg-cmx-green' },
-  draft: { label: 'Draft', pill: 'bg-cmx-amber-bg text-cmx-amber', dot: 'bg-cmx-amber' },
-  staging: { label: 'Staging', pill: 'bg-cmx-blue-light text-cmx-blue', dot: 'bg-cmx-blue' },
-  suspended: { label: 'Suspended', pill: 'bg-red-100 text-red-600', dot: 'bg-red-500' },
+  active: { label: 'Active', pill: 'bg-[rgba(59,143,62,0.15)] text-[#3b8f3e]', dot: 'bg-cmx-green' },
+  draft: { label: 'Draft', pill: 'bg-[rgba(110,110,110,0.15)] text-[#6e6e6e]', dot: 'bg-cmx-amber' },
+  staging: { label: 'Staging', pill: 'bg-[rgba(238,159,41,0.2)] text-[#ee9f29]', dot: 'bg-cmx-blue' },
+  suspended: { label: 'Suspended', pill: 'bg-[rgba(212,43,43,0.15)] text-[#d42b2b]', dot: 'bg-red-500' },
 };
 
 // Plan accents reuse the centre palette tones so the chips stay on-brand.
@@ -28,9 +28,9 @@ const getTzAbbr = (tz: string): string => {
   }
 };
 
-const getLocalTime = (tz: string): string => {
+const getLocalTime = (tz: string, now: Date): string => {
   try {
-    return new Date().toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
+    return now.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
   } catch {
     return '';
   }
@@ -43,14 +43,18 @@ interface StatProps {
   hero?: boolean;
   /** Shown as a title-attribute tooltip when the value is empty, e.g. why it's unconfigured. */
   emptyHint?: string;
+  /** Always-shown tooltip (even with a value) — for clarifying a metric that's
+   * easy to confuse with a similarly-named one elsewhere (e.g. Reports' own
+   * selectable-period figures vs this card's fixed 30-day window). */
+  hint?: string;
 }
 
 /** One KPI cell. Missing values render as an intentional muted dash, not "0". */
-const Stat: React.FC<StatProps> = ({ value, label, suffix = '', hero = false, emptyHint }) => {
+const Stat: React.FC<StatProps> = ({ value, label, suffix = '', hero = false, emptyHint, hint }) => {
   const display = value === undefined || value === null ? '—' : `${value.toLocaleString()}${suffix}`;
   const isEmpty = display === '—';
   return (
-    <div className="flex flex-col gap-0.5" title={isEmpty ? emptyHint : undefined}>
+    <div className="flex flex-col gap-0.5" title={isEmpty ? emptyHint : hint}>
       <span
         className={`tabular-nums leading-none ${hero ? 'text-[22px] font-extrabold' : 'text-lg font-bold'} ${
           isEmpty ? 'text-muted' : 'text-navy'
@@ -68,16 +72,16 @@ interface Props {
   onOpen: (centre: FacilitySummary) => void;
   /** Open the wizard in edit mode (Review step) to edit the centre and change its status. */
   onEdit?: (centre: FacilitySummary) => void;
+  /** Opens the delete-confirmation flow. Only ever shown for a Draft centre —
+   * nothing real can be attached to one yet, so it's safe to remove; Active/
+   * Suspended centres need the separate Archive/Deactivate feature instead. */
+  onDelete?: (centre: FacilitySummary) => void;
+  /** Shared clock tick from the list, so N cards don't each run their own 1s interval. */
+  now: Date;
 }
 
-const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
-  const [localTime, setLocalTime] = useState(() => getLocalTime(centre.timezone));
-
-  // Live local clock — tick every second like the reference design.
-  useEffect(() => {
-    const t = setInterval(() => setLocalTime(getLocalTime(centre.timezone)), 1000);
-    return () => clearInterval(t);
-  }, [centre.timezone]);
+const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit, onDelete, now }) => {
+  const localTime = getLocalTime(centre.timezone, now);
 
   const status = STATUS_META[centre.status] ?? STATUS_META.draft;
   const accent = centreColour(centre.code);
@@ -107,16 +111,16 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="shrink-0 text-base leading-none">{countryFlag(centre.countryCode)}</span>
-            <span className="truncate text-[15px] font-bold leading-tight text-navy">{centre.name}</span>
+            <span className="truncate text-[15px] font-bold uppercase leading-tight text-[#202020]">{centre.name}</span>
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span
-              className="rounded border border-cmx-border bg-cmx-body px-1.5 py-px font-mono text-[10.5px] font-semibold tracking-wide text-sub"
+              className="rounded bg-[#f5f5f8] px-1.5 py-px font-mono text-[10.5px] font-semibold tracking-wide text-[#21295a]"
               style={{ borderLeft: `2px solid ${accent}` }}
             >
               {centre.code}
             </span>
-            <span className="inline-flex items-center gap-1 text-xs text-sub">
+            <span className="inline-flex items-center gap-1 text-xs text-[#6e6e6e]">
               <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                 <circle cx="12" cy="10" r="3" />
@@ -150,13 +154,18 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
       {/* ── KPI rollup (mapped from the API `stats` block) ── */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 rounded-[10px] border border-cmx-border bg-cmx-body/60 p-3">
         <Stat hero label="Active Members" value={kpi?.activeMembers} />
-        <Stat label="Bookings · 30d" value={kpi?.bookings30d} />
+        <Stat
+          hint="Count of bookings, not hours — Reports shows total booking HOURS over a period you choose, not this fixed 30-day count"
+          label="Bookings · 30d"
+          value={kpi?.bookings30d}
+        />
         <Stat
           emptyHint={
             kpi?.utilisationStatus === 'insufficient_config'
               ? 'Capacity or operating hours not configured for this centre'
               : undefined
           }
+          hint="Based on a fixed last-30-days window — Reports' Utilisation figures follow the period you choose there instead"
           label="Utilisation"
           suffix="%"
           value={kpi?.utilisationPct}
@@ -228,7 +237,26 @@ const CentreCard: React.FC<Props> = ({ centre, onOpen, onEdit }) => {
 
       {/* ── Footer: open affordance ── */}
       <div className="mt-3.5 flex items-center justify-between border-t border-cmx-border pt-3">
-        <span className="text-[11px] font-medium text-muted">Updated {centre.updatedAt?.slice(0, 10) || '—'}</span>
+        {onDelete && centre.status === 'draft' ? (
+          <button
+            aria-label={`Delete ${centre.name}`}
+            className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-transparent px-2 py-1 text-[11px] font-semibold text-muted transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onDelete(centre);
+            }}
+          >
+            <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M3 6h18" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            </svg>
+            Delete
+          </button>
+        ) : (
+          <span />
+        )}
         <div className="flex items-center gap-2.5">
           {/* Every centre is editable. Drafts get an amber "Edit & Activate" call-to-action
               to finish setup; active/suspended centres get a neutral "Edit" (the wizard then

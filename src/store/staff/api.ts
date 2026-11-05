@@ -13,7 +13,6 @@ import type {
   RoleConfig,
   RoleDefaults,
   StaffConfig,
-  StaffDocumentEntry,
   StaffListRequest,
   UpdateStaffRequest,
 } from './types';
@@ -164,49 +163,16 @@ export const resendWelcomeEmail = createAsyncThunk<
 
 // Suspend ('suspended') / reactivate ('active') a staff member.
 // 'suspended' is the backend's deactivated status value (the UI labels it "Inactive").
-// The update endpoint expects the full record, so we load details first and
-// preserve every field — only `status` changes. Shared by the list + detail view.
+// Uses the status-only endpoint (admin/staff/status/update) — NOT the full-record
+// admin/staff/update — so this never re-validates/re-saves the whole profile
+// (phone, DOB, centre scope, documents, …) just to flip one field. A staff row
+// with edge-case legacy data in any of those used to 500 on Suspend/Activate
+// because the full-update path re-checked all of it on every click.
 export const setStaffStatus = createAsyncThunk(
   'staff/setStatus',
   async ({ staffId, status }: { staffId: string; status: 'active' | 'suspended' }, { rejectWithValue }) => {
     try {
-      const detailsRes = await api.post(endpoints.staff.details, { staffId });
-      const s = detailsRes.data?.data;
-      if (!s) return rejectWithValue('Staff member not found');
-
-      const sp = s.staffProfile ?? {};
-      const documents = (sp.documents ?? [])
-        .filter((d: StaffDocumentEntry) => d.type && d.fileName && d.blobName)
-        .map((d: StaffDocumentEntry) => ({ type: d.type, fileName: d.fileName, blobName: d.blobName }));
-
-      const payload: UpdateStaffRequest = {
-        staffId,
-        firstName: s.firstName,
-        lastName: s.lastName,
-        email: s.email,
-        loginEmail: s.loginEmail ?? s.email,
-        phone: s.phone ?? '',
-        dateOfBirth: s.dateOfBirth ?? null,
-        gender: s.gender ?? null,
-        userType: s.userType,
-        facilityCode: s.facilityCode,
-        status,
-        staffProfile: {
-          employmentType: sp.employmentType ?? '',
-          startDate: sp.startDate ?? null,
-          highestQualification: sp.highestQualification ?? null,
-          certifications: sp.certifications ?? [],
-          additionalNotes: sp.additionalNotes ?? '',
-          roles: sp.roles ?? s.userType,
-          accessLevel: sp.accessLevel ?? null,
-          assignedCentres: sp.assignedCentres ?? [],
-          documents,
-          twoFactorAuth: sp.twoFactorAuth ?? true,
-          twoFactorMethod: sp.twoFactorMethod ?? 'email',
-        },
-      };
-
-      const response = await api.post(endpoints.staff.update, payload);
+      const response = await api.post(endpoints.staff.updateStatus, { staffId, status });
       return response.data;
     } catch (error: unknown) {
       return rejectWithValue(handleApiError(error, 'Failed to update staff status'));

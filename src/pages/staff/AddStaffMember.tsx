@@ -26,15 +26,28 @@ import RoleAccessStep from './components/RoleAccessStep';
 import StepFooter from './components/StepFooter';
 import StepIndicator from './components/StepIndicator';
 import { STEPS } from './constants';
-import { OTHER_QUALIFICATION, ProfileFormState, StaffDocument, StepKey, initialProfile } from './types';
+import {
+  CoachProfileFormState,
+  DEFAULT_DIAL_CODE,
+  OTHER_QUALIFICATION,
+  ProfileFormState,
+  StaffDocument,
+  StepKey,
+  initialCoachProfile,
+  initialProfile,
+} from './types';
 import {
   blankToNull,
   buildStaffListParams,
+  dialCodeOf,
   fileToDataUrl,
   getConfigOtherQualificationId,
+  isBelowMinimumAge,
   isCentreScopedLevel,
   isCountryScopedLevel,
+  MIN_STAFF_AGE_YEARS,
   sortActiveUnique,
+  stripDialCode,
   validatePassword,
 } from './utils';
 
@@ -71,6 +84,13 @@ const AddStaffMember: React.FC = () => {
   const [profile, setProfile] = useState<ProfileFormState>(initialProfile);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, boolean>>({});
   const [accessLevel, setAccessLevel] = useState<string | null>(null);
+  // Coach Profile — only meaningful while 'coach' is one of the selected roles.
+  const [coachProfile, setCoachProfile] = useState<CoachProfileFormState>(initialCoachProfile);
+  const [existingCoachCode, setExistingCoachCode] = useState<string | null>(null);
+  // Coach photo — same newly-selected-file vs. already-saved-SAS-URL split as
+  // the staff member's own profile photo.
+  const [coachPhotoImage, setCoachPhotoImage] = useState<string>('');
+  const [existingCoachPhotoUrl, setExistingCoachPhotoUrl] = useState<string>('');
   const [documents, setDocuments] = useState<Record<string, File>>({});
   const [docErrors, setDocErrors] = useState<Record<string, string>>({});
   const [profileImage, setProfileImage] = useState<string>('');
@@ -81,6 +101,17 @@ const AddStaffMember: React.FC = () => {
   // Tracks whether the login email has been initialised/edited so the
   // auto-fill effect doesn't refill it after the user clears it.
   const loginEmailInitedRef = useRef(false);
+  // Tracks whether the admin has EXPLICITLY edited Login Email themselves
+  // (Account step) -- as opposed to it merely being seeded from the contact
+  // email. Login Email defaults to, and stays in sync with, the contact
+  // email on every edit (see updateProfile below) right up until the admin
+  // deliberately overrides it, at which point their override wins and
+  // further contact-email edits stop following it. Without this, editing a
+  // staff member's Email Address silently left their actual login
+  // credential (uniqueId) on the old value — the Staff list (which reads
+  // uniqueId) and login itself kept showing/requiring the old email even
+  // though the Staff Profile page showed the new one.
+  const loginEmailOverriddenRef = useRef(false);
 
   // Edit-mode prefill state (derived from staffDetails in store)
   const [existingDocs, setExistingDocs] = useState<StaffDocument[]>([]);
@@ -128,6 +159,7 @@ const AddStaffMember: React.FC = () => {
   const modulePermMenus = staffConfig?.menus;
 
   const selectedRoleIds = useMemo(() => Object.keys(selectedRoles).filter(id => selectedRoles[id]), [selectedRoles]);
+  const isCoachSelected = Boolean(selectedRoles['coach']);
   // Primitive dep so the fetch effect below only re-runs when the ROLE SET actually
   // changes (selectedRoleIds is a fresh array every render otherwise).
   const selectedRoleIdsKey = selectedRoleIds.join(',');
@@ -200,8 +232,17 @@ const AddStaffMember: React.FC = () => {
     setModulePermError(null);
   };
 
-  // custompermission = { moduleId: verbs } from the grid's final state. Only sent
-  // when the feature is active; modules with neither box checked are omitted.
+  // custompermission = { moduleId: verbs } from the grid's final state. Sent
+  // for EVERY known module, including an explicit [] for an unchecked one —
+  // never omitted. The backend's diff_overrides only turns this into a real
+  // stored override when it actually differs from the role's own default, so
+  // a module that matches its role default (checked because the role grants
+  // it, or left unchecked because the role doesn't) is dropped and keeps
+  // tracking that role automatically. But when the role itself grants a
+  // module by default and the admin deliberately unchecks it for this one
+  // person, omitting the key here would tell the backend "no opinion, use
+  // the role default" — right back to granted — instead of "explicitly deny
+  // it for this person." Sending [] makes that denial unambiguous.
   const buildCustomPermission = (): Record<string, string[]> | undefined => {
     if (!modulePermMenus?.length) return undefined;
     const out: Record<string, string[]> = {};
@@ -211,6 +252,7 @@ const AddStaffMember: React.FC = () => {
       const row = mergeDualScope(modulePerms, m.id);
       if (row.edit) out[m.id] = ['read', 'write'];
       else if (row.view) out[m.id] = ['read'];
+      else out[m.id] = [];
     });
     return out;
   };
@@ -222,10 +264,12 @@ const AddStaffMember: React.FC = () => {
 
   // Load the real centre catalogue. On error/empty the picker shows an empty state
   // (plus the "Other" manual option) — we never substitute seed centres here.
+  // Active only — a Draft/Staging/Suspended centre isn't operable yet, so a staff
+  // member can't be assigned to it (see CentreModuleRoute's matching gate).
   useEffect(() => {
     let cancelled = false;
     setCentresLoading(true);
-    dispatch(getCentres({ skip: 0, limit: 200 }))
+    dispatch(getCentres({ status: 'active', skip: 0, limit: 200 }))
       .unwrap()
       .then(res => {
         if (!cancelled) setCentres(res.facilities ?? []);
@@ -258,7 +302,14 @@ const AddStaffMember: React.FC = () => {
       firstName: data.firstName ?? '',
       lastName: data.lastName ?? '',
       email: data.email ?? '',
-      phone: data.phone ?? '',
+      // A number saved before the dial-code default existed has no leading
+      // "+code" at all — default it to +1 here too, same as a brand-new
+      // Add form, instead of leaving the Code field blank next to a number.
+      phone: (() => {
+        const raw = (data.phone ?? '').trim();
+        if (!raw) return `${DEFAULT_DIAL_CODE} `;
+        return dialCodeOf(raw) ? raw : `${DEFAULT_DIAL_CODE} ${stripDialCode(raw)}`;
+      })(),
       dob: (data.dateOfBirth ?? '').toString().slice(0, 10),
       gender: data.gender ?? '',
       employmentType: sp.employmentType ?? 'Full-time',
@@ -279,6 +330,22 @@ const AddStaffMember: React.FC = () => {
       }, {})
     );
     setAccessLevel(sp.accessLevel ?? null);
+    setExistingCoachCode(data.code ?? null);
+    const cp = data.coachProfile;
+    setCoachProfile(
+      cp
+        ? {
+            specialization: cp.specialization ?? [],
+            coachDescription: cp.coachDescription ?? '',
+            experienceYears:
+              cp.experienceYears !== null && cp.experienceYears !== undefined ? String(cp.experienceYears) : '',
+            certifications: cp.certifications ?? [],
+            hourlyRate: cp.hourlyRate !== null && cp.hourlyRate !== undefined ? String(cp.hourlyRate) : '',
+          }
+        : initialCoachProfile
+    );
+    setExistingCoachPhotoUrl(cp?.profileImageUrl ?? '');
+    setCoachPhotoImage('');
     setExistingDocs(sp.documents ?? []);
     setExistingPhotoUrl(sp.photoSasUrl ?? '');
     setEditFacilityCode(data.facilityCode ?? '');
@@ -288,6 +355,14 @@ const AddStaffMember: React.FC = () => {
     setEditStatus(data.status ?? 'active');
     setLoginEmail(data.loginEmail ?? data.email ?? '');
     loginEmailInitedRef.current = true;
+    // If this record already has a login email that deliberately differs
+    // from its contact email, preserve that intentional separation --
+    // don't start silently overwriting it the next time the admin edits
+    // Email Address. Only auto-sync (the common case) when they currently
+    // match, i.e. nothing's been deliberately split yet.
+    loginEmailOverriddenRef.current = Boolean(
+      data.loginEmail && data.email && data.loginEmail.toLowerCase() !== data.email.toLowerCase()
+    );
     setTwoFAEnabled(sp.twoFactorAuth ?? true);
 
     // Pre-fill the Module Permissions grid from this member's saved data. Only
@@ -345,6 +420,9 @@ const AddStaffMember: React.FC = () => {
 
   const handleLoginEmailChange = (value: string) => {
     loginEmailInitedRef.current = true;
+    // An explicit edit here is a deliberate override -- stop following the
+    // contact email from this point on (see updateProfile's own comment).
+    loginEmailOverriddenRef.current = true;
     setLoginEmail(value);
     // Keep the contact email in sync so the profile view reflects the change.
     setProfile(prev => ({ ...prev, email: value }));
@@ -352,8 +430,34 @@ const AddStaffMember: React.FC = () => {
 
   const activeIndex = STEPS.findIndex(s => s.key === activeStep);
 
+  // The Profile step's *-marked fields (First Name, Last Name, Email, Date of
+  // Birth) were previously never actually enforced — a step could be left
+  // blank and the wizard would silently advance anyway, only to fail (or
+  // worse, succeed with missing data) at the very end. This blocks leaving
+  // Profile — via Next or by clicking straight to a later step — until they're
+  // filled, same four fields validateForSubmit already requires at save time.
+  const isProfileValid = Boolean(
+    profile.firstName.trim() &&
+    profile.lastName.trim() &&
+    profile.email.trim() &&
+    profile.dob.trim() &&
+    !isBelowMinimumAge(profile.dob)
+  );
+  const [showProfileErrors, setShowProfileErrors] = useState(false);
+
   const updateProfile = <K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) => {
     setProfile(prev => ({ ...prev, [key]: value }));
+    // Login Email defaults to, and stays in sync with, the contact email --
+    // right up until the admin explicitly overrides it themselves on the
+    // Account step (handleLoginEmailChange), at which point their override
+    // wins and further contact-email edits stop following it. This matters
+    // just as much in edit mode as create mode: without it, changing an
+    // existing staff member's Email Address silently left their actual
+    // login credential (uniqueId) on the old value.
+    if (key === 'email' && !loginEmailOverriddenRef.current) {
+      setLoginEmail(value as unknown as string);
+      loginEmailInitedRef.current = true;
+    }
   };
 
   const toggleCertification = (key: string) => {
@@ -435,6 +539,24 @@ const AddStaffMember: React.FC = () => {
     }
   };
 
+  const handleCoachPhotoSelect = async (file: File | null) => {
+    if (!file) return;
+    if (!/^image\/(jpeg|png|jpg)$/i.test(file.type)) {
+      toast.error('Coach photo must be a JPG or PNG');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Coach photo must be 2MB or smaller');
+      return;
+    }
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setCoachPhotoImage(dataUrl);
+    } catch {
+      toast.error('Failed to read image');
+    }
+  };
+
   // Create a new role (persisted via the backend), then auto-select it for this staff member.
   const handleCreateRole = async (label: string, description: string): Promise<boolean> => {
     setCreatingRole(true);
@@ -472,13 +594,34 @@ const AddStaffMember: React.FC = () => {
   };
 
   const buildSelectedRoleIds = (): string[] => roles.filter(r => selectedRoles[r.id]).map(r => r.id);
+  // Only sent when 'coach' is selected — omitting the key entirely when it
+  // isn't leaves any existing code/coachProfile untouched server-side.
+  const buildCoachProfilePayload = () =>
+    isCoachSelected
+      ? {
+          specialization: coachProfile.specialization,
+          coachDescription: coachProfile.coachDescription.trim(),
+          experienceYears: coachProfile.experienceYears.trim() ? Number(coachProfile.experienceYears) : null,
+          certifications: coachProfile.certifications,
+          hourlyRate: coachProfile.hourlyRate.trim() ? Number(coachProfile.hourlyRate) : null,
+        }
+      : undefined;
   const buildSelectedCertificationIds = (): string[] =>
     certifications.filter(c => profile.certifications[c.id]).map(c => c.id);
+  // Never send a bare dial code with no actual number typed — profile.phone
+  // defaults to "+1 " so the picker never looks unset (SM-7 follow-up), but
+  // that default-only value must not be saved as a fake phone number.
+  const normalizedPhone = stripDialCode(profile.phone).trim() ? profile.phone.trim() : '';
 
   const validateForSubmit = (draft: boolean): string | null => {
     if (!profile.firstName.trim()) return 'First name is required';
     if (!profile.lastName.trim()) return 'Last name is required';
     if (!profile.email.trim()) return 'Email is required';
+    if (!profile.dob.trim()) return 'Date of birth is required';
+    if (isBelowMinimumAge(profile.dob)) return `Staff member must be at least ${MIN_STAFF_AGE_YEARS} years old`;
+    if (stripDialCode(profile.phone).trim() && !dialCodeOf(profile.phone)) {
+      return 'Select a country code for the phone number';
+    }
     if (draft) return null;
     if (buildSelectedRoleIds().length === 0) return 'Select at least one role';
     if (!accessLevel) return 'Select an access level';
@@ -496,7 +639,7 @@ const AddStaffMember: React.FC = () => {
   const handleSubmit = async (draft: boolean) => {
     const validationError = validateForSubmit(draft);
     if (validationError) {
-      toast.error(validationError);
+      toast.error(validationError, { id: 'staff-submit-error' });
       return;
     }
 
@@ -528,16 +671,26 @@ const AddStaffMember: React.FC = () => {
           lastName: profile.lastName.trim(),
           email: profile.email.trim(),
           loginEmail: (loginEmail || profile.email).trim(),
-          phone: profile.phone.trim(),
+          phone: normalizedPhone,
           dateOfBirth: blankToNull(profile.dob),
           gender: blankToNull(profile.gender),
           userType: buildSelectedRoleIds(),
-          // Fall back to the member's own Assigned Centres selection (never the EDITING
-          // admin's facility) on the rare chance the loaded record had no facilityCode.
-          facilityCode: requiresCountry ? null : editFacilityCode || assignedCentres[0] || null,
+          // assignedCentres (live, editable in this form) must win over
+          // editFacilityCode (a one-time snapshot of the record's ORIGINAL
+          // facilityCode, taken when the edit form loaded and never updated
+          // again) — editFacilityCode going first meant changing a staff
+          // member's Assigned Centres never actually moved their facilityCode:
+          // the stale original value always took priority since it's set the
+          // moment the form opens. editFacilityCode now only matters as a
+          // last-resort fallback for the rare case assignedCentres is empty.
+          facilityCode: requiresCountry ? null : assignedCentres[0] || editFacilityCode || null,
           countryCode: requiresCountry ? countryCode : null,
           // Per-module overrides from the grid (only when the feature is active).
           ...(customPermission ? { custompermission: customPermission } : {}),
+          // Coach code + profile — only sent while 'coach' is selected; omitted
+          // entirely otherwise so an existing one is left untouched.
+          ...(buildCoachProfilePayload() ? { coachProfile: buildCoachProfilePayload() } : {}),
+          ...(coachPhotoImage ? { coachProfileImageUrl: coachPhotoImage } : {}),
           status: editStatus,
           staffProfile: {
             employmentType: profile.employmentType,
@@ -605,6 +758,10 @@ const AddStaffMember: React.FC = () => {
         countryCode: requiresCountry ? countryCode : null,
         // Per-module overrides from the grid (only when the feature is active).
         ...(customPermission ? { custompermission: customPermission } : {}),
+        // Coach profile — only sent while 'coach' is selected; `code` is left
+        // unset so the backend auto-generates the next free one.
+        ...(buildCoachProfilePayload() ? { coachProfile: buildCoachProfilePayload() } : {}),
+        ...(coachPhotoImage ? { coachProfileImageUrl: coachPhotoImage } : {}),
         draftMode: draft,
         sendWelcomeEmail: draft ? false : sendWelcomeEmail,
       })
@@ -633,6 +790,13 @@ const AddStaffMember: React.FC = () => {
         toast('Staff member created, but welcome email failed to send. You can resend from the staff profile.', {
           icon: '⚠️',
         });
+      } else if (!sendWelcomeEmail) {
+        // "Send welcome email" was deliberately unticked — explicit here rather
+        // than a plain success toast, so unchecking it is never a silent no-op
+        // the admin only discovers later when the new hire says they got nothing.
+        toast('Staff member created. No welcome email was sent — share login details manually, or resend later.', {
+          icon: 'ℹ️',
+        });
       } else {
         toast.success('Staff member created');
       }
@@ -650,6 +814,22 @@ const AddStaffMember: React.FC = () => {
   };
 
   const handleNext = () => {
+    // In edit mode, `profile` still holds its blank initial state until
+    // getStaffDetails resolves and the prefill effect runs -- a click on
+    // Next/a step pill landing in that window (the "Loading staff
+    // details..." banner is shown, but nothing actually blocks the rest of
+    // the form/validation from being interacted with) used to validate
+    // against that blank state and show "every field required" for a
+    // person who already has all their details filled in. Block the step
+    // change outright while loading, instead of validating prematurely.
+    if (isEditMode && isDetailsLoading) return;
+    if (activeStep === 'profile' && !isProfileValid) {
+      setShowProfileErrors(true);
+      toast.error('Fill in every required field (First Name, Last Name, Email, Date of Birth) to continue', {
+        id: 'staff-profile-step-error',
+      });
+      return;
+    }
     const next = STEPS[activeIndex + 1];
     if (next) setActiveStep(next.key);
   };
@@ -657,6 +837,20 @@ const AddStaffMember: React.FC = () => {
   const handleBack = () => {
     const prev = STEPS[activeIndex - 1];
     if (prev) setActiveStep(prev.key);
+  };
+
+  // Clicking a step pill jumps anywhere, unguarded — except off an invalid
+  // Profile step, which gets the same block as the Next button above.
+  const handleStepSelect = (key: StepKey) => {
+    if (isEditMode && isDetailsLoading) return;
+    if (activeStep === 'profile' && key !== 'profile' && !isProfileValid) {
+      setShowProfileErrors(true);
+      toast.error('Fill in every required field (First Name, Last Name, Email, Date of Birth) to continue', {
+        id: 'staff-profile-step-error',
+      });
+      return;
+    }
+    setActiveStep(key);
   };
 
   const nextStepLabel = STEPS[activeIndex + 1]?.key === 'account' ? 'Account Setup' : STEPS[activeIndex + 1]?.label;
@@ -699,7 +893,7 @@ const AddStaffMember: React.FC = () => {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        <StepIndicator activeKey={activeStep} steps={STEPS} onSelect={setActiveStep} />
+        <StepIndicator activeKey={activeStep} steps={STEPS} onSelect={handleStepSelect} />
 
         <div className="px-6 py-5">
           {activeStep === 'profile' && (
@@ -711,6 +905,7 @@ const AddStaffMember: React.FC = () => {
               profile={profile}
               profileImage={profileImage}
               qualifications={qualifications}
+              showErrors={showProfileErrors}
               onChange={updateProfile}
               onPhotoRemove={() => setProfileImage('')}
               onPhotoSelect={handleProfileImageSelect}
@@ -725,10 +920,15 @@ const AddStaffMember: React.FC = () => {
               assignedCentres={assignedCentres}
               centres={centres}
               centresLoading={centresLoading}
+              coachCode={existingCoachCode}
+              coachPhotoImage={coachPhotoImage}
+              coachProfile={coachProfile}
               configError={configError}
               countryCode={countryCode}
               creatingAccessLevel={creatingAccessLevel}
               creatingRole={creatingRole}
+              existingCoachPhotoUrl={existingCoachPhotoUrl}
+              isCoachSelected={isCoachSelected}
               isConfigLoading={isConfigLoading}
               modulePermissionDefaults={defaultsGrid}
               modulePermissionError={modulePermError}
@@ -740,11 +940,14 @@ const AddStaffMember: React.FC = () => {
               showAssignedCentres={requiresAssignedCentres}
               showCountry={requiresCountry}
               onChangeCentres={setAssignedCentres}
+              onChangeCoachProfile={setCoachProfile}
               onChangeCountry={setCountryCode}
               onChangeModulePermissions={onChangeModulePermissions}
               onCreateAccessLevel={handleCreateAccessLevel}
               onCreateRole={handleCreateRole}
+              onRemoveCoachPhoto={() => setCoachPhotoImage('')}
               onSelectAccessLevel={setAccessLevel}
+              onSelectCoachPhoto={handleCoachPhotoSelect}
               onToggleRole={toggleRole}
             />
           )}
@@ -792,6 +995,7 @@ const AddStaffMember: React.FC = () => {
           isLastStep={activeIndex === STEPS.length - 1}
           isSubmitting={isSubmitting}
           nextStepLabel={nextStepLabel}
+          willSendWelcomeEmail={sendWelcomeEmail}
           onBack={handleBack}
           onCancel={goBack}
           onNext={handleNext}

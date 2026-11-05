@@ -9,6 +9,7 @@ import { logout as logoutAction } from '../store/auth/reducers';
 import { persistor, RootState } from '../store/store';
 import { facilityScope } from '../utils/facilityScope';
 
+import NotificationsLogModal from './NotificationsLogModal';
 import Sidebar from './Sidebar';
 
 interface LayoutProps {
@@ -24,6 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isNotificationsLogOpen, setIsNotificationsLogOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -81,7 +83,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex min-h-screen">
         <Sidebar isOpen={isSidebarOpen || isDesktop} onClose={() => setIsSidebarOpen(false)} />
         <div className="flex h-screen w-full flex-col overflow-hidden lg:ml-64">
-          <header className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-[#21295A] bg-[#21295A] px-4 sm:px-6 lg:px-8">
+          <header
+            className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-[#21295A] px-4 sm:px-6 lg:px-8"
+            style={{ backgroundImage: 'linear-gradient(-79.8deg, #5FACFF 0%, #324B9C 108.02%)' }}
+          >
             {/* Mobile Menu Button */}
             <button
               aria-label="Open sidebar"
@@ -100,12 +105,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </button>
 
             <div className="flex-1"></div>
+            {/* NE-1: central notifications log — a bell icon here rather than its
+                own sidebar entry, per request (see NotificationsLogModal). */}
+            <button
+              aria-label="Notifications log"
+              className="mr-3 rounded-xl border border-white/20 p-2.5 text-white/80 transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:text-white"
+              title="Notifications log"
+              onClick={() => setIsNotificationsLogOpen(true)}
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+              </svg>
+            </button>
             <div ref={profileMenuRef} className="relative">
               <button
                 className="flex items-center gap-3 rounded-xl border border-white/20 px-4 py-2.5 transition-all duration-200 hover:border-white/40 hover:bg-white/10"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-md ring-2 ring-white/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(255,255,255,0.33)] bg-[rgba(255,255,255,0.13)] text-[18px] font-semibold text-white">
                   {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'U'}
                 </div>
                 <div className="hidden flex-col items-start sm:flex">
@@ -159,6 +182,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </main>
         </div>
       </div>
+      <NotificationsLogModal isOpen={isNotificationsLogOpen} onClose={() => setIsNotificationsLogOpen(false)} />
     </CentreNavProvider>
   );
 };

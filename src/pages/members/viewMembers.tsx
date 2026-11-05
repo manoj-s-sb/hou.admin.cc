@@ -22,13 +22,21 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import LoaderComponent from '../../components/Loader';
 import SectionTitle from '../../components/SectionTitle';
+import CreditWalletModal from '../../components/wallet/CreditWalletModal';
 import countries from '../../constants/countries.json';
+import endpoints from '../../constants/endpoints';
 import { getRelationshipLabel } from '../../constants/relationship';
 import { buildRoute, ROUTES } from '../../constants/routes';
 import { getFacilityCode } from '../../constants/user';
+import { ACCESS_SCOPES, canWrite } from '../../rbac';
+import api from '../../services';
 import { getSingleMemberDetails } from '../../store/members/api';
 import { MemberDetailsResponse } from '../../store/members/types';
 import { AppDispatch, RootState } from '../../store/store';
+import { WalletTransactionListResponse } from '../../store/wallet/types';
+
+import AdminNotesSection from './components/AdminNotesSection';
+import SendEmailSection from './components/SendEmailSection';
 
 interface HealthDeclarationItem {
   id: string;
@@ -37,8 +45,8 @@ interface HealthDeclarationItem {
 }
 
 const SUBSCRIPTION_STATUS_META: Record<string, { label: string; cls: string }> = {
-  active: { label: 'Active', cls: 'bg-green-100 text-green-700' },
-  resumed: { label: 'Resumed', cls: 'bg-green-100 text-green-700' },
+  active: { label: 'Active', cls: 'bg-[rgba(59,143,62,0.15)] text-[#3b8f3e]' },
+  resumed: { label: 'Resumed', cls: 'bg-[rgba(59,143,62,0.15)] text-[#3b8f3e]' },
   pendingactivation: { label: 'Pending Activation', cls: 'bg-amber-100 text-amber-700' },
   paused: { label: 'Paused', cls: 'bg-orange-100 text-orange-700' },
   past_due: { label: 'Past Due', cls: 'bg-red-100 text-red-700' },
@@ -48,6 +56,40 @@ const SUBSCRIPTION_STATUS_META: Record<string, { label: string; cls: string }> =
 
 const subscriptionStatusMeta = (status?: string): { label: string; cls: string } =>
   SUBSCRIPTION_STATUS_META[(status || '').toLowerCase()] || { label: 'Inactive', cls: 'bg-gray-100 text-gray-600' };
+
+/** Collapsed-by-default section card — click the header to expand, same
+ * accordion pattern (chevron + max-height transition) already used by the
+ * Slot Usage & Cycle Details / Additional Members lists further down this
+ * page, just for a single section instead of a list of rows. */
+const CollapsibleCard: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}> = ({ icon, title, children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <button
+        className="flex w-full items-center justify-between bg-white px-4 py-2 text-left transition-colors hover:bg-gray-50 sm:px-6 sm:py-3"
+        type="button"
+        onClick={() => setIsOpen(v => !v)}
+      >
+        <div className="flex items-center">
+          {icon}
+          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        </div>
+        {isOpen ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+      </button>
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isOpen ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="border-t border-gray-200 px-4 py-3 sm:px-6 sm:py-4">{children}</div>
+      </div>
+    </div>
+  );
+};
 
 const ViewMembers = () => {
   const { memberDetails, isLoading } = useSelector((state: RootState) => state.members) as {
@@ -70,8 +112,42 @@ const ViewMembers = () => {
   const [expandedCycles, setExpandedCycles] = useState<number[]>([]);
   const [showAllCycles, setShowAllCycles] = useState(false);
   const [expandedMembers, setExpandedMembers] = useState<string[]>([]);
+  // No dedicated "get balance" endpoint exists — derived from this member's
+  // most recent wallet transaction (the list endpoint's newest-first row's
+  // `balanceAfter`). null while unresolved, 0 once confirmed no wallet yet.
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [isWalletLoading, setIsWalletLoading] = useState(false);
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+  // Gated on the Wallet module's own edit permission, not Members-edit or
+  // superadmin — crediting is a real financial action (adds money without
+  // taking any in), so it's granted independently of who can edit a member's
+  // profile. Must match the backend's own check (wallets/api/wallet_routes.py).
+  const canCreditWallet = canWrite(ACCESS_SCOPES.walletTransactions);
+  // A member who hasn't completed activation yet (no confirmed subscription)
+  // shouldn't be credited — there's nothing active for the credit to apply to.
+  const isPendingActivation = memberDetails?.subscription?.subscriptionStatus === 'pendingactivation';
 
   const { userId } = useParams();
+
+  const refreshWalletBalance = () => {
+    if (!userId) return;
+    setIsWalletLoading(true);
+    // Called directly (not via the `wallet` Redux slice's listWalletTransactions
+    // thunk) — that slice is shared with the Wallet Transactions list page, and
+    // this lookup's limit:1 would overwrite its pagination state if dispatched.
+    // No facilityCode here on purpose: userId alone already scopes this to
+    // exactly one member, and combining it with a facilityCode ANDs both
+    // conditions server-side — if backFacilityCode ever mismatched this
+    // member's actual centre, the balance would silently come back empty.
+    api
+      .post(endpoints.wallets.transactionsList, { userId, page: 1, limit: 1 })
+      .then(res => {
+        const response: WalletTransactionListResponse = res.data?.data;
+        setWalletBalance(response.transactions[0]?.balanceAfter ?? 0);
+      })
+      .catch(() => setWalletBalance(null))
+      .finally(() => setIsWalletLoading(false));
+  };
 
   const getCountryDialCode = (countryCode: string | undefined) => {
     if (!countryCode) return '';
@@ -107,6 +183,11 @@ const ViewMembers = () => {
   useEffect(() => {
     dispatch(getSingleMemberDetails({ userId: userId as string }));
   }, [dispatch, userId]);
+
+  useEffect(() => {
+    refreshWalletBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) {
@@ -169,15 +250,18 @@ const ViewMembers = () => {
 
         {/* Unified Content Layout */}
         <div className="space-y-3 sm:space-y-4">
-          {/* Member Header Card */}
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 px-4 py-6 sm:px-6 sm:py-8">
+          {/* Member Header Card — identity + wallet balance/action, one banner */}
+          <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+            <div
+              className="px-4 py-6 sm:px-6 sm:py-8"
+              style={{ backgroundImage: 'linear-gradient(159.87deg, #212A5A 5.25%, #3B4FA0 97.01%)' }}
+            >
               <div className="flex flex-col items-center sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="relative">
                     {memberDetails.profileImageUrl ? (
                       <button
-                        className="h-20 w-20 cursor-pointer overflow-hidden rounded-full border-4 border-white bg-transparent object-cover p-0 shadow-xl transition-transform hover:scale-105 sm:h-24 sm:w-24"
+                        className="h-20 w-20 cursor-pointer overflow-hidden rounded-[24px] border border-[#cbcbcb] bg-white object-cover p-0 shadow-xl transition-transform hover:scale-105 sm:h-24 sm:w-24"
                         type="button"
                         onClick={() => setIsImageModalOpen(true)}
                       >
@@ -188,12 +272,12 @@ const ViewMembers = () => {
                         />
                       </button>
                     ) : (
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-gray-100 to-gray-200 shadow-xl sm:h-24 sm:w-24">
-                        <User className="h-12 w-12 text-gray-400 sm:h-14 sm:w-14" />
+                      <div className="flex h-20 w-20 items-center justify-center rounded-[24px] border border-[#cbcbcb] bg-white shadow-xl sm:h-24 sm:w-24">
+                        <User className="h-12 w-12 text-[#336DC2] sm:h-14 sm:w-14" />
                       </div>
                     )}
                     {memberDetails.isActivePlayer && (
-                      <div className="absolute -bottom-1 -right-1 rounded-full border-4 border-white bg-green-500 p-1.5 shadow-lg">
+                      <div className="absolute -bottom-px -right-1 flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-white bg-[#3b8f3e] shadow-lg">
                         <CheckCircle className="h-4 w-4 text-white" />
                       </div>
                     )}
@@ -214,76 +298,81 @@ const ViewMembers = () => {
                     </div>
                   </div>
                 </div>
-                {/* <div className="mt-4 flex gap-3 sm:mt-0">
-                  <button className="group flex items-center justify-center rounded-lg bg-white/20 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-all duration-200 hover:bg-white/30">
-                    <Ban className="mr-2 h-4 w-4 transition-transform group-hover:rotate-12" />
-                    Block Facility
+                <div className="mt-4 flex flex-col items-center gap-3 sm:mt-0 sm:items-end">
+                  <div className="text-center sm:text-right">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-white">Wallet Balance</p>
+                    <p className="text-2xl font-semibold text-[#FEC13F]">
+                      {isWalletLoading || walletBalance === null ? '—' : `$${walletBalance.toFixed(2)}`}
+                    </p>
+                  </div>
+                  <button
+                    className="rounded-xl border border-[#21295A] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#21295A] shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={!canCreditWallet || isPendingActivation}
+                    title={
+                      isPendingActivation
+                        ? "This member's subscription is still Pending Activation — wallet credit is available once it's active."
+                        : canCreditWallet
+                          ? undefined
+                          : "You don't have permission to credit a wallet."
+                    }
+                    type="button"
+                    onClick={() => canCreditWallet && !isPendingActivation && setIsCreditModalOpen(true)}
+                  >
+                    + Add Wallet
                   </button>
-                  <button className="group flex items-center justify-center rounded-lg bg-white/20 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-all duration-200 hover:bg-white/30">
-                    <XCircle className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
-                    Block Lane
-                  </button>
-                </div> */}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Subscription Details Card */}
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-              <div className="flex items-center">
-                <CreditCard className="mr-2 h-5 w-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Subscription Details</h2>
+          <CollapsibleCard icon={<CreditCard className="mr-2 h-5 w-5 text-blue-600" />} title="Subscription Details">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Status</p>
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).cls}`}
+                >
+                  {subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).label}
+                </span>
+              </div>
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Subscription Code</p>
+                <p className="text-base font-semibold capitalize text-[#202020]">
+                  {memberDetails.subscription.subscriptionCode}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Billing Cycle</p>
+                <p className="text-base font-semibold capitalize text-[#202020]">
+                  {memberDetails.subscription.billingCycle}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Current Period Start</p>
+                <p className="text-base font-semibold text-[#202020]">
+                  {formatDate(memberDetails.subscription.currentPeriodStart)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Current Period End</p>
+                <p className="text-base font-semibold text-[#202020]">
+                  {formatDate(memberDetails.subscription.currentPeriodEnd)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#cbcbcb] bg-[rgba(203,203,203,0.2)] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Next Billing Date</p>
+                <p className="text-base font-semibold text-[#202020]">
+                  {formatDate(memberDetails.subscription.currentPeriodEnd)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#3b8f3e] bg-[#ebf4eb] p-3">
+                <p className="mb-1.5 text-xs font-medium uppercase text-[#6e6e6e]">Pricing</p>
+                <p className="text-base font-semibold text-[#3b8f3e]">$ {memberDetails.pricing.totalPrice} USD</p>
+                <p className="mt-1 text-xs text-[#6e6e6e]">{memberDetails.subscription.billingCycle}</p>
               </div>
             </div>
-            <div className="px-4 py-3 sm:px-6 sm:py-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Status</p>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).cls}`}
-                  >
-                    {subscriptionStatusMeta(memberDetails.subscription.subscriptionStatus).label}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Subscription Code</p>
-                  <p className="text-base font-semibold capitalize text-gray-900">
-                    {memberDetails.subscription.subscriptionCode}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Billing Cycle</p>
-                  <p className="text-base font-semibold capitalize text-gray-900">
-                    {memberDetails.subscription.billingCycle}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period Start</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {formatDate(memberDetails.subscription.currentPeriodStart)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Period End</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {formatDate(memberDetails.subscription.currentPeriodEnd)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Next Billing Date</p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {formatDate(memberDetails.subscription.currentPeriodEnd)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Pricing</p>
-                  <p className="text-base font-semibold text-green-600">$ {memberDetails.pricing.totalPrice} USD</p>
-                  <p className="mt-1 text-xs text-gray-500">{memberDetails.subscription.billingCycle}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          </CollapsibleCard>
 
           {/* Slot Usage & Cycle Details - Accordion Style */}
           {memberDetails.slotUsageTable?.cycles &&
@@ -303,6 +392,9 @@ const ViewMembers = () => {
                 (sum: number, c) => sum + (c.purchasedSlotCount ?? 0),
                 0
               );
+              // The backend returns cycles oldest-first; show newest (current/active) first instead,
+              // so it's visible without needing "Show More" — older cycles trail off below it.
+              const orderedCycles = [...memberDetails.slotUsageTable.cycles].reverse();
 
               return (
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -323,10 +415,7 @@ const ViewMembers = () => {
 
                   <div className="px-4 py-3 sm:px-6 sm:py-4">
                     <div className="space-y-2">
-                      {(showAllCycles
-                        ? memberDetails.slotUsageTable.cycles
-                        : memberDetails.slotUsageTable.cycles.slice(0, 5)
-                      ).map((cycle, index: number) => {
+                      {(showAllCycles ? orderedCycles : orderedCycles.slice(0, 5)).map((cycle, index: number) => {
                         const isExpanded = expandedCycles.includes(cycle.cycleNumber);
                         const meta = statusMeta[cycle.status] ?? {
                           label: cycle.status,
@@ -468,20 +557,16 @@ const ViewMembers = () => {
 
                     {/* Summary totals */}
                     {summary && (
-                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 sm:grid-cols-4">
+                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-[#336dc2] bg-[rgba(51,109,194,0.15)] px-4 py-3 sm:grid-cols-4">
                         {[
-                          { label: 'Total New Slots', value: summary.totalNewSlots, color: 'text-blue-600' },
-                          { label: 'Total Used', value: summary.totalUsed, color: 'text-orange-600' },
-                          { label: 'Current Unused', value: summary.currentUnused, color: 'text-teal-600' },
-                          {
-                            label: 'Total Purchased',
-                            value: totalPurchasedFromCycles,
-                            color: 'text-violet-600',
-                          },
+                          { label: 'Total New Slots', value: summary.totalNewSlots },
+                          { label: 'Total Used', value: summary.totalUsed },
+                          { label: 'Current Unused', value: summary.currentUnused },
+                          { label: 'Total Purchased', value: totalPurchasedFromCycles },
                         ].map(s => (
                           <div key={s.label} className="text-center">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{s.label}</p>
-                            <p className={`text-[18px] font-bold ${s.color}`}>{s.value}</p>
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-[#6e6e6e]">{s.label}</p>
+                            <p className="text-[18px] font-bold text-[#21295a]">{s.value}</p>
                           </div>
                         ))}
                       </div>
@@ -493,240 +578,220 @@ const ViewMembers = () => {
 
           {/* Player Profile Section */}
           {memberDetails.playerProfile && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-                <div className="flex items-center">
-                  <User className="mr-2 h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Player Profile</h2>
+            <CollapsibleCard icon={<User className="mr-2 h-5 w-5 text-blue-600" />} title="Player Profile">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Status</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.playerStatus || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Experience Level</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.experienceLevel || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.battingHand || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.batsmanType || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Hand</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.bowlingHand || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Role</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.bowlerRole || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Type</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.bowlerType || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 sm:col-span-2">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Cricketing Goal</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.playerProfile.cricketingGoal || 'N/A'}
+                  </p>
                 </div>
               </div>
-              <div className="px-4 py-3 sm:px-6 sm:py-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Player Status</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.playerStatus || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Experience Level</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.experienceLevel || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batting Hand</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.battingHand || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Batsman Type</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.batsmanType || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowling Hand</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.bowlingHand || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Role</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.bowlerRole || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Bowler Type</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.bowlerType || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 sm:col-span-2">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Cricketing Goal</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.playerProfile.cricketingGoal || 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </CollapsibleCard>
           )}
 
           {/* Personal & Health Profile Section */}
           {memberDetails.userProfile && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-                <div className="flex items-center">
-                  <Shield className="mr-2 h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Personal & Health Profile</h2>
+            <CollapsibleCard icon={<Shield className="mr-2 h-5 w-5 text-blue-600" />} title="Personal & Health Profile">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Gender</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.userProfile.gender || 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Phone</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {(() => {
+                      const { countryCode } = memberDetails;
+                      const dialCode = getCountryDialCode(countryCode);
+                      const { phone } = memberDetails.userProfile;
+
+                      if (!dialCode && !phone) {
+                        return 'N/A';
+                      }
+
+                      const formatted = `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim();
+                      return formatted || 'N/A';
+                    })()}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {memberDetails.userProfile.dateOfBirth ? formatDate(memberDetails.userProfile.dateOfBirth) : 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Height</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {memberDetails.userProfile.height?.value
+                      ? `${memberDetails.userProfile.height.value} ${memberDetails.userProfile.height.unit || ''}`
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Weight</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {memberDetails.userProfile.weight?.value
+                      ? `${memberDetails.userProfile.weight.value} ${memberDetails.userProfile.weight.unit || ''}`
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Units of Measure</p>
+                  <p className="text-base font-semibold capitalize text-gray-900">
+                    {memberDetails.userProfile.unitsOfMeasure || 'N/A'}
+                  </p>
                 </div>
               </div>
-              <div className="px-4 py-3 sm:px-6 sm:py-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Gender</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.userProfile.gender || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Phone</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {(() => {
-                        const { countryCode } = memberDetails;
-                        const dialCode = getCountryDialCode(countryCode);
-                        const { phone } = memberDetails.userProfile;
 
-                        if (!dialCode && !phone) {
-                          return 'N/A';
-                        }
-
-                        const formatted = `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim();
-                        return formatted || 'N/A';
-                      })()}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Date of Birth</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {memberDetails.userProfile.dateOfBirth
-                        ? formatDate(memberDetails.userProfile.dateOfBirth)
-                        : 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Height</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {memberDetails.userProfile.height?.value
-                        ? `${memberDetails.userProfile.height.value} ${memberDetails.userProfile.height.unit || ''}`
-                        : 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Weight</p>
-                    <p className="text-base font-semibold text-gray-900">
-                      {memberDetails.userProfile.weight?.value
-                        ? `${memberDetails.userProfile.weight.value} ${memberDetails.userProfile.weight.unit || ''}`
-                        : 'N/A'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Units of Measure</p>
-                    <p className="text-base font-semibold capitalize text-gray-900">
-                      {memberDetails.userProfile.unitsOfMeasure || 'N/A'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Health Declaration */}
-                {memberDetails.userProfile.healthDeclaration && (
-                  <div className="mt-4 border-t border-gray-200 pt-4">
-                    <h3 className="mb-3 text-sm font-semibold uppercase text-gray-700">Health Declaration</h3>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Conditions</p>
-                        <p className="text-base font-semibold capitalize text-gray-900">
-                          {getHealthDeclarationValue('healthConditions')}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Condition Details</p>
-                        <p className="text-base font-semibold text-gray-900">
-                          {(() => {
-                            const value = getHealthDeclarationValue('healthConditionDetails');
-                            if (!value || value === 'N/A') return 'N/A';
-                            if (Array.isArray(value)) return value.join(', ');
-                            return value;
-                          })()}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Doctor Advice</p>
-                        <p className="text-base font-semibold capitalize text-gray-900">
-                          {getHealthDeclarationValue('doctorAdvice')}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Injuries</p>
-                        <p className="text-base font-semibold capitalize text-gray-900">
-                          {getHealthDeclarationValue('currentInjuries')}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Injury Details</p>
-                        <p className="text-base font-semibold text-gray-900">
-                          {getHealthDeclarationValue('injuryDetails') || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Allergies</p>
-                        <p className="text-base font-semibold capitalize text-gray-900">
-                          {getHealthDeclarationValue('allergies')}
-                        </p>
-                      </div>
+              {/* Health Declaration */}
+              {memberDetails.userProfile.healthDeclaration && (
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                  <h3 className="mb-3 text-sm font-semibold uppercase text-gray-700">Health Declaration</h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Conditions</p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {getHealthDeclarationValue('healthConditions')}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Health Condition Details</p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {(() => {
+                          const value = getHealthDeclarationValue('healthConditionDetails');
+                          if (!value || value === 'N/A') return 'N/A';
+                          if (Array.isArray(value)) return value.join(', ');
+                          return value;
+                        })()}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Doctor Advice</p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {getHealthDeclarationValue('doctorAdvice')}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Current Injuries</p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {getHealthDeclarationValue('currentInjuries')}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Injury Details</p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {getHealthDeclarationValue('injuryDetails') || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">Allergies</p>
+                      <p className="text-base font-semibold capitalize text-gray-900">
+                        {getHealthDeclarationValue('allergies')}
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              )}
+            </CollapsibleCard>
           )}
 
           {/* Emergency Details Section */}
           {memberDetails.emergencyContacts && memberDetails.emergencyContacts.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
-                <div className="flex items-center">
-                  <Phone className="mr-2 h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Emergency Details</h2>
-                </div>
+            <CollapsibleCard icon={<Phone className="mr-2 h-5 w-5 text-blue-600" />} title="Emergency Details">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {memberDetails.emergencyContacts.flatMap((contact, index: number) => [
+                  <div key={`${index}-name`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                      {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Name` : 'Name'}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {contact.firstName && contact.lastName
+                        ? `${contact.firstName} ${contact.lastName}`
+                        : contact.firstName || contact.lastName || 'N/A'}
+                    </p>
+                  </div>,
+                  <div key={`${index}-relationship`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                      {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Relationship` : 'Relationship'}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {getRelationshipLabel(contact.relationship)}
+                    </p>
+                  </div>,
+                  <div key={`${index}-phone`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                      {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Phone` : 'Phone'}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {(() => {
+                        const { countryCode, phone } = contact || {};
+                        const dialCode = getCountryDialCode(countryCode);
+                        return `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim() || 'N/A';
+                      })()}
+                    </p>
+                  </div>,
+                  <div key={`${index}-email`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
+                      {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Email` : 'Email'}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900">{contact.email || 'N/A'}</p>
+                  </div>,
+                ])}
               </div>
-              <div className="px-4 py-3 sm:px-6 sm:py-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {memberDetails.emergencyContacts.flatMap((contact, index: number) => [
-                    <div key={`${index}-name`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Name` : 'Name'}
-                      </p>
-                      <p className="text-base font-semibold text-gray-900">
-                        {contact.firstName && contact.lastName
-                          ? `${contact.firstName} ${contact.lastName}`
-                          : contact.firstName || contact.lastName || 'N/A'}
-                      </p>
-                    </div>,
-                    <div key={`${index}-relationship`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Relationship` : 'Relationship'}
-                      </p>
-                      <p className="text-base font-semibold text-gray-900">
-                        {getRelationshipLabel(contact.relationship)}
-                      </p>
-                    </div>,
-                    <div key={`${index}-phone`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Phone` : 'Phone'}
-                      </p>
-                      <p className="text-base font-semibold text-gray-900">
-                        {(() => {
-                          const { countryCode, phone } = contact || {};
-                          const dialCode = getCountryDialCode(countryCode);
-                          return `${dialCode && phone ? `${dialCode} ` : ''}${phone || ''}`.trim() || 'N/A';
-                        })()}
-                      </p>
-                    </div>,
-                    <div key={`${index}-email`} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-1.5 text-xs font-medium uppercase text-gray-500">
-                        {memberDetails.emergencyContacts.length > 1 ? `C${index + 1} Email` : 'Email'}
-                      </p>
-                      <p className="text-base font-semibold text-gray-900">{contact.email || 'N/A'}</p>
-                    </div>,
-                  ])}
-                </div>
-              </div>
-            </div>
+            </CollapsibleCard>
           )}
+
+          {/* Send Email Section */}
+          <SendEmailSection memberEmail={memberDetails.email} userId={memberDetails.userId} />
+
+          {/* Admin Notes Section */}
+          <AdminNotesSection userId={memberDetails.userId} />
 
           {/* Additional Members Section */}
           {memberDetails.members && memberDetails.members.length > 0 && (
@@ -1065,6 +1130,17 @@ const ViewMembers = () => {
           </div>
         </div>
       )}
+
+      <CreditWalletModal
+        isOpen={isCreditModalOpen}
+        presetMember={{
+          userId: memberDetails.userId,
+          name: `${memberDetails.firstName} ${memberDetails.lastName}`.trim(),
+          email: memberDetails.email,
+        }}
+        onClose={() => setIsCreditModalOpen(false)}
+        onCredited={refreshWalletBalance}
+      />
     </div>
   );
 };

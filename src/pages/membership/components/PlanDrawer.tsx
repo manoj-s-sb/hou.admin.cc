@@ -3,8 +3,10 @@ import React, { useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
+import NumberInput from '../../../components/NumberInput';
 import { createMembership, updateMembership } from '../../../store/memberships/api';
 import { AppDispatch } from '../../../store/store';
+import { ELIGIBILITY_TAG_OPTIONS, labelForTag } from '../../centres/constants';
 
 import type { AccessType, MembershipPlan } from '../../../store/memberships/types';
 
@@ -15,6 +17,25 @@ interface Props {
   onSaved: (plan: MembershipPlan) => void;
 }
 
+/**
+ * The in-progress form only — fields with a "0 = …" meaning start genuinely
+ * blank instead of pre-filled with 0 (previously indistinguishable from a
+ * deliberately-typed 0). Coerced back to real numbers in `handleSave` before
+ * the rest of the app (API payload, the Redux list, etc.) ever sees this plan,
+ * so `MembershipPlan` itself stays plain `number` everywhere else.
+ */
+type DraftPlan = Omit<
+  MembershipPlan,
+  'fortnightlyPrice' | 'annualPrice' | 'slotsPerCycle' | 'carryover' | 'carryCap' | 'memberCap'
+> & {
+  fortnightlyPrice: number | null;
+  annualPrice: number | null;
+  slotsPerCycle: number | null;
+  carryover: number | null;
+  carryCap: number | null;
+  memberCap: number | null;
+};
+
 const ACCESS_LABELS: Record<AccessType, string> = {
   '24/7': '24/7',
   offpeak: '9am–3pm Mon–Fri & 11pm–6am Mon–Sun',
@@ -22,28 +43,45 @@ const ACCESS_LABELS: Record<AccessType, string> = {
   custom: 'Custom hours',
 };
 
-const blankPlan: MembershipPlan = {
+/**
+ * Split a saved custom-hours string ("HH:MM–HH:MM") back into its two ends so
+ * editing an existing custom plan preserves its real hours instead of silently
+ * resetting them to the 9-to-9 defaults. Falls back for non-custom or
+ * unparseable plans. Kept in sync with the join format in `handleSave` (en-dash).
+ */
+const CUSTOM_HOURS_DEFAULT = { start: '09:00', end: '21:00' };
+const parseCustomHours = (plan: MembershipPlan | null): { start: string; end: string } => {
+  if (plan?.accessType === 'custom' && plan.accessHours?.includes('–')) {
+    const [start, end] = plan.accessHours.split('–').map(s => s.trim());
+    if (start && end) return { start, end };
+  }
+  return CUSTOM_HOURS_DEFAULT;
+};
+
+const blankPlan: DraftPlan = {
   id: '',
   name: '',
   code: '',
   description: '',
   colour: '#21295A',
-  fortnightlyPrice: 0,
-  annualPrice: 0,
+  fortnightlyPrice: null,
+  offersAnnual: true,
+  annualPrice: null,
+  currency: 'USD',
   accessType: '24/7',
   accessHours: '24/7',
   peakAccess: true,
-  slotsPerCycle: 0,
+  slotsPerCycle: null,
   dailyBookingLimit: 1,
   maxFutureBookings: 2,
-  carryover: 0,
-  carryCap: 0,
+  carryover: null,
+  carryCap: null,
   advanceWindowDays: 7,
   extraSessionEnabled: true,
   extraSessionPrice: 30,
-  eligibility: { adult: true, junior: false, family: false },
+  eligibilityTags: ['adult'],
   additionalMemberFee: null,
-  memberCap: 0,
+  memberCap: null,
   centresActive: 0,
   regions: ['all'],
   status: 'active',
@@ -52,31 +90,66 @@ const blankPlan: MembershipPlan = {
 const FIELD =
   'w-full rounded-[7px] border border-cmx-border bg-white px-2.5 py-2 text-[13px] text-cmx-text outline-none focus:border-cmx-blue focus:shadow-[0_0_0_2px_rgba(37,99,235,0.1)] disabled:bg-gray-50 disabled:text-muted';
 
+// MP-5: lowercase, alphanumeric-and-hyphen only — the old `.toLowerCase().replace(/\s+/g, '-')`
+// only collapsed whitespace, so a code like "QA Audit!" produced the id "qa-audit!",
+// carrying the "!" straight into a value used as a Cosmos document id elsewhere.
+const sanitizeCode = (raw: string): string =>
+  raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
 const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const [form, setForm] = useState<MembershipPlan>(plan ?? blankPlan);
-  const [customStart, setCustomStart] = useState('09:00');
-  const [customEnd, setCustomEnd] = useState('21:00');
+  const [form, setForm] = useState<DraftPlan>(plan ?? blankPlan);
+  const [customStart, setCustomStart] = useState(() => parseCustomHours(plan).start);
+  const [customEnd, setCustomEnd] = useState(() => parseCustomHours(plan).end);
   const [saving, setSaving] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
+  const [customTag, setCustomTag] = useState('');
 
-  const set = <K extends keyof MembershipPlan>(key: K, value: MembershipPlan[K]) =>
-    setForm(prev => ({ ...prev, [key]: value }));
+  const set = <K extends keyof DraftPlan>(key: K, value: DraftPlan[K]) => setForm(prev => ({ ...prev, [key]: value }));
 
-  const num = (v: string) => (v === '' ? 0 : Number(v));
+  const addCustomTag = () => {
+    const tag = sanitizeCode(customTag);
+    if (tag && !form.eligibilityTags.includes(tag)) set('eligibilityTags', [...form.eligibilityTags, tag]);
+    setCustomTag('');
+  };
 
-  const isValid = useMemo(() => form.name.trim() !== '' && form.code.trim() !== '', [form.name, form.code]);
+  // MP-8: a price is only required for annual billing when it's actually offered —
+  // the old behaviour silently saved $0 for a blank price instead of enforcing this.
+  const isValid = useMemo(
+    () => form.name.trim() !== '' && form.code.trim() !== '' && (!form.offersAnnual || (form.annualPrice ?? 0) > 0),
+    [form.name, form.code, form.offersAnnual, form.annualPrice]
+  );
 
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
     setCodeError(null);
     const accessHours = form.accessType === 'custom' ? `${customStart}–${customEnd}` : ACCESS_LABELS[form.accessType];
+    // MP-5: the code is locked once a plan exists — the backend already silently
+    // discards a changed `code` on update (it's in the immutable-fields list), so
+    // keep the ORIGINAL code/id here too rather than showing the admin a value
+    // that looks saved locally but was actually dropped server-side.
+    const code = mode === 'edit' && plan ? plan.code : sanitizeCode(form.code);
     const finalPlan: MembershipPlan = {
       ...form,
-      code: form.code.trim().toLowerCase(),
-      id: form.id || form.code.trim().toLowerCase().replace(/\s+/g, '-'),
+      code,
+      id: mode === 'edit' && plan ? plan.id : form.id || code,
       accessHours,
+      // Fields left blank (null) read as their "0 = …" meaning once saved —
+      // only the form itself shows them blank until the admin types a value.
+      fortnightlyPrice: form.fortnightlyPrice ?? 0,
+      // MP-8: force 0 when annual billing is off, regardless of any price left
+      // typed in the field before it was toggled off — offersAnnual is what the
+      // rest of the app checks, but this keeps the raw number harmless too.
+      annualPrice: form.offersAnnual ? (form.annualPrice ?? 0) : 0,
+      slotsPerCycle: form.slotsPerCycle ?? 0,
+      carryover: form.carryover ?? 0,
+      carryCap: form.carryCap ?? 0,
+      memberCap: form.memberCap ?? 0,
     };
 
     if (mode === 'create') {
@@ -94,7 +167,9 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           break;
         case 'validation':
           if (res.fields.some(f => f.toLowerCase().includes('code'))) setCodeError('Please check the plan code');
-          toast.error(res.fields.length ? `Please fix: ${res.fields.join(', ')}` : 'Please check the form fields');
+          toast.error(res.fields.length ? `Please fix: ${res.fields.join(', ')}` : 'Please check the form fields', {
+            id: 'plan-save-validation',
+          });
           break;
         case 'auth':
           toast.error('Permission denied — a superadmin session is required (or it has expired).');
@@ -199,8 +274,10 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Plan Code *</span>
               <input
                 className={FIELD}
+                disabled={mode === 'edit'}
                 placeholder="e.g. premium"
                 style={{ textTransform: 'lowercase', ...(codeError ? { borderColor: '#d42b2b' } : {}) }}
+                title={mode === 'edit' ? "A plan's code can't be changed once it's created" : undefined}
                 type="text"
                 value={form.code}
                 onChange={e => {
@@ -212,6 +289,8 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
                 <div className="mt-[3px] text-[11px] text-sub" style={{ color: '#d42b2b' }}>
                   {codeError}
                 </div>
+              ) : mode === 'edit' ? (
+                <div className="mt-[3px] text-[11px] text-sub">Locked after creation — used in system references.</div>
               ) : (
                 <div className="mt-[3px] text-[11px] text-sub">Used in system references. Lowercase, no spaces.</div>
               )}
@@ -242,26 +321,43 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Fortnightly Price (USD) *
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="e.g. 59.95"
                 step="0.01"
-                type="number"
-                value={form.fortnightlyPrice || ''}
-                onChange={e => set('fortnightlyPrice', num(e.target.value))}
+                value={form.fortnightlyPrice}
+                onValueChange={n => set('fortnightlyPrice', n)}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Annual Price (USD)</span>
-              <input
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+                  Annual Price (USD)
+                </span>
+                <label className="flex cursor-pointer select-none items-center gap-1.5 text-[11px] font-medium text-sub">
+                  <input
+                    checked={form.offersAnnual}
+                    className="h-3.5 w-3.5 rounded border-cmx-border"
+                    type="checkbox"
+                    onChange={e => {
+                      set('offersAnnual', e.target.checked);
+                      // MP-8: clearing the price when annual is switched off avoids
+                      // leaving a stale number sitting behind a disabled field.
+                      if (!e.target.checked) set('annualPrice', null);
+                    }}
+                  />
+                  Offer annual billing
+                </label>
+              </div>
+              <NumberInput
                 className={FIELD}
+                disabled={!form.offersAnnual}
                 min={0}
-                placeholder="e.g. 2493.92"
+                placeholder={form.offersAnnual ? 'e.g. 2493.92' : 'Not offered'}
                 step="0.01"
-                type="number"
-                value={form.annualPrice || ''}
-                onChange={e => set('annualPrice', num(e.target.value))}
+                value={form.annualPrice}
+                onValueChange={n => set('annualPrice', n)}
               />
             </div>
           </div>
@@ -317,13 +413,12 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Slots per Cycle *</span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="0 = unlimited"
-                type="number"
-                value={form.slotsPerCycle || ''}
-                onChange={e => set('slotsPerCycle', num(e.target.value))}
+                value={form.slotsPerCycle}
+                onValueChange={n => set('slotsPerCycle', n)}
               />
               <div className="mt-[3px] text-[11px] text-sub">0 = unlimited (e.g. Off Peak)</div>
             </div>
@@ -331,24 +426,22 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Daily Booking Limit
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={1}
-                type="number"
                 value={form.dailyBookingLimit}
-                onChange={e => set('dailyBookingLimit', num(e.target.value))}
+                onValueChange={n => set('dailyBookingLimit', n)}
               />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Max Active Future Bookings
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={1}
-                type="number"
                 value={form.maxFutureBookings}
-                onChange={e => set('maxFutureBookings', num(e.target.value))}
+                onValueChange={n => set('maxFutureBookings', n)}
               />
             </div>
           </div>
@@ -357,13 +450,12 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Carryover per Cycle
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="0 = no carryover"
-                type="number"
-                value={form.carryover || ''}
-                onChange={e => set('carryover', num(e.target.value))}
+                value={form.carryover}
+                onValueChange={n => set('carryover', n)}
               />
               <div className="mt-[3px] text-[11px] text-sub">Unused slots → next cycle</div>
             </div>
@@ -371,13 +463,12 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Max Accumulated (carry cap)
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="e.g. 4"
-                type="number"
-                value={form.carryCap || ''}
-                onChange={e => set('carryCap', num(e.target.value))}
+                value={form.carryCap}
+                onValueChange={n => set('carryCap', n)}
               />
               <div className="mt-[3px] text-[11px] text-sub">Max slots that can accumulate</div>
             </div>
@@ -385,12 +476,11 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Advance Booking Window (days)
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={1}
-                type="number"
                 value={form.advanceWindowDays}
-                onChange={e => set('advanceWindowDays', num(e.target.value))}
+                onValueChange={n => set('advanceWindowDays', n)}
               />
             </div>
           </div>
@@ -422,62 +512,113 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Default Extra Session Price (USD)
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 disabled={!form.extraSessionEnabled}
                 min={0}
                 step="0.01"
-                type="number"
-                value={form.extraSessionPrice || ''}
-                onChange={e => set('extraSessionPrice', num(e.target.value))}
+                value={form.extraSessionPrice}
+                onValueChange={n => set('extraSessionPrice', n)}
               />
             </div>
           </div>
 
-          {/* Eligibility */}
+          {/* Eligibility — MP-10: an open-ended tag list, not a fixed Adult/Junior
+              shape. The known tags below are ready-made checkboxes; anything else
+              (already on this plan, or typed in the box) shows as its own chip.
+              A brand-new tag becomes a real New Centre Wizard filter option
+              immediately — no code change, same pattern as the Waitlist Type filter. */}
           <div className="text-xs font-bold uppercase tracking-[0.06em] text-sub">Member Eligibility</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-            {(['adult', 'junior', 'family'] as const).map(key => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            {ELIGIBILITY_TAG_OPTIONS.map(({ key, label }) => (
               <label
                 key={key}
-                className={`inline-flex cursor-pointer select-none items-center gap-1.5 rounded-[7px] border px-2.5 py-1.5 text-xs font-medium transition-all ${form.eligibility[key] ? 'border-[#9096be] bg-cmx-blue-light text-cmx-blue' : 'border-cmx-border bg-white text-sub'}`}
+                className={`inline-flex cursor-pointer select-none items-center gap-1.5 rounded-[7px] border px-2.5 py-1.5 text-xs font-medium transition-all ${form.eligibilityTags.includes(key) ? 'border-[#9096be] bg-cmx-blue-light text-cmx-blue' : 'border-cmx-border bg-white text-sub'}`}
               >
                 <input
-                  checked={form.eligibility[key]}
+                  checked={form.eligibilityTags.includes(key)}
                   className="h-[13px] w-[13px] accent-cmx-blue"
                   type="checkbox"
-                  onChange={e => set('eligibility', { ...form.eligibility, [key]: e.target.checked })}
+                  onChange={e =>
+                    set(
+                      'eligibilityTags',
+                      e.target.checked ? [...form.eligibilityTags, key] : form.eligibilityTags.filter(t => t !== key)
+                    )
+                  }
                 />
-                {key === 'adult' ? 'Adult (16+)' : key === 'junior' ? 'Junior (under 16)' : 'Family plan'}
+                {label}
               </label>
             ))}
+            {form.eligibilityTags
+              .filter(t => !ELIGIBILITY_TAG_OPTIONS.some(o => o.key === t))
+              .map(tag => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1.5 rounded-[7px] border border-[#9096be] bg-cmx-blue-light px-2.5 py-1.5 text-xs font-medium text-cmx-blue"
+                >
+                  {labelForTag(tag)}
+                  <button
+                    aria-label={`Remove ${tag}`}
+                    className="cursor-pointer leading-none"
+                    type="button"
+                    onClick={() =>
+                      set(
+                        'eligibilityTags',
+                        form.eligibilityTags.filter(t => t !== tag)
+                      )
+                    }
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+            <input
+              className={FIELD}
+              placeholder="Add another eligibility tag, e.g. Veteran"
+              style={{ maxWidth: 260 }}
+              type="text"
+              value={customTag}
+              onChange={e => setCustomTag(e.target.value)}
+              onKeyDown={e => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                addCustomTag();
+              }}
+            />
+            <button
+              className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-2 text-xs font-semibold text-sub transition-all hover:bg-gray-50"
+              type="button"
+              onClick={addCustomTag}
+            >
+              + Add
+            </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-                Additional Member Fee (Family)
+                Additional Guest Fees
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="e.g. 10 — leave blank if N/A"
                 step="0.01"
-                type="number"
-                value={form.additionalMemberFee ?? ''}
-                onChange={e => set('additionalMemberFee', e.target.value === '' ? null : num(e.target.value))}
+                value={form.additionalMemberFee}
+                onValueChange={n => set('additionalMemberFee', n)}
               />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
                 Network-wide Member Cap
               </span>
-              <input
+              <NumberInput
                 className={FIELD}
                 min={0}
                 placeholder="0 = unlimited"
-                type="number"
-                value={form.memberCap || ''}
-                onChange={e => set('memberCap', num(e.target.value))}
+                value={form.memberCap}
+                onValueChange={n => set('memberCap', n)}
               />
               <div className="mt-[3px] text-[11px] text-sub">Per-centre cap set in Centre Management</div>
             </div>

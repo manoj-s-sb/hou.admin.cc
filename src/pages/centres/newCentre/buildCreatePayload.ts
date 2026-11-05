@@ -8,15 +8,18 @@
  * constants below so refinement — once a real CENTRE_CREATE_SAMPLE.json is
  * supplied — is localized to this file.
  */
-import { PLAN_CATALOGUE } from '../constants';
+import { COUNTRY_ISO3_CODES, type PlanMeta } from '../constants';
 
 import type {
+  AdditionalFacilityType,
   ApiFacility,
   ApiLane,
   ApiMembership,
   ApiMembershipSalesFlow,
+  ApiProductInput,
   CentreBundle,
   CentreCreateRequest,
+  FacilityAddonsMap,
   OperatingHoursDay,
   OperatingHoursMap,
   WizardState,
@@ -29,6 +32,12 @@ const num = (v: number | string | ''): number => {
 
 /** Tolerate either a clean IANA value or a "America/Chicago (CT)" label. */
 const stripTz = (tz: string): string => tz.replace(/\s*\(.*\)\s*$/, '').trim();
+
+/** The wizard's country dropdown (constants.ts's COUNTRIES) uses short, partly
+ * non-standard codes (UK/UAE, not ISO GB/AE). Maps them to real ISO 3166-1
+ * alpha-3 so `facility.countryCode` (lowercase) / `address.country` (uppercase)
+ * match the DB's actual shape. Unknown codes fall through to ''. */
+const toIso3 = (code: string): string => COUNTRY_ISO3_CODES[code.toUpperCase()] ?? '';
 
 const DAY_KEYS: (keyof OperatingHoursMap)[] = [
   'monday',
@@ -45,7 +54,7 @@ const toOperatingHours = (days: OperatingHoursDay[], is24x7: boolean): Operating
   const map = {} as OperatingHoursMap;
   DAY_KEYS.forEach((key, idx) => {
     if (is24x7) {
-      map[key] = ['00:00-23:59'];
+      map[key] = ['00:00-24:00'];
       return;
     }
     const row = days.find(d => d.day === idx);
@@ -74,7 +83,9 @@ const buildLanes = (state: WizardState): ApiLane[] => {
         type: 'lane',
         laneNo,
         laneType: type,
-        status: 'active',
+        // Mirrors the centre's own status — a Draft/Staging centre's lanes
+        // showed "Active" regardless, same mismatch U9 reported for Gym.
+        status: state.status,
         code: `${code}-L${laneNo}`,
         lanePitchMapping: { ...DEFAULT_LANE_PITCH },
         speedRestriction: null,
@@ -89,30 +100,80 @@ const buildLanes = (state: WizardState): ApiLane[] => {
   };
   push('batting', num(state.battingLanes));
   push('bowling', num(state.bowlingLanes));
-  push('multipurpose', num(state.multipurposeLanes));
+  // "hybrid", not "multipurpose" — matches what real lane documents (and the
+  // slots module's laneType) actually use; see facilities/index.tsx's LANE_META.
+  push('hybrid', num(state.multipurposeLanes));
   return lanes;
 };
 
-/** Enabled plan rows → membership docs. Guest charges go under bookingRules. */
-const buildMemberships = (state: WizardState): ApiMembership[] =>
-  state.plans
+/**
+ * Enabled plan rows → membership docs, matching the real doc shape (see a live
+ * plan like BLR01's "premium" for reference). Only fields the wizard actually
+ * collects get real values (pricing, registration fee amount, guest pricing,
+ * location/facility codes); everything else the wizard has no UI for yet
+ * (transitionPolicy, membershipPolicies' cancellation/hold/violations detail,
+ * memberTypes, door/lane accessControl timing, benefits copy) is left as an
+ * empty placeholder rather than guessed — most critically `stripe`, which must
+ * NEVER be fabricated (a wrong product/price id would misroute real payments).
+ */
+const buildMemberships = (state: WizardState, catalogue: PlanMeta[]): ApiMembership[] => {
+  const facilityCode = state.shortCode.toUpperCase();
+  const countryCode = toIso3(state.country);
+  const stateCode = (state.state || '').toLowerCase();
+
+  return state.plans
     .filter(p => p.enabled)
     .map(p => {
-      const meta = PLAN_CATALOGUE.find(c => c.id === p.planId);
+      const meta = catalogue.find(c => c.id === p.planId);
       return {
         type: 'membership',
         code: p.planId,
+        // Mirrors the centre's own status — same reasoning as buildLanes above.
+        status: state.status,
         // Persist the proper display label + access hours so the centre's Plans &
         // Pricing page reads them from the API (not a frontend lookup).
         name: meta?.name ?? p.planId.charAt(0).toUpperCase() + p.planId.slice(1),
         isPopular: p.planId === 'premium',
+        // Mirrors the facility's own location codes (same derivation, same gaps —
+        // no city-code source in the wizard yet).
+        cityCode: '',
+        countryCode,
+        stateCode,
+        facilityCode,
         pricing: {
-          billingCycles: ['fortnightly', 'annual'],
-          regular: { fortnightly: p.fortnightlyPrice, annual: p.annualPrice },
+          // MP-8: omitting "annual" here (both in billingCycles and regular) is
+          // what tells the backend this centre has no annual option for this
+          // plan — not a real $0 price, which used to be the only way a blank
+          // field could be represented.
+          billingCycles: p.offersAnnual ? ['fortnightly', 'annual'] : ['fortnightly'],
+          regular: {
+            fortnightly: p.fortnightlyPrice,
+            ...(p.offersAnnual ? { annual: p.annualPrice } : {}),
+            currency: 'usd',
+            // Not computed — the real annual/fortnightly relationship isn't a
+            // fixed multiplier, so a guessed % would likely be wrong.
+            savings: {},
+          },
+          // No promo-pricing step in the wizard today.
           promo: {},
         },
-        registrationFee: p.joiningFee,
-        access: { hours: meta?.access ?? '' },
+        registrationFee: {
+          enabled: p.joiningFee > 0,
+          amount: p.joiningFee,
+          currency: 'usd',
+          appliesOn: 'initial-purchase',
+          // Never fabricated — a wrong Stripe id would misroute a real charge.
+          stripeProductId: '',
+          stripePriceId: '',
+          description: '',
+          earlyBirdCutoffDate: '',
+        },
+        access: {
+          type: meta?.access ?? '',
+          mainDoorAccess: '',
+          laneAccess: '',
+          restrictions: {},
+        },
         bookingRules: {
           ...DEFAULT_BOOKING_RULES,
           // Only persist guest-pricing fields that were actually set — blank stays absent
@@ -124,15 +185,29 @@ const buildMemberships = (state: WizardState): ApiMembership[] =>
               : {}),
             ...(p.extraSessionCost !== null ? { extraSessionCost: p.extraSessionCost } : {}),
           },
+          roomSlotRules: {},
         },
-        memberTypes: [],
-        accessControl: { availableCountries: p.availableCountries },
+        memberTypes: {},
+        accessControl: {
+          // Wizard-only bookkeeping (which countries this plan is offered in) —
+          // round-tripped by bundleToWizardState, not part of the real door/lane
+          // accessControl shape, but harmless alongside it (backend is permissive).
+          availableCountries: p.availableCountries,
+          mainDoor: {},
+          lane: {},
+        },
         membershipPolicies: {},
-        description: '',
-        stripe: { regular: null, promo: null, texRateId: null, taxRate: 0 },
+        description: { fortnightly: '', annual: '' },
+        stripe: {
+          regular: { productId: '', fortnightlyPriceId: '', annualPriceId: '' },
+          promo: { productId: '', fortnightlyPriceId: '', annualPriceId: '' },
+          texRateId: '',
+          taxRate: 0,
+        },
         benefits: [],
       };
     });
+};
 
 /** Capacity + foundation → sales-flow doc. */
 const buildSalesFlow = (state: WizardState): ApiMembershipSalesFlow => {
@@ -149,44 +224,223 @@ const buildSalesFlow = (state: WizardState): ApiMembershipSalesFlow => {
   };
 };
 
-/** Additional bookable facilities (gym/podcast/meeting/gaming) → features map. */
-const buildFeatures = (state: WizardState): Record<string, unknown> => {
-  const features: Record<string, unknown> = {};
+/** Stable product `code` per additional-facility instance — matches the real, hand-created
+ * docs' naming (e.g. "blr01-podcastroom") so the wizard's output lines up with existing data. */
+const productCodeFor = (f: WizardState['additionalFacilities'][number], indexInType: number): string => {
+  switch (f.type) {
+    case 'gym':
+      return 'gym';
+    case 'gaming':
+      return 'gaming';
+    case 'podcast':
+      return indexInType > 1 ? `podcastroom-${indexInType}` : 'podcastroom';
+    case 'meeting':
+      return indexInType > 1 ? `meetingroom-${indexInType}` : 'meetingroom';
+    default: {
+      const slug = (f.name || 'custom-facility')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      return slug || `custom-${indexInType}`;
+    }
+  }
+};
+
+/**
+ * Additional bookable facilities (gym/podcast/meeting/gaming/custom) → product docs.
+ * The backend (CentreService._build_product_doc) maps these flat fields into the SAME
+ * nested structure the real docs use, and on /update these are CREATE-ONLY — an
+ * existing product code is never overwritten or deleted (see facility_models.py).
+ */
+const buildProducts = (state: WizardState): ApiProductInput[] => {
+  const seen: Record<string, number> = {};
+  const enabledPlans = state.plans.filter(p => p.enabled);
+  return state.additionalFacilities
+    .filter(f => f.enabled)
+    .map(f => {
+      seen[f.type] = (seen[f.type] ?? 0) + 1;
+      const code = productCodeFor(f, seen[f.type]);
+      // Real blobNames only — a still-uploading/failed placeholder never has one.
+      const imageBlobNames = (f.images ?? []).filter(img => img.blobName).map(img => img.blobName);
+      // Custom facilities can be either facility type the Facilities page
+      // offers (see AdditionalFacilitiesStep.tsx's Facility type selector).
+      const isAddonConfig = f.type === 'gym' || (f.type === 'custom' && f.bookingModel === 'membership_addon');
+      if (isAddonConfig) {
+        // Membership add-on — billed with the member's plan, not paid per slot.
+        // Same shape the Facilities page's Add/Edit form writes post-creation
+        // (see FacilityProductModal.tsx), so a gym/custom add-on created here
+        // or afterward always ends up with one consistent doc shape.
+        return {
+          type: 'product',
+          code,
+          name: f.name,
+          description: f.description || undefined,
+          images: imageBlobNames,
+          // Mirrors the centre's own status — same reasoning as buildLanes above.
+          status: state.status,
+          annualDiscountPct: f.annualDiscountPct,
+          openTime: f.openTime,
+          closeTime: f.closeTime,
+          isAddon: true,
+          bookingModel: 'membership_addon',
+          addonPricing: {
+            fortnightlyPrice: f.fortnightlyPrice,
+            annualPrice: f.annualPrice,
+          },
+          sessionRules: {
+            durationMinutes: parseInt(f.slotDuration, 10) || 60,
+            slotStartIntervalMinutes: f.slotStartIntervalMinutes ?? 15,
+            maxMembersPerSlot: f.maxMembersPerSlot ?? 10,
+            // Full current map, every enabled plan — same convention the
+            // Facilities page's Edit form uses (FacilityProductModal.tsx).
+            bookingFrequency: Object.fromEntries(enabledPlans.map(p => [p.planId, f.gapHoursByPlan?.[p.planId] ?? 0])),
+            advanceBookingDays: f.advanceBookingDays,
+            noWalkIns: true,
+          },
+          guestPolicy: {
+            maxGuestsPerSlot: f.maxMembersPerSlot ?? 10,
+            additionalGuestPrice: f.guestSessionPrice,
+            guestsCountTowardCapacity: true,
+            freeGymEntryWithLaneBooking: f.freeGymEntryWithLaneBooking ?? true,
+          },
+          freeGuestVisits: f.freeGuestVisits,
+          freeTrial: { slotsPerMember: f.freeTrialSlots ?? 1 },
+          ageRules: {
+            minimumAge: f.minimumAge ?? 0,
+            parentMustBePresent: { from: f.parentPresentFrom ?? 0, to: f.parentPresentTo ?? 0 },
+            parentalConsentRequired: { from: f.consentFrom ?? 0, to: f.consentTo ?? 0 },
+          },
+          pinRules: {
+            gymPinWindow: { beforeMinutes: f.gymPinBefore ?? 15 },
+            facilityPinWindow: { beforeMinutes: f.facilityPinBefore ?? 15 },
+          },
+          inductionRequired: f.inductionRequired ?? true,
+        };
+      }
+      if (f.type === 'gaming') {
+        // Gaming's own fields (chargePerHour/minSession/maxSession, minutes)
+        // map onto the same hourly pricing model every pay-per-slot facility
+        // uses — chargePerHour is the hourly rate, min/maxSession converts to
+        // whole hours (rounded, minimum 1).
+        const toHours = (session: string | undefined): number | undefined => {
+          const minutes = Number(/^\d+/.exec(session ?? '')?.[0] ?? '');
+          return Number.isFinite(minutes) && minutes > 0 ? Math.max(1, Math.round(minutes / 60)) : undefined;
+        };
+        return {
+          type: 'product',
+          code,
+          name: f.name,
+          description: f.description || undefined,
+          images: imageBlobNames,
+          // Mirrors the centre's own status — same reasoning as buildLanes above.
+          status: state.status,
+          annualDiscountPct: f.annualDiscountPct,
+          openTime: f.openTime,
+          closeTime: f.closeTime,
+          pricing: { perHour: f.chargePerHour ?? 0, currency: 'usd' },
+          sessionRules: {
+            minHours: toHours(f.minSession) ?? 1,
+            maxHours: toHours(f.maxSession) ?? 2,
+          },
+          guestPolicy: {
+            maxGuestsPerSlot: f.psUnits,
+            additionalGuestPrice: f.guestSessionPrice,
+          },
+          doorPin: { beforeMinutes: f.doorPinBefore ?? 15 },
+          facilityPin: { beforeMinutes: f.roomFacilityPinBefore ?? 15 },
+          totalCapacity: f.psUnits,
+          freeGuestVisits: f.freeGuestVisits,
+        };
+      }
+      // podcast / meeting / custom-pay-per-slot — hourly pricing: a member
+      // picks any whole number of hours from 1 up to maxBookableHours (no
+      // separate "min") and pays fortnightlyPrice (the hourly rate) × hours.
+      return {
+        type: 'product',
+        code,
+        name: f.name,
+        description: f.description || undefined,
+        images: imageBlobNames,
+        // Mirrors the centre's own status — same reasoning as buildLanes above.
+        status: state.status,
+        pricing: { perHour: f.fortnightlyPrice, currency: 'usd' },
+        sessionRules: {
+          minHours: 1,
+          maxHours: f.maxBookableHours ?? 2,
+          maxBookingsPerDay: f.maxBookingsPerDay,
+          advanceBookingDays: f.advanceBookingDays,
+        },
+        guestPolicy: {
+          additionalGuestPrice: f.guestSessionPrice,
+        },
+        doorPin: { beforeMinutes: f.doorPinBefore ?? 15 },
+        facilityPin: { beforeMinutes: f.roomFacilityPinBefore ?? 15 },
+        totalCapacity: f.totalCapacity,
+        concurrentCapacity: f.concurrentCapacity,
+        seatingCapacity: f.seatingCapacity,
+        freeGuestVisits: f.freeGuestVisits,
+      };
+    });
+};
+
+// Additional-facility type → the addon key + display label the real DB docs use
+// (matches productCodeFor's naming for podcast/meeting).
+const ADDON_KEY: Record<AdditionalFacilityType, string> = {
+  gym: 'gym',
+  podcast: 'podcastroom',
+  meeting: 'meetingroom',
+  gaming: 'gaming',
+  custom: 'custom',
+};
+const ADDON_LABEL: Record<AdditionalFacilityType, string> = {
+  gym: 'Gym',
+  podcast: 'Podcast Room',
+  meeting: 'Meeting Room',
+  gaming: 'Gaming',
+  custom: 'Custom',
+};
+
+/**
+ * `facility.addons` — tab-config metadata (which tabs show on the centre page,
+ * in what order), distinct from the `product` docs (buildProducts) which carry
+ * the actual pricing/booking rules for the same feature. Lane is always a tab;
+ * the rest mirror whichever "Additional Facilities" the wizard has enabled.
+ */
+const buildAddons = (state: WizardState): FacilityAddonsMap[] => {
+  const map: FacilityAddonsMap = {
+    lane: { status: 'active', isTab: true, group: 'tab', order: 1, label: 'Lane' },
+  };
+  let order = 2;
   state.additionalFacilities
     .filter(f => f.enabled)
     .forEach(f => {
-      const existing = features[f.type];
-      const entry = {
-        name: f.name,
-        fortnightlyPrice: f.fortnightlyPrice,
-        annualDiscountPct: f.annualDiscountPct,
-        totalCapacity: f.totalCapacity,
-        concurrentCapacity: f.concurrentCapacity,
-        slotDuration: f.slotDuration,
-        guestSessionPrice: f.guestSessionPrice,
-        freeGuestVisits: f.freeGuestVisits,
-        openTime: f.openTime,
-        closeTime: f.closeTime,
-        psUnits: f.psUnits,
-        chargePerHour: f.chargePerHour,
+      map[ADDON_KEY[f.type]] = {
+        status: 'active',
+        isTab: true,
+        group: 'tab',
+        order: order++,
+        label: f.name || ADDON_LABEL[f.type],
       };
-      // Multi-instance types (podcast/meeting/custom) collect into an array.
-      if (Array.isArray(existing)) (existing as unknown[]).push(entry);
-      else if (existing) features[f.type] = [existing, entry];
-      else features[f.type] = f.type === 'podcast' || f.type === 'meeting' || f.type === 'custom' ? [entry] : entry;
     });
-  return features;
+  return [map];
 };
 
 const buildFacility = (state: WizardState): ApiFacility => ({
   type: 'facility',
   code: state.shortCode.toUpperCase(),
   name: state.name,
-  cityCode: state.city, // TODO: backend may expect a code, not a name
-  countryCode: state.country,
-  stateCode: state.state,
+  // No city-code source in the wizard today (free-text city name only) — send
+  // empty rather than the name itself, which isn't a valid code.
+  cityCode: '',
+  countryCode: toIso3(state.country),
+  // Not collected by the wizard (no region picker) — empty until one exists.
+  regionCode: '',
+  // Best-effort: the wizard's State field is free text (often postcode-lookup
+  // filled with a short code like "KA"), lowercased to match the DB convention.
+  stateCode: (state.state || '').toLowerCase(),
   timezone: stripTz(state.timezone),
   status: state.status,
+  // Not collected by the wizard (no map/coordinate picker) yet.
   latitude: 0,
   longitude: 0,
   freeSolts: num(state.foundationPool),
@@ -201,21 +455,31 @@ const buildFacility = (state: WizardState): ApiFacility => ({
   amenities: state.facilities,
   address: {
     street: [state.addressLine1, state.addressLine2].filter(Boolean).join(', '),
+    // No suburb field in the wizard today.
     suburb: '',
     city: state.city,
     state: state.state,
     postcode: state.postcode,
-    country: state.country,
+    country: toIso3(state.country).toUpperCase(),
   },
   contact: {
     email: state.email,
-    phones: [{ type: 'regular', supportTime: '', phone: state.phone }],
+    // The wizard collects one phone number — reused for both channels, since
+    // there's no separate WhatsApp number field. supportTime isn't collected.
+    phones: [
+      { type: 'regular', supportTime: '', phone: state.phone },
+      { type: 'whatsapp', supportTime: '', phone: state.phone },
+    ],
   },
   operatingHours: toOperatingHours(state.operatingHours, state.is24x7),
+  // Not collected by the wizard yet (no holiday-dates step).
   holidays: [],
-  // Not collected by the wizard yet — refine when the sample JSON is available.
+  addons: buildAddons(state),
+  // Not collected by the wizard yet — refine when a real UI step lands for these.
   security: {},
-  features: buildFeatures(state),
+  // Additional bookable facilities are written as `product` docs (see buildProducts
+  // below), not here — this field is unused dead weight kept only for back-compat.
+  features: {},
   waitlist: {},
   edgeDevice: {},
   induction: {},
@@ -229,11 +493,18 @@ const buildFacility = (state: WizardState): ApiFacility => ({
   keyDates: state.keyDates,
 });
 
-export function buildCreatePayload(state: WizardState, original?: CentreBundle): CentreCreateRequest {
+export function buildCreatePayload(
+  state: WizardState,
+  catalogue: PlanMeta[],
+  original?: CentreBundle
+): CentreCreateRequest {
   const facility = buildFacility(state);
   const lanes = buildLanes(state);
-  const memberships = buildMemberships(state);
+  const memberships = buildMemberships(state, catalogue);
   const membershipSalesFlow = buildSalesFlow(state);
+  // Products are matched by `code` on the backend (not a grafted id) — an existing
+  // code is skipped there (create-only), so nothing to graft here on edit.
+  const products = buildProducts(state);
 
   // On edit, graft the server-generated ids back on so the backend updates the
   // existing docs (matched by code) rather than treating this as a create.
@@ -248,5 +519,5 @@ export function buildCreatePayload(state: WizardState, original?: CentreBundle):
     });
   }
 
-  return { facility, lanes, memberships, membershipSalesFlow };
+  return { facility, lanes, memberships, membershipSalesFlow, products };
 }

@@ -2,6 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mona Sans, per the Figma "Lane App UI Design" file. Two widths used
+   throughout the designs:
+   - "Mona Sans SemiCondensed" — the default body/label/UI text font.
+   - "Mona Sans Condensed" — headings and large numbers (page titles, card
+     metrics, the sidebar's own nav-item labels).
+   Each weight is its own static file, registered under the SAME
+   font-family name with the matching font-weight so `font-semibold` etc.
+   resolve to the real weight file instead of a synthetic (faux) bold. */
+@font-face {
+  font-family: 'Mona Sans SemiCondensed';
+  src: url('./assets/fonts/MonaSansSemiCondensed-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Mona Sans SemiCondensed';
+  src: url('./assets/fonts/MonaSansSemiCondensed-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Mona Sans SemiCondensed';
+  src: url('./assets/fonts/MonaSansSemiCondensed-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Mona Sans SemiCondensed';
+  src: url('./assets/fonts/MonaSansSemiCondensed-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Mona Sans SemiCondensed';
+  src: url('./assets/fonts/MonaSansSemiCondensed-ExtraBold.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Mona Sans Condensed';
+  src: url('./assets/fonts/MonaSansCondensed-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Mona Sans Condensed';
+  src: url('./assets/fonts/MonaSansCondensed-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Mona Sans Condensed';
+  src: url('./assets/fonts/MonaSansCondensed-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Mona Sans Condensed';
+  src: url('./assets/fonts/MonaSansCondensed-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   /* Centre Management / Membership design tokens.
      These back the `var(--…)` references used in inline styles across the
@@ -32,7 +104,7 @@
   }
 
   body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Mona Sans SemiCondensed', 'Inter', sans-serif;
     font-optical-sizing: auto;
     font-style: normal;
     overflow-x: hidden;

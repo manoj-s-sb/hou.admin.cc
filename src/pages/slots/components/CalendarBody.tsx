@@ -1,16 +1,22 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { getSlots, updateLaneStatus } from '../../../store/slots/api';
+import endpoints from '../../../constants/endpoints';
+import { getLocalUser } from '../../../constants/user';
+import api from '../../../services';
+import { SeriesWithEtag } from '../../../store/recurringBlocks/types';
+import { cancelBooking, createBooking, editBooking, getSlots, updateLaneStatus } from '../../../store/slots/api';
 import { BookingUser, Lanes, Slot } from '../../../store/slots/types';
 import { AppDispatch, RootState } from '../../../store/store';
+import { handleApiError } from '../../../utils/errorUtils';
 
 import BlockTimeSlotModal from './BlockTimeSlotModal';
+import EditSeriesModal from './EditSeriesModal';
 import LaneDetailsModal from './LaneDetailsModal';
 import MultiBlockModal from './MultiBlockModal';
-import SlotDetailsModal from './SlotDetailsModal';
+import SlotDetailsModal, { BookForSomeonePayload, ShiftLaneOption } from './SlotDetailsModal';
 
 const composeClasses = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 const formatLaneType = (type?: string) => (type ? `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()}` : '');
@@ -29,6 +35,17 @@ const formatTimeSlot = (timeSlot: string): string => {
   return timeSlot;
 };
 
+// slot.startTime is a full ISO datetime carrying the FACILITY's own offset (see
+// the calendar module's doc comment on this same point) — comparing the two
+// absolute instants directly is correct regardless of either the facility's or
+// the admin's own browser timezone, unlike reconstructing a local "HH:MM".
+const isSlotStartInThePast = (startTime: string): boolean => {
+  const start = new Date(startTime);
+  return !Number.isNaN(start.getTime()) && start.getTime() < Date.now();
+};
+
+const TIME_UP_MESSAGE = "Can't book this slot — its start time has already passed.";
+
 const getDisplayName = (user?: BookingUser) => {
   const firstName = user?.firstName?.trim();
   const lastName = user?.lastName?.trim();
@@ -42,12 +59,14 @@ interface CalendarBodyProps {
   timeSlots: string[];
   date: string;
   facilityCode: string;
+  /** userId -> subscriptionCode (e.g. 'premium'), for showing a booked member's plan on their cell. */
+  planByUserId?: Record<string, string>;
 }
 
 const AVAILABLE_ODD = 'bg-[#EEF7F7]';
 const AVAILABLE_EVEN = 'bg-[#F5FAFA]';
 
-const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProps) => {
+const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} }: CalendarBodyProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const { isBlockLaneLoading } = useSelector((state: RootState) => state.slots);
   const [selectedLane, setSelectedLane] = useState<Lanes | null>(null);
@@ -62,6 +81,8 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     laneCode: string;
     slotIndex: number;
   } | null>(null);
+  const [editingSeries, setEditingSeries] = useState<{ seriesId: string; occurrenceDate: string } | null>(null);
+  const [seriesActionLoading, setSeriesActionLoading] = useState(false);
 
   const gridTemplateColumns = { gridTemplateColumns: `110px repeat(${lanes.length}, minmax(180px, 1fr))` };
   const gridTemplateColumnsMobile = { gridTemplateColumns: `75px repeat(${lanes.length}, minmax(140px, 1fr))` };
@@ -104,14 +125,22 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
     }
   };
 
-  const handleUnblockLane = async (blockReason?: string, blockLaneApp?: boolean) => {
+  const handleUnblockLane = async (blockReason?: string, blockLaneApp?: boolean, blockedByName?: string) => {
     if (selectedLane) {
       try {
         const isLaneBlocked = selectedLane.slots.some(slot => slot.status?.toLowerCase() === 'disabled');
         const action = isLaneBlocked ? 'available' : 'disable';
         const reason = isLaneBlocked ? 'Manual unblock from admin' : blockReason || 'Manual block from admin';
         await dispatch(
-          updateLaneStatus({ date, facilityCode, laneCode: selectedLane.laneCode, action, reason, blockLaneApp })
+          updateLaneStatus({
+            date,
+            facilityCode,
+            laneCode: selectedLane.laneCode,
+            action,
+            reason,
+            blockLaneApp,
+            blockedByName: isLaneBlocked ? undefined : blockedByName || undefined,
+          })
         ).unwrap();
         await dispatch(getSlots({ date, facilityCode }));
         toast.success(
@@ -195,12 +224,90 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
       handleMultiSlotToggle(slot);
       return;
     }
+    // An available slot whose start time has already passed can't be booked —
+    // say so right on click instead of opening the Book for Someone form for a
+    // slot that would just fail (or silently book the wrong, already-elapsed
+    // time). A slot that's booked/disabled still opens normally (view/manage).
+    if (!slot.isBooked && slot.status?.toLowerCase() === 'available' && isSlotStartInThePast(slot.startTime)) {
+      toast.error(TIME_UP_MESSAGE, { duration: 4000, id: 'slot-time-up' });
+      return;
+    }
     setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
   };
 
   const handleCloseSlotModal = () => setSelectedSlot(null);
 
-  const handleBlockSlot = async (reason: string) => {
+  const handleCancelBooking = async (reason: string) => {
+    const bookingId = selectedSlot?.slot.booking?.bookingId;
+    if (!bookingId) return;
+    try {
+      const response = await dispatch(cancelBooking({ bookingIds: [bookingId], reason })).unwrap();
+      const failure = response?.failed?.[0];
+      if (failure) {
+        toast.error(failure.reason || 'Failed to cancel booking.', { duration: 5000 });
+        return;
+      }
+      await dispatch(getSlots({ date, facilityCode }));
+      const cancelled = response?.cancelled?.[0];
+      if (cancelled && cancelled.slotReleased === false) {
+        toast.error(
+          'Booking cancelled and refunded, but the slot could not be freed — it may still show as booked. Please refresh and retry.',
+          {
+            duration: 7000,
+          }
+        );
+      } else {
+        toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+      }
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to cancel booking.', { duration: 5000 });
+    }
+  };
+
+  const handleCancelBookingInLane = async (slotCode: string, reason: string) => {
+    const bookingId = selectedLane?.slots.find(s => s.slotCode === slotCode)?.booking?.bookingId;
+    if (!bookingId) return;
+    try {
+      const response = await dispatch(cancelBooking({ bookingIds: [bookingId], reason })).unwrap();
+      const failure = response?.failed?.[0];
+      if (failure) {
+        toast.error(failure.reason || 'Failed to cancel booking.', { duration: 5000 });
+        return;
+      }
+      await dispatch(getSlots({ date, facilityCode }));
+      const cancelled = response?.cancelled?.[0];
+      if (cancelled && cancelled.slotReleased === false) {
+        toast.error(
+          'Booking cancelled and refunded, but the slot could not be freed — it may still show as booked. Please refresh and retry.',
+          {
+            duration: 7000,
+          }
+        );
+      } else {
+        toast.success(reason ? `Booking cancelled: ${reason}` : 'Booking cancelled.', { duration: 4000 });
+      }
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to cancel booking.', { duration: 5000 });
+    }
+  };
+
+  // Moves one booking out of the lane the admin is about to block wholesale.
+  // Unlike the single-slot "Shift Lane" flow, the vacated slot is NOT blocked
+  // here on its own -- it's simply left "available", and the lane-wide Block
+  // Lane action (which already skips confirmed slots) picks it up along with
+  // every other slot once the admin actually blocks the lane.
+  const handleShiftBookingInLane = async (bookingCode: string, targetSlotCode: string, reason: string) => {
+    try {
+      await dispatch(editBooking({ bookingCode, slotCode: targetSlotCode, reason })).unwrap();
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success('Booking shifted to the new lane.', { duration: 4000 });
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to shift booking.', { duration: 5000 });
+    }
+  };
+
+  const handleBlockSlot = async (reason: string, blockedByName: string) => {
     if (selectedSlot) {
       try {
         await dispatch(
@@ -208,6 +315,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
             action: 'disable',
             reason: reason || 'Manual block from admin',
             slotCode: selectedSlot.slot.slotCode,
+            blockedByName: blockedByName || undefined,
           })
         ).unwrap();
         await dispatch(getSlots({ date, facilityCode }));
@@ -235,6 +343,150 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
       } catch (error) {
         toast.error((error as Error)?.message || 'Failed to unblock slot.', { duration: 5000 });
       }
+    }
+  };
+
+  // A slot blocked by a recurring series is never freed/edited through the
+  // one-time updateLaneStatus path above (it would silently desync from the
+  // series' own skippedDates, and the extension job would just re-block it
+  // next time it runs) — these go through the recurringblocks endpoints
+  // instead, fetching the series' current etag first each time.
+  const fetchSeriesEtag = async (seriesId: string): Promise<SeriesWithEtag> => {
+    const res = await api.post(endpoints.recurringBlocks.getSeries, { seriesId });
+    return res.data?.data?.series as SeriesWithEtag;
+  };
+
+  const handleSkipOccurrence = async () => {
+    const seriesId = selectedSlot?.slot.seriesId;
+    const occurrenceDate = selectedSlot?.slot.occurrenceDate;
+    if (!seriesId || !occurrenceDate) return;
+    setSeriesActionLoading(true);
+    try {
+      const series = await fetchSeriesEtag(seriesId);
+      await api.post(endpoints.recurringBlocks.skip, {
+        seriesId,
+        occurrenceDate,
+        expectedEtag: series.etag,
+      });
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success(`${occurrenceDate} skipped — the series keeps running.`, { duration: 4000 });
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error(handleApiError(error, 'Failed to skip this date.'), { duration: 5000 });
+    } finally {
+      setSeriesActionLoading(false);
+    }
+  };
+
+  const handleCancelSeries = async () => {
+    const seriesId = selectedSlot?.slot.seriesId;
+    if (!seriesId) return;
+    if (
+      !window.confirm(
+        'Cancel this recurring series? Already-blocked dates stay blocked — only future generation stops.'
+      )
+    ) {
+      return;
+    }
+    setSeriesActionLoading(true);
+    try {
+      const series = await fetchSeriesEtag(seriesId);
+      await api.post(endpoints.recurringBlocks.cancel, { seriesId, expectedEtag: series.etag });
+      toast.success('Series cancelled — already-blocked dates stay blocked.', { duration: 4000 });
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error(handleApiError(error, 'Failed to cancel the series.'), { duration: 5000 });
+    } finally {
+      setSeriesActionLoading(false);
+    }
+  };
+
+  const handleEditSeriesClick = () => {
+    const seriesId = selectedSlot?.slot.seriesId;
+    const occurrenceDate = selectedSlot?.slot.occurrenceDate;
+    if (!seriesId || !occurrenceDate) return;
+    setEditingSeries({ seriesId, occurrenceDate });
+    setSelectedSlot(null);
+  };
+
+  const handleBookForSomeone = async (payload: BookForSomeonePayload) => {
+    if (!selectedSlot) return;
+    // Re-check at submit time too — the modal could have been left open across
+    // the slot's start time (see handleSlotClick's same guard on open).
+    if (isSlotStartInThePast(selectedSlot.slot.startTime)) {
+      toast.error(TIME_UP_MESSAGE, { duration: 4000, id: 'slot-time-up' });
+      setSelectedSlot(null);
+      return;
+    }
+    try {
+      const result = await dispatch(
+        createBooking({
+          slotCode: selectedSlot.slot.slotCode,
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+          email: payload.email,
+          dateOfBirth: payload.dateOfBirth,
+          notes: payload.notes,
+        })
+      ).unwrap();
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success(
+        result?.bookingCode ? `Slot booked! Booking code: ${result.bookingCode}` : 'Slot booked successfully!',
+        { duration: 6000 }
+      );
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to book slot.', { duration: 5000 });
+    }
+  };
+
+  // Other lanes of the same type with a genuinely available slot at the
+  // selected booking's exact time — the only valid "Shift Lane" targets.
+  // Indexed by slotIndex rather than start time since every lane's slots
+  // array is aligned to the shared timeSlots list.
+  const shiftTargetLanes: ShiftLaneOption[] = useMemo(() => {
+    if (!selectedSlot) return [];
+    const currentLane = lanes.find(l => l.laneNo === selectedSlot.laneNo);
+    if (!currentLane) return [];
+    return lanes
+      .filter(l => l.laneNo !== selectedSlot.laneNo && l.laneType === currentLane.laneType)
+      .map(l => {
+        const candidate = l.slots[selectedSlot.slotIndex];
+        return candidate && candidate.status?.toLowerCase() === 'available' && !candidate.isBooked
+          ? { laneNo: l.laneNo, laneCode: l.laneCode, slotCode: candidate.slotCode }
+          : null;
+      })
+      .filter((option): option is ShiftLaneOption => option !== null);
+  }, [lanes, selectedSlot]);
+
+  const handleShiftLane = async (targetSlotCode: string, reason: string) => {
+    if (!selectedSlot) return;
+    const bookingCode = selectedSlot.slot.booking?.bookingCode;
+    if (!bookingCode) return;
+    try {
+      await dispatch(editBooking({ bookingCode, slotCode: targetSlotCode, reason })).unwrap();
+      // The booking has already moved at this point — the old slot's lane has
+      // an issue, which is why it's being blocked (not left available) now
+      // that nobody holds it.
+      try {
+        await dispatch(
+          updateLaneStatus({
+            action: 'disable',
+            reason: reason || 'Lane issue — booking shifted to another lane',
+            slotCode: selectedSlot.slot.slotCode,
+            blockedByName: getLocalUser().name,
+          })
+        ).unwrap();
+      } catch {
+        toast.error('Booking shifted, but the vacated slot could not be blocked — block it manually.', {
+          duration: 6000,
+        });
+      }
+      await dispatch(getSlots({ date, facilityCode }));
+      toast.success('Booking shifted to the new lane.', { duration: 4000 });
+      setSelectedSlot(null);
+    } catch (error) {
+      toast.error((error as Error)?.message || 'Failed to shift booking.', { duration: 5000 });
     }
   };
 
@@ -275,28 +527,107 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
                 ? 'bg-[#43a047] text-white'
                 : currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0
                   ? 'bg-[#F97316] text-white'
-                  : currentSlot?.booking?.coach?.name
+                  : currentSlot?.booking?.coach?.code
                     ? 'bg-[#006A68] text-white'
                     : 'bg-[#21295A] text-white'
             )}
           >
-            <span className="font-semibold">{getDisplayName(currentSlot?.booking?.user)}</span>
-            {currentSlot?.booking?.guests && currentSlot.booking.guests.length > 0 && (
+            {(() => {
+              // An admin "Book for Someone" booking is OWNED by the admin, with
+              // the actual player stored as guests[0] (see create_booking_service's
+              // doc comment) — showing `booking.user`'s name here would display
+              // the ADMIN as if they were the player. Same isAdminBooking/
+              // primaryGuest distinction SlotDetailsModal already uses.
+              const isAdminBooking = !!currentSlot?.booking?.bookedByName;
+              const primaryGuest = isAdminBooking ? currentSlot?.booking?.guests?.[0] : undefined;
+              const displayName =
+                primaryGuest?.name ||
+                getDisplayName(currentSlot?.booking?.user) ||
+                // A slot marked booked with no resolvable user means the bookingId on
+                // this slot doesn't point to any real slotbooking document (a backend
+                // data-integrity gap, logged server-side) — show that plainly instead
+                // of rendering a blank cell with no indication anything's wrong.
+                'Booking details unavailable';
+              // Real extra guests the player/member brought along — distinct from
+              // guests[0], which (for an admin booking) IS the player, not an extra.
+              const extraGuestCount = currentSlot?.booking?.guests?.length
+                ? currentSlot.booking.guests.length - (isAdminBooking ? 1 : 0)
+                : 0;
+              return (
+                <>
+                  <span className="font-semibold">{displayName}</span>
+                  {isAdminBooking && (
+                    <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
+                      by {currentSlot?.booking?.bookedByName}
+                    </span>
+                  )}
+                  {/* planByUserId is keyed by the booking OWNER's userId — for an
+                      admin booking that's the admin, not the guest, so it would
+                      show the admin's own plan next to the guest's name. Only
+                      meaningful for a genuine self-booking. */}
+                  {!isAdminBooking &&
+                    currentSlot?.booking?.user?.userId &&
+                    planByUserId[currentSlot.booking.user.userId] && (
+                      <span
+                        className={composeClasses(
+                          'font-medium capitalize opacity-90',
+                          isMobile ? 'text-[9px]' : 'text-[11px]'
+                        )}
+                      >
+                        {planByUserId[currentSlot.booking.user.userId]}
+                      </span>
+                    )}
+                  {extraGuestCount > 0 && (
+                    <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
+                      {extraGuestCount} Guest{extraGuestCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
+            {currentSlot?.booking?.coach?.code && (
               <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
-                {currentSlot.booking.guests.length} Guest{currentSlot.booking.guests.length > 1 ? 's' : ''}
-              </span>
-            )}
-            {currentSlot?.booking?.coach?.name && (
-              <span className={composeClasses('font-medium opacity-90', isMobile ? 'text-[9px]' : 'text-[11px]')}>
-                Coach: {currentSlot.booking.coach.name}
+                {/* SA-8: a coach is attached whenever `code` is set, even if the
+                    display name couldn't be resolved — show that plainly
+                    instead of silently hiding the whole line. */}
+                Coach: {currentSlot.booking.coach.name || 'Name unavailable'}
               </span>
             )}
           </div>
         ) : !currentSlot?.isBooked && currentSlot?.status?.toLowerCase() === 'disabled' ? (
-          <div
-            className="h-full w-full rounded-md bg-cover bg-center opacity-80"
-            style={{ backgroundImage: "url('/assets/svg/slot_bg.svg')" }}
-          />
+          currentSlot?.source === 'series' ? (
+            <div
+              className="relative flex h-full w-full items-center justify-center rounded-md bg-purple-100 px-3 py-1"
+              title={currentSlot.disableReason || 'Blocked by a recurring series'}
+            >
+              <span
+                className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#21295A] text-white"
+                title="Blocked by a recurring series"
+              >
+                <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114-3.5M19.5 15a8 8 0 01-14 3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                  />
+                </svg>
+              </span>
+              <span
+                className={composeClasses(
+                  'line-clamp-2 text-center font-medium text-purple-900',
+                  isMobile ? 'text-[9px]' : 'text-[11px]'
+                )}
+              >
+                {currentSlot.disableReason || 'Recurring block'}
+              </span>
+            </div>
+          ) : (
+            <div
+              className="relative h-full w-full rounded-md bg-cover bg-center opacity-80"
+              style={{ backgroundImage: "url('/assets/svg/slot_bg.svg')" }}
+            />
+          )
         ) : (
           <div className={composeClasses('h-full w-full rounded-sm', zebraBg)} />
         )}
@@ -308,16 +639,21 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
   const renderLaneHeader = (lane: Lanes, isMobile: boolean) => (
     <div
       key={lane.laneNo}
-      className="relative flex min-h-[60px] w-full flex-col items-center justify-center border-b border-r border-gray-200 bg-white px-3 py-3 text-center"
+      className="relative flex min-h-[60px] w-full flex-col items-center justify-center border-b border-r border-[rgba(255,255,255,0.19)] bg-[#336DC2] px-3 py-3 text-center"
     >
-      <span className={composeClasses('font-semibold text-[#21295A]', isMobile ? 'text-[11px]' : 'text-[13px]')}>
+      <span className={composeClasses('font-semibold text-white', isMobile ? 'text-[11px]' : 'text-[13px]')}>
         {formatLaneType(lane.laneType)}
       </span>
-      <span className={composeClasses('font-medium text-gray-500', isMobile ? 'text-[10px]' : 'text-[12px]')}>
+      <span
+        className={composeClasses(
+          'font-medium text-[rgba(255,255,255,0.87)]',
+          isMobile ? 'text-[10px]' : 'text-[12px]'
+        )}
+      >
         Lane {lane.laneNo}
       </span>
       <span
-        className="absolute right-1 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer px-1 text-[16px] font-bold text-gray-400 hover:text-[#21295A]"
+        className="absolute right-1 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer px-1 text-[16px] font-bold text-white/70 hover:text-white"
         role="button"
         tabIndex={0}
         onClick={e => handleMenuClick(lane, e)}
@@ -433,7 +769,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           {/* Mobile */}
           <div className="desktop:hidden">
             <div className="sticky top-0 z-30 grid" style={gridTemplateColumnsMobile}>
-              <div className="sticky left-0 z-40 flex min-h-[60px] min-w-[68px] items-center justify-center border-b border-r border-gray-200 bg-gray-50 px-2 text-[11px] font-bold text-[#21295A]">
+              <div className="sticky left-0 z-40 flex min-h-[60px] min-w-[68px] items-center justify-center border-b border-r border-[rgba(255,255,255,0.19)] bg-[#336DC2] px-2 text-[11px] font-bold text-white">
                 Lane
               </div>
               {lanes.map(lane => renderLaneHeader(lane, true))}
@@ -451,7 +787,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           {/* Desktop */}
           <div className="hidden desktop:block">
             <div className="sticky top-0 z-30 grid" style={gridTemplateColumns}>
-              <div className="sticky left-0 z-40 flex min-h-[60px] min-w-[100px] items-center justify-center border-b border-r border-gray-200 bg-gray-50 px-4 text-[13px] font-bold text-[#21295A]">
+              <div className="sticky left-0 z-40 flex min-h-[60px] min-w-[100px] items-center justify-center border-b border-r border-[rgba(255,255,255,0.19)] bg-[#336DC2] px-4 text-[13px] font-bold text-white">
                 Lane No
               </div>
               {lanes.map(lane => renderLaneHeader(lane, false))}
@@ -491,6 +827,19 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
           />
           <span className="text-[11px] font-medium text-gray-500">Blocked</span>
         </div>
+        <div className="flex items-center gap-1.5">
+          <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#21295A]">
+            <svg className="h-2 w-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114-3.5M19.5 15a8 8 0 01-14 3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+              />
+            </svg>
+          </span>
+          <span className="text-[11px] font-medium text-gray-500">Recurring block</span>
+        </div>
       </div>
 
       {/* ── Modals ───────────────────────────────────────────── */}
@@ -517,25 +866,49 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode }: CalendarBodyProp
 
       {selectedLane && (
         <LaneDetailsModal
+          allLanes={lanes}
           isLoading={isBlockLaneLoading}
           isOpen={!!selectedLane}
-          lane={selectedLane}
+          // Re-derived from the live `lanes` prop (not the stale click-time snapshot)
+          // so cancelling a booking below updates this list without closing the modal.
+          lane={lanes.find(l => l.laneCode === selectedLane.laneCode) || selectedLane}
+          onCancelBooking={handleCancelBookingInLane}
           onClose={handleCloseModal}
           onLaneClick={handleUnblockLane}
+          onShiftBooking={handleShiftBookingInLane}
         />
       )}
 
       {selectedSlot && (
         <SlotDetailsModal
-          isLoading={isBlockLaneLoading}
+          availableLanesToShift={shiftTargetLanes}
+          date={date}
+          isLoading={isBlockLaneLoading || seriesActionLoading}
           isOpen={!!selectedSlot}
           laneNo={selectedSlot.laneNo}
           nextTimeSlot={timeSlots[selectedSlot.slotIndex + 1] || null}
           slot={selectedSlot.slot}
           timeSlot={timeSlots[selectedSlot.slotIndex]}
           onBlockSlot={handleBlockSlot}
+          onBookForSomeone={handleBookForSomeone}
+          onCancelBooking={handleCancelBooking}
+          onCancelSeries={handleCancelSeries}
           onClose={handleCloseSlotModal}
+          onEditSeries={handleEditSeriesClick}
+          onShiftLane={handleShiftLane}
+          onSkipOccurrence={handleSkipOccurrence}
           onUnblockSlot={handleUnblockSlot}
+        />
+      )}
+
+      {editingSeries && (
+        <EditSeriesModal
+          isOpen={!!editingSeries}
+          occurrenceDate={editingSeries.occurrenceDate}
+          seriesId={editingSeries.seriesId}
+          timeSlots={timeSlots}
+          onClose={() => setEditingSeries(null)}
+          onDone={() => dispatch(getSlots({ date, facilityCode }))}
         />
       )}
     </div>

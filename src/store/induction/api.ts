@@ -5,6 +5,7 @@ import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
 import {
+  AddTourNoteRequest,
   InductionListRequest,
   InductionStepsDetailsRequest,
   UpdateInductionStepsRequest,
@@ -13,14 +14,26 @@ import {
 
 export const inductionList = createAsyncThunk(
   'induction/inductionList',
-  async ({ date, page, type, listLimit, search, status, facilityCode }: InductionListRequest, { rejectWithValue }) => {
+  async (
+    { date, startDate, endDate, page, type, listLimit, search, status, facilityCode }: InductionListRequest,
+    { rejectWithValue }
+  ) => {
     try {
       const payload: Record<string, unknown> = {
-        date,
         type,
         page,
         limit: listLimit,
       };
+
+      // The backend rejects a request with neither `date` nor `startDate`+`endDate`
+      // set — never send date: '' on its own. Prefer the exact single day when
+      // given; fall back to the range.
+      if (date) {
+        payload.date = date;
+      } else if (startDate && endDate) {
+        payload.startDate = startDate;
+        payload.endDate = endDate;
+      }
 
       if (search?.trim()) {
         payload.search = search.trim();
@@ -87,14 +100,32 @@ export const updateTourStatus = createAsyncThunk(
   }
 );
 
+/** NS-6: add a follow-up note to a tour booking, from the Tours page's View detail panel. */
+export const addTourNote = createAsyncThunk(
+  'induction/addTourNote',
+  async ({ userId, bookingCode, text }: AddTourNoteRequest, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${endpoints.tour.addNote}`, {
+        userId,
+        bookingCode,
+        text,
+      });
+      return response?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to add note'));
+    }
+  }
+);
+
 export const updateInductionBookingStatus = createAsyncThunk(
   'induction/updateInductionBookingStatus',
-  async ({ userId, bookingCode, status }: UpdateTourStatusRequest, { rejectWithValue }) => {
+  async ({ userId, bookingCode, status, reason }: UpdateTourStatusRequest, { rejectWithValue }) => {
     try {
       const response = await api.post(`${endpoints.induction.updateBookingStatus}`, {
         userId,
         bookingCode,
         status,
+        reason,
       });
       return response?.data;
     } catch (error) {
@@ -111,6 +142,23 @@ export const userInductionDetails = createAsyncThunk(
       return response?.data;
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Failed to fetch user induction details'));
+    }
+  }
+);
+
+/** Records which admin activated this member's subscription after induction, so
+ * the Calendar can show "Completed By <name>" — attribution only, doesn't touch
+ * the booking's status (see endpoints.induction.markActivated). Callers should
+ * treat a failure here as non-fatal (the actual activation already succeeded);
+ * it only means the name won't show on the Calendar for this one action. */
+export const markInductionActivated = createAsyncThunk(
+  'induction/markInductionActivated',
+  async ({ userId }: { userId: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${endpoints.induction.markActivated}`, { userId });
+      return response?.data;
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Failed to record activation attribution'));
     }
   }
 );

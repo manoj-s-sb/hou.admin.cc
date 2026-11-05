@@ -1,6 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+import { logger } from '../../utils/logger';
+
 import {
+  addTourNote,
   inductionList,
   getInductionStepsDetails,
   updateInductionSteps,
@@ -19,11 +22,18 @@ const inductionSlice = createSlice({
     },
   },
   extraReducers: builder => {
-    builder.addCase(inductionList.pending, state => {
+    // Same out-of-order-response race as members/reducers.ts's getMembers:
+    // an older, slower inductionList request resolving after a newer,
+    // faster one (e.g. a filter/page/rows-per-page change fired in quick
+    // succession) could silently overwrite the correct result with stale
+    // data. Guard on the latest dispatched requestId.
+    builder.addCase(inductionList.pending, (state, action) => {
       state.isLoading = true;
       state.error = '';
+      state.latestInductionListRequestId = action.meta.requestId;
     });
     builder.addCase(inductionList.fulfilled, (state, action) => {
+      if (action.meta.requestId !== state.latestInductionListRequestId) return;
       state.isLoading = false;
       state.inductionList = action.payload?.data || {
         bookings: [],
@@ -33,6 +43,7 @@ const inductionSlice = createSlice({
       };
     });
     builder.addCase(inductionList.rejected, (state, action) => {
+      if (action.meta.requestId !== state.latestInductionListRequestId) return;
       state.isLoading = false;
       state.error = (action.payload as string) || 'Induction list failed. Please try again.';
     });
@@ -59,9 +70,8 @@ const inductionSlice = createSlice({
     builder.addCase(updateInductionSteps.rejected, (state, action) => {
       state.isLoading = false;
 
-      console.error('Update Induction Steps Failed:', {
+      logger.error('Update Induction Steps Failed', action.error, {
         payload: action.payload,
-        error: action.error,
         meta: action.meta,
       });
       state.error = (action.payload as string) || 'Failed to update induction steps. Please try again.';
@@ -78,16 +88,16 @@ const inductionSlice = createSlice({
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to update tour status. Please try again.';
     });
-    builder.addCase(updateInductionBookingStatus.pending, state => {
-      state.isLoading = true;
+    builder.addCase(updateInductionBookingStatus.pending, (state, action) => {
+      state.updatingBookingCode = action.meta.arg.bookingCode;
       state.error = '';
     });
     builder.addCase(updateInductionBookingStatus.fulfilled, state => {
-      state.isLoading = false;
+      state.updatingBookingCode = null;
       state.error = '';
     });
     builder.addCase(updateInductionBookingStatus.rejected, (state, action) => {
-      state.isLoading = false;
+      state.updatingBookingCode = null;
       state.error = (action.payload as string) || 'Failed to update induction booking status. Please try again.';
     });
     builder.addCase(userInductionDetails.pending, state => {
@@ -101,6 +111,14 @@ const inductionSlice = createSlice({
     builder.addCase(userInductionDetails.rejected, (state, action) => {
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to fetch user induction details. Please try again.';
+    });
+    // NS-6: patch the matching row's notes in place so the View panel (reading
+    // straight from the list) reflects the new note without a full refetch.
+    builder.addCase(addTourNote.fulfilled, (state, action) => {
+      const data = action.payload?.data;
+      if (!data?.bookingCode) return;
+      const row = state.inductionList.bookings.find(b => b.bookingCode === data.bookingCode);
+      if (row) row.notes = data.notes;
     });
   },
 });
