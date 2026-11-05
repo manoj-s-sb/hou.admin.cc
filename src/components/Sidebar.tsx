@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import endpoints from '../constants/endpoints';
@@ -12,9 +11,6 @@ import { centreColour, countryFlag } from '../pages/centres/constants';
 import { ACCESS_SCOPES } from '../rbac/constants';
 import { allowedFacilities, canRead, isGlobalScope, isSuperAdmin, scopeType, sidebarItems } from '../rbac/permissions';
 import api from '../services';
-import { logout as logoutAction } from '../store/auth/reducers';
-import { persistor, RootState } from '../store/store';
-import { facilityScope } from '../utils/facilityScope';
 
 /**
  * Build grouped nav for the backend sidebar. The backend `sidebar` array is used
@@ -193,18 +189,7 @@ const GroupLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
-  /** Opens the central Notifications Log modal (trigger moved here from the removed top header). */
-  onOpenNotifications?: () => void;
 }
-
-/** 2-letter initials from a full name, for the profile avatar. */
-const getInitials = (name: string): string =>
-  name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
 
 const CloseIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -212,33 +197,10 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) 
   </svg>
 );
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose, onOpenNotifications }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const { activeCentre, closeCentre } = useCentreNav();
-
-  const user = useSelector((state: RootState) => state.auth.user);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  // Close the profile dropdown when clicking anywhere outside it.
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setShowProfileMenu(false);
-      }
-    };
-    if (showProfileMenu) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showProfileMenu]);
-
-  const handleLogout = () => {
-    dispatch(logoutAction());
-    persistor.purge();
-    facilityScope.reset();
-    navigate(ROUTES.LOGIN.path);
-  };
 
   const superAdmin = isSuperAdmin();
   // Count badges only apply to the global monitoring/setup nav (not the per-centre menu).
@@ -457,95 +419,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose, onOpenNotific
             ))}
           </nav>
         )}
-
-        {/* ── Footer: user profile + notifications (moved here from the removed top header) ── */}
-        <div className="shrink-0 border-t border-white/10 p-3">
-          <div ref={profileMenuRef} className="relative">
-            {showProfileMenu && (
-              <div className="animate-fadeIn absolute bottom-full left-0 right-0 z-50 mb-2 rounded-xl border border-gray-200 bg-white py-2 shadow-2xl">
-                <div className="border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-3">
-                  <p className="truncate text-sm font-bold text-gray-900">
-                    {user ? `${user.firstName} ${user.lastName}` : 'User'}
-                  </p>
-                  <p className="mt-1 truncate text-xs font-medium text-gray-600">
-                    {user?.email || 'admin@example.com'}
-                  </p>
-                  <span className="mt-2 inline-block rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700">
-                    {user?.userType?.[0] || 'Admin'}
-                  </span>
-                </div>
-                <button
-                  className="mt-1 flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-                  type="button"
-                  onClick={handleLogout}
-                >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  <span>Logout</span>
-                </button>
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <button
-                aria-expanded={showProfileMenu}
-                aria-label="Account menu"
-                className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-white/20 px-3 py-2 transition-all duration-200 hover:border-white/40 hover:bg-white/10"
-                type="button"
-                onClick={() => setShowProfileMenu(prev => !prev)}
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[rgba(255,255,255,0.33)] bg-[rgba(255,255,255,0.13)] text-[15px] font-semibold text-white">
-                  {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'U'}
-                </div>
-                <div className="flex min-w-0 flex-col items-start">
-                  <span className="truncate text-sm font-semibold leading-tight text-white">
-                    {user ? `${user.firstName} ${user.lastName}` : 'User'}
-                  </span>
-                  <span className="truncate text-xs font-medium text-white/60">{user?.userType?.[0] || 'Admin'}</span>
-                </div>
-                <svg
-                  className={`ml-auto h-4 w-4 shrink-0 text-white/60 transition-transform duration-200 ${
-                    showProfileMenu ? 'rotate-180' : ''
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-                </svg>
-              </button>
-
-              {onOpenNotifications && (
-                <button
-                  aria-label="Notifications log"
-                  className="shrink-0 rounded-xl border border-white/20 p-2.5 text-white/80 transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:text-white"
-                  title="Notifications log"
-                  type="button"
-                  onClick={() => {
-                    onOpenNotifications();
-                    closeOnMobile();
-                  }}
-                >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
     </>
   );
