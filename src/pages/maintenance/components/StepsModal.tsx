@@ -65,6 +65,13 @@ const StepsModal: React.FC<Props> = ({ title, steps, videoUrl, onClose }) => {
                     />
                   </a>
                 )}
+                {step.videoUrl && (
+                  <div className="mt-2.5 pl-10">
+                    <video controls className="max-h-56 w-full rounded-lg bg-black" src={step.videoUrl}>
+                      <track kind="captions" />
+                    </video>
+                  </div>
+                )}
               </div>
             ))
           )}
