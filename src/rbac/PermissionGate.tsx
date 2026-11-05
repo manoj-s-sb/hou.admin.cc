@@ -1,8 +1,10 @@
 import React, { Children, cloneElement, isValidElement } from 'react';
 
 import { toast } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
 
 import { PermissionAction } from '../store/auth/types';
+import { RootState } from '../store/store';
 
 import { hasPermission, ModuleKey } from './permissions';
 
@@ -61,6 +63,9 @@ const PermissionGate: React.FC<PermissionGateProps> = ({
   message = DEFAULT_DENIED_MESSAGE,
   children,
 }) => {
+  // Subscribe to permissions so the gate re-evaluates when they change mid-session.
+  // hasPermission() still reads them imperatively; this only triggers the re-render.
+  useSelector((state: RootState) => state.auth.permissions);
   const allowed = hasPermission(module, action);
   if (allowed) return <>{children}</>;
 

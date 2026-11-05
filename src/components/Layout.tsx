@@ -1,13 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-
-import { ROUTES } from '../constants/routes';
 import { CentreNavProvider } from '../contexts/CentreNavContext';
-import { logout as logoutAction } from '../store/auth/reducers';
-import { persistor, RootState } from '../store/store';
-import { facilityScope } from '../utils/facilityScope';
 
 import NotificationsLogModal from './NotificationsLogModal';
 import Sidebar from './Sidebar';
@@ -17,48 +10,9 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-
-  const user = useSelector((state: RootState) => state.auth.user);
-
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [isNotificationsLogOpen, setIsNotificationsLogOpen] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setShowProfileMenu(false);
-      }
-    };
-
-    if (showProfileMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showProfileMenu]);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const handleLogout = () => {
-    dispatch(logoutAction());
-    persistor.purge();
-    facilityScope.reset();
-    navigate(ROUTES.LOGIN.path);
-  };
 
   // Handle sidebar state on resize
   useEffect(() => {
@@ -81,102 +35,33 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <CentreNavProvider>
       <div className="flex min-h-screen">
-        <Sidebar isOpen={isSidebarOpen || isDesktop} onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar
+          isOpen={isSidebarOpen || isDesktop}
+          onClose={() => setIsSidebarOpen(false)}
+          onOpenNotifications={() => setIsNotificationsLogOpen(true)}
+        />
         <div className="flex h-screen w-full flex-col overflow-hidden lg:ml-64">
-          <header
-            className="sticky top-0 z-30 flex h-20 shrink-0 items-center justify-between border-b border-[#21295A] px-4 sm:px-6 lg:px-8"
-            style={{ backgroundImage: 'linear-gradient(-79.8deg, #5FACFF 0%, #324B9C 108.02%)' }}
+          {/* The top header was removed (user profile + notifications now live at the
+              sidebar bottom). This floating button is the only way to open the sidebar
+              on mobile/tablet; hidden on desktop where the sidebar is always visible. */}
+          <button
+            aria-label="Open sidebar"
+            className="fixed left-3 top-3 z-30 rounded-xl border border-[#21295A]/20 bg-white/90 p-2.5 text-[#21295A] shadow-md backdrop-blur transition-all duration-200 hover:bg-white lg:hidden"
+            onClick={() => setIsSidebarOpen(true)}
           >
-            {/* Mobile Menu Button */}
-            <button
-              aria-label="Open sidebar"
-              className="rounded-xl border border-white/20 p-2.5 text-white/80 transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:text-white lg:hidden"
-              onClick={() => setIsSidebarOpen(true)}
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-              </svg>
-            </button>
-
-            <div className="flex-1"></div>
-            {/* NE-1: central notifications log — a bell icon here rather than its
-                own sidebar entry, per request (see NotificationsLogModal). */}
-            <button
-              aria-label="Notifications log"
-              className="mr-3 rounded-xl border border-white/20 p-2.5 text-white/80 transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:text-white"
-              title="Notifications log"
-              onClick={() => setIsNotificationsLogOpen(true)}
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-              </svg>
-            </button>
-            <div ref={profileMenuRef} className="relative">
-              <button
-                className="flex items-center gap-3 rounded-xl border border-white/20 px-4 py-2.5 transition-all duration-200 hover:border-white/40 hover:bg-white/10"
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(255,255,255,0.33)] bg-[rgba(255,255,255,0.13)] text-[18px] font-semibold text-white">
-                  {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'U'}
-                </div>
-                <div className="hidden flex-col items-start sm:flex">
-                  <span className="text-sm font-semibold text-white">
-                    {user ? `${user.firstName} ${user.lastName}` : 'User'}
-                  </span>
-                  <span className="text-xs font-medium text-white/60">{user?.userType?.[0] || 'Admin'}</span>
-                </div>
-                <svg
-                  className={`h-4 w-4 text-white/60 transition-transform duration-200 ${
-                    showProfileMenu ? 'rotate-180' : ''
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-                </svg>
-              </button>
-              {showProfileMenu && (
-                <div className="animate-fadeIn absolute right-0 z-50 mt-3 w-64 rounded-xl border border-gray-200 bg-white py-2 shadow-2xl">
-                  <div className="border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-3">
-                    <p className="text-sm font-bold text-gray-900">
-                      {user ? `${user.firstName} ${user.lastName}` : 'User'}
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-gray-600">{user?.email || 'admin@example.com'}</p>
-                    <span className="mt-2 inline-block rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-700">
-                      {user?.userType?.[0] || 'Admin'}
-                    </span>
-                  </div>
-                  <button
-                    className="mt-1 flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-                    onClick={handleLogout}
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                      />
-                    </svg>
-                    <span>Logout</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </header>
+              <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+            </svg>
+          </button>
+          {/* Reserves space on mobile so the floating menu button never overlaps page
+              content (e.g. a page's back arrow / title). No-op on desktop. */}
+          <div className="h-14 shrink-0 lg:hidden" />
           <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 to-gray-100 p-2 max-[560px]:p-2 sm:p-5 lg:p-6">
             {children}
           </main>
