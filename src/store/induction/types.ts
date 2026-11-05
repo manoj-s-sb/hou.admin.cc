@@ -131,6 +131,10 @@ export interface InductionState {
   updatingBookingCode: string | null;
   error: string | null;
   inductionList: InductionResponse;
+  /** requestId of the most recently DISPATCHED inductionList call. See
+   * members/types.ts's latestMembersRequestId for why this guard exists —
+   * same out-of-order-response race, same fix. */
+  latestInductionListRequestId: string | null;
   selectedInduction: Induction | null;
   inductionStep: InductionStep | null;
   userInductionDetails: Induction | null;
@@ -140,6 +144,7 @@ export const initialState: InductionState = {
   isLoading: false,
   updatingBookingCode: null,
   error: '',
+  latestInductionListRequestId: null,
   inductionList: {
     bookings: [],
     total: 0,

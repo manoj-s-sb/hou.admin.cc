@@ -22,11 +22,18 @@ const inductionSlice = createSlice({
     },
   },
   extraReducers: builder => {
-    builder.addCase(inductionList.pending, state => {
+    // Same out-of-order-response race as members/reducers.ts's getMembers:
+    // an older, slower inductionList request resolving after a newer,
+    // faster one (e.g. a filter/page/rows-per-page change fired in quick
+    // succession) could silently overwrite the correct result with stale
+    // data. Guard on the latest dispatched requestId.
+    builder.addCase(inductionList.pending, (state, action) => {
       state.isLoading = true;
       state.error = '';
+      state.latestInductionListRequestId = action.meta.requestId;
     });
     builder.addCase(inductionList.fulfilled, (state, action) => {
+      if (action.meta.requestId !== state.latestInductionListRequestId) return;
       state.isLoading = false;
       state.inductionList = action.payload?.data || {
         bookings: [],
@@ -36,6 +43,7 @@ const inductionSlice = createSlice({
       };
     });
     builder.addCase(inductionList.rejected, (state, action) => {
+      if (action.meta.requestId !== state.latestInductionListRequestId) return;
       state.isLoading = false;
       state.error = (action.payload as string) || 'Induction list failed. Please try again.';
     });

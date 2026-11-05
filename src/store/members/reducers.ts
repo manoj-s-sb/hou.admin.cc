@@ -20,15 +20,25 @@ const membersSlice = createSlice({
   initialState,
   reducers: {},
   extraReducers: builder => {
-    builder.addCase(getMembers.pending, state => {
+    // getMembers fires again on every page/rows-per-page/filter change, and
+    // nothing guaranteed the responses land back in the same order they were
+    // dispatched in -- an older, slower request (e.g. the initial unfiltered
+    // list) resolving AFTER a newer, faster, filtered one used to silently
+    // clobber the correct filtered result with stale data. Tracking the
+    // latest dispatched requestId and ignoring any response that isn't it
+    // fixes that race without touching the backend at all.
+    builder.addCase(getMembers.pending, (state, action) => {
       state.isLoading = true;
       state.error = '';
+      state.latestMembersRequestId = action.meta.requestId;
     });
     builder.addCase(getMembers.fulfilled, (state, action) => {
+      if (action.meta.requestId !== state.latestMembersRequestId) return;
       state.isLoading = false;
       state.membersList = action.payload?.data || [];
     });
     builder.addCase(getMembers.rejected, (state, action) => {
+      if (action.meta.requestId !== state.latestMembersRequestId) return;
       state.isLoading = false;
       state.error = (action.payload as string) || 'Failed to fetch members list';
     });
