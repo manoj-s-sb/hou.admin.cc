@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
+import ProfileAvatar from '../../components/ProfileAvatar';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { buildRoute, ROUTES } from '../../constants/routes';
@@ -20,8 +21,6 @@ type TabKey = 'all' | 'designations' | 'access';
 
 interface StaffRow {
   id: string;
-  initials: string;
-  initialsBg: string;
   photoUrl: string;
   name: string;
   subtitle: string;
@@ -88,21 +87,6 @@ const matrixGrant = (scopeType: string, levelId: string, rowIndex: number): Gran
   return 'none';
 };
 
-const INITIALS_PALETTE = [
-  'bg-indigo-100 text-indigo-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700',
-  'bg-rose-100 text-rose-700',
-  'bg-sky-100 text-sky-700',
-  'bg-violet-100 text-violet-700',
-];
-
-const pickInitialsBg = (seed: string): string => {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash + seed.charCodeAt(i)) % INITIALS_PALETTE.length;
-  return INITIALS_PALETTE[hash];
-};
-
 const accessTone = (level: string | null): StaffRow['accessLevel']['tone'] => {
   if (!level) return 'admin';
   const v = level.toLowerCase();
@@ -120,30 +104,6 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
   return 'active';
 };
 
-// A stale/expired SAS URL (or any broken photoUrl) falls back to initials
-// instead of a broken-image icon — tracked locally since renderCell isn't
-// itself a component and can't hold React state.
-const StaffAvatar: React.FC<{ photoUrl: string; initials: string; initialsBg: string; name: string }> = ({
-  photoUrl,
-  initials,
-  initialsBg,
-  name,
-}) => {
-  const [broken, setBroken] = useState(false);
-  const showPhoto = Boolean(photoUrl) && !broken;
-  return (
-    <div
-      className={`flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold ${showPhoto ? 'bg-gray-100' : initialsBg}`}
-    >
-      {showPhoto ? (
-        <img alt={name} className="h-full w-full object-cover" src={photoUrl} onError={() => setBroken(true)} />
-      ) : (
-        initials
-      )}
-    </div>
-  );
-};
-
 const mapStaff = (
   row: StaffListRow,
   resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string,
@@ -152,14 +112,6 @@ const mapStaff = (
 ): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
   const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
-  const initialsSource = fullName || row.email || '?';
-  const initials =
-    initialsSource
-      .split(/\s+|@|\./)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(part => part.charAt(0).toUpperCase())
-      .join('') || '?';
 
   const roles = (row.userType ?? []).map(role => ({ label: resolveRoleLabel(role) }));
 
@@ -167,8 +119,6 @@ const mapStaff = (
 
   return {
     id: row.staffId,
-    initials,
-    initialsBg: pickInitialsBg(row.staffId || row.email || displayName),
     photoUrl:
       row.photoSasUrl ??
       row.photoUrl ??
@@ -388,7 +338,7 @@ const StaffManagement: React.FC = () => {
             openProfile(row);
           }}
         >
-          <StaffAvatar initials={row.initials} initialsBg={row.initialsBg} name={row.name} photoUrl={row.photoUrl} />
+          <ProfileAvatar alt={row.name} photoUrl={row.photoUrl} />
           <div>
             <p className="text-[13px] font-semibold text-[#21295A] hover:underline">{row.name}</p>
             <p className="text-[11px] text-gray-400">{row.subtitle}</p>
@@ -404,11 +354,16 @@ const StaffManagement: React.FC = () => {
       sortable: false,
       renderCell: ({ row }) => (
         <div className="flex flex-wrap gap-1.5">
+          {/* Every role gets its own small badge, not just plain text — a
+              person holding 2+ roles (e.g. Coach + Facility Admin) previously
+              rendered as one run-on phrase with no visual separation between
+              them. The first role is tinted to read as the "primary" one at
+              a glance; any additional roles are a plain gray badge. */}
           {(row as StaffRow).primaryRoles.map((role, idx) => (
             <span
               key={idx}
-              className={`text-[12px] font-medium ${
-                role.tone === 'muted' ? 'rounded-md bg-gray-100 px-2 py-0.5 text-gray-600' : 'text-gray-700'
+              className={`rounded-md px-2 py-0.5 text-[12px] font-medium ${
+                idx === 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'
               }`}
             >
               {role.label}

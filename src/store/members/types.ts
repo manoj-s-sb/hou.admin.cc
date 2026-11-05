@@ -336,6 +336,13 @@ export interface MembersInitialState {
   isPurchasedSlotsLoading: boolean;
   error: string | null;
   membersList: MemberListResponse;
+  /** requestId of the most recently DISPATCHED getMembers call. Nothing else
+   * writes membersList unless a response's own requestId still matches this
+   * -- an older, slower request (e.g. an unfiltered list still in flight
+   * when the user quickly applies a Plan/Status filter) can otherwise land
+   * AFTER the newer, filtered response and silently overwrite it with stale
+   * data. See reducers.ts. */
+  latestMembersRequestId: string | null;
   memberDetails: MemberDetailsResponse | null;
   isSubscriptionActivation: boolean;
   membersCount: MembersCountResponse | null;
@@ -368,6 +375,7 @@ export const initialState: MembersInitialState = {
     skip: 0,
     total: 0,
   },
+  latestMembersRequestId: null,
   memberDetails: null,
   isSubscriptionActivation: false,
   memberNotes: [],

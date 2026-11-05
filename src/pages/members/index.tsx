@@ -310,6 +310,13 @@ const Members = () => {
   );
 
   const currentLimit = membersListData.limit || 20;
+  // Lets the filters/search-reset effect below read the latest page size
+  // without re-running every time the page size itself changes (see that
+  // effect's own comment for why that distinction matters).
+  const currentLimitRef = useRef(currentLimit);
+  useEffect(() => {
+    currentLimitRef.current = currentLimit;
+  }, [currentLimit]);
 
   const buildRequestPayload = useCallback(
     (overrides?: Partial<MemberRequest>, appliedFilters: FilterState = filters): MemberRequest => {
@@ -357,7 +364,7 @@ const Members = () => {
     const applied = parseFiltersFromSearchParams(searchParams);
     const payload: MemberRequest = {
       skip: 0,
-      limit: currentLimit,
+      limit: currentLimitRef.current,
       facilityCode,
     };
     const trimmedSearch = applied.search.trim();
@@ -366,7 +373,18 @@ const Members = () => {
     if (applied.subscriptionType) payload.subscriptionCode = applied.subscriptionType;
     if (applied.status) payload.subscriptionStatus = applied.status;
     dispatch(getMembers(payload));
-  }, [dispatch, currentLimit, facilityCode, searchParams]);
+    // currentLimit deliberately NOT a dependency here: this effect's job is
+    // "filters/search/centre changed -> reset to page 1", and it must fire
+    // ONLY for that. membersListData.limit (currentLimit's source) is itself
+    // updated by onPageChange/onRowsPerPageChange below -- if it were a
+    // dependency, picking "100 rows per page" (or just paging) would update
+    // that Redux value, which would re-trigger THIS effect, which
+    // unconditionally resets skip back to 0 and silently snaps the user back
+    // to page 1 a moment after they just changed page/page-size. Read via a
+    // ref instead so a facility/filter change still uses the latest page
+    // size without the effect re-firing just because the page size changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, facilityCode, searchParams]);
 
   useEffect(() => {
     dispatch(
