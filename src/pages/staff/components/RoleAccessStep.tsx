@@ -252,7 +252,9 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Primary Roles</p>
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          Primary Roles <span className="text-red-400">*</span>
+        </p>
         <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
           <p className="mb-2 px-2 text-[12px] text-gray-600">
             A staff member can hold <span className="font-semibold text-gray-800">multiple roles</span>. Select all that
@@ -450,7 +452,9 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
       )}
 
       <div>
-        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">Access Level</p>
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+          Access Level <span className="text-red-400">*</span>
+        </p>
         {isConfigLoading ? (
           <p className="text-[12px] text-gray-400">Loading access levels…</p>
         ) : (
