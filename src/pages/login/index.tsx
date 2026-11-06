@@ -44,7 +44,7 @@ const Login: React.FC = () => {
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white px-10 py-10 shadow-xl">
         {/* Logo */}
         <div className="mb-5 flex justify-center">
-          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand.svg" />
+          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-new.png" />
         </div>
 
         {/* Heading */}

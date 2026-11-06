@@ -179,9 +179,10 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
     setSaving(true);
     // Only send imageUrl/videoUrl for steps with a fresh upload; on update the
     // backend keeps an existing step's image/video (matched by order) when
-    // either is omitted.
+    // either is omitted. Keep a row that has an image/video even with no
+    // title typed — a step can be "just a photo", the title isn't required.
     const stepPayload = stepRows
-      .filter(s => s.title.trim())
+      .filter(s => s.title.trim() || s.newBlobName || s.keepImageUrl || s.newVideoBlobName || s.keepVideoUrl)
       .map(s => ({
         title: s.title.trim(),
         ...(s.newBlobName ? { imageUrl: s.newBlobName } : {}),

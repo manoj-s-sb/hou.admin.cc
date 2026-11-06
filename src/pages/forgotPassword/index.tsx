@@ -151,7 +151,7 @@ const ForgotPassword = () => {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-5">
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white px-10 py-10 shadow-xl">
         <div className="mb-5 flex justify-center">
-          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand.svg" />
+          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-new.png" />
         </div>
 
         <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">{heading}</h1>
