@@ -77,7 +77,11 @@ const SlotBookings: React.FC = () => {
   const { slots, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
   const facilityCode = useScopedFacilityCode();
-  const canCreateSeries = canEditModule(MODULES.RECURRING_BLOCKS);
+  // Folded into Slot Bookings' own write permission — "recurringblocks" was a
+  // separate module ID with no Staff Management toggle to ever grant it, so
+  // Series was unreachable for every non-superadmin login. Per product
+  // decision, Slot Bookings write now covers Series too.
+  const canCreateSeries = canEditModule(MODULES.SLOT_BOOKING);
   const [showNewSeriesModal, setShowNewSeriesModal] = useState(false);
   const [showSeriesListModal, setShowSeriesListModal] = useState(false);
   const [showConflictsModal, setShowConflictsModal] = useState(false);
