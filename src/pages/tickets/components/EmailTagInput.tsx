@@ -4,7 +4,30 @@ import { EMAIL_RE } from '../../../utils/validation';
 
 const defaultFieldClass =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
-const defaultLabelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
+const defaultLabelClass = 'mb-1 block text-[13px] font-bold text-[#21295A]';
+
+const MailIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path
+      d="M3 7l9 6 9-6M4 6h16a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+/** Renders "Label (optional)" with the parenthetical part dimmer/lighter than
+ * the rest, instead of the whole label reading at the same weight. */
+const SplitLabel: React.FC<{ text: string }> = ({ text }) => {
+  const match = text.match(/^(.*?)(\s*\([^)]*\))\s*$/);
+  if (!match) return <>{text}</>;
+  return (
+    <>
+      {match[1]}
+      <span className="font-normal text-gray-400">{match[2]}</span>
+    </>
+  );
+};
 
 interface Props {
   emails: string[];
@@ -48,26 +71,31 @@ const EmailTagInput: React.FC<Props> = ({
 
   return (
     <div>
-      <span className={labelClass}>{label}</span>
+      <span className={labelClass}>
+        <SplitLabel text={label} />
+      </span>
       <div className="flex gap-2">
-        <input
-          className={fieldClass}
-          placeholder={placeholder}
-          type="text"
-          value={value}
-          onChange={e => {
-            setValue(e.target.value);
-            if (error) setError('');
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addEmail();
-            }
-          }}
-        />
+        <div className="relative flex-1">
+          <MailIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            className={`${fieldClass} pl-8`}
+            placeholder={placeholder}
+            type="text"
+            value={value}
+            onChange={e => {
+              setValue(e.target.value);
+              if (error) setError('');
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addEmail();
+              }
+            }}
+          />
+        </div>
         <button
-          className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+          className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-bold text-[#21295A] transition hover:bg-gray-50"
           type="button"
           onClick={addEmail}
         >

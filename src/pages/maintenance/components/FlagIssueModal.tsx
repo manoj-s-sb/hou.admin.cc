@@ -18,6 +18,15 @@ interface Props {
   onFlagged: () => void;
 }
 
+/** A field label, with the required-field "*" always styled red, separate from
+ * the rest of the (bold/bright navy) label text. */
+const FieldLabel: React.FC<{ children: React.ReactNode; required?: boolean }> = ({ children, required }) => (
+  <span className={labelCls}>
+    {children}
+    {required && <span className="text-red-500"> *</span>}
+  </span>
+);
+
 const LaneChip: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({
   active,
   onClick,
@@ -139,7 +148,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <div>
-            <span className={labelCls}>Issue Title *</span>
+            <FieldLabel required>Issue Title</FieldLabel>
             <input
               className={`${inputCls}${tried && !title.trim() ? 'border-red-400 ring-1 ring-red-300' : ''}`}
               value={title}
@@ -147,7 +156,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
             />
           </div>
           <div>
-            <span className={labelCls}>Description *</span>
+            <FieldLabel required>Description</FieldLabel>
             <textarea
               className={`${inputCls}${tried && !notes.trim() ? 'border-red-400 ring-1 ring-red-300' : ''}`}
               placeholder="Describe the issue…"
@@ -194,7 +203,7 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
             </div>
           </div>
           <div>
-            <span className={labelCls}>Assign To *</span>
+            <FieldLabel required>Assign To</FieldLabel>
             <StaffAssigneeSelect
               className={`${inputCls}${tried && assignees.length === 0 ? 'border-red-400 ring-1 ring-red-300' : ''}`}
               facilityCode={facilityCode}
