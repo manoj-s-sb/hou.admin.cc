@@ -62,6 +62,13 @@ const statusMap: Record<string, { label: string; className: string }> = {
   noshow: { label: 'No Show', className: 'bg-orange-100 text-orange-700' },
 };
 
+// The backend's `status` is 'completed' once induction steps are done, regardless
+// of whether the subscription was actually activated (see viewInduction.tsx's own
+// fix for the same distinction) -- re-label it here too, so a row isn't shown as
+// fully "Completed" before Activate Subscription has actually been clicked.
+const PENDING_MEMBERSHIP_STATUSES = new Set(['pendingactivation', 'inactive']);
+const PARTIAL_COMPLETED_STATUS = { label: 'Partial Completed', className: 'bg-amber-100 text-amber-700' };
+
 const Induction = () => {
   const {
     inductionList: inductionListData,
@@ -228,7 +235,13 @@ const Induction = () => {
         sortable: true,
         renderCell: params => {
           const status = params.row?.status || '';
-          const { label, className } = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
+          const subscriptionStatus = params.row?.subscriptionStatus ?? '';
+          const isSubscriptionActivated =
+            Boolean(subscriptionStatus) && !PENDING_MEMBERSHIP_STATUSES.has(subscriptionStatus);
+          const { label, className } =
+            status === 'completed' && !isSubscriptionActivated
+              ? PARTIAL_COMPLETED_STATUS
+              : statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
           return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
         },
       },
