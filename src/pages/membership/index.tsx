@@ -306,7 +306,7 @@ const MembershipPlans: React.FC = () => {
 
       {/* Tabs + New Plan */}
       <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-        <div className="mb-6 flex gap-0 overflow-x-auto border-b border-cmx-border" style={{ marginBottom: 0 }}>
+        <div className="mb-6 flex gap-0 border-b border-cmx-border" style={{ marginBottom: 0 }}>
           {TABS.map(t => (
             <button
               key={t.key}

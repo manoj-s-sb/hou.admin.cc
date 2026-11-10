@@ -193,7 +193,7 @@ export const centreBucket = (t: FreqSource): CentreBucket => {
 export const inputCls =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
 
-export const labelCls = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
+export const labelCls = 'mb-1 block text-[11px] font-bold uppercase tracking-wider text-[#21295A]';
 
 export const scheduleStatusMeta: Record<string, { label: string; pill: string }> = {
   pending: { label: 'Pending', pill: 'bg-gray-100 text-gray-600' },

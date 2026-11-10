@@ -33,6 +33,15 @@ interface Props {
   onSaved: () => void;
 }
 
+/** A field label, with the required-field "*" always styled red, separate from
+ * the rest of the (bold/bright navy) label text. */
+const FieldLabel: React.FC<{ children: React.ReactNode; required?: boolean }> = ({ children, required }) => (
+  <span className={labelCls}>
+    {children}
+    {required && <span className="text-red-500"> *</span>}
+  </span>
+);
+
 interface StepRow {
   title: string;
   keepImageUrl: string | null; // existing image (display only; preserved server-side on save)
@@ -248,7 +257,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <div>
-            <span className={labelCls}>Task Title *</span>
+            <FieldLabel required>Task Title</FieldLabel>
             <input
               className={`${inputCls}${errRing(errors.title)}`}
               placeholder="e.g. Solenoid Spring Inspection"
@@ -294,7 +303,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
           {isCustomCat && (
             <div>
-              <span className={labelCls}>Custom Category *</span>
+              <FieldLabel required>Custom Category</FieldLabel>
               <input
                 className={`${inputCls}${errRing(errors.categoryCustom)}`}
                 placeholder="Enter category name"
@@ -309,7 +318,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
           {isCustomType && (
             <div>
-              <span className={labelCls}>Custom Type *</span>
+              <FieldLabel required>Custom Type</FieldLabel>
               <input
                 className={`${inputCls}${errRing(errors.taskTypeCustom)}`}
                 placeholder="Enter type name"
@@ -368,7 +377,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
           {isCustomEquip && (
             <div>
-              <span className={labelCls}>Custom Equipment *</span>
+              <FieldLabel required>Custom Equipment</FieldLabel>
               <input
                 className={`${inputCls}${errRing(errors.equipmentCustom)}`}
                 placeholder="Enter equipment name"

@@ -67,7 +67,7 @@ const TagInput: React.FC<{
           type="button"
           onClick={add}
         >
-          + Add
+          Add
         </button>
       </div>
     </div>
