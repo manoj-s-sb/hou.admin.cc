@@ -5,7 +5,9 @@ export interface MemberRequest {
   /** Free-text filter — matches name, email, or phone (partial, case-insensitive). */
   search?: string;
   billingCycle?: 'annual' | 'fortnightly';
-  subscriptionCode?: 'standard' | 'premium' | 'family';
+  // Any plan's code — not a fixed union, since plans are created/named dynamically
+  // in Membership Plans and aren't limited to the original 4.
+  subscriptionCode?: string;
   subscriptionStatus?: 'active' | 'pendingactivation' | 'paused' | 'canceled' | 'resumed' | 'inactive';
 }
 
@@ -303,6 +305,9 @@ export interface MembersCountResponse {
   familyAnnual: number;
   offpeakFortnightly: number;
   offpeakAnnual: number;
+  // {subscriptionCode: {annual, fortnightly}} for every plan actually present —
+  // includes any plan created after the 4 fixed fields above were added.
+  planBreakdown?: Record<string, { annual: number; fortnightly: number }>;
   activeCount: number;
   cancelledCount: number;
   pendingActivationCount: number;

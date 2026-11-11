@@ -253,7 +253,7 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
     <div className="space-y-6">
       <div>
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
-          Primary Roles <span className="text-red-400">*</span>
+          Primary Roles <span className="text-[15px] font-bold text-red-400">*</span>
         </p>
         <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
           <p className="mb-2 px-2 text-[12px] text-gray-600">
@@ -453,7 +453,7 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
 
       <div>
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
-          Access Level <span className="text-red-400">*</span>
+          Access Level <span className="text-[15px] font-bold text-red-400">*</span>
         </p>
         {isConfigLoading ? (
           <p className="text-[12px] text-gray-400">Loading access levels…</p>
@@ -577,7 +577,7 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
       {showCountry && (
         <div>
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
-            Country <span className="text-red-500">*</span>
+            Country <span className="text-[15px] font-bold text-red-500">*</span>
           </p>
           <select
             className="w-full max-w-sm rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
@@ -601,7 +601,7 @@ const RoleAccessStep: React.FC<RoleAccessStepProps> = ({
       {showAssignedCentres && (
         <div>
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
-            Assigned Centres <span className="text-red-500">*</span>
+            Assigned Centres <span className="text-[15px] font-bold text-red-500">*</span>
             {assignedCentres.length > 0 && (
               <span className="ml-2 text-gray-400">· {assignedCentres.length} selected</span>
             )}

@@ -23,7 +23,7 @@ interface Props {
 const FieldLabel: React.FC<{ children: React.ReactNode; required?: boolean }> = ({ children, required }) => (
   <span className={labelCls}>
     {children}
-    {required && <span className="text-red-500"> *</span>}
+    {required && <span className="text-[15px] font-bold text-red-500"> *</span>}
   </span>
 );
 

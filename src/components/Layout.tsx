@@ -108,9 +108,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* NE-1: central notifications log — a bell icon here rather than its
                 own sidebar entry, per request (see NotificationsLogModal). */}
             <button
-              aria-label="Notifications log"
+              aria-label="Email logs"
               className="mr-3 rounded-xl border border-white/20 p-2.5 text-white/80 transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:text-white"
-              title="Notifications log"
+              title="Email logs"
               onClick={() => setIsNotificationsLogOpen(true)}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
