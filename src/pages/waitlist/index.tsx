@@ -1176,7 +1176,7 @@ const WaitlistLeads = () => {
       {/* ── Page Header ─────────────────────────────────────── */}
       <div className="mb-5 flex items-start justify-between gap-3 border-b border-gray-100 pb-4">
         <div>
-          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Waitlist / Enquiries</h1>
+          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Leads</h1>
           <p className="mt-1 text-[12px] font-medium text-gray-400">
             Members waiting for a spot · Enquiries who toured but haven&apos;t joined
           </p>
@@ -1206,7 +1206,9 @@ const WaitlistLeads = () => {
             </button>
           )}
           <button
-            className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570]"
+            className="flex items-center gap-1.5 rounded-lg bg-[#21295A] px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#21295A]"
+            disabled={exportData.entries.length === 0}
+            title={exportData.entries.length === 0 ? 'Nothing to export' : undefined}
             type="button"
             onClick={() => setShowExport(true)}
           >

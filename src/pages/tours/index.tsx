@@ -39,7 +39,15 @@ const Tours = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [undoConfirm, setUndoConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
+  // Undo works the same way from either "No Show" or "Cancelled" — fromStatus
+  // just drives the confirmation copy, the actual API call is identical either way.
+  const [undoConfirm, setUndoConfirm] = useState<{
+    userId: string;
+    bookingCode: string;
+    fromStatus: 'noshow' | 'cancelled';
+  } | null>(null);
+  const [cancelConfirm, setCancelConfirm] = useState<{ userId: string; bookingCode: string } | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
   // NS-6: the row currently open in the View detail panel. Kept as just the
   // bookingCode + a snapshot for display — the LIVE row (with up-to-date
   // notes) is looked up from the Redux list below on every render, so a note
@@ -177,7 +185,7 @@ const Tours = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 280,
+      width: 360,
       sortable: false,
       renderCell: params => {
         const handleStatusUpdate = (status: string) => {
@@ -214,13 +222,19 @@ const Tours = () => {
           </button>
         );
 
-        if (params.row?.status === 'noshow') {
+        if (params.row?.status === 'noshow' || params.row?.status === 'cancelled') {
           return (
             <div className="flex items-center gap-2">
               {viewButton}
               <button
                 className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 transition-all hover:bg-blue-600 hover:text-white"
-                onClick={() => setUndoConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode })}
+                onClick={() =>
+                  setUndoConfirm({
+                    userId: params.row.userId,
+                    bookingCode: params.row.bookingCode,
+                    fromStatus: params.row.status,
+                  })
+                }
               >
                 Undo
               </button>
@@ -242,6 +256,15 @@ const Tours = () => {
               {isLoading ? <LoaderSpinner className="text-current" size="xs" /> : 'Complete'}
             </button>
             <button
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[12px] font-semibold text-red-700 transition-all hover:bg-red-600 hover:text-white"
+              onClick={() => {
+                setCancelReason('');
+                setCancelConfirm({ userId: params.row.userId, bookingCode: params.row.bookingCode });
+              }}
+            >
+              Cancel
+            </button>
+            <button
               className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-[12px] font-semibold text-orange-700 transition-all hover:bg-orange-600 hover:text-white"
               onClick={() => handleStatusUpdate('noshow')}
             >
@@ -257,7 +280,7 @@ const Tours = () => {
     <div className="w-full">
       {/* ── Page Header ─────────────────────────────────────── */}
       <div className="mb-5 border-b border-gray-100 pb-4">
-        <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Tours</h1>
+        <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Tour List</h1>
         <p className="mt-1 text-[12px] font-medium text-gray-400">Manage tour bookings and attendance</p>
       </div>
 
@@ -333,6 +356,7 @@ const Tours = () => {
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
                 <option value="noshow">No Show</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
           </div>
@@ -423,17 +447,24 @@ const Tours = () => {
         />
       </div>
 
-      {/* ── Undo No Show Modal ──────────────────────────────── */}
+      {/* ── Undo No Show / Undo Cancel Modal ────────────────── */}
       {undoConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-gray-100 px-5 py-4">
-              <h3 className="text-[15px] font-bold text-[#21295A]">Undo No Show</h3>
+              <h3 className="text-[15px] font-bold text-[#21295A]">
+                {undoConfirm.fromStatus === 'cancelled' ? 'Undo Cancellation' : 'Undo No Show'}
+              </h3>
             </div>
             <div className="px-5 py-4">
               <p className="text-[13px] text-gray-500">
-                Change status from <span className="font-semibold text-orange-600">No Show</span> back to{' '}
-                <span className="font-semibold text-yellow-600">Pending</span>?
+                Change status from{' '}
+                <span
+                  className={`font-semibold ${undoConfirm.fromStatus === 'cancelled' ? 'text-red-600' : 'text-orange-600'}`}
+                >
+                  {undoConfirm.fromStatus === 'cancelled' ? 'Cancelled' : 'No Show'}
+                </span>{' '}
+                back to <span className="font-semibold text-yellow-600">Pending</span>?
               </p>
             </div>
             <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-3">
@@ -470,6 +501,73 @@ const Tours = () => {
                 }}
               >
                 {isLoading ? 'Updating…' : 'Yes, Undo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Tour Modal ─────────────────────────────────── */}
+      {cancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-gray-100 px-5 py-4">
+              <h3 className="text-[15px] font-bold text-[#21295A]">Cancel Tour Booking</h3>
+            </div>
+            <div className="px-5 py-4">
+              <p className="mb-3 text-[13px] text-gray-500">
+                Are you sure you want to cancel this tour booking? This can be undone later if needed.
+              </p>
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
+                htmlFor="tour-cancel-reason"
+              >
+                Reason (optional)
+              </label>
+              <textarea
+                className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
+                id="tour-cancel-reason"
+                placeholder="e.g. Visitor requested reschedule"
+                rows={2}
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-3">
+              <button
+                className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+                type="button"
+                onClick={() => setCancelConfirm(null)}
+              >
+                Keep Booking
+              </button>
+              <button
+                className="rounded-lg bg-red-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                disabled={isLoading}
+                type="button"
+                onClick={() => {
+                  dispatch(
+                    updateTourStatus({
+                      userId: cancelConfirm.userId,
+                      bookingCode: cancelConfirm.bookingCode,
+                      status: 'cancelled',
+                      reason: cancelReason.trim() || undefined,
+                    })
+                  )
+                    .unwrap()
+                    .then(res => {
+                      if (res?.status === 'success') {
+                        applyFilters();
+                        toast.success('Tour booking cancelled.');
+                      } else {
+                        toast.error('Failed to cancel booking!');
+                      }
+                    })
+                    .catch(err => toast.error(err || 'Failed to cancel booking!'))
+                    .finally(() => setCancelConfirm(null));
+                }}
+              >
+                {isLoading ? 'Cancelling…' : 'Yes, Cancel Booking'}
               </button>
             </div>
           </div>

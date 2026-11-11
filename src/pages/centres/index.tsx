@@ -281,19 +281,6 @@ const CentreManagement: React.FC = () => {
                 }}
               />
             ))}
-
-            {/* Add New Centre dashed card — super-admin only, only alongside the
-                unfiltered/live view (All or Active). */}
-            {canManageCentres && (statusFilter === '' || statusFilter === 'active') && (
-              <button
-                aria-label="Add new centre"
-                className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-cmx-border bg-white p-[18px] transition-all hover:border-cmx-blue hover:bg-cmx-blue-light"
-                type="button"
-                onClick={() => setWizardOpen(true)}
-              >
-                <span className="text-[13px] font-semibold text-sub">Add New Centre</span>
-              </button>
-            )}
           </div>
 
           {/* Pagination (skip + limit) */}

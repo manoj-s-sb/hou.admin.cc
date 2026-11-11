@@ -318,7 +318,7 @@ const ViewMembers = () => {
                     type="button"
                     onClick={() => canCreditWallet && !isPendingActivation && setIsCreditModalOpen(true)}
                   >
-                    + Add Wallet
+                    Add Credit
                   </button>
                 </div>
               </div>

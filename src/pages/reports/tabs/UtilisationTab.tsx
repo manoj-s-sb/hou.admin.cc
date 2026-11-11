@@ -62,7 +62,7 @@ const UtilisationTab: React.FC<{ data: UtilisationData }> = ({ data }) => {
               { key: 'noShows', name: 'No-shows', color: '#ef4444' },
             ]}
             data={data.capacityUsage}
-            xKey="centreName"
+            xKey="centreId"
           />
         </ChartCard>
       </div>

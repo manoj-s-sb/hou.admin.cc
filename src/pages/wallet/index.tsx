@@ -164,7 +164,7 @@ const WalletTransactions = () => {
           type="button"
           onClick={() => canCredit && setIsCreditModalOpen(true)}
         >
-          + Credit Wallet
+          Add Credit
         </button>
       </div>
 

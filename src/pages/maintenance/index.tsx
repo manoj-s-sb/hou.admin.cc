@@ -88,8 +88,8 @@ const Maintenance: React.FC = () => {
   // the global task library (no centre context) is unaffected, since this state is
   // only ever read when isCentre is true.
   const [centreModule, setCentreModule] = useState<CentreModule>('schedule');
-  const [globalTab, setGlobalTab] = useState<GlobalBucket>('weekly');
-  const [centreTab, setCentreTab] = useState<CentreBucket>('weekly');
+  const [globalTab, setGlobalTab] = useState<GlobalBucket>('daily');
+  const [centreTab, setCentreTab] = useState<CentreBucket>('daily');
   const [scheduleDay, setScheduleDay] = useState<string>(toISODate(new Date())); // ISO date | 'overdue'
   const scheduleDateInputRef = useRef<HTMLInputElement>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -486,7 +486,7 @@ const Maintenance: React.FC = () => {
             📅{' '}
             {isCustomDay
               ? new Date(`${scheduleDay}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              : 'Calendar'}
+              : 'Pick Date'}
             <input
               ref={scheduleDateInputRef}
               className="sr-only"
@@ -536,7 +536,7 @@ const Maintenance: React.FC = () => {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-[20px] font-bold text-[#21295A]">Maintenance &amp; Tasks</h1>
+          <h1 className="text-[20px] font-bold text-[#21295A]">Maintenance Tasks</h1>
           <p className="mt-0.5 text-[13px] text-gray-500">
             {isCentre
               ? 'Browse the task library, schedule tasks for this centre, mark them done, and flag issues.'

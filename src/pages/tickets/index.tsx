@@ -190,6 +190,12 @@ const Tickets: React.FC = () => {
     },
   ];
 
+  // A shared fixed width keeps every filter the same size regardless of how
+  // long its longest option's text happens to be — a native <select> with no
+  // explicit width otherwise sizes itself to its widest option, which is why
+  // "All Centres" (next to every real centre name) rendered visibly wider
+  // than Status/Priority on the global (non-centre-scoped) page. The browser
+  // truncates an overlong selected label with its own ellipsis.
   const selectFieldClass =
     'rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[13px] text-gray-700 outline-none focus:border-[#21295A]';
 
@@ -283,14 +289,18 @@ const Tickets: React.FC = () => {
             onClick={() => onTab('mine')}
           >
             Assigned to Me
-            <span className="rounded-lg bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">{mineCount}</span>
+            {mineCount > 0 && (
+              <span className="rounded-lg bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
+                {mineCount}
+              </span>
+            )}
           </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {!isCentreScoped && (
             <select
-              className={selectFieldClass}
+              className={`${selectFieldClass} w-[160px]`}
               value={centreFilter}
               onChange={e => {
                 setCentreFilter(e.target.value);
@@ -306,7 +316,7 @@ const Tickets: React.FC = () => {
             </select>
           )}
           <select
-            className={selectFieldClass}
+            className={`${selectFieldClass} w-[160px]`}
             // A native <select> can only represent one of these three independent
             // filter dimensions at a time (status / activeOnly / overdueOnly) — the
             // summary chips above let you combine them, this dropdown is a
@@ -346,7 +356,7 @@ const Tickets: React.FC = () => {
             <option value="overdue">Overdue</option>
           </select>
           <select
-            className={selectFieldClass}
+            className={`${selectFieldClass} w-[160px]`}
             value={category}
             onChange={e => {
               setCategory(e.target.value as '' | TicketCategory);
@@ -361,7 +371,7 @@ const Tickets: React.FC = () => {
             ))}
           </select>
           <select
-            className={selectFieldClass}
+            className={`${selectFieldClass} w-[160px]`}
             value={priority}
             onChange={e => {
               setPriority(e.target.value as '' | TicketPriority);
@@ -376,8 +386,8 @@ const Tickets: React.FC = () => {
             ))}
           </select>
           <input
-            className={`${selectFieldClass} min-w-[180px]`}
-            placeholder="Search ticket #, title, or description…"
+            className={`${selectFieldClass} w-[220px]`}
+            placeholder="Search tickets…"
             type="text"
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}

@@ -61,7 +61,20 @@ const PlansPricing: React.FC = () => {
     .map(m => {
       const regular = (m.pricing?.regular ?? {}) as Record<string, unknown>;
       const meta = PLAN_META[m.code] ?? { name: m.code, color: '#64748b', access: '—' };
-      const slots = num(caps[m.code] ?? caps[m.name]);
+      // Allocated slots (network-capacity planning, set per-plan in the New
+      // Centre wizard) is the primary source. A centre created before that
+      // field existed — or one whose capacity doc otherwise never got filled
+      // in for this plan — has nothing here; rather than show a flat,
+      // uninformative "0 slots" for every plan, fall back to the plan's own
+      // per-member entitlement (bookingRules.generalBookingRules.
+      // maxFrothnightlyBookings, the same "Slots per Cycle" field the
+      // Membership Plans drawer shows) so this card always shows a real,
+      // non-zero number when the plan itself has one.
+      const allocated = caps[m.code] ?? caps[m.name];
+      const perMemberSlots = (
+        m.bookingRules as { generalBookingRules?: { maxFrothnightlyBookings?: number } } | undefined
+      )?.generalBookingRules?.maxFrothnightlyBookings;
+      const slots = has(allocated) ? num(allocated) : num(perMemberSlots);
       const filled = num(membersByPlan[m.code] ?? membersByPlan[m.name]);
       // Name + access hours come from the saved membership doc; the catalogue meta
       // is only a fallback (legacy centres) + the accent colour (presentation).
@@ -106,7 +119,7 @@ const PlansPricing: React.FC = () => {
           marginBottom: 20,
         }}
       >
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Active Membership Plans</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Plans &amp; Pricing</div>
         <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
           Plans currently offered at this centre with local pricing and slot allocations
         </div>
