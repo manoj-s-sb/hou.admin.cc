@@ -105,11 +105,25 @@ export interface CentrePlanBreakdown {
   family: number;
   offPeak: number;
   nightOwl: number;
+  // Any plan created after the 5 fixed fields above were added (e.g.
+  // "familyplus") appears here too, keyed by its own lowercase plan code —
+  // see planSeries below for the matching label/colour.
+  [planCode: string]: string | number;
+}
+/** One bar-chart series for the per-centre plan breakdown — every plan code
+ * actually present today, known or newly created, with its label/colour
+ * already resolved server-side. Build the chart's `bars` prop from this
+ * instead of a hardcoded plan list. */
+export interface PlanSeriesEntry {
+  key: string;
+  label: string;
+  color: string;
 }
 export interface MembershipData {
   planCards: PlanCard[];
   donutData: MembershipDonut;
   centreBreakdown: CentrePlanBreakdown[];
+  planSeries: PlanSeriesEntry[];
   meta: ReportMeta;
 }
 

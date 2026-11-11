@@ -21,6 +21,7 @@ import {
   updateWaitlistStatus,
 } from '../../store/centres/api';
 import { AdminNote, ContactStatus, LeadEntry, StatusHistoryEntry, WaitlistEntry } from '../../store/centres/types';
+import { getMemberships } from '../../store/memberships/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { avatarColor, initials } from '../../utils/avatar';
 import { formatDate } from '../../utils/dateUtils';
@@ -78,8 +79,11 @@ const leadPlanOf = (e: LeadEntry): string => (e.details?.subscription_code || e.
 const leadDisplayNameOf = (e: LeadEntry): string => e.details?.name || e.details?.email || 'Unknown';
 
 // PLAN filter is client-side (the waitlist endpoint takes no plan param).
-const PLAN_FILTERS: { label: string; value: string }[] = [
-  { label: 'All plans', value: 'all' },
+// Fallback only, for the instant before the real catalogue below has loaded
+// (or if that fetch fails) — the real "Plan interest" options come from
+// Membership Plans' own global templates (see AddLeadModal), not this list,
+// so a newly created plan appears here with no code change needed.
+const FALLBACK_PLAN_FILTERS: { label: string; value: string }[] = [
   { label: 'Premium', value: 'premium' },
   { label: 'Standard', value: 'standard' },
   { label: 'Off Peak', value: 'offpeak' },
@@ -462,6 +466,16 @@ export const AddLeadModal: React.FC<{
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [plan, setPlan] = useState('all');
   const [saving, setSaving] = useState(false);
+  // The real plan universe -- global Membership Plans templates, same source
+  // Centre Management reads -- instead of a hardcoded list that goes stale
+  // the moment a new plan is created (see FALLBACK_PLAN_FILTERS above).
+  const membershipPlans = useSelector((s: RootState) => s.memberships.plans);
+  useEffect(() => {
+    dispatch(getMemberships(undefined));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const planOptions: { label: string; value: string }[] =
+    membershipPlans.length > 0 ? membershipPlans.map(p => ({ label: p.name, value: p.code })) : FALLBACK_PLAN_FILTERS;
   const [tried, setTried] = useState(false);
   // Email is optional, but the backend rejects a lead with neither email nor phone.
   const emailFormatValid = !email.trim() || EMAIL_RE.test(email.trim());
@@ -570,7 +584,8 @@ export const AddLeadModal: React.FC<{
               value={plan}
               onChange={e => setPlan(e.target.value)}
             >
-              {PLAN_FILTERS.map(f => (
+              <option value="all">No preference</option>
+              {planOptions.map(f => (
                 <option key={f.value} value={f.value}>
                   {f.label}
                 </option>
