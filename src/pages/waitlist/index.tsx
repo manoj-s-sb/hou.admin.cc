@@ -224,7 +224,7 @@ interface ExportSourceOption {
   value: string;
 }
 
-// Both Waitlist and Enquires entries carry the same `status` field/type, so the
+// Both Waitlist and Enquiries entries carry the same `status` field/type, so the
 // Status filter is common to both tabs (unlike Source, which is Waitlist-only).
 const STATUS_EXPORT_OPTIONS: ExportSourceOption[] = [
   { label: 'All Statuses', value: 'all' },
@@ -238,7 +238,7 @@ interface ExportData {
   headers: string[];
   entries: (WaitlistEntry | LeadEntry)[];
   toRow: (entry: WaitlistEntry | LeadEntry) => string[];
-  // Present for Waitlist only — Enquires has no subscriptionSrc/registrationSource,
+  // Present for Waitlist only — Enquiries has no subscriptionSrc/registrationSource,
   // so it gets a Range/Status control but no Source dropdown.
   sourceOptions?: ExportSourceOption[];
   sourceKeyOf?: (entry: WaitlistEntry | LeadEntry) => string;
@@ -515,7 +515,9 @@ export const AddLeadModal: React.FC<{
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <div>
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">Name *</span>
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              Name <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+            </span>
             <input
               className={`w-full rounded-lg border bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:bg-white ${
                 tried && !nameValid ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200 focus:border-[#21295A]'
@@ -620,7 +622,7 @@ const WaitlistLeads = () => {
   // "Position" column can still show a correct absolute number on later pages.
   const [waitlistUiPage, setWaitlistUiPage] = useState(0);
   const [waitlistUiRowsPerPage, setWaitlistUiRowsPerPage] = useState(PAGE_SIZE);
-  // The Enquires (Leads) tab also loads the FULL dataset (see fetchAllLeads) so
+  // The Enquiries (Leads) tab also loads the FULL dataset (see fetchAllLeads) so
   // the search box below can match against every entry, not just one page —
   // same reasoning and pagination approach as the Waitlist tab above.
   const [leadsSearch, setLeadsSearch] = useState('');
@@ -788,7 +790,7 @@ const WaitlistLeads = () => {
     dispatch(getCentreWaitlist({ facilityCode, page: 1, limit: PAGE_SIZE, all: true }));
   }, [dispatch, facilityCode]);
 
-  // Fetches EVERY lead row (bypasses pagination) — the Enquires tab always
+  // Fetches EVERY lead row (bypasses pagination) — the Enquiries tab always
   // loads the full set, so the search box below can match every entry, not
   // just the current page (mirrors fetchAllWaitlist above).
   const fetchAllLeads = useCallback(() => {
@@ -857,7 +859,7 @@ const WaitlistLeads = () => {
   }, [waitlistRows.length]);
 
   // Applied client-side over the full loaded dataset (see fetchAllLeads) —
-  // matches a partial name, email, phone number or contact status, same idiom as waitlistRows.
+  // matches a partial name, email, phone number, plan or contact status, same idiom as waitlistRows.
   const leadsRows = useMemo(() => {
     const q = leadsSearch.trim().toLowerCase();
     let rows = leads;
@@ -866,8 +868,11 @@ const WaitlistLeads = () => {
         const name = leadDisplayNameOf(l).toLowerCase();
         const email = (l.details?.email || '').toLowerCase();
         const phone = (l.details?.phoneNo || '').toLowerCase();
+        const plan = leadPlanOf(l).toLowerCase();
         const statusLabel = STATUS_META[l.status || 'not_contacted'].label.toLowerCase();
-        return name.includes(q) || email.includes(q) || phone.includes(q) || statusLabel.includes(q);
+        return (
+          name.includes(q) || email.includes(q) || phone.includes(q) || plan.includes(q) || statusLabel.includes(q)
+        );
       });
     }
     return sortByRecency(rows, leadsSort, l => l.timestamp || l.createdAt);
@@ -908,8 +913,8 @@ const WaitlistLeads = () => {
       };
     }
     return {
-      title: 'Enquires',
-      filename: `enquires-${facilityCode || 'centre'}`,
+      title: 'Enquiries',
+      filename: `enquiries-${facilityCode || 'centre'}`,
       headers: ['Name', 'Email', 'Phone', 'Action', 'Plan', 'Billing', 'Status', 'Date'],
       entries: leads,
       toRow: entry => {
@@ -1156,9 +1161,9 @@ const WaitlistLeads = () => {
       {/* ── Page Header ─────────────────────────────────────── */}
       <div className="mb-5 flex items-start justify-between gap-3 border-b border-gray-100 pb-4">
         <div>
-          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Waitlist / Enquires</h1>
+          <h1 className="text-[18px] font-bold tracking-tight text-[#21295A]">Waitlist / Enquiries</h1>
           <p className="mt-1 text-[12px] font-medium text-gray-400">
-            Members waiting for a spot · Enquires who toured but haven&apos;t joined
+            Members waiting for a spot · Enquiries who toured but haven&apos;t joined
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1213,7 +1218,7 @@ const WaitlistLeads = () => {
             type="button"
             onClick={() => switchTab(t)}
           >
-            {t === 'waitlist' ? 'Waitlist' : 'Enquires'}
+            {t === 'waitlist' ? 'Waitlist' : 'Enquiries'}
           </button>
         ))}
       </div>
@@ -1292,7 +1297,7 @@ const WaitlistLeads = () => {
               </Chip>
               <input
                 className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
-                placeholder="Search by name, phone, email or status…"
+                placeholder="Search by name, phone, email, plan or status…"
                 type="text"
                 value={leadsSearch}
                 onChange={e => setLeadsSearch(e.target.value)}
@@ -1316,8 +1321,8 @@ const WaitlistLeads = () => {
                 emptyState={{
                   subtitle: leadsSearch
                     ? 'Try a different name, phone or email'
-                    : 'Enquires appear here once prospects tour the centre',
-                  title: leadsSearch ? 'No matching enquires' : 'No enquires for this centre',
+                    : 'Enquiries appear here once prospects tour the centre',
+                  title: leadsSearch ? 'No matching enquiries' : 'No enquiries for this centre',
                 }}
                 getRowId={row => row.id || row.details?.email || `${row.action ?? ''}-${row.timestamp ?? ''}`}
                 loading={leadsLoading}

@@ -219,7 +219,7 @@ const PlansPricing: React.FC = () => {
           >
             <div style={{ fontSize: 12, color: 'var(--sub)' }}>{c.label}</div>
             <div style={{ margin: '4px 0 2px' }}>
-              <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)' }}>{c.value}</span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--navy)' }}>{c.value}</span>
               {c.suffix && (
                 <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--sub)', marginLeft: 4 }}>{c.suffix}</span>
               )}

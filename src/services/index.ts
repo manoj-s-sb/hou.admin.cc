@@ -6,10 +6,10 @@ import { isTokenExpired } from '../utils/tokenUtils';
 // Create axios instance with default configuration
 const api = create({
   baseURL: process.env.REACT_APP_API_BASE_URL,
-  // Global request timeout (20s) applied to every call made through this instance,
+  // Global request timeout (30s) applied to every call made through this instance,
   // so a hung backend fails fast instead of leaving requests pending forever.
   // Set here once rather than per-call; a specific request can still override it.
-  timeout: 20000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },

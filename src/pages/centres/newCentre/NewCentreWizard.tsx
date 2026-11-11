@@ -904,7 +904,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 Centre Identity
               </div>
               <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
-                <span className="cmx-field-label">Centre Name *</span>
+                <span className="cmx-field-label">
+                  Centre Name <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                </span>
                 <input
                   ref={firstFieldRef}
                   className="cmx-field"
@@ -917,7 +919,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Short Code *</span>
+                  <span className="cmx-field-label">
+                    Short Code <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <input
                     className="cmx-field"
                     maxLength={6}
@@ -967,7 +971,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 Address
               </div>
               <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
-                <span className="cmx-field-label">Address Line 1 *</span>
+                <span className="cmx-field-label">
+                  Address Line 1 <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                </span>
                 <input
                   className="cmx-field"
                   placeholder="Street address"
@@ -989,7 +995,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">City *</span>
+                  <span className="cmx-field-label">
+                    City <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <input
                     className="cmx-field"
                     placeholder="e.g. Dallas"
@@ -1014,7 +1022,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   )}
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Postcode *</span>
+                  <span className="cmx-field-label">
+                    Postcode <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <input
                     className="cmx-field"
                     placeholder="e.g. 75201"
@@ -1055,7 +1065,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Country *</span>
+                  <span className="cmx-field-label">
+                    Country <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <CountrySearchSelect
                     hasError={!!err(!s.country)}
                     value={s.country}
@@ -1068,7 +1080,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Time Zone *</span>
+                  <span className="cmx-field-label">
+                    Time Zone <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <select
                     className="cmx-field"
                     style={err(!s.timezone)}
@@ -1090,7 +1104,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Phone *</span>
+                  <span className="cmx-field-label">
+                    Phone <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <PhoneCodeSearchSelect
                       className="cmx-field"
@@ -1120,7 +1136,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   )}
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Email *</span>
+                  <span className="cmx-field-label">
+                    Email <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <input
                     className="cmx-field"
                     placeholder="dallas@centurycricket.com"
@@ -1316,7 +1334,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Overall Capacity (total slots) *</span>
+                  <span className="cmx-field-label">
+                    Overall Capacity (total slots){' '}
+                    <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <NumberInput
                     className="cmx-field"
                     emptyValue={0}
@@ -1421,7 +1442,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Batting Lanes *</span>
+                  <span className="cmx-field-label">
+                    Batting Lanes <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <NumberInput
                     className="cmx-field"
                     min={0}
@@ -1430,7 +1453,9 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Bowling Lanes *</span>
+                  <span className="cmx-field-label">
+                    Bowling Lanes <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <NumberInput
                     className="cmx-field"
                     min={0}
@@ -1562,7 +1587,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">Slot Duration (minutes) *</span>
+                  <span className="cmx-field-label">
+                    Slot Duration (minutes){' '}
+                    <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                  </span>
                   <select
                     className="cmx-field"
                     value={s.slotDurationMinutes}
@@ -1729,7 +1757,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                             }}
                           >
                             <div className="flex flex-col gap-1">
-                              <span className="cmx-field-label">Fortnightly Price *</span>
+                              <span className="cmx-field-label">
+                                Fortnightly Price{' '}
+                                <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                              </span>
                               <NumberInput
                                 className="cmx-field"
                                 min={0}
@@ -1799,7 +1830,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                               )}
                             </div>
                             <div className="flex flex-col gap-1">
-                              <span className="cmx-field-label">Allocated Slots *</span>
+                              <span className="cmx-field-label">
+                                Allocated Slots{' '}
+                                <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                              </span>
                               <NumberInput
                                 className="cmx-field"
                                 min={1}

@@ -43,7 +43,7 @@ const labelClass = 'mb-1 block text-[11px] font-bold uppercase tracking-wider te
 const FieldLabel: React.FC<{ children: React.ReactNode; required?: boolean }> = ({ children, required }) => (
   <span className={labelClass}>
     {children}
-    {required && <span className="text-red-500"> *</span>}
+    {required && <span className="text-[15px] font-bold text-red-500"> *</span>}
   </span>
 );
 

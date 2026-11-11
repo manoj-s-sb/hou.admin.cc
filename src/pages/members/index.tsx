@@ -53,6 +53,33 @@ const planConfig: Record<string, { label: string; color: string; dot: string }> 
   premium: { label: 'Premium', color: 'text-[#336dc2]', dot: 'bg-[#336dc2]' },
   family: { label: 'Family', color: 'text-[#3b8f3e]', dot: 'bg-[#3b8f3e]' },
   offpeak: { label: 'Offpeak', color: 'text-[#cc6900]', dot: 'bg-[#cc6900]' },
+  nightowl: { label: 'Night Owl', color: 'text-[#7c3aed]', dot: 'bg-[#7c3aed]' },
+};
+
+// Known plans show first, in this fixed order; any plan not listed here (a new
+// one created after this list was last touched) still gets a consistent
+// generic colour via planCfgFor below, and sorts alphabetically after these.
+const KNOWN_PLAN_ORDER = ['standard', 'premium', 'family', 'offpeak', 'nightowl'];
+
+/** `planConfig[code]`, or a generic grey fallback for a plan this list doesn't
+ * know about yet — so a brand-new plan still renders consistently everywhere
+ * instead of needing a code change here first. */
+const planCfgFor = (code: string): { label: string; color: string; dot: string } =>
+  planConfig[code] ?? {
+    label: code ? code.charAt(0).toUpperCase() + code.slice(1) : code,
+    color: 'text-gray-600',
+    dot: 'bg-gray-400',
+  };
+
+/** The 4 known plans always show (even at 0, matching existing behaviour),
+ * followed by any other plan code actually present in the breakdown — e.g. a
+ * brand-new plan created after this list was last touched — sorted
+ * alphabetically. Used for both the summary cards and the Plan filter options. */
+const orderedPlanCodes = (breakdown: Record<string, { annual: number; fortnightly: number }> | undefined): string[] => {
+  const codes = Object.keys(breakdown ?? {});
+  const known = KNOWN_PLAN_ORDER;
+  const unknown = codes.filter(c => !KNOWN_PLAN_ORDER.includes(c)).sort();
+  return [...known, ...unknown];
 };
 
 const subscriptionStatusMap: Record<string, { label: string; className: string }> = {
@@ -221,8 +248,8 @@ const Members = () => {
         sortable: false,
         renderCell: params => {
           const type = params.row?.subscriptionCode || '';
-          const cfg = planConfig[type];
-          if (!cfg) return <span className="text-[13px] text-gray-500">{type}</span>;
+          if (!type) return <span className="text-[13px] text-gray-500">—</span>;
+          const cfg = planCfgFor(type);
           return (
             <div className="flex items-center gap-1.5">
               <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
@@ -232,7 +259,7 @@ const Members = () => {
         },
         valueGetter: params => {
           const type = params.row?.subscriptionCode || '';
-          return planConfig[type]?.label || type;
+          return type ? planCfgFor(type).label : '';
         },
       },
       {
@@ -458,13 +485,10 @@ const Members = () => {
             Subscription Plans
           </p>
 
-          {[
-            { key: 'standard', annual: membersCount.standardAnnual, fortnightly: membersCount.standardFortnightly },
-            { key: 'premium', annual: membersCount.premiumAnnual, fortnightly: membersCount.premiumFortnightly },
-            { key: 'family', annual: membersCount.familyAnnual, fortnightly: membersCount.familyFortnightly },
-            { key: 'offpeak', annual: membersCount.offpeakAnnual, fortnightly: membersCount.offpeakFortnightly },
-          ].map(plan => {
-            const cfg = planConfig[plan.key];
+          {orderedPlanCodes(membersCount.planBreakdown).map(code => {
+            const counts = membersCount.planBreakdown?.[code] ?? { annual: 0, fortnightly: 0 };
+            const plan = { key: code, annual: counts.annual, fortnightly: counts.fortnightly };
+            const cfg = planCfgFor(plan.key);
             const total = (plan.annual ?? 0) + (plan.fortnightly ?? 0);
             return (
               <div
@@ -557,10 +581,11 @@ const Members = () => {
                 onChange={e => handleFilterChange('subscriptionType', e.target.value)}
               >
                 <option value="">All Plans</option>
-                <option value="standard">Standard</option>
-                <option value="premium">Premium</option>
-                <option value="family">Family</option>
-                <option value="offpeak">Offpeak</option>
+                {orderedPlanCodes(membersCount?.planBreakdown).map(code => (
+                  <option key={code} value={code}>
+                    {planCfgFor(code).label}
+                  </option>
+                ))}
               </select>
             </div>
 
