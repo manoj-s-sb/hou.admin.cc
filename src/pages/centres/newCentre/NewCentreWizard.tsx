@@ -1237,7 +1237,6 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                             <div style={readonlyTimeBox}>12:00 AM</div>
                           ) : (
                             <input
-                              aria-disabled={!h.isOpen}
                               disabled={!h.isOpen}
                               style={{
                                 width: '100%',
@@ -1258,7 +1257,6 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                             <div style={readonlyTimeBox}>11:59 PM</div>
                           ) : (
                             <input
-                              aria-disabled={!h.isOpen}
                               disabled={!h.isOpen}
                               style={{
                                 width: '100%',

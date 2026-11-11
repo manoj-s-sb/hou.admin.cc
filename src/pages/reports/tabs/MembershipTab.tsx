@@ -45,7 +45,7 @@ const MembershipTab: React.FC<{ data: MembershipData }> = ({ data }) => {
           <BarChart
             bars={data.planSeries.map(p => ({ key: p.key, name: p.label, color: p.color, stackId: 'plans' }))}
             data={data.centreBreakdown}
-            xKey="centreName"
+            xKey="centreId"
           />
         </ChartCard>
       </div>

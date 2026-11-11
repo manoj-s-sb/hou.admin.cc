@@ -28,7 +28,7 @@ interface StaffRow {
   accessLevel: { label: string; tone: 'admin' | 'facility' | 'global' };
   centres: string;
   twoFa: 'on' | 'off';
-  documents: { count: number; tone: 'green' | 'red' | 'amber' };
+  documents: { count: number; tone: 'green' | 'gray' };
   status: 'active' | 'invited' | 'draft' | 'inactive';
   // A draft saved with Role and/or Access Level never filled in — still
   // missing from the record (edit-mode saves already require both, so this
@@ -51,10 +51,13 @@ const statusToneClass: Record<StaffRow['status'], { label: string; className: st
   inactive: { label: 'Inactive', className: 'text-gray-500' },
 };
 
+// "0 uploaded" is the normal starting state for most staff — documents are
+// optional, not a per-role requirement this app tracks — so it reads as
+// neutral, not an error. A real upload count is the one thing worth calling
+// out, in a positive (green) tone.
 const docToneClass: Record<StaffRow['documents']['tone'], string> = {
   green: 'text-emerald-600',
-  red: 'text-red-500',
-  amber: 'text-amber-600',
+  gray: 'text-gray-500',
 };
 
 const TABS: { key: TabKey; label: string; badge?: string }[] = [
@@ -104,6 +107,19 @@ const normalizeStatus = (status: string): StaffRow['status'] => {
   return 'active';
 };
 
+// Names render inconsistently today because the raw source varies: firstName/
+// lastName typed lowercase at creation ("coach hou"), or — when both are
+// blank — the email's local part standing in instead ("isabella.martinez").
+// Normalizing every display name through this, regardless of source, is what
+// actually fixes it (fixing only one source would leave the other broken).
+const titleCase = (raw: string): string =>
+  raw
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .map(w => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(' ');
+
 const mapStaff = (
   row: StaffListRow,
   resolveCentres: (codes: string[] | null | undefined, fallback?: string | null) => string,
@@ -111,11 +127,18 @@ const mapStaff = (
   resolveRoleLabel: (code: string) => string
 ): StaffRow => {
   const fullName = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
-  const displayName = fullName || row.email?.split('@')[0] || 'Staff Member';
+  const displayName = titleCase(fullName || row.email?.split('@')[0] || 'Staff Member');
 
   const roles = (row.userType ?? []).map(role => ({ label: resolveRoleLabel(role) }));
 
-  const centres = resolveCentres(row.assignedCentres, row.facilityCode);
+  // A SuperAdmin's Access Level/Centres are "Global"/every-centre by definition
+  // of the role — never derived from the stored accessLevel/assignedCentres
+  // fields, which drift out of sync for an account created or imported before
+  // one of those fields was ever set (showing a confusing blank "—" next to a
+  // role that very much does have both).
+  const isSuperAdmin = (row.userType ?? []).some(r => r.toLowerCase() === 'superadmin');
+
+  const centres = isSuperAdmin ? 'Global' : resolveCentres(row.assignedCentres, row.facilityCode);
 
   return {
     id: row.staffId,
@@ -128,15 +151,17 @@ const mapStaff = (
     name: displayName,
     subtitle: row.email,
     primaryRoles: roles,
-    accessLevel: {
-      label: resolveAccessLabel(row.accessLevel),
-      tone: accessTone(row.accessLevel),
-    },
+    accessLevel: isSuperAdmin
+      ? { label: 'Global Level', tone: 'global' }
+      : {
+          label: resolveAccessLabel(row.accessLevel),
+          tone: accessTone(row.accessLevel),
+        },
     centres,
     twoFa: row.twoFactorAuth ? 'on' : 'off',
     documents: {
       count: row.documentCount ?? 0,
-      tone: (row.documentCount ?? 0) > 0 ? 'green' : 'red',
+      tone: (row.documentCount ?? 0) > 0 ? 'green' : 'gray',
     },
     status: normalizeStatus(row.status),
     isIncomplete: normalizeStatus(row.status) === 'draft' && ((row.userType ?? []).length === 0 || !row.accessLevel),
@@ -350,7 +375,7 @@ const StaffManagement: React.FC = () => {
       field: 'primaryRoles',
       headerName: 'Primary Roles',
       flex: 1.2,
-      minWidth: 160,
+      minWidth: 140,
       sortable: false,
       renderCell: ({ row }) => (
         <div className="flex flex-wrap gap-1.5">
@@ -376,7 +401,7 @@ const StaffManagement: React.FC = () => {
       field: 'accessLevel',
       headerName: 'Access Level',
       flex: 1,
-      minWidth: 140,
+      minWidth: 110,
       sortable: false,
       renderCell: ({ row }) => {
         const r = row as StaffRow;
@@ -391,7 +416,7 @@ const StaffManagement: React.FC = () => {
       field: 'centres',
       headerName: 'Centres',
       flex: 1,
-      minWidth: 140,
+      minWidth: 120,
       sortable: false,
       renderCell: ({ row }) => <span className="text-[12px] text-gray-700">{row.centres}</span>,
     },
@@ -399,7 +424,7 @@ const StaffManagement: React.FC = () => {
       field: 'documents',
       headerName: 'Documents',
       flex: 0.8,
-      minWidth: 120,
+      minWidth: 100,
       sortable: false,
       renderCell: ({ row }) => {
         const r = row as StaffRow;
@@ -420,8 +445,8 @@ const StaffManagement: React.FC = () => {
     {
       field: 'status',
       headerName: 'Status',
-      flex: 0.8,
-      minWidth: 100,
+      flex: 0.7,
+      minWidth: 90,
       sortable: false,
       renderCell: ({ row }) => {
         const r = row as StaffRow;
@@ -444,8 +469,10 @@ const StaffManagement: React.FC = () => {
     {
       field: 'actions',
       headerName: 'Action',
-      flex: 0.8,
-      minWidth: 120,
+      flex: 0.9,
+      // Wide enough for both buttons ("Edit" + the longest label, "Reactivate")
+      // side by side without wrapping — 120 was too tight for that pair.
+      minWidth: 175,
       sortable: false,
       renderCell: ({ row }) => (
         <div className="flex items-center gap-2">

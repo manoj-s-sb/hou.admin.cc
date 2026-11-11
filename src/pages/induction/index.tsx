@@ -69,6 +69,40 @@ const statusMap: Record<string, { label: string; className: string }> = {
 const PENDING_MEMBERSHIP_STATUSES = new Set(['pendingactivation', 'inactive']);
 const PARTIAL_COMPLETED_STATUS = { label: 'Partial Completed', className: 'bg-amber-100 text-amber-700' };
 
+/** True for a row the Status column would render as "Partial Completed" —
+ * every induction step is done (`status === 'completed'`) but Activate
+ * Subscription hasn't actually been clicked yet. Shared by the column's own
+ * renderCell and the Status filter below so the two can never drift apart. */
+const isPartialCompleted = (row: { status?: string; subscriptionStatus?: string }): boolean => {
+  const subscriptionStatus = row?.subscriptionStatus ?? '';
+  const isSubscriptionActivated = Boolean(subscriptionStatus) && !PENDING_MEMBERSHIP_STATUSES.has(subscriptionStatus);
+  return row?.status === 'completed' && !isSubscriptionActivated;
+};
+
+/** Status filter value -> the backend's own `status` param. The backend only
+ * knows raw `status` ('completed' covers both a true completion and a
+ * Partial Completed one — see isPartialCompleted) — "Partial Completed" is a
+ * client-only split of that same backend value, applied afterwards (see
+ * `applyClientStatusFilter`), not something the backend can filter on directly. */
+const toBackendStatus = (status: string): string => {
+  if (status === 'pending') return 'confirmed';
+  if (status === 'all') return '';
+  if (status === 'partialcompleted') return 'completed';
+  return status;
+};
+
+/** The extra client-side narrowing "Completed"/"Partial Completed" need on top
+ * of the backend's shared 'completed' status — everything else already comes
+ * back pre-filtered by the backend, so this is a no-op for any other value. */
+const applyClientStatusFilter = <T extends { status?: string; subscriptionStatus?: string }>(
+  rows: T[],
+  status: string
+): T[] => {
+  if (status === 'completed') return rows.filter(r => r.status === 'completed' && !isPartialCompleted(r));
+  if (status === 'partialcompleted') return rows.filter(isPartialCompleted);
+  return rows;
+};
+
 const Induction = () => {
   const {
     inductionList: inductionListData,
@@ -108,7 +142,7 @@ const Induction = () => {
         type: 'inductionbooking',
         listLimit: inductionListData?.limit || 20,
         search: applied.search,
-        status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+        status: toBackendStatus(applied.status),
         facilityCode,
       })
     );
@@ -137,7 +171,7 @@ const Induction = () => {
         type: 'inductionbooking',
         listLimit: inductionListData?.limit || 20,
         search: applied.search,
-        status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+        status: toBackendStatus(applied.status),
         facilityCode,
       })
     );
@@ -146,6 +180,16 @@ const Induction = () => {
 
   const currentPage = inductionListData?.page ? inductionListData.page - 1 : 0;
   const rowsPerPage = inductionListData?.limit || 20;
+
+  // "Completed" and "Partial Completed" share the same backend `status` value
+  // (see toBackendStatus) -- the backend returns every 'completed' row for
+  // either, and this narrows the page down to just the one the admin actually
+  // picked. A no-op for every other filter value, which is already exactly
+  // what the backend returned.
+  const displayedRows = useMemo(
+    () => applyClientStatusFilter(inductionListData?.bookings || [], filters.status),
+    [inductionListData?.bookings, filters.status]
+  );
 
   const inductionColumns: ColumnDef[] = useMemo(
     () => [
@@ -235,13 +279,9 @@ const Induction = () => {
         sortable: true,
         renderCell: params => {
           const status = params.row?.status || '';
-          const subscriptionStatus = params.row?.subscriptionStatus ?? '';
-          const isSubscriptionActivated =
-            Boolean(subscriptionStatus) && !PENDING_MEMBERSHIP_STATUSES.has(subscriptionStatus);
-          const { label, className } =
-            status === 'completed' && !isSubscriptionActivated
-              ? PARTIAL_COMPLETED_STATUS
-              : statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
+          const { label, className } = isPartialCompleted(params.row)
+            ? PARTIAL_COMPLETED_STATUS
+            : statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
           return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
         },
       },
@@ -250,7 +290,17 @@ const Induction = () => {
         headerName: 'Completed By',
         flex: 1,
         sortable: false,
-        renderCell: params => <span className="text-[13px] text-gray-700">{params.row?.updatedByName || '—'}</span>,
+        renderCell: params => {
+          // A genuinely-completed row (not Partial Completed) with no admin
+          // attribution means the subscription was activated through some
+          // path other than this portal's own Activate Subscription button
+          // (mark_induction_activated is the only place updatedByName is
+          // ever set for a completed induction) — "System" says that plainly
+          // instead of reading like missing data.
+          const isGenuinelyCompleted = params.row?.status === 'completed' && !isPartialCompleted(params.row);
+          const label = params.row?.updatedByName || (isGenuinelyCompleted ? 'System' : '—');
+          return <span className="text-[13px] text-gray-700">{label}</span>;
+        },
         valueGetter: params => params.row?.updatedByName || '',
       },
       {
@@ -278,8 +328,7 @@ const Induction = () => {
                       type: 'inductionbooking',
                       listLimit: inductionListData?.limit || 20,
                       search: applied.search,
-                      status:
-                        applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+                      status: toBackendStatus(applied.status),
                       facilityCode,
                     })
                   );
@@ -471,6 +520,7 @@ const Induction = () => {
                 <option value="all">All Statuses</option>
                 <option value="pending">Pending Activation</option>
                 <option value="completed">Completed</option>
+                <option value="partialcompleted">Partial Completed</option>
                 <option value="noshow">No Show</option>
                 <option value="cancelled">Cancelled</option>
               </select>
@@ -529,7 +579,7 @@ const Induction = () => {
               },
             })
           )}
-          data={inductionListData?.bookings || []}
+          data={displayedRows}
           emptyState={{
             icon: (
               <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
