@@ -48,27 +48,33 @@ function filtersToSearchParams(filters: FilterState): Record<string, string> {
   return params;
 }
 
+// One uniform colour for every plan badge/dot/card — a plan's identity comes
+// from its label, not a colour-coding scheme (which couldn't scale anyway
+// once plans are created dynamically in Membership Plans).
+const PLAN_COLOR = 'text-[#21295a]';
+const PLAN_DOT = 'bg-[#21295a]';
+
 const planConfig: Record<string, { label: string; color: string; dot: string }> = {
-  standard: { label: 'Standard', color: 'text-[#21295a]', dot: 'bg-[#21295a]' },
-  premium: { label: 'Premium', color: 'text-[#336dc2]', dot: 'bg-[#336dc2]' },
-  family: { label: 'Family', color: 'text-[#3b8f3e]', dot: 'bg-[#3b8f3e]' },
-  offpeak: { label: 'Offpeak', color: 'text-[#cc6900]', dot: 'bg-[#cc6900]' },
-  nightowl: { label: 'Night Owl', color: 'text-[#7c3aed]', dot: 'bg-[#7c3aed]' },
+  standard: { label: 'Standard', color: PLAN_COLOR, dot: PLAN_DOT },
+  premium: { label: 'Premium', color: PLAN_COLOR, dot: PLAN_DOT },
+  family: { label: 'Family', color: PLAN_COLOR, dot: PLAN_DOT },
+  offpeak: { label: 'Offpeak', color: PLAN_COLOR, dot: PLAN_DOT },
+  nightowl: { label: 'Night Owl', color: PLAN_COLOR, dot: PLAN_DOT },
 };
 
 // Known plans show first, in this fixed order; any plan not listed here (a new
-// one created after this list was last touched) still gets a consistent
-// generic colour via planCfgFor below, and sorts alphabetically after these.
+// one created after this list was last touched) still gets the same uniform
+// colour via planCfgFor below, and sorts alphabetically after these.
 const KNOWN_PLAN_ORDER = ['standard', 'premium', 'family', 'offpeak', 'nightowl'];
 
-/** `planConfig[code]`, or a generic grey fallback for a plan this list doesn't
- * know about yet — so a brand-new plan still renders consistently everywhere
- * instead of needing a code change here first. */
+/** `planConfig[code]`, or a title-cased fallback (same uniform colour either
+ * way) for a plan this list doesn't know about yet — so a brand-new plan still
+ * renders consistently everywhere instead of needing a code change here first. */
 const planCfgFor = (code: string): { label: string; color: string; dot: string } =>
   planConfig[code] ?? {
     label: code ? code.charAt(0).toUpperCase() + code.slice(1) : code,
-    color: 'text-gray-600',
-    dot: 'bg-gray-400',
+    color: PLAN_COLOR,
+    dot: PLAN_DOT,
   };
 
 /** The 4 known plans always show (even at 0, matching existing behaviour),
@@ -451,9 +457,9 @@ const Members = () => {
 
       {/* ── Stats Row ───────────────────────────────────────── */}
       {membersCount && (
-        <div className="mb-5 grid grid-cols-5 gap-3">
+        <div className="mb-5 grid grid-cols-6 gap-3">
           {/* Section label — Subscription Overview */}
-          <p className="col-span-5 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+          <p className="col-span-6 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
             Subscription Overview
           </p>
 
@@ -479,9 +485,13 @@ const Members = () => {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-500">On Hold</p>
             <p className="text-[22px] font-bold text-orange-600">{(membersCount.pausedCount ?? 0).toLocaleString()}</p>
           </div>
+          <div className="flex flex-col gap-1 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-rose-600">Payment Failed</p>
+            <p className="text-[22px] font-bold text-rose-700">{(membersCount.pastDueCount ?? 0).toLocaleString()}</p>
+          </div>
 
           {/* Section label — Subscription Plans */}
-          <p className="col-span-5 mt-1 text-[11px] font-semibold uppercase tracking-widest text-[#6e6e6e]">
+          <p className="col-span-6 mt-1 text-[11px] font-semibold uppercase tracking-widest text-[#6e6e6e]">
             Subscription Plans
           </p>
 
@@ -493,14 +503,14 @@ const Members = () => {
             return (
               <div
                 key={plan.key}
-                className="flex flex-col gap-1 rounded-2xl border border-[#cbcbcb] bg-white px-4 py-3 shadow-sm"
+                className="flex flex-col gap-px rounded-lg border border-[#cbcbcb] bg-white px-3 py-1.5 shadow-sm"
               >
                 <div className="flex items-center gap-1.5">
                   <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
                   <p className={`text-[10px] font-semibold uppercase tracking-widest ${cfg.color}`}>{cfg.label}</p>
                 </div>
-                <p className="text-[22px] font-bold text-[#202020]">{total.toLocaleString()}</p>
-                <p className="text-[11px] text-[#6e6e6e]">
+                <p className="text-[16px] font-bold text-[#202020]">{total.toLocaleString()}</p>
+                <p className="text-[10px] text-[#6e6e6e]">
                   {plan.annual ?? 0} annual · {plan.fortnightly ?? 0} fortnightly
                 </p>
               </div>

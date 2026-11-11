@@ -311,6 +311,7 @@ export interface MembersCountResponse {
   activeCount: number;
   cancelledCount: number;
   pendingActivationCount: number;
+  pastDueCount?: number;
   total: number;
   activeMembersCount: number;
   inactiveMembersCount: number;

@@ -47,7 +47,7 @@ const Tours = () => {
   const [viewBookingCode, setViewBookingCode] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [addingNote, setAddingNote] = useState(false);
-  // NS-7: Enquires stays manual — this only pre-fills the existing Add Enquiry
+  // NS-7: Enquiries stays manual — this only pre-fills the existing Add Enquiry
   // form with the tour visitor's details so staff don't retype them.
   const [addLeadFor, setAddLeadFor] = useState<Induction | null>(null);
   const facilityCode = useScopedFacilityCode();
@@ -593,7 +593,7 @@ const Tours = () => {
                 type="button"
                 onClick={() => setAddLeadFor(viewRow)}
               >
-                + Add as Enquiry
+                Add to Enquiries
               </button>
               <button
                 className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"

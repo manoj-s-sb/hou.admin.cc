@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import { freqBadgeCls, freqLabel, taskTypeMeta } from '../constants';
 
@@ -20,14 +20,32 @@ const fmtShort = (d: string | null): string =>
 
 const laneLabel = (laneNo: number | null): string => (laneNo === null ? 'Facility-wide' : `Lane ${laneNo}`);
 
-const laneBadgeCls = (schedule: TaskSchedule): string => {
-  if (schedule.status === 'done') return 'border-teal-200 bg-teal-50 text-teal-700';
-  if (schedule.status === 'overdue') return 'border-red-200 bg-red-50 text-red-600';
+/** Worst status across a lane's occurrences — overdue beats pending beats done —
+ * so a lane with even one overdue occurrence reads as overdue at a glance. */
+const worstStatus = (schedules: TaskSchedule[]): 'overdue' | 'pending' | 'done' => {
+  if (schedules.some(s => s.status === 'overdue')) return 'overdue';
+  if (schedules.some(s => s.status !== 'done')) return 'pending';
+  return 'done';
+};
+
+const laneBadgeCls = (status: 'overdue' | 'pending' | 'done'): string => {
+  if (status === 'done') return 'border-teal-200 bg-teal-50 text-teal-700';
+  if (status === 'overdue') return 'border-red-200 bg-red-50 text-red-600';
   return 'border-emerald-200 bg-emerald-50 text-emerald-700';
 };
 
-const laneBadgeIcon = (schedule: TaskSchedule): string =>
-  schedule.status === 'done' ? '✓' : schedule.status === 'overdue' ? '🔴' : '✅';
+const laneBadgeIcon = (status: 'overdue' | 'pending' | 'done'): string =>
+  status === 'done' ? '✓' : status === 'overdue' ? '🔴' : '✅';
+
+/** The next date worth surfacing on a lane's collapsed badge: the nearest
+ * not-yet-done occurrence (overdue or upcoming), or — if every occurrence on
+ * this lane is already done — the most recent of those. */
+const headlineDate = (schedules: TaskSchedule[]): string | null => {
+  const open = schedules.filter(s => s.status !== 'done');
+  const pool = open.length > 0 ? open : schedules;
+  const sorted = [...pool].sort((a, b) => (a.scheduledDate ?? '').localeCompare(b.scheduledDate ?? ''));
+  return (open.length > 0 ? sorted[0] : sorted[sorted.length - 1])?.scheduledDate ?? null;
+};
 
 /**
  * The "All Lanes" row in the centre Task Library: one row per task
@@ -40,7 +58,23 @@ const laneBadgeIcon = (schedule: TaskSchedule): string =>
 const LaneTaskCardAllLanes: React.FC<Props> = ({ template, schedules, canManage, onSchedule, onViewSteps }) => {
   const type = taskTypeMeta(template.taskType, template.taskTypeCustom);
   const equipmentText = template.equipmentCustom || template.equipment || 'General';
-  const sorted = [...schedules].sort((a, b) => (a.laneNo ?? -1) - (b.laneNo ?? -1));
+
+  // One badge per LANE, not per occurrence — a Daily task scheduled a year out
+  // previously rendered a separate chip for every single date (100+ chips for
+  // one lane), flooding the card. Group by lane first; each badge then reads
+  // as "status · lane · N scheduled · next/last date" with the full date list
+  // available on hover via `title`.
+  const laneGroups = useMemo(() => {
+    const byLane = new Map<number | null, TaskSchedule[]>();
+    for (const s of schedules) {
+      const list = byLane.get(s.laneNo) ?? [];
+      list.push(s);
+      byLane.set(s.laneNo, list);
+    }
+    return [...byLane.entries()]
+      .sort(([a], [b]) => (a ?? -1) - (b ?? -1))
+      .map(([laneNo, group]) => ({ laneNo, schedules: group, status: worstStatus(group) }));
+  }, [schedules]);
 
   return (
     <div className="flex gap-4 rounded-xl border border-gray-200 bg-white p-4">
@@ -67,17 +101,24 @@ const LaneTaskCardAllLanes: React.FC<Props> = ({ template, schedules, canManage,
           >
             📋 View steps{template.videoUrl ? ' & video' : ''}
           </button>
-          {sorted.length === 0 ? (
+          {laneGroups.length === 0 ? (
             <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold text-amber-700">
               📅 Not scheduled
             </span>
           ) : (
-            sorted.map(s => (
+            laneGroups.map(g => (
               <span
-                key={s.id}
-                className={`rounded-lg border px-2 py-0.5 text-[10.5px] font-semibold ${laneBadgeCls(s)}`}
+                key={g.laneNo ?? 'facility-wide'}
+                className={`rounded-lg border px-2 py-0.5 text-[10.5px] font-semibold ${laneBadgeCls(g.status)}`}
+                title={g.schedules
+                  .map(s => fmtShort(s.scheduledDate))
+                  .sort()
+                  .join(', ')}
               >
-                {laneBadgeIcon(s)} {laneLabel(s.laneNo)} · {fmtShort(s.scheduledDate)}
+                {laneBadgeIcon(g.status)} {laneLabel(g.laneNo)} · {g.schedules.length} scheduled
+                {g.schedules.length > 1
+                  ? ` · next ${fmtShort(headlineDate(g.schedules))}`
+                  : ` · ${fmtShort(headlineDate(g.schedules))}`}
               </span>
             ))
           )}

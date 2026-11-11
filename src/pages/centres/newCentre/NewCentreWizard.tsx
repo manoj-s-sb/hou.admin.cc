@@ -910,7 +910,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 <input
                   ref={firstFieldRef}
                   className="cmx-field"
-                  placeholder="e.g. Century Cricket Centre — Dallas"
+                  placeholder="e.g. Future of Cricket Centre — Dallas"
                   style={err(!s.name.trim())}
                   type="text"
                   value={s.name}
