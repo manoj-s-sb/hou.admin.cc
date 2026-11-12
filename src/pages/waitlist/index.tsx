@@ -33,8 +33,20 @@ import MemberDetailDrawer, { DetailField, STATUS_META, STATUS_ORDER } from './co
 
 const PAGE_SIZE = 20;
 
-// "checkout_session_creation_attempted" → "Checkout Session Creation Attempted"
+// A handful of raw funnel actions read too literally once merely title-cased
+// (e.g. "checkout_session_created" → "Checkout Session Created" — accurate,
+// but an admin has to already know what a "checkout session" is). These get
+// a friendlier, plain-language override instead; anything else still falls
+// through to the generic title-casing below.
+const ACTION_LABEL_OVERRIDES: Record<string, string> = {
+  checkout_session_created: 'Checkout Started, Not Paid',
+  checkout_session_creation_attempted: 'Checkout Started, Not Paid',
+  manual_lead_created: 'Added Manually',
+};
+
+// "payment_receipt_captured" → "Payment Receipt Captured"
 const titleCase = (raw: string): string =>
+  ACTION_LABEL_OVERRIDES[raw] ??
   raw
     .replace(/[_-]+/g, ' ')
     .trim()
@@ -84,6 +96,8 @@ const leadDisplayNameOf = (e: LeadEntry): string => e.details?.name || e.details
 // (or if that fetch fails) — the real "Plan interest" options come from
 // Membership Plans' own global templates (see AddLeadModal), not this list,
 // so a newly created plan appears here with no code change needed.
+const CUSTOM_PLAN = '__custom__';
+
 const FALLBACK_PLAN_FILTERS: { label: string; value: string }[] = [
   { label: 'Premium', value: 'premium' },
   { label: 'Standard', value: 'standard' },
@@ -466,15 +480,24 @@ export const AddLeadModal: React.FC<{
   const [email, setEmail] = useState(initial?.email ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [plan, setPlan] = useState('all');
+  // A lead can be interested in a plan that doesn't exist in the catalogue
+  // yet (a prospective corporate/custom deal, or simply a name the admin
+  // heard from the person and wants noted down) — "Other" reveals a free-text
+  // field instead of forcing a pick from this centre's existing plans.
+  const [customPlan, setCustomPlan] = useState('');
   const [saving, setSaving] = useState(false);
-  // The real plan universe -- global Membership Plans templates, same source
-  // Centre Management reads -- instead of a hardcoded list that goes stale
-  // the moment a new plan is created (see FALLBACK_PLAN_FILTERS above).
+  // This centre's own offered plans (same source its Plans & Pricing page
+  // reads) -- instead of a hardcoded list that goes stale the moment a new
+  // plan is created (see FALLBACK_PLAN_FILTERS above), and instead of the
+  // global cross-network catalogue (getMemberships with no facilityCode),
+  // which pulls in every plan template on the network -- including ones
+  // that only exist at other centres, or test/dev templates -- rather than
+  // just the plans a lead at THIS centre could actually sign up for.
   const membershipPlans = useSelector((s: RootState) => s.memberships.plans);
   useEffect(() => {
-    dispatch(getMemberships(undefined));
+    dispatch(getMemberships(facilityCode));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [facilityCode]);
   const planOptions: { label: string; value: string }[] =
     membershipPlans.length > 0 ? membershipPlans.map(p => ({ label: p.name, value: p.code })) : FALLBACK_PLAN_FILTERS;
   const [tried, setTried] = useState(false);
@@ -494,7 +517,7 @@ export const AddLeadModal: React.FC<{
           name: name.trim(),
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
-          subscriptionCode: plan === 'all' ? undefined : plan,
+          subscriptionCode: plan === 'all' ? undefined : plan === CUSTOM_PLAN ? customPlan.trim() || undefined : plan,
         })
       ).unwrap();
       toast.success('Enquiry added');
@@ -591,7 +614,17 @@ export const AddLeadModal: React.FC<{
                   {f.label}
                 </option>
               ))}
+              <option value={CUSTOM_PLAN}>Other (type your own)</option>
             </select>
+            {plan === CUSTOM_PLAN && (
+              <input
+                className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
+                placeholder="e.g. Corporate team plan"
+                type="text"
+                value={customPlan}
+                onChange={e => setCustomPlan(e.target.value)}
+              />
+            )}
           </div>
         </div>
 
