@@ -293,8 +293,11 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
               onChange={e => setReason(e.target.value)}
             />
             <div className="mt-1 flex justify-between text-[12px]">
-              <span className={reason.trim().length > 0 && reason.trim().length < 3 ? 'text-red-500' : 'text-gray-400'}>
-                {reason.trim().length < 3 ? 'At least 3 characters' : ' '}
+              <span className="text-red-500">
+                {/* Only shown once the admin has started typing something too short —
+                    not before they've typed anything at all (that's just the normal,
+                    not-yet-filled-in state of a required field, not an error). */}
+                {reason.trim().length > 0 && reason.trim().length < 3 ? 'At least 3 characters' : ' '}
               </span>
               <span className={reason.length >= 500 ? 'text-red-500' : 'text-gray-400'}>{reason.length}/500</span>
             </div>
