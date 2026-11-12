@@ -381,9 +381,13 @@ const ViewMembers = () => {
                 active: { label: 'Active', cls: 'bg-green-100 text-green-700' },
                 completed: { label: 'Completed', cls: 'bg-gray-100 text-gray-600' },
                 cancelled: { label: 'Cancelled', cls: 'bg-red-100 text-red-700' },
-                hold_started: { label: 'Hold Started', cls: 'bg-orange-100 text-orange-700' },
+                // Every cycle a pause touches reads the same "On Hold" either way —
+                // whether the pause started mid-cycle, ended mid-cycle, or ran the
+                // whole cycle isn't something an admin needs the badge to spell out
+                // (the Hold From → Hold Until dates below already show that).
+                hold_started: { label: 'On Hold', cls: 'bg-orange-100 text-orange-700' },
                 on_hold: { label: 'On Hold', cls: 'bg-orange-100 text-orange-700' },
-                hold_ended: { label: 'Hold Ended', cls: 'bg-blue-100 text-blue-700' },
+                hold_ended: { label: 'On Hold', cls: 'bg-orange-100 text-orange-700' },
               };
               const fmt = (d: string | null) =>
                 d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
