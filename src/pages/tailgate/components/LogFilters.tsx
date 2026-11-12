@@ -1,140 +1,105 @@
+import FilterBar, { FilterBarField } from '../../../components/FilterBar';
 import { DEFAULT_FILTERS, TailgateFilters } from '../constants';
 
 interface LogFiltersProps {
+  /** The fields as currently typed/selected — not yet committed to a fetch
+   * (see `onApply`). Member/Name is the exception: the parent debounces it
+   * straight into the applied filters itself, same as every other page's
+   * live search, so typing there never needs a separate Apply click. */
   filters: TailgateFilters;
   activeFilterCount: number;
   onFilterChange: (updater: (f: TailgateFilters) => TailgateFilters) => void;
+  onApply: () => void;
   onReset: () => void;
 }
 
-const inputCls =
-  'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
-const labelCls = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
-
-const LogFilters = ({ filters, activeFilterCount, onFilterChange, onReset }: LogFiltersProps) => (
-  <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-    <div className="px-4 py-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <svg className="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.8}
-            />
-          </svg>
-          <span className="text-[12px] font-semibold text-gray-500">Filters</span>
-          {activeFilterCount > 0 && (
-            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#21295A] px-1.5 text-[10px] font-bold text-white">
-              {activeFilterCount}
-            </span>
-          )}
-        </div>
-        <button
-          className="rounded-lg border border-gray-200 px-3 py-1 text-[11px] font-semibold text-gray-500 transition hover:bg-gray-50 hover:text-[#21295A]"
-          type="button"
-          onClick={onReset}
-        >
-          Reset
-        </button>
+const LogFilters = ({ filters, activeFilterCount, onFilterChange, onApply, onReset }: LogFiltersProps) => (
+  <FilterBar
+    fields={
+      [
+        {
+          kind: 'search',
+          key: 'tg-name',
+          label: 'Member / Name',
+          placeholder: 'Search…',
+          value: filters.name,
+          onChange: v => onFilterChange(f => ({ ...f, name: v })),
+        },
+        {
+          kind: 'date',
+          key: 'tg-from',
+          label: 'From Date',
+          max: filters.to || undefined,
+          value: filters.from,
+          onChange: v => onFilterChange(f => ({ ...f, from: v, to: f.to && f.to < v ? v : f.to })),
+        },
+        {
+          kind: 'date',
+          key: 'tg-to',
+          label: 'To Date',
+          min: filters.from || undefined,
+          value: filters.to,
+          onChange: v => onFilterChange(f => ({ ...f, to: v })),
+        },
+        {
+          kind: 'select',
+          key: 'tg-type',
+          label: 'Event Type',
+          value: filters.type,
+          onChange: v => onFilterChange(f => ({ ...f, type: v })),
+          options: [
+            { value: '', label: 'All' },
+            { value: 'Entry', label: 'Entry' },
+            { value: 'Exit', label: 'Exit' },
+            { value: 'Tailgate', label: 'Tailgate' },
+          ],
+        },
+        {
+          kind: 'select',
+          key: 'tg-status',
+          label: 'Review Status',
+          value: filters.status,
+          onChange: v => onFilterChange(f => ({ ...f, status: v })),
+          options: [
+            { value: '', label: 'All' },
+            { value: 'pending', label: 'Pending Review' },
+            { value: 'reviewed', label: 'Cleared (No Violation)' },
+            { value: 'violation', label: 'Flagged as Violation' },
+          ],
+        },
+        {
+          kind: 'select',
+          key: 'tg-door',
+          label: 'Lane Door',
+          value: filters.door,
+          onChange: v => onFilterChange(f => ({ ...f, door: v })),
+          options: [
+            { value: '', label: 'All' },
+            { value: 'Door Lane', label: 'Door Lane' },
+          ],
+        },
+      ] as FilterBarField[]
+    }
+    onApply={onApply}
+    onReset={onReset}
+  >
+    {activeFilterCount > 0 && (
+      <div className="mb-3 flex items-center gap-2">
+        <svg className="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.8}
+          />
+        </svg>
+        <span className="text-[12px] font-semibold text-gray-500">Filters</span>
+        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#21295A] px-1.5 text-[10px] font-bold text-white">
+          {activeFilterCount}
+        </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <div>
-          <label className={labelCls} htmlFor="tg-from">
-            From Date
-          </label>
-          <input
-            className={inputCls}
-            id="tg-from"
-            max={filters.to || undefined}
-            type="date"
-            value={filters.from}
-            onChange={e => {
-              const from = e.target.value;
-              onFilterChange(f => ({
-                ...f,
-                from,
-                to: f.to && f.to < from ? from : f.to,
-              }));
-            }}
-          />
-        </div>
-        <div>
-          <label className={labelCls} htmlFor="tg-to">
-            To Date
-          </label>
-          <input
-            className={inputCls}
-            id="tg-to"
-            min={filters.from || undefined}
-            type="date"
-            value={filters.to}
-            onChange={e => onFilterChange(f => ({ ...f, to: e.target.value }))}
-          />
-        </div>
-        <div>
-          <label className={labelCls} htmlFor="tg-name">
-            Member / Name
-          </label>
-          <input
-            className={inputCls}
-            id="tg-name"
-            placeholder="Search…"
-            type="text"
-            value={filters.name}
-            onChange={e => onFilterChange(f => ({ ...f, name: e.target.value }))}
-          />
-        </div>
-        <div>
-          <label className={labelCls} htmlFor="tg-type">
-            Event Type
-          </label>
-          <select
-            className={inputCls}
-            id="tg-type"
-            value={filters.type}
-            onChange={e => onFilterChange(f => ({ ...f, type: e.target.value }))}
-          >
-            <option value="">All</option>
-            <option value="Entry">Entry</option>
-            <option value="Exit">Exit</option>
-            <option value="Tailgate">Tailgate</option>
-          </select>
-        </div>
-        <div>
-          <label className={labelCls} htmlFor="tg-status">
-            Review Status
-          </label>
-          <select
-            className={inputCls}
-            id="tg-status"
-            value={filters.status}
-            onChange={e => onFilterChange(f => ({ ...f, status: e.target.value }))}
-          >
-            <option value="">All</option>
-            <option value="pending">Pending Review</option>
-            <option value="reviewed">Cleared (No Violation)</option>
-            <option value="violation">Flagged as Violation</option>
-          </select>
-        </div>
-        <div>
-          <label className={labelCls} htmlFor="tg-door">
-            Lane Door
-          </label>
-          <select
-            className={inputCls}
-            id="tg-door"
-            value={filters.door}
-            onChange={e => onFilterChange(f => ({ ...f, door: e.target.value }))}
-          >
-            <option value="">All</option>
-            <option value="Door Lane">Door Lane</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  </div>
+    )}
+  </FilterBar>
 );
 
 export { DEFAULT_FILTERS };

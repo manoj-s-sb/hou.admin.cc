@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 
+import FilterBar, { FilterBarField } from '../../components/FilterBar';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
 import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
@@ -1243,32 +1244,48 @@ const WaitlistLeads = () => {
       {tab === 'waitlist' ? (
         <>
           {/* ── Filter Bar ──────────────────────────────────── */}
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
-              {typeFilterOptions.map(f => (
-                <Chip key={f.value} active={typeFilter === f.value} onClick={() => onTypeChange(f.value)}>
-                  {f.label}
+          <FilterBar
+            fields={
+              [
+                {
+                  kind: 'search',
+                  key: 'waitlist-search',
+                  placeholder: 'Search by name, phone, email or status…',
+                  value: waitlistSearch,
+                  onChange: setWaitlistSearch,
+                },
+              ] as FilterBarField[]
+            }
+            /* Type/Sort are pill selectors, not dropdowns — kept as-is rather than
+               forced into the select grid — and every filter here is a client-side
+               useMemo over already-loaded data, so there's no fetch for an Apply
+               click to gate; Reset still clears everything back to default. */
+            onReset={() => {
+              setTypeFilter('all');
+              setWaitlistSearch('');
+              setWaitlistSort('newest');
+            }}
+          >
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</span>
+                {typeFilterOptions.map(f => (
+                  <Chip key={f.value} active={typeFilter === f.value} onClick={() => onTypeChange(f.value)}>
+                    {f.label}
+                  </Chip>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sort</span>
+                <Chip active={waitlistSort === 'newest'} onClick={() => setWaitlistSort('newest')}>
+                  Newest first
                 </Chip>
-              ))}
+                <Chip active={waitlistSort === 'oldest'} onClick={() => setWaitlistSort('oldest')}>
+                  Oldest first
+                </Chip>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sort</span>
-              <Chip active={waitlistSort === 'newest'} onClick={() => setWaitlistSort('newest')}>
-                Newest first
-              </Chip>
-              <Chip active={waitlistSort === 'oldest'} onClick={() => setWaitlistSort('oldest')}>
-                Oldest first
-              </Chip>
-              <input
-                className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
-                placeholder="Search by name, phone, email or status…"
-                type="text"
-                value={waitlistSearch}
-                onChange={e => setWaitlistSearch(e.target.value)}
-              />
-            </div>
-          </div>
+          </FilterBar>
 
           <div className="mb-2 flex justify-end">
             <span className="text-[11px] text-gray-400">
@@ -1303,8 +1320,24 @@ const WaitlistLeads = () => {
       ) : (
         <>
           {/* ── Filter Bar ──────────────────────────────────── */}
-          <div className="mb-4 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2">
+          <FilterBar
+            fields={
+              [
+                {
+                  kind: 'search',
+                  key: 'leads-search',
+                  placeholder: 'Search by name, phone, email, plan or status…',
+                  value: leadsSearch,
+                  onChange: setLeadsSearch,
+                },
+              ] as FilterBarField[]
+            }
+            onReset={() => {
+              setLeadsSearch('');
+              setLeadsSort('newest');
+            }}
+          >
+            <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sort</span>
               <Chip active={leadsSort === 'newest'} onClick={() => setLeadsSort('newest')}>
                 Newest first
@@ -1312,15 +1345,8 @@ const WaitlistLeads = () => {
               <Chip active={leadsSort === 'oldest'} onClick={() => setLeadsSort('oldest')}>
                 Oldest first
               </Chip>
-              <input
-                className="w-full max-w-xs rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
-                placeholder="Search by name, phone, email, plan or status…"
-                type="text"
-                value={leadsSearch}
-                onChange={e => setLeadsSearch(e.target.value)}
-              />
             </div>
-          </div>
+          </FilterBar>
 
           <div className="mb-2 flex justify-end">
             <span className="text-[11px] text-gray-400">
