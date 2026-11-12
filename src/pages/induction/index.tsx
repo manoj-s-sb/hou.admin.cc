@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import FilterBar, { FilterBarField } from '../../components/FilterBar';
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
@@ -450,106 +451,48 @@ const Induction = () => {
       </div>
 
       {/* ── Filter Bar ──────────────────────────────────────── */}
-      <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        <div className="px-4 py-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {/* Search */}
-            <div>
-              <label
-                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="induction-search-filter"
-              >
-                Search
-              </label>
-              <div className="relative">
-                <svg
-                  className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-                <input
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                  id="induction-search-filter"
-                  placeholder="Search by name, email or phone…"
-                  type="text"
-                  value={filters.search}
-                  onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            {/* Date */}
-            <div>
-              <label
-                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="induction-date-filter"
-              >
-                Date
-              </label>
-              <input
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                id="induction-date-filter"
-                type="date"
-                value={filters.date}
-                onChange={e => setFilters(prev => ({ ...prev, date: e.target.value }))}
-              />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label
-                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="induction-status-filter"
-              >
-                Status
-              </label>
-              <select
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                id="induction-status-filter"
-                value={filters.status}
-                onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
-              >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending Activation</option>
-                <option value="completed">Completed</option>
-                <option value="partialcompleted">Partial Completed</option>
-                <option value="noshow">No Show</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
-              disabled={isLoading}
-              type="button"
-              onClick={() => {
-                setFilters(defaultFilters);
-                setSearchParams({ status: 'all' }, { replace: true });
-              }}
-            >
-              Reset
-            </button>
-            <button
-              className="rounded-lg bg-[#21295A] px-5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
-              disabled={isLoading}
-              type="button"
-              onClick={applyFilters}
-            >
-              Apply Filters
-            </button>
-          </div>
-        </div>
-      </div>
+      <FilterBar
+        fields={
+          [
+            {
+              kind: 'search',
+              key: 'induction-search-filter',
+              label: 'Search',
+              placeholder: 'Search by name, email or phone…',
+              value: filters.search,
+              onChange: v => setFilters(prev => ({ ...prev, search: v })),
+            },
+            {
+              kind: 'date',
+              key: 'induction-date-filter',
+              label: 'Date',
+              value: filters.date,
+              onChange: v => setFilters(prev => ({ ...prev, date: v })),
+            },
+            {
+              kind: 'select',
+              key: 'induction-status-filter',
+              label: 'Status',
+              value: filters.status,
+              onChange: v => setFilters(prev => ({ ...prev, status: v })),
+              options: [
+                { value: 'all', label: 'All Statuses' },
+                { value: 'pending', label: 'Pending Activation' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'partialcompleted', label: 'Partial Completed' },
+                { value: 'noshow', label: 'No Show' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ],
+            },
+          ] as FilterBarField[]
+        }
+        isLoading={isLoading}
+        onApply={applyFilters}
+        onReset={() => {
+          setFilters(defaultFilters);
+          setSearchParams({ status: 'all' }, { replace: true });
+        }}
+      />
 
       {/* ── Induction Table ─────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">

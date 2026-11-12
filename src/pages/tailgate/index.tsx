@@ -51,7 +51,14 @@ const Tailgate = () => {
   );
 
   const [activeTab, setActiveTab] = useState<TailgateTab>('logs');
+  // `filters` is the applied layer that actually drives the fetch effects
+  // below; `draftFilters` is what the filter bar's inputs are bound to.
+  // Member/Name is debounced straight from draft into applied (live search,
+  // same as every other list page) — the rest (dates/type/status/door) only
+  // move from draft to applied when Apply is clicked, matching Members/
+  // Induction/Tours instead of this page's previous fully-live behavior.
   const [filters, setFilters] = useState<TailgateFilters>(DEFAULT_FILTERS);
+  const [draftFilters, setDraftFilters] = useState<TailgateFilters>(DEFAULT_FILTERS);
   const [videoLog, setVideoLog] = useState<TailgateLog | null>(null);
   const [reviewLog, setReviewLog] = useState<TailgateLog | null>(null);
   const [viewLog, setViewLog] = useState<TailgateLog | null>(null);
@@ -113,7 +120,29 @@ const Tailgate = () => {
   };
 
   const handleFilterChange = (updater: (f: TailgateFilters) => TailgateFilters) => {
-    setFilters(updater);
+    setDraftFilters(updater);
+  };
+
+  // Member/Name search — debounced straight into the applied filters, so
+  // typing it never needs a separate Apply click (same pattern as every
+  // other list page's search box).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setFilters(prev => (prev.name === draftFilters.name ? prev : { ...prev, name: draftFilters.name }));
+      setPage(0);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, 400);
+    return () => clearTimeout(t);
+  }, [draftFilters.name]);
+
+  const handleApplyFilters = () => {
+    setFilters(draftFilters);
+    setPage(0);
+  };
+
+  const handleResetFilters = () => {
+    setDraftFilters(DEFAULT_FILTERS);
+    setFilters(DEFAULT_FILTERS);
     setPage(0);
   };
 
@@ -172,7 +201,7 @@ const Tailgate = () => {
 
   const pendingCount = stats?.totalUnidentified ?? 0;
   const violationCount = stats?.totalViolations ?? 0;
-  const activeFilterCount = Object.entries(filters).filter(([, v]) => v !== '').length;
+  const activeFilterCount = Object.entries(draftFilters).filter(([, v]) => v !== '').length;
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -320,12 +349,10 @@ const Tailgate = () => {
               <StatsCards {...apiStats} filterSubtitle={filterSubtitle} />
               <LogFilters
                 activeFilterCount={activeFilterCount}
-                filters={filters}
+                filters={draftFilters}
+                onApply={handleApplyFilters}
                 onFilterChange={handleFilterChange}
-                onReset={() => {
-                  setFilters(DEFAULT_FILTERS);
-                  setPage(0);
-                }}
+                onReset={handleResetFilters}
               />
               {isLoading && !silentRefresh.current ? (
                 <div className="py-10 text-center text-[13px] text-gray-400">Loading…</div>
