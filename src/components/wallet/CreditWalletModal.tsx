@@ -287,7 +287,6 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
               className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
               id="wallet-credit-reason"
               maxLength={500}
-              placeholder="e.g. Goodwill credit for the lane outage on 20 Sep — the member will see this text"
               rows={3}
               value={reason}
               onChange={e => setReason(e.target.value)}
