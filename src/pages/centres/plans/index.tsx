@@ -42,7 +42,12 @@ const PlansPricing: React.FC = () => {
   const bundle = useSelector((s: RootState) => s.centres.details);
   const facilities = useSelector((s: RootState) => s.centres.facilities);
   const memberships = bundle?.memberships ?? [];
-  const caps = (bundle?.membershipSalesFlow?.capacity?.plans ?? {}) as Record<string, number>;
+  // Real Cosmos shape is an object per plan ({ planId, maxSlots, includedInFoundation,
+  // status }), not a bare number — the allocated slot count is its maxSlots field.
+  const caps = (bundle?.membershipSalesFlow?.capacity?.plans ?? {}) as Record<
+    string,
+    { maxSlots?: number; status?: string } | undefined
+  >;
 
   // Per-plan filled counts come from the centre-list rollup (stats.membersByPlan)
   // for this facility, when that list is loaded. Absent → occupancy is unknown and
@@ -70,7 +75,11 @@ const PlansPricing: React.FC = () => {
       // maxFrothnightlyBookings, the same "Slots per Cycle" field the
       // Membership Plans drawer shows) so this card always shows a real,
       // non-zero number when the plan itself has one.
-      const allocated = caps[m.code] ?? caps[m.name];
+      const capEntry = caps[m.code] ?? caps[m.name];
+      // "notconfigured" means the wizard step was shown but this plan was left
+      // unset — treat it the same as missing so the per-member fallback below
+      // still kicks in, instead of reading a maxSlots that was never really set.
+      const allocated = capEntry?.status === 'notconfigured' ? undefined : capEntry?.maxSlots;
       const perMemberSlots = (
         m.bookingRules as { generalBookingRules?: { maxFrothnightlyBookings?: number } } | undefined
       )?.generalBookingRules?.maxFrothnightlyBookings;

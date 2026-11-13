@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 
-import { completeTask, uploadMaintenanceFile } from '../../../store/maintenance/api';
+import { addComment, completeTask, uploadMaintenanceFile } from '../../../store/maintenance/api';
 import { AppDispatch } from '../../../store/store';
 import { freqBadgeCls, freqLabel, priorityMeta, taskTypeMeta } from '../constants';
 
@@ -54,7 +54,26 @@ const ScheduleCard: React.FC<Props> = ({
   const [comment, setComment] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const [savingComment, setSavingComment] = useState(false);
   const [preview, setPreview] = useState<string | null>(null); // in-page image lightbox
+  const [showComments, setShowComments] = useState(false);
+  const comments = schedule.comments ?? [];
+
+  const handleSaveComment = async () => {
+    const trimmed = comment.trim();
+    if (!trimmed) return;
+    setSavingComment(true);
+    try {
+      await dispatch(addComment({ id: schedule.id, facilityCode, comment: trimmed })).unwrap();
+      toast.success('Comment saved');
+      setComment('');
+      onChanged();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : 'Could not save the comment');
+    } finally {
+      setSavingComment(false);
+    }
+  };
 
   const handleMarkDone = async () => {
     setSaving(true);
@@ -144,6 +163,47 @@ const ScheduleCard: React.FC<Props> = ({
           <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 text-[12px] text-gray-600">✓ {schedule.actionTaken}</p>
         )}
 
+        {/* Standalone comments (via Save comment, below) — a growing history,
+            distinct from the single ✓-prefixed completion note above. */}
+        {comments.length > 0 && (
+          <div className="mt-2">
+            <button
+              className="flex items-center gap-1 text-[11.5px] font-semibold text-indigo-600 hover:text-indigo-700"
+              type="button"
+              onClick={() => setShowComments(v => !v)}
+            >
+              💬 {showComments ? 'Hide' : 'View'} comments ({comments.length})
+              <svg
+                className={`h-3 w-3 transition-transform ${showComments ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                viewBox="0 0 24 24"
+              >
+                <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {showComments && (
+              <div className="mt-1.5 flex max-h-44 flex-col gap-1.5 overflow-y-auto pr-1">
+                {[...comments].reverse().map((c, i) => (
+                  <div key={i} className="rounded-lg bg-gray-50 px-3 py-2 text-[12px] text-gray-600">
+                    <p>📝 {c.text}</p>
+                    <p className="mt-0.5 text-[10.5px] text-gray-400">
+                      {c.addedByName || c.addedBy} ·{' '}
+                      {new Date(c.addedAt).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Inline comment (before completing) */}
         {!isDone && (
           <>
@@ -154,12 +214,26 @@ const ScheduleCard: React.FC<Props> = ({
               value={comment}
               onChange={e => setComment(e.target.value)}
             />
-            {(comment.trim() || files.length > 0) && (
-              <p className="mt-1 text-[11px] text-gray-400">
-                Your comment{files.length ? ' & attachment' : ''} is saved when you tap{' '}
-                <span className="font-semibold text-teal-700">Mark Done</span>.
-              </p>
-            )}
+            <div className="mt-1 flex items-center justify-between gap-2">
+              {files.length > 0 ? (
+                <p className="text-[11px] text-gray-400">
+                  Attachment{files.length > 1 ? 's' : ''} saved when you tap{' '}
+                  <span className="font-semibold text-teal-700">Mark Done</span>.
+                </p>
+              ) : (
+                <span />
+              )}
+              {comment.trim() && (
+                <button
+                  className="shrink-0 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                  disabled={savingComment}
+                  type="button"
+                  onClick={handleSaveComment}
+                >
+                  {savingComment ? 'Saving…' : 'Save comment'}
+                </button>
+              )}
+            </div>
           </>
         )}
 

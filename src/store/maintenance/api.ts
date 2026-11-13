@@ -12,6 +12,7 @@ import api from '../../services';
 import { handleApiError } from '../../utils/errorUtils';
 
 import type {
+  AddCommentPayload,
   CompleteTaskPayload,
   CreateTemplatePayload,
   EndSeriesPayload,
@@ -242,6 +243,20 @@ export const undoCompleteTask = createAsyncThunk<TaskSchedule, UndoCompleteTaskP
       return await post<TaskSchedule>('undo_complete_task', { ...payload });
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Could not undo the completion'));
+    }
+  }
+);
+
+// Saves a note on a schedule without marking it done or flagging an issue —
+// the schedule card's comment textarea previously had no way to persist
+// without going through Mark Done.
+export const addComment = createAsyncThunk<TaskSchedule, AddCommentPayload, { rejectValue: string }>(
+  'maintenance/addComment',
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await post<TaskSchedule>('add_comment', { ...payload });
+    } catch (error) {
+      return rejectWithValue(handleApiError(error, 'Could not save the comment'));
     }
   }
 );
