@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../constants/routes';
 import { CentreNavProvider } from '../contexts/CentreNavContext';
+import { ACCESS_SCOPES } from '../rbac/constants';
+import { canRead } from '../rbac/permissions';
 import { logout as logoutAction } from '../store/auth/reducers';
 import { persistor, RootState } from '../store/store';
 import { facilityScope } from '../utils/facilityScope';
@@ -106,23 +108,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             <div className="flex-1"></div>
             {/* NE-1: central notifications log — a bell icon here rather than its
-                own sidebar entry, per request (see NotificationsLogModal). */}
-            <button
-              aria-label="Notifications log"
-              className="mr-3 rounded-xl border border-white/20 p-2.5 text-white/80 transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:text-white"
-              title="Notifications log"
-              onClick={() => setIsNotificationsLogOpen(true)}
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-              </svg>
-            </button>
+                own sidebar entry, per request (see NotificationsLogModal). Gated
+                by the same `notifications` module permission the backend already
+                enforces on /admin/email-logs — otherwise a restricted user saw
+                and could click a control that just 403'd. */}
+            {canRead(ACCESS_SCOPES.notifications) && (
+              <button
+                aria-label="Email logs"
+                className="mr-3 rounded-xl border border-white/20 p-2.5 text-white/80 transition-all duration-200 hover:border-white/40 hover:bg-white/10 hover:text-white"
+                title="Email logs"
+                onClick={() => setIsNotificationsLogOpen(true)}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                </svg>
+              </button>
+            )}
             <div ref={profileMenuRef} className="relative">
               <button
                 className="flex items-center gap-3 rounded-xl border border-white/20 px-4 py-2.5 transition-all duration-200 hover:border-white/40 hover:bg-white/10"

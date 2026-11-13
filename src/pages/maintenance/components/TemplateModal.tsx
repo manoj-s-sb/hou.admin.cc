@@ -33,14 +33,25 @@ interface Props {
   onSaved: () => void;
 }
 
+/** A field label, with the required-field "*" always styled red, separate from
+ * the rest of the (bold/bright navy) label text. */
+const FieldLabel: React.FC<{ children: React.ReactNode; required?: boolean }> = ({ children, required }) => (
+  <span className={labelCls}>
+    {children}
+    {required && <span className="text-[15px] font-bold text-red-500"> *</span>}
+  </span>
+);
+
 interface StepRow {
   title: string;
-  keepImageUrl: string | null; // existing image (display only; preserved server-side on save)
+  keepImageUrl: string | null; // ORIGINAL image from the template, never mutated — only for the "was one set?" check and display
   newBlobName: string | null; // freshly uploaded image blobName to send
+  imageRemoved: boolean; // admin clicked Remove on the image this session — sends an explicit clear
   previewUrl: string | null; // local preview for a fresh image upload
   uploading: boolean; // image upload in flight
-  keepVideoUrl: string | null; // existing video (display only; preserved server-side on save)
+  keepVideoUrl: string | null; // ORIGINAL video from the template, never mutated — only for the "was one set?" check and display
   newVideoBlobName: string | null; // freshly uploaded video blobName to send
+  videoRemoved: boolean; // admin clicked Remove on the video this session — sends an explicit clear
   videoName: string; // uploaded video's original filename, for display only
   uploadingVideo: boolean; // video upload in flight
 }
@@ -80,10 +91,12 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
       title: s.title,
       keepImageUrl: s.imageUrl,
       newBlobName: null,
+      imageRemoved: false,
       previewUrl: null,
       uploading: false,
       keepVideoUrl: s.videoUrl,
       newVideoBlobName: null,
+      videoRemoved: false,
       videoName: '',
       uploadingVideo: false,
     }))
@@ -99,7 +112,19 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
     template?.defaultLane !== null && template?.defaultLane !== undefined ? String(template.defaultLane) : ''
   );
   const [status, setStatus] = useState(template?.status ?? 'active');
+  // `videoUrl` is only ever used to show the "✓ Video attached" indicator —
+  // when editing, `template.videoUrl` is already a resolved, time-limited SAS
+  // URL (not the bare blob name stored in the DB), so it must NEVER be sent
+  // back to the server as-is. `newVideoBlobName` tracks a fresh upload made
+  // in THIS session — only that gets sent on save (see handleSave below),
+  // mirroring the per-step video's own newVideoBlobName/keepVideoUrl split,
+  // which already avoided this exact trap.
   const [videoUrl, setVideoUrl] = useState<string | null>(template?.videoUrl ?? null);
+  const [newVideoBlobName, setNewVideoBlobName] = useState<string | null>(null);
+  // True once the admin clicks Remove on an existing video — distinct from
+  // "never had one", so handleSave can send an explicit clear instead of
+  // just omitting the field (which the backend reads as "untouched").
+  const [videoRemoved, setVideoRemoved] = useState(false);
   const [videoName, setVideoName] = useState('');
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -123,6 +148,8 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
     try {
       const blobName = await uploadMaintenanceFile('GLOBAL', file);
       setVideoUrl(blobName);
+      setNewVideoBlobName(blobName);
+      setVideoRemoved(false);
       setVideoName(file.name);
     } catch {
       toast.error('Could not upload the video');
@@ -140,18 +167,26 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
         title: '',
         keepImageUrl: null,
         newBlobName: null,
+        imageRemoved: false,
         previewUrl: null,
         uploading: false,
         keepVideoUrl: null,
         newVideoBlobName: null,
+        videoRemoved: false,
         videoName: '',
         uploadingVideo: false,
       },
     ]);
   const removeStep = (i: number) => setStepRows(rows => rows.filter((_, j) => j !== i));
+  // Clears the whole image/video state (any fresh upload AND the original
+  // kept one) and marks it removed, so handleSave sends an explicit clear
+  // rather than silently omitting the field (which the backend reads as
+  // "untouched" and would just restore the old value).
+  const removeStepImage = (i: number) => patchStep(i, { newBlobName: null, previewUrl: null, imageRemoved: true });
+  const removeStepVideo = (i: number) => patchStep(i, { newVideoBlobName: null, videoName: '', videoRemoved: true });
   const uploadStepImage = async (i: number, file: File | null) => {
     if (!file) return;
-    patchStep(i, { uploading: true, previewUrl: URL.createObjectURL(file) });
+    patchStep(i, { uploading: true, previewUrl: URL.createObjectURL(file), imageRemoved: false });
     try {
       const blobName = await uploadMaintenanceFile('GLOBAL', file);
       patchStep(i, { newBlobName: blobName, uploading: false });
@@ -162,7 +197,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
   };
   const uploadStepVideo = async (i: number, file: File | null) => {
     if (!file) return;
-    patchStep(i, { uploadingVideo: true });
+    patchStep(i, { uploadingVideo: true, videoRemoved: false });
     try {
       const blobName = await uploadMaintenanceFile('GLOBAL', file);
       patchStep(i, { newVideoBlobName: blobName, videoName: file.name, uploadingVideo: false });
@@ -177,15 +212,28 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
     setTried(true);
     if (hasErrors || anyUploading) return;
     setSaving(true);
-    // Only send imageUrl/videoUrl for steps with a fresh upload; on update the
-    // backend keeps an existing step's image/video (matched by order) when
-    // either is omitted.
+    // Send imageUrl/videoUrl on a fresh upload (new value), OR as an explicit
+    // null when the admin clicked Remove (the backend only treats a key it
+    // never saw at all as "untouched, keep the old one" — see
+    // work_item_service.py's _imageProvided/_videoProvided). Omitted
+    // entirely only when truly untouched, so the backend keeps whatever it
+    // already has. Keep a row with a kept (non-removed) image/video even
+    // with no title typed — a step can be "just a photo".
     const stepPayload = stepRows
-      .filter(s => s.title.trim())
+      .filter(
+        s =>
+          s.title.trim() ||
+          s.newBlobName ||
+          s.imageRemoved ||
+          (s.keepImageUrl && !s.imageRemoved) ||
+          s.newVideoBlobName ||
+          s.videoRemoved ||
+          (s.keepVideoUrl && !s.videoRemoved)
+      )
       .map(s => ({
         title: s.title.trim(),
-        ...(s.newBlobName ? { imageUrl: s.newBlobName } : {}),
-        ...(s.newVideoBlobName ? { videoUrl: s.newVideoBlobName } : {}),
+        ...(s.newBlobName ? { imageUrl: s.newBlobName } : s.imageRemoved ? { imageUrl: null } : {}),
+        ...(s.newVideoBlobName ? { videoUrl: s.newVideoBlobName } : s.videoRemoved ? { videoUrl: null } : {}),
       }));
     const base: CreateTemplatePayload = {
       title: title.trim(),
@@ -199,7 +247,14 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
       freqUnit,
       steps: stepPayload,
       priority,
-      videoUrl,
+      // Never resend `videoUrl` state as-is — when editing it starts out as
+      // an already-resolved, time-limited SAS URL (not the bare blob name
+      // the DB stores), and saving that back would overwrite the correct
+      // value with a link that later expires. Send the new blob name on a
+      // fresh upload, an explicit null when the admin clicked Remove, or
+      // omit entirely when truly untouched so the backend keeps what it has
+      // (model_fields_set — see work_item_service.py's update_template).
+      ...(newVideoBlobName ? { videoUrl: newVideoBlobName } : videoRemoved ? { videoUrl: null } : {}),
       defaultLane: defaultLane !== '' ? parseInt(defaultLane, 10) : null,
     };
     try {
@@ -247,7 +302,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <div>
-            <span className={labelCls}>Task Title *</span>
+            <FieldLabel required>Task Title</FieldLabel>
             <input
               className={`${inputCls}${errRing(errors.title)}`}
               placeholder="e.g. Solenoid Spring Inspection"
@@ -293,7 +348,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
           {isCustomCat && (
             <div>
-              <span className={labelCls}>Custom Category *</span>
+              <FieldLabel required>Custom Category</FieldLabel>
               <input
                 className={`${inputCls}${errRing(errors.categoryCustom)}`}
                 placeholder="Enter category name"
@@ -308,7 +363,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
           {isCustomType && (
             <div>
-              <span className={labelCls}>Custom Type *</span>
+              <FieldLabel required>Custom Type</FieldLabel>
               <input
                 className={`${inputCls}${errRing(errors.taskTypeCustom)}`}
                 placeholder="Enter type name"
@@ -367,7 +422,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
 
           {isCustomEquip && (
             <div>
-              <span className={labelCls}>Custom Equipment *</span>
+              <FieldLabel required>Custom Equipment</FieldLabel>
               <input
                 className={`${inputCls}${errRing(errors.equipmentCustom)}`}
                 placeholder="Enter equipment name"
@@ -424,7 +479,8 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
             ) : (
               <div className="space-y-3">
                 {stepRows.map((s, i) => {
-                  const preview = s.previewUrl || s.keepImageUrl;
+                  const preview = s.previewUrl || (!s.imageRemoved ? s.keepImageUrl : null);
+                  const hasVideo = Boolean(s.newVideoBlobName || (s.keepVideoUrl && !s.videoRemoved));
                   return (
                     <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                       <div className="mb-2 flex items-center justify-between">
@@ -446,7 +502,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                         value={s.title}
                         onChange={e => patchStep(i, { title: e.target.value })}
                       />
-                      <span className={`${labelCls} mt-2`}>Image</span>
+                      <span className={`${labelCls} mt-2`}>Image (optional)</span>
                       {preview ? (
                         <div className="flex items-center gap-3">
                           <img
@@ -464,6 +520,14 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                               onChange={e => uploadStepImage(i, e.target.files?.[0] ?? null)}
                             />
                           </label>
+                          <button
+                            className="text-[11.5px] font-semibold text-red-400 hover:text-red-600"
+                            disabled={s.uploading}
+                            type="button"
+                            onClick={() => removeStepImage(i)}
+                          >
+                            Remove
+                          </button>
                         </div>
                       ) : (
                         <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2.5 text-[12px] font-semibold text-gray-500 hover:border-indigo-300 hover:text-indigo-600">
@@ -478,7 +542,7 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                         </label>
                       )}
                       <span className={`${labelCls} mt-2`}>Video (optional)</span>
-                      {s.keepVideoUrl || s.newVideoBlobName ? (
+                      {hasVideo ? (
                         <div className="flex items-center gap-3">
                           <span className="flex items-center gap-1.5 text-[11.5px] text-gray-500">
                             🎬 {s.videoName || 'Video attached'}
@@ -493,6 +557,14 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                               onChange={e => uploadStepVideo(i, e.target.files?.[0] ?? null)}
                             />
                           </label>
+                          <button
+                            className="text-[11.5px] font-semibold text-red-400 hover:text-red-600"
+                            disabled={s.uploadingVideo}
+                            type="button"
+                            onClick={() => removeStepVideo(i)}
+                          >
+                            Remove
+                          </button>
                         </div>
                       ) : (
                         <label className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2.5 text-[12px] font-semibold text-gray-500 hover:border-indigo-300 hover:text-indigo-600">
@@ -548,6 +620,8 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                     type="button"
                     onClick={() => {
                       setVideoUrl(null);
+                      setNewVideoBlobName(null);
+                      setVideoRemoved(true);
                       setVideoName('');
                       if (videoInputRef.current) videoInputRef.current.value = '';
                     }}

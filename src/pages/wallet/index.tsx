@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import FilterBar, { FilterBarField } from '../../components/FilterBar';
 import DataTable from '../../components/Table/DataTable';
 import { TableColumn } from '../../components/Table/types';
 import CreditWalletModal from '../../components/wallet/CreditWalletModal';
@@ -164,29 +165,29 @@ const WalletTransactions = () => {
           type="button"
           onClick={() => canCredit && setIsCreditModalOpen(true)}
         >
-          + Credit Wallet
+          Add Credit
         </button>
       </div>
 
       {/* ── Search ──────────────────────────────────────────── */}
-      <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        <div className="px-4 py-4">
-          <label
-            className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-            htmlFor="wallet-roster-search"
-          >
-            Member
-          </label>
-          <input
-            className="w-full max-w-md rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-            id="wallet-roster-search"
-            placeholder="Search by name or email…"
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
+      <FilterBar
+        fields={
+          [
+            {
+              kind: 'search',
+              key: 'wallet-roster-search',
+              label: 'Member',
+              placeholder: 'Search by name or email…',
+              value: search,
+              onChange: setSearch,
+            },
+          ] as FilterBarField[]
+        }
+        /* Single live-debounced search field, no network round-trip to gate
+           (see the debounced fetchPage effect above) — nothing for Apply or
+           Reset to do here. */
+        onReset={() => setSearch('')}
+      />
 
       {/* ── Member Roster ───────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">

@@ -3,7 +3,11 @@
 const { execSync } = require('child_process');
 const path = require('path');
 
-const ESLINT_COMMAND = 'eslint src --ext .js,.jsx,.ts,.tsx --format=json';
+// ESLINT_USE_FLAT_CONFIG=false: this repo lives nested inside an unrelated
+// project's node_modules tree, whose own flat eslint.config.js would
+// otherwise get auto-discovered by ESLint's upward search instead of this
+// project's own package.json "eslintConfig". Forces legacy resolution.
+const ESLINT_COMMAND = 'ESLINT_USE_FLAT_CONFIG=false eslint src --ext .js,.jsx,.ts,.tsx --format=json';
 
 const printResults = rawJson => {
   const results = JSON.parse(rawJson);

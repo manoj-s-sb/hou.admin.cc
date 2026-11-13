@@ -120,8 +120,12 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
   // MP-8: a price is only required for annual billing when it's actually offered —
   // the old behaviour silently saved $0 for a blank price instead of enforcing this.
   const isValid = useMemo(
-    () => form.name.trim() !== '' && form.code.trim() !== '' && (!form.offersAnnual || (form.annualPrice ?? 0) > 0),
-    [form.name, form.code, form.offersAnnual, form.annualPrice]
+    () =>
+      form.name.trim() !== '' &&
+      form.code.trim() !== '' &&
+      (form.description ?? '').trim() !== '' &&
+      (!form.offersAnnual || (form.annualPrice ?? 0) > 0),
+    [form.name, form.code, form.description, form.offersAnnual, form.annualPrice]
   );
 
   const handleSave = async () => {
@@ -261,7 +265,9 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           <div className="text-xs font-bold uppercase tracking-[0.06em] text-sub">Plan Identity</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Plan Name *</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+                Plan Name <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+              </span>
               <input
                 className={FIELD}
                 placeholder="e.g. Premium"
@@ -271,7 +277,9 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Plan Code *</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+                Plan Code <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+              </span>
               <input
                 className={FIELD}
                 disabled={mode === 'edit'}
@@ -297,7 +305,9 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
             </div>
           </div>
           <div className="flex flex-col gap-1" style={{ marginBottom: 20 }}>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Description</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+              Description <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+            </span>
             <textarea
               className={FIELD}
               placeholder="Brief description shown in member-facing plan comparison pages…"
@@ -365,7 +375,9 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           {/* Access */}
           <div className="text-xs font-bold uppercase tracking-[0.06em] text-sub">Access Hours</div>
           <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Access Type *</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+              Access Type <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+            </span>
             <select
               className={FIELD}
               value={form.accessType}
@@ -412,7 +424,9 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Slots per Cycle *</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+                Slots per Cycle <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+              </span>
               <NumberInput
                 className={FIELD}
                 min={0}

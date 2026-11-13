@@ -14,6 +14,16 @@ import { formatRoleLabel } from '../../staff/utils';
 // Management read permission. Assigning a ticket has nothing to do with that
 // module, so this picker gets its own lightweight, Tickets-scoped data
 // source instead (see TicketService.list_assignable_staff on the backend).
+const PersonIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path
+      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 interface AssignableStaffRow {
   staffId: string;
   firstName: string;
@@ -204,40 +214,44 @@ const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, c
 
   return (
     <div>
-      <select
-        className={className}
-        disabled={disabled || stillLoading}
-        value=""
-        onChange={e => {
-          if (e.target.value === CUSTOM_EMAIL_OPTION) {
-            setShowCustomEmailInput(true);
-          } else if (e.target.value) {
-            addPerson(e.target.value);
-          }
-        }}
-      >
-        <option value="">{stillLoading ? 'Loading…' : 'Add a person…'}</option>
-        {meSelectable && meEntry && <option value={meEntry.staffId}>★ Assign to me — {meEntry.name}</option>}
-        {selectableStaff.length > 0 && (
-          <optgroup label={facilityCode ? "This centre's staff" : 'Staff'}>
-            {selectableStaff.map(s => (
-              <option key={s.staffId} value={s.staffId}>
-                {`${s.firstName} ${s.lastName}`.trim() || s.email} — {designationOf(s.userType)}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {selectableSuperAdmins.length > 0 && (
-          <optgroup label="Superadmins">
-            {selectableSuperAdmins.map(s => (
-              <option key={s.staffId} value={s.staffId}>
-                {`${s.firstName} ${s.lastName}`.trim() || s.email} — {s.email}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        <option value={CUSTOM_EMAIL_OPTION}>+ Enter an email…</option>
-      </select>
+      <div className="relative">
+        <PersonIcon className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <select
+          className={className}
+          disabled={disabled || stillLoading}
+          style={{ paddingLeft: 28 }}
+          value=""
+          onChange={e => {
+            if (e.target.value === CUSTOM_EMAIL_OPTION) {
+              setShowCustomEmailInput(true);
+            } else if (e.target.value) {
+              addPerson(e.target.value);
+            }
+          }}
+        >
+          <option value="">{stillLoading ? 'Loading…' : 'Add a person…'}</option>
+          {meSelectable && meEntry && <option value={meEntry.staffId}>★ Assign to me — {meEntry.name}</option>}
+          {selectableStaff.length > 0 && (
+            <optgroup label={facilityCode ? "This centre's staff" : 'Staff'}>
+              {selectableStaff.map(s => (
+                <option key={s.staffId} value={s.staffId}>
+                  {`${s.firstName} ${s.lastName}`.trim() || s.email} — {designationOf(s.userType)}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {selectableSuperAdmins.length > 0 && (
+            <optgroup label="Superadmins">
+              {selectableSuperAdmins.map(s => (
+                <option key={s.staffId} value={s.staffId}>
+                  {`${s.firstName} ${s.lastName}`.trim() || s.email} — {s.email}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          <option value={CUSTOM_EMAIL_OPTION}>Enter an email…</option>
+        </select>
+      </div>
       {showCustomEmailInput && (
         <div className="mt-2">
           <div className="flex gap-2">
@@ -263,7 +277,7 @@ const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, c
               }}
             />
             <button
-              className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50"
+              className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-bold text-[#21295A] transition hover:bg-gray-50"
               type="button"
               onClick={addCustomEmail}
             >
@@ -278,10 +292,10 @@ const StaffAssigneeSelect: React.FC<Props> = ({ facilityCode, value, onChange, c
           {value.map((v, i) => (
             <span
               key={v.staffId}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#9096be] bg-[#ecedf4] py-1 pl-2.5 pr-1.5 text-xs font-medium text-[#21295a]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#9096be] bg-[#ecedf4] py-1 pl-2.5 pr-1.5 text-xs font-bold text-[#21295a]"
               title={i === 0 ? 'Primary assignee' : 'CC’d on notifications (no multi-assignee support yet)'}
             >
-              {i === 0 && '★ '}
+              <PersonIcon className="h-3 w-3 shrink-0" />
               {v.name}
               <button
                 aria-label={`Remove ${v.name}`}

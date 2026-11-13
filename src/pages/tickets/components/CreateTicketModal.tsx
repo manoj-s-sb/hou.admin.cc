@@ -35,7 +35,17 @@ interface Props {
 
 const fieldClass =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
-const labelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
+const labelClass = 'mb-1 block text-[11px] font-bold uppercase tracking-wider text-[#21295A]';
+
+/** A field label, with the required-field "*" always styled red, separate from
+ * the rest of the (now bold/bright navy) label text — instead of baking "*"
+ * into the plain label string, which coloured it the same as everything else. */
+const FieldLabel: React.FC<{ children: React.ReactNode; required?: boolean }> = ({ children, required }) => (
+  <span className={labelClass}>
+    {children}
+    {required && <span className="text-[15px] font-bold text-red-500"> *</span>}
+  </span>
+);
 
 const Chip: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({
   active,
@@ -241,7 +251,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className={labelClass}>Centre *</span>
+              <FieldLabel required>Centre</FieldLabel>
               <select
                 className={`${fieldClass}${errClass(errors.centre)}`}
                 disabled={lockedCentre}
@@ -259,7 +269,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
               {triedSubmit && errors.centre && <p className="mt-1 text-[11px] text-red-500">{errors.centre}</p>}
             </div>
             <div>
-              <span className={labelClass}>Category *</span>
+              <FieldLabel required>Category</FieldLabel>
               <select
                 className={fieldClass}
                 value={category}
@@ -277,7 +287,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           {/* Customer email — only relevant for Customer Support tickets */}
           {isCustomerSupport && (
             <div>
-              <span className={labelClass}>Customer Email *</span>
+              <FieldLabel required>Customer Email</FieldLabel>
               <input
                 className={`${fieldClass}${errClass(errors.customerEmail)}`}
                 placeholder="customer@example.com"
@@ -292,7 +302,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           )}
 
           <div>
-            <span className={labelClass}>Title *</span>
+            <FieldLabel required>Title</FieldLabel>
             <input
               className={`${fieldClass}${errClass(errors.title)}`}
               placeholder="e.g. Bowling machine overheating — Lane 3"
@@ -304,7 +314,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           </div>
 
           <div>
-            <span className={labelClass}>Description *</span>
+            <FieldLabel required>Description</FieldLabel>
             <textarea
               className={`${fieldClass}${errClass(errors.description)}`}
               placeholder="Describe the issue…"
@@ -316,7 +326,7 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           </div>
 
           <div>
-            <span className={labelClass}>Priority *</span>
+            <FieldLabel required>Priority</FieldLabel>
             <div className="grid grid-cols-3 gap-2">
               {TICKET_PRIORITIES.map(p => {
                 const active = priority === p;
@@ -438,11 +448,11 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
                 }}
               />
               <button
-                className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-[#21295A] hover:bg-gray-50"
                 type="button"
                 onClick={addCustomEquipment}
               >
-                + Add
+                Add
               </button>
             </div>
           </div>

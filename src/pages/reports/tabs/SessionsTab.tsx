@@ -103,7 +103,7 @@ const SessionsTab: React.FC<{ data: SessionsData }> = ({ data }) => {
               { key: 'bowlingHrs', name: 'Bowling', color: '#3b82f6' },
             ]}
             data={data.centreBarData}
-            xKey="centreName"
+            xKey="centreId"
           />
         </ChartCard>
       </div>

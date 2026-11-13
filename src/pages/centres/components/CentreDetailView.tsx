@@ -64,7 +64,14 @@ const CentreDetailView: React.FC<Props> = ({ code, children }) => {
         >
           {facility && <span style={{ width: 6, height: 26, borderRadius: 3, background: centreColour(code) }} />}
           <span className="uppercase text-[#202020]">
-            {facility ? `${countryFlag(facility.countryCode)} ${facility.name}` : code}
+            {facility ? (
+              `${countryFlag(facility.countryCode)} ${facility.name}`
+            ) : (
+              // Holds the header's exact space while the bundle loads, instead of
+              // flashing the bare `code` (e.g. "NYC01") and then popping to the
+              // real name once it arrives.
+              <span className="inline-block h-5 w-40 animate-pulse rounded bg-gray-200 align-middle" />
+            )}
           </span>
           {facility && <span style={{ fontSize: 13, fontWeight: 600, color: '#21295a' }}>· {facility.code}</span>}
           {status && <span className={`${PILL_BASE} ${status.tone}`}>{status.label}</span>}
@@ -78,11 +85,9 @@ const CentreDetailView: React.FC<Props> = ({ code, children }) => {
           page only rendered once this unrelated bundle finished loading, so any role
           that could read a module but not the full admin config (e.g. a facility-scoped
           coach/staff) saw a permanently blank page while this call loaded or errored —
-          the module's own data never even got a chance to fetch. Render it unconditionally. */}
-      {isLoading && !bundle && (
-        <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 12 }}>Loading centre details…</div>
-      )}
-
+          the module's own data never even got a chance to fetch. Render it unconditionally.
+          The loading state itself is now shown by the header's own skeleton bar above,
+          not a second "Loading centre details…" line here. */}
       {!isLoading && error && !bundle && (
         <div
           style={{

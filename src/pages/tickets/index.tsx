@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 
+import FilterBar, { FilterBarField } from '../../components/FilterBar';
 import { getLocalUser } from '../../constants/user';
 import { canEditModule } from '../../rbac';
 import { MODULES } from '../../rbac/constants';
@@ -47,9 +48,19 @@ const Tickets: React.FC = () => {
   // Closed. Sent as the existing (till now unused) `view: 'active'` param.
   const [activeOnly, setActiveOnly] = useState(false);
   const [overdueOnly, setOverdueOnly] = useState(false);
+  // Category/Priority/Centre are Apply-gated (like every other list page's
+  // secondary dropdowns) — Status stays live via the chips/dropdown above
+  // (a single-click status shortcut is core to triaging this list, so it's
+  // deliberately NOT folded into the same Apply step), and Search stays live
+  // via its own debounce below. `category`/`priority`/`centreFilter` are the
+  // applied values `loadList` actually sends; the `draft*` twins are what the
+  // filter bar's selects are bound to until Apply commits them.
   const [category, setCategory] = useState<'' | TicketCategory>('');
   const [priority, setPriority] = useState<'' | TicketPriority>('');
   const [centreFilter, setCentreFilter] = useState('');
+  const [draftCategory, setDraftCategory] = useState<'' | TicketCategory>('');
+  const [draftPriority, setDraftPriority] = useState<'' | TicketPriority>('');
+  const [draftCentreFilter, setDraftCentreFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -115,6 +126,28 @@ const Tickets: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   const resetToFirstPage = () => setCurrentPage(1);
+
+  const applyFilters = () => {
+    setCategory(draftCategory);
+    setPriority(draftPriority);
+    setCentreFilter(draftCentreFilter);
+    resetToFirstPage();
+  };
+
+  const resetFilters = () => {
+    setStatus('');
+    setActiveOnly(false);
+    setOverdueOnly(false);
+    setCategory('');
+    setPriority('');
+    setCentreFilter('');
+    setDraftCategory('');
+    setDraftPriority('');
+    setDraftCentreFilter('');
+    setSearchInput('');
+    setSearch('');
+    resetToFirstPage();
+  };
 
   const onTab = (next: Tab) => {
     setTab(next);
@@ -190,9 +223,6 @@ const Tickets: React.FC = () => {
     },
   ];
 
-  const selectFieldClass =
-    'rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[13px] text-gray-700 outline-none focus:border-[#21295A]';
-
   const hasFilters = useMemo(
     () =>
       Boolean(
@@ -225,15 +255,18 @@ const Tickets: React.FC = () => {
       </div>
 
       {/* Summary bar — every item in one uniform chip format (dot · label · count).
-          Total is informational only (all non-closed tickets, across every status,
-          not just the three chips below) — it never acts as a filter itself, the
-          Open/In Progress/Closed chips still do that. Overdue is its own toggle: an
+          "Active" is informational only (all non-closed tickets, across every status,
+          not just the three chips below — a legacy with-NOC/needs-verification ticket
+          has no chip of its own but still counts here) — it never acts as a filter
+          itself, the Open/In Progress/Closed chips still do that. Named "Active"
+          rather than "Total" so it never reads as "should equal Open + In Progress +
+          Closed" — it deliberately excludes Closed. Overdue is its own toggle: an
           overdue ticket can be in any non-closed status, so it composes with
           whichever status chip (if any) is selected rather than replacing it. */}
       <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium text-gray-600">
           <span className="h-2 w-2 rounded-full bg-gray-400" />
-          Total
+          Active
           <span className="font-bold text-[#21295A]">{totalActiveCount}</span>
         </div>
         {summaryChips.map(c => (
@@ -263,127 +296,130 @@ const Tickets: React.FC = () => {
         </button>
       </div>
 
-      {/* Tabs + filters */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-0.5 rounded-[10px] bg-gray-100 p-[3px]">
-          <button
-            className={`rounded-lg px-[18px] py-1.5 text-[13px] transition-all ${
-              tab === 'all' ? 'bg-[#21295A] font-semibold text-white' : 'bg-transparent font-medium text-gray-500'
-            }`}
-            type="button"
-            onClick={() => onTab('all')}
-          >
-            All Tickets
-          </button>
-          <button
-            className={`flex items-center gap-1.5 rounded-lg px-[18px] py-1.5 text-[13px] transition-all ${
-              tab === 'mine' ? 'bg-[#21295A] font-semibold text-white' : 'bg-transparent font-medium text-gray-500'
-            }`}
-            type="button"
-            onClick={() => onTab('mine')}
-          >
-            Assigned to Me
+      {/* Tabs */}
+      <div className="mb-4 flex gap-0.5 rounded-[10px] bg-gray-100 p-[3px]" style={{ width: 'fit-content' }}>
+        <button
+          className={`rounded-lg px-[18px] py-1.5 text-[13px] transition-all ${
+            tab === 'all' ? 'bg-[#21295A] font-semibold text-white' : 'bg-transparent font-medium text-gray-500'
+          }`}
+          type="button"
+          onClick={() => onTab('all')}
+        >
+          All Tickets
+        </button>
+        <button
+          className={`flex items-center gap-1.5 rounded-lg px-[18px] py-1.5 text-[13px] transition-all ${
+            tab === 'mine' ? 'bg-[#21295A] font-semibold text-white' : 'bg-transparent font-medium text-gray-500'
+          }`}
+          type="button"
+          onClick={() => onTab('mine')}
+        >
+          Assigned to Me
+          {mineCount > 0 && (
             <span className="rounded-lg bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">{mineCount}</span>
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {!isCentreScoped && (
-            <select
-              className={selectFieldClass}
-              value={centreFilter}
-              onChange={e => {
-                setCentreFilter(e.target.value);
-                resetToFirstPage();
-              }}
-            >
-              <option value="">All Centres</option>
-              {centres.map(c => (
-                <option key={c.code} value={c.code}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </select>
           )}
-          <select
-            className={selectFieldClass}
-            // A native <select> can only represent one of these three independent
-            // filter dimensions at a time (status / activeOnly / overdueOnly) — the
-            // summary chips above let you combine them, this dropdown is a
-            // single-choice shortcut onto the same underlying state.
-            value={overdueOnly ? 'overdue' : activeOnly ? 'total' : status}
-            onChange={e => {
-              const v = e.target.value;
-              if (v === 'total') {
-                setActiveOnly(true);
-                setOverdueOnly(false);
-                setStatus('');
-              } else if (v === 'overdue') {
-                setOverdueOnly(true);
-                setActiveOnly(false);
-                setStatus('');
-              } else {
-                setActiveOnly(false);
-                setOverdueOnly(false);
-                setStatus(v as '' | TicketStatus);
-              }
-              resetToFirstPage();
-            }}
-          >
-            <option value="">All Statuses</option>
-            {/* Every non-closed ticket (open/with-NOC/in-progress/needs-verification)
-                — same definition as the Total chip, distinct from "All Statuses"
-                which also includes Closed. */}
-            <option value="total">Total</option>
-            {/* Filter dropdown also offers 'open' (unlike SELECTABLE_STATUSES, which
-                is just the manual status-change choices in the ticket detail view —
-                you can't manually set a ticket back to 'open', but you can filter by it). */}
-            {(['open', ...SELECTABLE_STATUSES] as TicketStatus[]).map(s => (
-              <option key={s} value={s}>
-                {STATUS_META[s].label}
-              </option>
-            ))}
-            <option value="overdue">Overdue</option>
-          </select>
-          <select
-            className={selectFieldClass}
-            value={category}
-            onChange={e => {
-              setCategory(e.target.value as '' | TicketCategory);
-              resetToFirstPage();
-            }}
-          >
-            <option value="">All Categories</option>
-            {TICKET_CATEGORIES.map(c => (
-              <option key={c} value={c}>
-                {CATEGORY_META[c].label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={selectFieldClass}
-            value={priority}
-            onChange={e => {
-              setPriority(e.target.value as '' | TicketPriority);
-              resetToFirstPage();
-            }}
-          >
-            <option value="">All Priorities</option>
-            {TICKET_PRIORITIES.map(p => (
-              <option key={p} value={p}>
-                {PRIORITY_META[p].label}
-              </option>
-            ))}
-          </select>
-          <input
-            className={`${selectFieldClass} min-w-[180px]`}
-            placeholder="Search ticket #, title, or description…"
-            type="text"
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-          />
-        </div>
+        </button>
       </div>
+
+      {/* Filters — Status (chip row + its dropdown shortcut here) and Search
+          stay live (status is a single-click triage shortcut, search is the
+          usual debounced-live box); Category/Priority/Centre are Apply-gated,
+          matching every other list page's secondary dropdowns. */}
+      <FilterBar
+        fields={
+          [
+            ...(!isCentreScoped
+              ? ([
+                  {
+                    kind: 'select',
+                    key: 'ticket-centre-filter',
+                    label: 'Centre',
+                    value: draftCentreFilter,
+                    onChange: setDraftCentreFilter,
+                    options: [
+                      { value: '', label: 'All Centres' },
+                      ...centres.map(c => ({ value: c.code, label: `${c.name} (${c.code})` })),
+                    ],
+                  },
+                ] as FilterBarField[])
+              : []),
+            {
+              kind: 'select',
+              key: 'ticket-status-filter',
+              label: 'Status',
+              // A native <select> can only represent one of these three independent
+              // filter dimensions at a time (status / activeOnly / overdueOnly) — the
+              // summary chips above let you combine them, this dropdown is a
+              // single-choice shortcut onto the same underlying state.
+              value: overdueOnly ? 'overdue' : activeOnly ? 'total' : status,
+              onChange: v => {
+                if (v === 'total') {
+                  setActiveOnly(true);
+                  setOverdueOnly(false);
+                  setStatus('');
+                } else if (v === 'overdue') {
+                  setOverdueOnly(true);
+                  setActiveOnly(false);
+                  setStatus('');
+                } else {
+                  setActiveOnly(false);
+                  setOverdueOnly(false);
+                  setStatus(v as '' | TicketStatus);
+                }
+                resetToFirstPage();
+              },
+              options: [
+                { value: '', label: 'All Statuses' },
+                // Every non-closed ticket (open/with-NOC/in-progress/needs-verification)
+                // — same definition as the Active chip, distinct from "All Statuses"
+                // which also includes Closed.
+                { value: 'total', label: 'Active' },
+                // Filter dropdown also offers 'open' (unlike SELECTABLE_STATUSES, which
+                // is just the manual status-change choices in the ticket detail view —
+                // you can't manually set a ticket back to 'open', but you can filter by it).
+                ...(['open', ...SELECTABLE_STATUSES] as TicketStatus[]).map(s => ({
+                  value: s,
+                  label: STATUS_META[s].label,
+                })),
+                { value: 'overdue', label: 'Overdue' },
+              ],
+            },
+            {
+              kind: 'select',
+              key: 'ticket-category-filter',
+              label: 'Category',
+              value: draftCategory,
+              onChange: v => setDraftCategory(v as '' | TicketCategory),
+              options: [
+                { value: '', label: 'All Categories' },
+                ...TICKET_CATEGORIES.map(c => ({ value: c, label: CATEGORY_META[c].label })),
+              ],
+            },
+            {
+              kind: 'select',
+              key: 'ticket-priority-filter',
+              label: 'Priority',
+              value: draftPriority,
+              onChange: v => setDraftPriority(v as '' | TicketPriority),
+              options: [
+                { value: '', label: 'All Priorities' },
+                ...TICKET_PRIORITIES.map(p => ({ value: p, label: PRIORITY_META[p].label })),
+              ],
+            },
+            {
+              kind: 'search',
+              key: 'ticket-search-filter',
+              label: 'Search',
+              placeholder: 'Search tickets…',
+              value: searchInput,
+              onChange: setSearchInput,
+            },
+          ] as FilterBarField[]
+        }
+        isLoading={listLoading}
+        onApply={applyFilters}
+        onReset={resetFilters}
+      />
 
       {/* List */}
       {listError ? (

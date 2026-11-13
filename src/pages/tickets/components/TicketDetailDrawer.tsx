@@ -31,7 +31,27 @@ import type { Ticket, TicketActivity, TicketRole, TicketStatus } from '../../../
 
 const compactFieldClass =
   'rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[12px] outline-none focus:border-[#21295A]';
-const compactLabelClass = 'mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-gray-400';
+const compactLabelClass = 'mb-1 block text-[13px] font-bold text-[#21295A]';
+
+const PaperclipIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path
+      d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const RefreshIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <path
+      d="M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0114-3.5M19.5 15a8 8 0 01-14 3.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 // Surfaces the backend's assignment-notification outcome as brief, non-intrusive
 // toasts. `assigneeNotified: false` is a warning (no email on file), not a failure.
@@ -524,9 +544,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
               ) : (
                 <div className="space-y-3">
                   <div>
-                    <div className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">
-                      Add note / comment
-                    </div>
+                    <div className="mb-1.5 text-[15px] font-bold text-[#21295A]">Add Note / Comment</div>
                     <textarea
                       className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] outline-none focus:border-[#21295A] focus:bg-white"
                       placeholder="Add an incident note or comment…"
@@ -539,8 +557,9 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                           Attachments field for why (`hidden`/display:none on a file input
                           is unreliable in some browsers once the surrounding form has
                           re-rendered from typing elsewhere). */}
-                      <label className="relative flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-1.5 text-[11.5px] font-semibold text-gray-500 hover:bg-gray-100">
-                        📎 Add attachment
+                      <label className="relative flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#21295A] hover:bg-gray-50">
+                        <PaperclipIcon className="h-3.5 w-3.5" />
+                        Add Attachment
                         <input
                           multiple
                           accept="image/*,video/*"
@@ -553,7 +572,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                         />
                       </label>
                       <button
-                        className="rounded-lg bg-[#21295A] px-4 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#2d3570] disabled:opacity-50"
+                        className="rounded-lg bg-[#21295A] px-4 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#2d3570] disabled:opacity-50"
                         disabled={saving || !comment.trim()}
                         type="button"
                         onClick={handleComment}
@@ -571,11 +590,12 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                       onChange={setReassignees}
                     />
                     <button
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-bold text-[#21295A] transition hover:bg-gray-50 disabled:opacity-50"
                       disabled={saving}
                       type="button"
                       onClick={handleReassign}
                     >
+                      <RefreshIcon className="h-3.5 w-3.5" />
                       Reassign
                     </button>
                   </div>
@@ -583,7 +603,7 @@ const TicketDetailDrawer: React.FC<Props> = ({ ticketId, onClose, onChanged, can
                   <EmailTagInput
                     emails={reassignRecipients}
                     fieldClass={compactFieldClass}
-                    label="CC emails (optional)"
+                    label="CC Emails (Optional)"
                     labelClass={compactLabelClass}
                     onChange={setReassignRecipients}
                   />

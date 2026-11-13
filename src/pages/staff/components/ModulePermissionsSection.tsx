@@ -265,7 +265,7 @@ const ModulePermissionsSection: React.FC<Props> = ({
   return (
     <div>
       <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-gray-400">
-        Module Permissions <span className="text-red-400">*</span>
+        Module Permissions <span className="text-[15px] font-bold text-red-400">*</span>
       </p>
 
       <button

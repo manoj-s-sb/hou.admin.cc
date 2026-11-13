@@ -1,11 +1,11 @@
 {
-  "short_name": "Century Cricket",
-  "name": "Century Cricket - Admin Portal",
+  "short_name": "Future of Cricket",
+  "name": "Future of Cricket - Admin Portal",
   "icons": [
     {
-      "src": "./assets/brand.svg",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/svg+xml"
+      "src": "./assets/brand-icon.png",
+      "sizes": "184x206",
+      "type": "image/png"
     }
   ],
   "start_url": ".",

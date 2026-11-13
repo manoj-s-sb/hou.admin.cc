@@ -262,7 +262,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
       >
         {/* Header with close button for mobile */}
         <div className="relative flex h-20 shrink-0 items-center justify-center border-b border-white/10 px-4">
-          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-light.svg" />
+          <img alt="Century Portal Logo" className="h-16 w-auto" src="/assets/brand-new.png" />
           <button
             aria-label="Close sidebar"
             className="absolute right-4 rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:hidden"

@@ -259,49 +259,54 @@ const MembershipPlans: React.FC = () => {
             </button>
           ))}
         </div>
-        {archivedCount > 0 && (
-          <label
-            className="inline-flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-sub"
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            <input
-              checked={showArchived}
-              className="h-3.5 w-3.5 rounded border-cmx-border"
-              type="checkbox"
-              onChange={e => setShowArchived(e.target.checked)}
-            />
-            Show archived ({archivedCount})
-          </label>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="text-xs font-bold uppercase tracking-[0.06em] text-sub" style={{ margin: 0 }}>
-            Currency:
-          </span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {currencyOptions.map(c => (
-              <button
-                key={c.code}
-                className={`cursor-pointer whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${currency.code === c.code ? 'border-navy bg-navy text-white' : 'border-cmx-border bg-white text-sub'}`}
-                type="button"
-                onClick={() => setCurrencyCode(c.code)}
-              >
-                {c.code}
-              </button>
-            ))}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          {archivedCount > 0 && (
+            <label
+              className="inline-flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-sub"
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              <input
+                checked={showArchived}
+                className="h-3.5 w-3.5 rounded border-cmx-border"
+                type="checkbox"
+                onChange={e => setShowArchived(e.target.checked)}
+              />
+              Show archived ({archivedCount})
+            </label>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="text-xs font-bold uppercase tracking-[0.06em] text-sub" style={{ margin: 0 }}>
+              Currency:
+            </span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {currencyOptions.map(c => (
+                <button
+                  key={c.code}
+                  className={`cursor-pointer whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${currency.code === c.code ? 'border-navy bg-navy text-white' : 'border-cmx-border bg-white text-sub'}`}
+                  type="button"
+                  onClick={() => setCurrencyCode(c.code)}
+                >
+                  {c.code}
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--sub)' }}>
+              {currency.code === 'USD' ? 'Base currency' : `1 USD ≈ ${currency.rate.toFixed(3)} ${currency.code}`}
+              {currency.code !== 'USD' && fx.status === 'live' && fx.asOf && ` · rates as of ${fx.asOf}`}
+              {currency.code !== 'USD' && fx.status === 'fallback' && (
+                <span style={{ color: 'var(--cmx-amber, #d97706)' }}>
+                  {' '}
+                  · ⚠ offline — reference rate, may be outdated
+                </span>
+              )}
+            </span>
           </div>
-          <span style={{ fontSize: 11, color: 'var(--sub)' }}>
-            {currency.code === 'USD' ? 'Base currency' : `1 USD ≈ ${currency.rate.toFixed(3)} ${currency.code}`}
-            {currency.code !== 'USD' && fx.status === 'live' && fx.asOf && ` · rates as of ${fx.asOf}`}
-            {currency.code !== 'USD' && fx.status === 'fallback' && (
-              <span style={{ color: 'var(--cmx-amber, #d97706)' }}> · ⚠ offline — reference rate, may be outdated</span>
-            )}
-          </span>
         </div>
       </div>
 
       {/* Tabs + New Plan */}
       <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-        <div className="mb-6 flex gap-0 overflow-x-auto border-b border-cmx-border" style={{ marginBottom: 0 }}>
+        <div className="mb-6 flex gap-0 border-b border-cmx-border" style={{ marginBottom: 0 }}>
           {TABS.map(t => (
             <button
               key={t.key}
