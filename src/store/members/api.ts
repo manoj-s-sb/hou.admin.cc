@@ -186,7 +186,11 @@ export const uploadMemberEmailAttachment = async (file: File): Promise<MemberEma
     body: file,
     headers: {
       'x-ms-blob-type': 'BlockBlob',
-      ...(file.type && { 'Content-Type': file.type }),
+      // Azure's Put Blob operation only persists the blob's stored
+      // Content-Type from this header — a plain "Content-Type" header on the
+      // PUT itself is not saved as a blob property, so a later read would
+      // come back as application/octet-stream regardless of what was sent.
+      ...(file.type && { 'x-ms-blob-content-type': file.type }),
     },
   });
   return { blobName, fileName: file.name, contentType: file.type, sizeBytes: file.size };

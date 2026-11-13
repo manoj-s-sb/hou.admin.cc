@@ -37,7 +37,13 @@ import type {
 export const uploadFileToBlob = async (uploadUrl: string, file: File): Promise<void> => {
   const res = await fetch(uploadUrl, {
     method: 'PUT',
-    headers: { 'x-ms-blob-type': 'BlockBlob' },
+    // Without x-ms-blob-content-type, Azure stores the blob as
+    // application/octet-stream — a browser then refuses to play it inline in
+    // a <video> (or reliably render it in an <img>) from its SAS read URL,
+    // even though the bytes themselves uploaded correctly. file.type is the
+    // browser's own sniffed MIME type (e.g. "video/mp4"), so this is always
+    // the real type, not a guess.
+    headers: { 'x-ms-blob-type': 'BlockBlob', ...(file.type ? { 'x-ms-blob-content-type': file.type } : {}) },
     body: file,
   });
   // fetch() only rejects on a network-level failure (DNS, CORS block, connection

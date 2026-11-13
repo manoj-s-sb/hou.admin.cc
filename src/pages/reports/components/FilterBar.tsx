@@ -96,22 +96,6 @@ const FilterBar: React.FC<FilterBarProps> = ({ applied, centres, onApply, onRese
           </div>
         </div>
 
-        {/* RP-1: network totals default to Active centres only; let the admin opt into
-            Draft/Staging/Suspended (e.g. QA/test centres) when they need to see them. */}
-        {!isCentre && (
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-[12px] font-medium text-gray-600">
-              <input
-                checked={Boolean(draft.includeNonActive)}
-                className="h-4 w-4 rounded border-gray-300 text-[#21295A] focus:ring-[#21295A]/30"
-                type="checkbox"
-                onChange={e => set({ includeNonActive: e.target.checked })}
-              />
-              Include non-active centres
-            </label>
-          </div>
-        )}
-
         {/* Centre (only when single centre) */}
         {isCentre && (
           <div>

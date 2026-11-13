@@ -620,7 +620,7 @@ const Members = () => {
                 type="button"
                 onClick={() => setShowBulkEmail(true)}
               >
-                ✉ Email Selected ({selectedUserIds.size})
+                Email Selected ({selectedUserIds.size})
               </button>
             </div>
           )}
