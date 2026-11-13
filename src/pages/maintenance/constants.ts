@@ -141,10 +141,11 @@ export const freqBadgeCls = (freqN: number, freqUnit: FreqUnit): string => {
 
 /* ── Frequency buckets (tab filters) ── */
 
-export type GlobalBucket = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
-export type CentreBucket = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
+export type GlobalBucket = 'all' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
+export type CentreBucket = 'all' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
 
 export const GLOBAL_BUCKETS: { key: GlobalBucket; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'monthly', label: 'Monthly' },
@@ -154,6 +155,7 @@ export const GLOBAL_BUCKETS: { key: GlobalBucket; label: string }[] = [
 ];
 
 export const CENTRE_BUCKETS: { key: CentreBucket; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'biweekly', label: 'Bi-Weekly' },
