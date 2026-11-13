@@ -194,7 +194,9 @@ export const deleteCentre = createAsyncThunk<{ centreId: string }, string, { rej
 const uploadFileToBlob = async (uploadUrl: string, file: File): Promise<void> => {
   const res = await fetch(uploadUrl, {
     method: 'PUT',
-    headers: { 'x-ms-blob-type': 'BlockBlob' },
+    // See store/maintenance/api.ts's uploadFileToBlob for why this header is
+    // required — without it the blob is stored as application/octet-stream.
+    headers: { 'x-ms-blob-type': 'BlockBlob', ...(file.type ? { 'x-ms-blob-content-type': file.type } : {}) },
     body: file,
   });
   if (!res.ok) {
