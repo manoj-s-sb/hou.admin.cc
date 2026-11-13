@@ -454,7 +454,10 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange, facil
           <SectionLabel>{addonLabel} Pricing</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <label className="flex flex-col gap-1">
-              <span className={FIELD_LABEL}>Fortnightly {addonLabel.toLowerCase()} price ($) *</span>
+              <span className={FIELD_LABEL}>
+                Fortnightly {addonLabel.toLowerCase()} price ($){' '}
+                <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+              </span>
               <NumberInput
                 className={FF_INPUT}
                 min={0}
@@ -516,7 +519,9 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange, facil
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className={FIELD_LABEL}>Max members per slot *</span>
+              <span className={FIELD_LABEL}>
+                Max members per slot <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+              </span>
               <NumberInput
                 className={FF_INPUT}
                 min={1}

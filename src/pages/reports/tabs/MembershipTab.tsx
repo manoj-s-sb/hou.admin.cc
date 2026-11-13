@@ -43,15 +43,9 @@ const MembershipTab: React.FC<{ data: MembershipData }> = ({ data }) => {
         </ChartCard>
         <ChartCard subtitle="Members per plan, per centre" title="Per-Centre Plan Breakdown">
           <BarChart
-            bars={[
-              { key: 'premium', name: 'Premium', color: '#6366f1', stackId: 'plans' },
-              { key: 'standard', name: 'Standard', color: '#3b82f6', stackId: 'plans' },
-              { key: 'family', name: 'Family', color: '#10b981', stackId: 'plans' },
-              { key: 'offPeak', name: 'Off-Peak', color: '#f59e0b', stackId: 'plans' },
-              { key: 'nightOwl', name: 'Night Owl', color: '#8b5cf6', stackId: 'plans' },
-            ]}
+            bars={data.planSeries.map(p => ({ key: p.key, name: p.label, color: p.color, stackId: 'plans' }))}
             data={data.centreBreakdown}
-            xKey="centreName"
+            xKey="centreId"
           />
         </ChartCard>
       </div>

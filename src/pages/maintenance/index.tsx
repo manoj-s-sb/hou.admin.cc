@@ -88,8 +88,8 @@ const Maintenance: React.FC = () => {
   // the global task library (no centre context) is unaffected, since this state is
   // only ever read when isCentre is true.
   const [centreModule, setCentreModule] = useState<CentreModule>('schedule');
-  const [globalTab, setGlobalTab] = useState<GlobalBucket>('weekly');
-  const [centreTab, setCentreTab] = useState<CentreBucket>('weekly');
+  const [globalTab, setGlobalTab] = useState<GlobalBucket>('daily');
+  const [centreTab, setCentreTab] = useState<CentreBucket>('daily');
   const [scheduleDay, setScheduleDay] = useState<string>(toISODate(new Date())); // ISO date | 'overdue'
   const scheduleDateInputRef = useRef<HTMLInputElement>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -132,14 +132,16 @@ const Maintenance: React.FC = () => {
   }, [loadSchedules]);
 
   // Filter active-ish templates by the current frequency tab bucket.
-  const visibleTemplates = useMemo(
-    () => templates.filter(t => (isCentre ? centreBucket(t) === centreTab : globalBucket(t) === globalTab)),
-    [templates, isCentre, centreTab, globalTab]
-  );
+  const visibleTemplates = useMemo(() => {
+    const tab = isCentre ? centreTab : globalTab;
+    if (tab === 'all') return templates;
+    return templates.filter(t => (isCentre ? centreBucket(t) === centreTab : globalBucket(t) === globalTab));
+  }, [templates, isCentre, centreTab, globalTab]);
 
-  // Per-frequency counts for the library tab badges.
+  // Per-frequency counts for the library tab badges. "All" is every task,
+  // regardless of bucket -- not a bucket any task is itself classified into.
   const bucketCounts = useMemo(() => {
-    const c: Record<string, number> = {};
+    const c: Record<string, number> = { all: templates.length };
     templates.forEach(t => {
       const key = isCentre ? centreBucket(t) : globalBucket(t);
       c[key] = (c[key] || 0) + 1;
@@ -167,7 +169,7 @@ const Maintenance: React.FC = () => {
   // tasks done, null = nothing scheduled.
   const bucketDot = useCallback(
     (bucketKey: string): 'red' | 'green' | null => {
-      const bucketTemplates = templates.filter(t => centreBucket(t) === bucketKey);
+      const bucketTemplates = bucketKey === 'all' ? templates : templates.filter(t => centreBucket(t) === bucketKey);
       const scheds =
         libLane === 'all'
           ? bucketTemplates.flatMap(t => schedulesForTemplate(t.id))
@@ -391,6 +393,30 @@ const Maintenance: React.FC = () => {
     ) : (
       <>
         <div className="flex flex-wrap items-end gap-1 border-b border-gray-100 pb-px">
+          {/* All — every scheduled task, past and future. Leads the row so the
+              full list is always one click away before narrowing by day. */}
+          <button
+            className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
+              scheduleDay === 'all'
+                ? 'border-[#21295A] text-[#21295A]'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+            type="button"
+            onClick={() => setScheduleDay('all')}
+          >
+            <span>
+              All
+              <span
+                className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  schedules.length > 0 ? 'bg-[#21295A] text-white' : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                {schedules.length}
+              </span>
+            </span>
+            <span className="text-[10px] font-medium text-gray-400">Past &amp; future</span>
+          </button>
+
           {dayTabs.map(d => {
             const count = dayCount(d.iso);
             return (
@@ -441,29 +467,6 @@ const Maintenance: React.FC = () => {
             <span className="text-[10px] font-medium text-gray-400">Past due</span>
           </button>
 
-          {/* All — every scheduled task, past and future. */}
-          <button
-            className={`flex flex-col items-center border-b-2 px-3 py-1.5 text-[12px] font-semibold transition ${
-              scheduleDay === 'all'
-                ? 'border-[#21295A] text-[#21295A]'
-                : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-            type="button"
-            onClick={() => setScheduleDay('all')}
-          >
-            <span>
-              All
-              <span
-                className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                  schedules.length > 0 ? 'bg-[#21295A] text-white' : 'bg-gray-100 text-gray-400'
-                }`}
-              >
-                {schedules.length}
-              </span>
-            </span>
-            <span className="text-[10px] font-medium text-gray-400">Past &amp; future</span>
-          </button>
-
           {/* Calendar — jump to any specific date (past or future). A visually-hidden
             input can't reliably be opened via an implicit <label> click forward
             (browser-dependent for a near-zero-size element), so the button opens
@@ -486,7 +489,7 @@ const Maintenance: React.FC = () => {
             📅{' '}
             {isCustomDay
               ? new Date(`${scheduleDay}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              : 'Calendar'}
+              : 'Pick Date'}
             <input
               ref={scheduleDateInputRef}
               className="sr-only"
@@ -536,7 +539,7 @@ const Maintenance: React.FC = () => {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-[20px] font-bold text-[#21295A]">Maintenance &amp; Tasks</h1>
+          <h1 className="text-[20px] font-bold text-[#21295A]">Maintenance Tasks</h1>
           <p className="mt-0.5 text-[13px] text-gray-500">
             {isCentre
               ? 'Browse the task library, schedule tasks for this centre, mark them done, and flag issues.'
@@ -575,7 +578,7 @@ const Maintenance: React.FC = () => {
         <div className="flex gap-2">
           {(
             [
-              { key: 'library', label: 'Task Library', sub: 'Browse · schedule tasks' },
+              { key: 'library', label: 'Task Library', sub: 'Schedule tasks' },
               { key: 'schedule', label: 'My Schedule', sub: 'Today · this week · overdue' },
             ] as { key: CentreModule; label: string; sub: string }[]
           ).map(m => {

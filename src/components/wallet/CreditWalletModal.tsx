@@ -287,14 +287,16 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
               className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
               id="wallet-credit-reason"
               maxLength={500}
-              placeholder="e.g. Goodwill credit for the lane outage on 20 Sep — the member will see this text"
               rows={3}
               value={reason}
               onChange={e => setReason(e.target.value)}
             />
             <div className="mt-1 flex justify-between text-[12px]">
-              <span className={reason.trim().length > 0 && reason.trim().length < 3 ? 'text-red-500' : 'text-gray-400'}>
-                {reason.trim().length < 3 ? 'At least 3 characters' : ' '}
+              <span className="text-red-500">
+                {/* Only shown once the admin has started typing something too short —
+                    not before they've typed anything at all (that's just the normal,
+                    not-yet-filled-in state of a required field, not an error). */}
+                {reason.trim().length > 0 && reason.trim().length < 3 ? 'At least 3 characters' : ' '}
               </span>
               <span className={reason.length >= 500 ? 'text-red-500' : 'text-gray-400'}>{reason.length}/500</span>
             </div>

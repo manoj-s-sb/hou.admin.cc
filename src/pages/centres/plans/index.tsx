@@ -42,7 +42,12 @@ const PlansPricing: React.FC = () => {
   const bundle = useSelector((s: RootState) => s.centres.details);
   const facilities = useSelector((s: RootState) => s.centres.facilities);
   const memberships = bundle?.memberships ?? [];
-  const caps = (bundle?.membershipSalesFlow?.capacity?.plans ?? {}) as Record<string, number>;
+  // Real Cosmos shape is an object per plan ({ planId, maxSlots, includedInFoundation,
+  // status }), not a bare number — the allocated slot count is its maxSlots field.
+  const caps = (bundle?.membershipSalesFlow?.capacity?.plans ?? {}) as Record<
+    string,
+    { maxSlots?: number; status?: string } | undefined
+  >;
 
   // Per-plan filled counts come from the centre-list rollup (stats.membersByPlan)
   // for this facility, when that list is loaded. Absent → occupancy is unknown and
@@ -61,7 +66,24 @@ const PlansPricing: React.FC = () => {
     .map(m => {
       const regular = (m.pricing?.regular ?? {}) as Record<string, unknown>;
       const meta = PLAN_META[m.code] ?? { name: m.code, color: '#64748b', access: '—' };
-      const slots = num(caps[m.code] ?? caps[m.name]);
+      // Allocated slots (network-capacity planning, set per-plan in the New
+      // Centre wizard) is the primary source. A centre created before that
+      // field existed — or one whose capacity doc otherwise never got filled
+      // in for this plan — has nothing here; rather than show a flat,
+      // uninformative "0 slots" for every plan, fall back to the plan's own
+      // per-member entitlement (bookingRules.generalBookingRules.
+      // maxFrothnightlyBookings, the same "Slots per Cycle" field the
+      // Membership Plans drawer shows) so this card always shows a real,
+      // non-zero number when the plan itself has one.
+      const capEntry = caps[m.code] ?? caps[m.name];
+      // "notconfigured" means the wizard step was shown but this plan was left
+      // unset — treat it the same as missing so the per-member fallback below
+      // still kicks in, instead of reading a maxSlots that was never really set.
+      const allocated = capEntry?.status === 'notconfigured' ? undefined : capEntry?.maxSlots;
+      const perMemberSlots = (
+        m.bookingRules as { generalBookingRules?: { maxFrothnightlyBookings?: number } } | undefined
+      )?.generalBookingRules?.maxFrothnightlyBookings;
+      const slots = has(allocated) ? num(allocated) : num(perMemberSlots);
       const filled = num(membersByPlan[m.code] ?? membersByPlan[m.name]);
       // Name + access hours come from the saved membership doc; the catalogue meta
       // is only a fallback (legacy centres) + the accent colour (presentation).
@@ -106,7 +128,7 @@ const PlansPricing: React.FC = () => {
           marginBottom: 20,
         }}
       >
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Active Membership Plans</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>Plans &amp; Pricing</div>
         <div style={{ fontSize: 12, color: 'var(--sub)', marginTop: 2 }}>
           Plans currently offered at this centre with local pricing and slot allocations
         </div>
@@ -219,7 +241,7 @@ const PlansPricing: React.FC = () => {
           >
             <div style={{ fontSize: 12, color: 'var(--sub)' }}>{c.label}</div>
             <div style={{ margin: '4px 0 2px' }}>
-              <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)' }}>{c.value}</span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--navy)' }}>{c.value}</span>
               {c.suffix && (
                 <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--sub)', marginLeft: 4 }}>{c.suffix}</span>
               )}

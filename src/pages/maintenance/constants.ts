@@ -141,10 +141,11 @@ export const freqBadgeCls = (freqN: number, freqUnit: FreqUnit): string => {
 
 /* ── Frequency buckets (tab filters) ── */
 
-export type GlobalBucket = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
-export type CentreBucket = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
+export type GlobalBucket = 'all' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
+export type CentreBucket = 'all' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'halfyearly' | 'yearly';
 
 export const GLOBAL_BUCKETS: { key: GlobalBucket; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'monthly', label: 'Monthly' },
@@ -154,6 +155,7 @@ export const GLOBAL_BUCKETS: { key: GlobalBucket; label: string }[] = [
 ];
 
 export const CENTRE_BUCKETS: { key: CentreBucket; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'daily', label: 'Daily' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'biweekly', label: 'Bi-Weekly' },
@@ -193,7 +195,7 @@ export const centreBucket = (t: FreqSource): CentreBucket => {
 export const inputCls =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
 
-export const labelCls = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400';
+export const labelCls = 'mb-1 block text-[11px] font-bold uppercase tracking-wider text-[#21295A]';
 
 export const scheduleStatusMeta: Record<string, { label: string; pill: string }> = {
   pending: { label: 'Pending', pill: 'bg-gray-100 text-gray-600' },

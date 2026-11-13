@@ -164,10 +164,14 @@ const s = StyleSheet.create({
   },
 });
 
-// column widths: Centre 22, counts 10 each (×5=50), Active Rate 14, Top Plan 10, Trend 4.
-// Top Plan widened (was 8%) and Trend narrowed (was 6%) to give short plan names
-// (e.g. "Premium") enough room to never wrap at all.
-const W = { centre: '22%', count: '10%', rate: '14%', mix: '10%', trend: '4%' };
+// column widths: Centre 22, counts 10 each (×5=50), Active Rate 11, Top Plan 10, Trend 7.
+// Top Plan widened (was 8%) to give short plan names (e.g. "Premium") enough
+// room to never wrap. Trend widened back up from 4% (taken from Active Rate,
+// which has slack to spare — its bar is flex-sized) because 4% left only ~9pt
+// inside the cell for a sparkline whose SVG is 38pt wide at the old bar size,
+// so it spilled out past the table/page edge on every row. See Sparkline's
+// own sizing below, now matched to this column's actual width.
+const W = { centre: '22%', count: '10%', rate: '11%', mix: '10%', trend: '7%' };
 
 // delta is null when there's no genuine trend value for this KPI — the row is
 // omitted entirely rather than showing an arrow with no number next to it.
@@ -193,16 +197,21 @@ const Delta: React.FC<{ delta: number | null }> = ({ delta }) => {
   );
 };
 
+// Sized to actually fit inside the Trend column's own width (W.trend, 7% of
+// the page — about 26pt once the cell's padding is subtracted). 5 bars at
+// 3pt wide + 4.5pt spacing span 21pt, safely inside that — the previous
+// 5pt/7.5pt sizing produced a 38pt-wide SVG inside a ~9pt-wide cell, which
+// spilled out past the table (and the page) on every row.
 const Sparkline: React.FC<{ values: number[] }> = ({ values }) => {
   // A genuinely flat zero series (e.g. a QA/test centre with no members at all
   // in any month) reads as "data broken" rendered as bars — show "—" instead.
   if (values.every(v => v === 0)) return <Text style={{ fontSize: 9, color: C.sub }}>—</Text>;
   const max = Math.max(...values, 1);
   return (
-    <Svg height={16} width={38}>
+    <Svg height={16} width={24}>
       {values.map((v, i) => {
         const h = Math.max(1, (v / max) * 14);
-        return <Rect key={i} fill={C.headerBlue} height={h} rx={1} width={5} x={i * 7.5} y={16 - h} />;
+        return <Rect key={i} fill={C.headerBlue} height={h} rx={1} width={3} x={i * 4.5} y={16 - h} />;
       })}
     </Svg>
   );
@@ -277,7 +286,9 @@ const CountRow: React.FC<{ c: PdfCentre; alt: boolean; bold?: boolean }> = ({ c,
           <Text style={s.td}>—</Text>
         )}
       </View>
-      <View style={[{ width: W.trend, padding: 6 }]}>{!bold && <Sparkline values={c.trend} />}</View>
+      <View style={[{ width: W.trend, padding: 6, overflow: 'hidden' }]}>
+        {!bold && <Sparkline values={c.trend} />}
+      </View>
     </View>
   );
 };

@@ -45,7 +45,7 @@ const PdfPreviewModal: React.FC<Props> = ({ data, onClose }) => {
               type="button"
               onClick={handleDownload}
             >
-              {downloading ? 'Downloading…' : '⭳ Download PDF'}
+              {downloading ? 'Downloading…' : 'Download PDF'}
             </button>
             <button
               aria-label="Close"

@@ -76,6 +76,16 @@ export interface ScheduleAttachment {
   addedByName: string;
 }
 
+/** A standalone note added via "Save comment" — appended, never overwritten,
+ * so a second comment doesn't erase the first. Separate from `actionTaken`,
+ * the single completion note Mark Done/Undo write. */
+export interface ScheduleComment {
+  text: string;
+  addedAt: string;
+  addedBy: string;
+  addedByName: string;
+}
+
 export interface TaskSchedule {
   id: string;
   facilityCode: string;
@@ -88,6 +98,9 @@ export interface TaskSchedule {
   lastCompletedAt: string | null;
   actionTaken: string | null;
   attachments: ScheduleAttachment[];
+  // Absent on a schedule created before this field existed — always treat
+  // as `schedule.comments ?? []`, never assume it's present.
+  comments?: ScheduleComment[];
   // Present only on a schedule created by the up-front 1-year generation
   // (MT-2) — absent on a legacy one-at-a-time schedule.
   seriesId?: string | null;
@@ -189,6 +202,12 @@ export interface EndSeriesPayload {
 export interface UndoCompleteTaskPayload {
   id: string;
   facilityCode: string;
+}
+
+export interface AddCommentPayload {
+  id: string;
+  facilityCode: string;
+  comment: string;
 }
 
 /* ── Response shapes ── */

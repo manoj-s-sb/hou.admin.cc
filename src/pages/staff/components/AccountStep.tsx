@@ -115,8 +115,8 @@ const AccountStep: React.FC<AccountStepProps> = ({
                 Send welcome email with login instructions
               </span>
               <span className="mt-0.5 block text-[12px] leading-relaxed text-gray-500">
-                Staff member will receive an email with their login credentials, a link to download the Century Cricket
-                Staff App, and a prompt to set up 2FA.
+                Staff member will receive an email with their login credentials, a link to download the Future of
+                Cricket Staff App, and a prompt to set up 2FA.
               </span>
             </label>
           </div>

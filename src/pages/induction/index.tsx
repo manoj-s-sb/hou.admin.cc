@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import FilterBar, { FilterBarField } from '../../components/FilterBar';
 import { LoaderSpinner } from '../../components/Loader';
 import DataTable from '../../components/Table/DataTable';
 import { ColumnDef, TableColumn } from '../../components/Table/types';
@@ -62,6 +63,47 @@ const statusMap: Record<string, { label: string; className: string }> = {
   noshow: { label: 'No Show', className: 'bg-orange-100 text-orange-700' },
 };
 
+// The backend's `status` is 'completed' once induction steps are done, regardless
+// of whether the subscription was actually activated (see viewInduction.tsx's own
+// fix for the same distinction) -- re-label it here too, so a row isn't shown as
+// fully "Completed" before Activate Subscription has actually been clicked.
+const PENDING_MEMBERSHIP_STATUSES = new Set(['pendingactivation', 'inactive']);
+const PARTIAL_COMPLETED_STATUS = { label: 'Partial Completed', className: 'bg-amber-100 text-amber-700' };
+
+/** True for a row the Status column would render as "Partial Completed" —
+ * every induction step is done (`status === 'completed'`) but Activate
+ * Subscription hasn't actually been clicked yet. Shared by the column's own
+ * renderCell and the Status filter below so the two can never drift apart. */
+const isPartialCompleted = (row: { status?: string; subscriptionStatus?: string }): boolean => {
+  const subscriptionStatus = row?.subscriptionStatus ?? '';
+  const isSubscriptionActivated = Boolean(subscriptionStatus) && !PENDING_MEMBERSHIP_STATUSES.has(subscriptionStatus);
+  return row?.status === 'completed' && !isSubscriptionActivated;
+};
+
+/** Status filter value -> the backend's own `status` param. The backend only
+ * knows raw `status` ('completed' covers both a true completion and a
+ * Partial Completed one — see isPartialCompleted) — "Partial Completed" is a
+ * client-only split of that same backend value, applied afterwards (see
+ * `applyClientStatusFilter`), not something the backend can filter on directly. */
+const toBackendStatus = (status: string): string => {
+  if (status === 'pending') return 'confirmed';
+  if (status === 'all') return '';
+  if (status === 'partialcompleted') return 'completed';
+  return status;
+};
+
+/** The extra client-side narrowing "Completed"/"Partial Completed" need on top
+ * of the backend's shared 'completed' status — everything else already comes
+ * back pre-filtered by the backend, so this is a no-op for any other value. */
+const applyClientStatusFilter = <T extends { status?: string; subscriptionStatus?: string }>(
+  rows: T[],
+  status: string
+): T[] => {
+  if (status === 'completed') return rows.filter(r => r.status === 'completed' && !isPartialCompleted(r));
+  if (status === 'partialcompleted') return rows.filter(isPartialCompleted);
+  return rows;
+};
+
 const Induction = () => {
   const {
     inductionList: inductionListData,
@@ -101,7 +143,7 @@ const Induction = () => {
         type: 'inductionbooking',
         listLimit: inductionListData?.limit || 20,
         search: applied.search,
-        status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+        status: toBackendStatus(applied.status),
         facilityCode,
       })
     );
@@ -130,7 +172,7 @@ const Induction = () => {
         type: 'inductionbooking',
         listLimit: inductionListData?.limit || 20,
         search: applied.search,
-        status: applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+        status: toBackendStatus(applied.status),
         facilityCode,
       })
     );
@@ -139,6 +181,16 @@ const Induction = () => {
 
   const currentPage = inductionListData?.page ? inductionListData.page - 1 : 0;
   const rowsPerPage = inductionListData?.limit || 20;
+
+  // "Completed" and "Partial Completed" share the same backend `status` value
+  // (see toBackendStatus) -- the backend returns every 'completed' row for
+  // either, and this narrows the page down to just the one the admin actually
+  // picked. A no-op for every other filter value, which is already exactly
+  // what the backend returned.
+  const displayedRows = useMemo(
+    () => applyClientStatusFilter(inductionListData?.bookings || [], filters.status),
+    [inductionListData?.bookings, filters.status]
+  );
 
   const inductionColumns: ColumnDef[] = useMemo(
     () => [
@@ -228,7 +280,9 @@ const Induction = () => {
         sortable: true,
         renderCell: params => {
           const status = params.row?.status || '';
-          const { label, className } = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
+          const { label, className } = isPartialCompleted(params.row)
+            ? PARTIAL_COMPLETED_STATUS
+            : statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
           return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
         },
       },
@@ -237,7 +291,17 @@ const Induction = () => {
         headerName: 'Completed By',
         flex: 1,
         sortable: false,
-        renderCell: params => <span className="text-[13px] text-gray-700">{params.row?.updatedByName || '—'}</span>,
+        renderCell: params => {
+          // A genuinely-completed row (not Partial Completed) with no admin
+          // attribution means the subscription was activated through some
+          // path other than this portal's own Activate Subscription button
+          // (mark_induction_activated is the only place updatedByName is
+          // ever set for a completed induction) — "System" says that plainly
+          // instead of reading like missing data.
+          const isGenuinelyCompleted = params.row?.status === 'completed' && !isPartialCompleted(params.row);
+          const label = params.row?.updatedByName || (isGenuinelyCompleted ? 'System' : '—');
+          return <span className="text-[13px] text-gray-700">{label}</span>;
+        },
         valueGetter: params => params.row?.updatedByName || '',
       },
       {
@@ -265,8 +329,7 @@ const Induction = () => {
                       type: 'inductionbooking',
                       listLimit: inductionListData?.limit || 20,
                       search: applied.search,
-                      status:
-                        applied.status === 'pending' ? 'confirmed' : applied.status === 'all' ? '' : applied.status,
+                      status: toBackendStatus(applied.status),
                       facilityCode,
                     })
                   );
@@ -388,105 +451,48 @@ const Induction = () => {
       </div>
 
       {/* ── Filter Bar ──────────────────────────────────────── */}
-      <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        <div className="px-4 py-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {/* Search */}
-            <div>
-              <label
-                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="induction-search-filter"
-              >
-                Search
-              </label>
-              <div className="relative">
-                <svg
-                  className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-                <input
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                  id="induction-search-filter"
-                  placeholder="Search by name, email or phone…"
-                  type="text"
-                  value={filters.search}
-                  onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            {/* Date */}
-            <div>
-              <label
-                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="induction-date-filter"
-              >
-                Date
-              </label>
-              <input
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                id="induction-date-filter"
-                type="date"
-                value={filters.date}
-                onChange={e => setFilters(prev => ({ ...prev, date: e.target.value }))}
-              />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label
-                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                htmlFor="induction-status-filter"
-              >
-                Status
-              </label>
-              <select
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"
-                id="induction-status-filter"
-                value={filters.status}
-                onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
-              >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending Activation</option>
-                <option value="completed">Completed</option>
-                <option value="noshow">No Show</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              className="rounded-lg border border-gray-200 px-4 py-2 text-[12px] font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
-              disabled={isLoading}
-              type="button"
-              onClick={() => {
-                setFilters(defaultFilters);
-                setSearchParams({ status: 'all' }, { replace: true });
-              }}
-            >
-              Reset
-            </button>
-            <button
-              className="rounded-lg bg-[#21295A] px-5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#2d3570] disabled:opacity-50"
-              disabled={isLoading}
-              type="button"
-              onClick={applyFilters}
-            >
-              Apply Filters
-            </button>
-          </div>
-        </div>
-      </div>
+      <FilterBar
+        fields={
+          [
+            {
+              kind: 'search',
+              key: 'induction-search-filter',
+              label: 'Search',
+              placeholder: 'Search by name, email or phone…',
+              value: filters.search,
+              onChange: v => setFilters(prev => ({ ...prev, search: v })),
+            },
+            {
+              kind: 'date',
+              key: 'induction-date-filter',
+              label: 'Date',
+              value: filters.date,
+              onChange: v => setFilters(prev => ({ ...prev, date: v })),
+            },
+            {
+              kind: 'select',
+              key: 'induction-status-filter',
+              label: 'Status',
+              value: filters.status,
+              onChange: v => setFilters(prev => ({ ...prev, status: v })),
+              options: [
+                { value: 'all', label: 'All Statuses' },
+                { value: 'pending', label: 'Pending Activation' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'partialcompleted', label: 'Partial Completed' },
+                { value: 'noshow', label: 'No Show' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ],
+            },
+          ] as FilterBarField[]
+        }
+        isLoading={isLoading}
+        onApply={applyFilters}
+        onReset={() => {
+          setFilters(defaultFilters);
+          setSearchParams({ status: 'all' }, { replace: true });
+        }}
+      />
 
       {/* ── Induction Table ─────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
@@ -516,7 +522,7 @@ const Induction = () => {
               },
             })
           )}
-          data={inductionListData?.bookings || []}
+          data={displayedRows}
           emptyState={{
             icon: (
               <svg className="mb-4 h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

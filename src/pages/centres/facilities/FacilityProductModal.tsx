@@ -771,7 +771,9 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
 
         <div style={{ padding: 16 }}>
           <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
-            <span className={FIELD_LABEL}>Facility type *</span>
+            <span className={FIELD_LABEL}>
+              Facility type <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+            </span>
             <select
               className={FF_INPUT}
               disabled={isEdit}
@@ -788,7 +790,9 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
           </label>
 
           <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
-            <span className={FIELD_LABEL}>Facility name *</span>
+            <span className={FIELD_LABEL}>
+              Facility name <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+            </span>
             <input className={FF_INPUT} type="text" value={name} onChange={e => setName(e.target.value)} />
             {showErr('name')}
             {codeCollision && (
@@ -850,7 +854,10 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
             )}
             {isGym && (
               <label className="flex flex-col gap-1">
-                <span className={FIELD_LABEL}>Fortnightly gym add-on price ($) *</span>
+                <span className={FIELD_LABEL}>
+                  Fortnightly gym add-on price ($){' '}
+                  <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                </span>
                 <NumberInput
                   className={FF_INPUT}
                   min={0}
@@ -986,7 +993,9 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
             )}
             {isGym && (
               <label className="flex flex-col gap-1">
-                <span className={FIELD_LABEL}>Max members per slot *</span>
+                <span className={FIELD_LABEL}>
+                  Max members per slot <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+                </span>
                 <NumberInput
                   className={FF_INPUT}
                   min={1}

@@ -202,6 +202,22 @@ const ViewInduction = () => {
     );
   }
 
+  // `data.status` is the BOOKING/session status (confirmed → the session happened),
+  // not whether the member's subscription was actually activated -- those are two
+  // separate things (same distinction InductionAccordionItem's own progressStatus
+  // already makes for the per-user row via data.subscriptionStatus). Keep this set
+  // in sync with InductionAccordionItem's PENDING_MEMBERSHIP_STATUSES.
+  const PENDING_MEMBERSHIP_STATUSES = new Set(['pendingactivation', 'inactive']);
+  const isSubscriptionActivated =
+    Boolean(data.subscriptionStatus) && !PENDING_MEMBERSHIP_STATUSES.has(data.subscriptionStatus ?? '');
+  const overallStatus: 'pending_activation' | 'partial_completed' | 'completed' =
+    data.status === 'confirmed' ? 'pending_activation' : isSubscriptionActivated ? 'completed' : 'partial_completed';
+  const OVERALL_STATUS_META: Record<typeof overallStatus, { label: string; cls: string }> = {
+    pending_activation: { label: 'Pending Activation', cls: 'bg-yellow-100 text-yellow-800' },
+    partial_completed: { label: 'Partial Completed', cls: 'bg-amber-100 text-amber-800' },
+    completed: { label: 'Completed', cls: 'bg-green-100 text-green-800' },
+  };
+
   return (
     <div className="mx-auto w-full p-3 sm:p-4 md:p-6">
       {/* Header Section */}
@@ -238,13 +254,9 @@ const ViewInduction = () => {
           <div className="rounded-lg bg-gray-50 p-3 sm:p-4">
             <p className="mb-1 text-xs text-gray-600 sm:text-sm">Status</p>
             <span
-              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium sm:px-3 sm:py-1 sm:text-sm ${
-                data?.status === 'confirmed' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-              }`}
+              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium sm:px-3 sm:py-1 sm:text-sm ${OVERALL_STATUS_META[overallStatus].cls}`}
             >
-              {data?.status === 'confirmed'
-                ? 'Pending Activation'
-                : data?.status?.charAt(0).toUpperCase() + (data?.status?.slice(1) || '')}
+              {OVERALL_STATUS_META[overallStatus].label}
             </span>
           </div>
           <div className="rounded-lg bg-gray-50 p-3 sm:p-4">

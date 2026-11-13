@@ -110,7 +110,7 @@ const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
         <StatCard
           accent="from-indigo-500 to-blue-500"
           subtitle="vs previous period"
-          title="Total Members"
+          title="Active Members"
           trend={{ value: stats.membersTrendPct, positive: (stats.membersTrendPct ?? 0) >= 0 }}
           value={stats.totalMembers}
         />
@@ -152,7 +152,7 @@ const OverviewTab: React.FC<{ data: OverviewData }> = ({ data }) => {
             bars={[{ key: 'bookingHrs', name: 'Booking hrs', color: '#6366f1' }]}
             data={data.centreBookings}
             showLegend={false}
-            xKey="centreName"
+            xKey="centreId"
           />
         </ChartCard>
       </div>

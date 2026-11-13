@@ -205,9 +205,9 @@ const NotificationsLogModal = ({ isOpen, onClose }: NotificationsLogModalProps) 
       >
         <div className="flex items-center justify-between border-b border-[#B3DADA] bg-gradient-to-r from-[#F8FAFA] to-[#EDF5F5] px-6 py-5">
           <div>
-            <h2 className="text-[18px] font-semibold text-[#21295A]">Notifications Log</h2>
+            <h2 className="text-[18px] font-semibold text-[#21295A]">Email Logs</h2>
             <p className="mt-1 text-[12px] font-medium text-gray-500">
-              Every message sent from the portal — recipient, type, channel, time and status
+              Every email sent from the portal — recipient, type, time and status
             </p>
           </div>
           <button

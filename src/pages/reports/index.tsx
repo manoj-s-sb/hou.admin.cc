@@ -127,7 +127,7 @@ const Reports: React.FC = () => {
           type="button"
           onClick={handleExport}
         >
-          {exporting ? 'Preparing…' : '⭳ Export PDF'}
+          {exporting ? 'Preparing…' : 'Export PDF'}
         </button>
       </div>
 
