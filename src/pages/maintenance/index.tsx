@@ -578,7 +578,7 @@ const Maintenance: React.FC = () => {
         <div className="flex gap-2">
           {(
             [
-              { key: 'library', label: 'Task Library', sub: 'Browse · schedule tasks' },
+              { key: 'library', label: 'Task Library', sub: 'Schedule tasks' },
               { key: 'schedule', label: 'My Schedule', sub: 'Today · this week · overdue' },
             ] as { key: CentreModule; label: string; sub: string }[]
           ).map(m => {
