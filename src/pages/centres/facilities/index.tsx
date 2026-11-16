@@ -97,7 +97,6 @@ const detailRows = (p: ApiProduct): [string, string][] => {
       ['Minimum age', val(has(p.ageRules?.minAge), `${p.ageRules?.minAge}`)],
       ['Annual discount', val(has(p.annualDiscountPct) && Number(p.annualDiscountPct) > 0, `${p.annualDiscountPct}%`)],
       ['Total capacity', val(has(p.totalCapacity), `${p.totalCapacity} members`)],
-      ['Max concurrent', val(has(p.concurrentCapacity), `${p.concurrentCapacity} users at a time`)],
       ['Guest price', val(has(guestPrice) && Number(guestPrice) > 0, money(guestPrice))],
       [
         'Free guest visits',
@@ -111,20 +110,12 @@ const detailRows = (p: ApiProduct): [string, string][] => {
   const extraGuestPrice = p.guestPolicy?.additionalGuestPrice;
   return [
     ['Price per hour', val(has(pricing?.perHour), money(pricing?.perHour, pricing?.currency))],
-    [
-      'Booking length',
-      val(
-        has(p.sessionRules?.minHours) && has(p.sessionRules?.maxHours),
-        `${p.sessionRules?.minHours}–${p.sessionRules?.maxHours} hrs`
-      ),
-    ],
+    ['Seating capacity', val(has(p.totalCapacity), `Up to ${p.totalCapacity} per room`)],
     ['Capacity per slot', val(has(p.sessionRules?.slotCapacity), `${p.sessionRules?.slotCapacity}`)],
     ['Max bookings / day', val(has(p.sessionRules?.maxBookingsPerDay), `${p.sessionRules?.maxBookingsPerDay}`)],
     ['Advance booking', val(has(p.sessionRules?.advanceBookingDays), `${p.sessionRules?.advanceBookingDays} days`)],
     ['Max guests / slot', val(has(p.guestPolicy?.maxGuestsPerSlot), `${p.guestPolicy?.maxGuestsPerSlot}`)],
     ['Extra guest price', val(has(extraGuestPrice) && Number(extraGuestPrice) > 0, money(extraGuestPrice))],
-    ['Total capacity', val(has(p.totalCapacity), `${p.totalCapacity} people`)],
-    ['Max concurrent', val(has(p.concurrentCapacity), `${p.concurrentCapacity} people at a time`)],
     ['Free guest visits', val(has(p.freeGuestVisits), `${p.freeGuestVisits} / month`)],
     ['Operating hours', hours ?? '—'],
   ];
