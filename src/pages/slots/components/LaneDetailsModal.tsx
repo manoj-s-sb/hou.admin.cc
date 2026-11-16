@@ -303,9 +303,12 @@ const LaneDetailsModal = ({
                 })}
               </div>
               <div>
-                <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="lane-cancel-reason">
+                <label
+                  className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                  htmlFor="lane-cancel-reason"
+                >
                   Reason{' '}
-                  <span className="font-normal text-gray-400">
+                  <span className="font-normal normal-case text-gray-400">
                     (optional — applies to any booking cancelled or shifted above)
                   </span>
                 </label>
@@ -370,7 +373,7 @@ const LaneDetailsModal = ({
                     </div>
                     <div>
                       <label
-                        className="mb-1 block text-[13px] font-medium text-gray-600"
+                        className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
                         htmlFor="lane-blocked-by-name"
                       >
                         Blocked By

@@ -35,7 +35,7 @@ interface Props {
 
 const fieldClass =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
-const labelClass = 'mb-1 block text-[11px] font-bold uppercase tracking-wider text-[#21295A]';
+const labelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500';
 
 /** A field label, with the required-field "*" always styled red, separate from
  * the rest of the (now bold/bright navy) label text — instead of baking "*"
@@ -362,7 +362,9 @@ const CreateTicketModal: React.FC<Props> = ({ facilityCode, centres, onClose, on
           </div>
 
           <div>
-            <span className={labelClass}>Assign To (optional)</span>
+            <span className={labelClass}>
+              Assign To <span className="font-normal normal-case text-gray-400">(optional)</span>
+            </span>
             <StaffAssigneeSelect
               className={fieldClass}
               facilityCode={centre || undefined}

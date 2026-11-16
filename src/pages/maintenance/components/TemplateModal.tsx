@@ -404,7 +404,9 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
           </div>
 
           <div>
-            <span className={labelCls}>Default Lane (optional)</span>
+            <span className={labelCls}>
+              Default Lane <span className="font-normal normal-case text-gray-400">(optional)</span>
+            </span>
             <select className={inputCls} value={defaultLane} onChange={e => setDefaultLane(e.target.value)}>
               <option value="">No default (choose the lane when scheduling)</option>
               <option value="0">All Lanes (Facility-wide)</option>
@@ -502,7 +504,9 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                         value={s.title}
                         onChange={e => patchStep(i, { title: e.target.value })}
                       />
-                      <span className={`${labelCls} mt-2`}>Image (optional)</span>
+                      <span className={`${labelCls} mt-2`}>
+                        Image <span className="font-normal normal-case text-gray-400">(optional)</span>
+                      </span>
                       {preview ? (
                         <div className="flex items-center gap-3">
                           <img
@@ -541,7 +545,9 @@ const TemplateModal: React.FC<Props> = ({ template, onClose, onSaved }) => {
                           />
                         </label>
                       )}
-                      <span className={`${labelCls} mt-2`}>Video (optional)</span>
+                      <span className={`${labelCls} mt-2`}>
+                        Video <span className="font-normal normal-case text-gray-400">(optional)</span>
+                      </span>
                       {hasVideo ? (
                         <div className="flex items-center gap-3">
                           <span className="flex items-center gap-1.5 text-[11.5px] text-gray-500">
