@@ -121,18 +121,17 @@ export const extractSlotBookingEvents = (days: GetSlotsResponse[]): CalendarEven
         const { user } = slot.booking;
         const name = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
         // A coach-assisted booking stays a single merged event (see mergeCalendarEvents'
-        // dedupe against the Coach Booking feed) but is colored like one, so it's
-        // still visually flagged as involving a coach on the calendar grid.
-        // SA-8: check `code`, not `name` — a coach stays "attached" even when
-        // the display name failed to resolve (see types.ts's matching comment).
-        const hasCoach = Boolean(slot.booking.coach?.code);
+        // dedupe against the Coach Booking feed) — coach involvement is still in
+        // `meta.coach` for anyone opening the event's details, but the chip itself
+        // always takes its color from its own type (booking), never another
+        // type's color, so it always matches the Legend's "Slot Booking" swatch.
         events.push({
           id: `booking-${slot.booking.bookingCode || slot.slotCode}`,
           title: name || 'Slot Booking',
           start: slot.startTime,
           end: slot.endTime,
           type: 'booking',
-          color: hasCoach ? EVENT_TYPE_CONFIG.coach_booking.color : EVENT_TYPE_CONFIG.booking.color,
+          color: EVENT_TYPE_CONFIG.booking.color,
           meta: { ...slot.booking, slotCode: slot.slotCode, laneCode: lane.laneCode, date: day.date },
         });
       }

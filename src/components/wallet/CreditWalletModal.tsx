@@ -189,7 +189,10 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
         <div className="px-6 py-6">
           {!presetMember && (
             <div className="mb-4">
-              <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="wallet-member-search">
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                htmlFor="wallet-member-search"
+              >
                 Members{' '}
                 <span className="font-normal text-gray-400">
                   (select one or more — the same amount is credited to each)
@@ -256,7 +259,10 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
           )}
 
           <div className="mb-4">
-            <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="wallet-credit-amount">
+            <label
+              className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+              htmlFor="wallet-credit-amount"
+            >
               Amount (USD) <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -280,7 +286,10 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
           </div>
 
           <div className="mb-1">
-            <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="wallet-credit-reason">
+            <label
+              className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+              htmlFor="wallet-credit-reason"
+            >
               Reason <span className="text-red-500">*</span>
             </label>
             <textarea

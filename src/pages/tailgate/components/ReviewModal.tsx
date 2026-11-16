@@ -490,12 +490,12 @@ const ReviewModal = ({ log, onClose, onSave }: ReviewModalProps) => {
               {/* Admin Notes */}
               <div>
                 <label className={labelCls} htmlFor="rv-notes">
-                  Admin Notes
+                  Admin Notes <span className="font-normal normal-case text-gray-400">(optional)</span>
                 </label>
                 <input
                   className={inputCls}
                   id="rv-notes"
-                  placeholder="Optional notes…"
+                  placeholder="Notes…"
                   type="text"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}

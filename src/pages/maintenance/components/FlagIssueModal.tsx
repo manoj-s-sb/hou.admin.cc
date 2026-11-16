@@ -166,7 +166,12 @@ const FlagIssueModal: React.FC<Props> = ({ schedule, facilityCode, onClose, onFl
             />
           </div>
           <div>
-            <span className={labelCls}>Lane (optional — leave blank if not lane-specific)</span>
+            <span className={labelCls}>
+              Lane{' '}
+              <span className="font-normal normal-case text-gray-400">
+                (optional — leave blank if not lane-specific)
+              </span>
+            </span>
             <div className="flex flex-wrap gap-1.5">
               {ALL_LANES.map(n => (
                 <LaneChip key={n} active={lanes.includes(n)} onClick={() => toggleLane(n)}>

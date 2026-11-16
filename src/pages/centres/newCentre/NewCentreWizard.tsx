@@ -984,10 +984,12 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 />
               </div>
               <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
-                <span className="cmx-field-label">Address Line 2</span>
+                <span className="cmx-field-label">
+                  Address Line 2 <span className="font-normal normal-case text-gray-400">(optional)</span>
+                </span>
                 <input
                   className="cmx-field"
-                  placeholder="Suite, unit, floor (optional)"
+                  placeholder="Suite, unit, floor"
                   type="text"
                   value={s.addressLine2}
                   onChange={e => set({ addressLine2: e.target.value })}
