@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 /**
  * Controlled number input that fixes the classic "stuck leading 0 / can't
@@ -20,13 +20,20 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value
 const NumberInput: React.FC<Props> = ({ value, onValueChange, min, max, emptyValue, onBlur, ...rest }) => {
   const fallback = emptyValue ?? min ?? 0;
   const [draft, setDraft] = useState<string>(Number.isFinite(value) ? String(value) : '');
+  // What WE last told the parent via onValueChange — lets the sync effect
+  // below tell "the parent just echoed back our own edit" (ignore it, so
+  // clearing the field doesn't get immediately overwritten by the fallback
+  // value we ourselves emitted) apart from "the parent changed `value` on its
+  // own" (e.g. a parent effect prefilling real saved data onto a field that
+  // already mounted blank before that data was ready) — which must always
+  // resync the draft, even while draft is currently empty. Previously this
+  // only checked `draft === ''`, which blocked that second case forever.
+  const lastEmitted = useRef<number | null>(Number.isFinite(value) ? (value as number) : null);
 
-  // Re-sync when the external value changes to something the draft doesn't
-  // already represent (e.g. a programmatic reset) — but never while the user
-  // has intentionally cleared the field.
   useEffect(() => {
-    if (draft === '') return;
-    if (value === null || Number(draft) !== value) setDraft(Number.isFinite(value) ? String(value) : '');
+    if (value === lastEmitted.current) return;
+    lastEmitted.current = value;
+    setDraft(Number.isFinite(value) ? String(value) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
@@ -47,10 +54,12 @@ const NumberInput: React.FC<Props> = ({ value, onValueChange, min, max, emptyVal
       onBlur={e => {
         if (draft === '') {
           setDraft(String(fallback));
+          lastEmitted.current = fallback;
           onValueChange(fallback);
         } else {
           const n = clamp(Number(draft));
           setDraft(String(n));
+          lastEmitted.current = n;
           onValueChange(n);
         }
         onBlur?.(e);
@@ -59,10 +68,14 @@ const NumberInput: React.FC<Props> = ({ value, onValueChange, min, max, emptyVal
         const next = e.target.value;
         setDraft(next);
         if (next === '') {
+          lastEmitted.current = fallback;
           onValueChange(fallback); // keep the model valid; field still shows empty
         } else {
           const n = Number(next);
-          if (!Number.isNaN(n)) onValueChange(n); // don't clamp mid-type (allows typing "1" before "10")
+          if (!Number.isNaN(n)) {
+            lastEmitted.current = n;
+            onValueChange(n); // don't clamp mid-type (allows typing "1" before "10")
+          }
         }
       }}
     />
