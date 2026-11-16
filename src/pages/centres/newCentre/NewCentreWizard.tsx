@@ -1008,7 +1008,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">State / Province{stateRequired ? ' *' : ''}</span>
+                  <span className="cmx-field-label">
+                    State / Province
+                    {stateRequired && <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}> *</span>}
+                  </span>
                   <input
                     className="cmx-field"
                     placeholder="e.g. TX"

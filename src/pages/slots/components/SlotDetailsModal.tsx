@@ -575,7 +575,7 @@ const SlotDetailsModal = ({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-first-name">
-                      First Name *
+                      First Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
@@ -600,7 +600,7 @@ const SlotDetailsModal = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-email">
-                    Email *
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
@@ -619,7 +619,7 @@ const SlotDetailsModal = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-dob">
-                    Date of Birth *
+                    Date of Birth <span className="text-red-500">*</span>
                   </label>
                   <input
                     className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
@@ -747,7 +747,7 @@ const SlotDetailsModal = ({
                 </div>
               )}
               <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="shift-reason">
-                Reason *
+                Reason <span className="text-red-500">*</span>
               </label>
               <textarea
                 className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"

@@ -329,7 +329,7 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-                Fortnightly Price (USD) *
+                Fortnightly Price (USD) <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
               </span>
               <NumberInput
                 className={FIELD}
