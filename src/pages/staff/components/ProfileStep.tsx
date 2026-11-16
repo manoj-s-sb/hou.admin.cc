@@ -76,7 +76,7 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div>
             <label className={LABEL_CLASS} htmlFor="first-name">
-              First Name *
+              First Name <span className="text-red-500">*</span>
             </label>
             <input
               className={firstNameInvalid ? ERROR_INPUT_CLASS : INPUT_CLASS}
@@ -90,7 +90,7 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="last-name">
-              Last Name *
+              Last Name <span className="text-red-500">*</span>
             </label>
             <input
               className={lastNameInvalid ? ERROR_INPUT_CLASS : INPUT_CLASS}
@@ -104,7 +104,7 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="email">
-              Email Address *
+              Email Address <span className="text-red-500">*</span>
             </label>
             <input
               className={emailInvalid ? ERROR_INPUT_CLASS : INPUT_CLASS}
@@ -145,7 +145,7 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
           </div>
           <div>
             <label className={LABEL_CLASS} htmlFor="dob">
-              Date of Birth *
+              Date of Birth <span className="text-red-500">*</span>
             </label>
             <input
               className={dobInvalid || dobTooYoung ? ERROR_INPUT_CLASS : INPUT_CLASS}

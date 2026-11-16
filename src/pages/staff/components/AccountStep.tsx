@@ -61,7 +61,7 @@ const AccountStep: React.FC<AccountStepProps> = ({
         <div className="space-y-4">
           <div>
             <label className={LABEL_CLASS} htmlFor="login-email">
-              Login Email *
+              Login Email <span className="text-red-500">*</span>
             </label>
             <input
               className={INPUT_CLASS}
@@ -77,13 +77,21 @@ const AccountStep: React.FC<AccountStepProps> = ({
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <PasswordField
                   id="default-password"
-                  label="Default Password *"
+                  label={
+                    <>
+                      Default Password <span className="text-red-500">*</span>
+                    </>
+                  }
                   value={password}
                   onChange={onPasswordChange}
                 />
                 <PasswordField
                   id="confirm-password"
-                  label="Confirm Password *"
+                  label={
+                    <>
+                      Confirm Password <span className="text-red-500">*</span>
+                    </>
+                  }
                   value={confirmPassword}
                   onChange={onConfirmPasswordChange}
                 />

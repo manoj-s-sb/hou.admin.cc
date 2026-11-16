@@ -203,7 +203,7 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <div>
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              Waitlist Type *
+              Waitlist Type <span className="text-red-500">*</span>
             </span>
             <select
               className="w-full max-w-[260px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
@@ -223,7 +223,7 @@ const ImportWaitlistModal: React.FC<ImportWaitlistModalProps> = ({ facilityCode,
           {isEventType && (
             <div>
               <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                Event Name *
+                Event Name <span className="text-red-500">*</span>
               </span>
               <input
                 className="w-full max-w-[260px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white"
