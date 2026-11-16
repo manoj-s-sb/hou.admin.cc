@@ -696,11 +696,6 @@ const AnnualTab: React.FC<{
         Example — Standard annual with 1 carried: effective limit = 3 + 1 ={' '}
         <strong style={{ color: 'var(--navy)' }}>4 slots</strong> that fortnight.
       </div>
-      <div style={{ marginTop: 4 }}>
-        <strong style={{ color: '#dc2626' }}>Note:</strong> When the fortnightly limit is hit on an annual plan, no
-        extra session purchase option is shown — members get a standard “booking limit reached” message until the next
-        2-week cycle resets.
-      </div>
     </div>
   </div>
 );
