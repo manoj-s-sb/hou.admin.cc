@@ -466,7 +466,7 @@ const Tours = () => {
                 className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-400"
                 htmlFor="tour-cancel-reason"
               >
-                Reason (optional)
+                Reason <span className="font-normal normal-case text-gray-400">(optional)</span>
               </label>
               <textarea
                 className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10"

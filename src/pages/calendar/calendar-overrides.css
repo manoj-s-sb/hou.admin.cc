@@ -1,0 +1,11 @@
+/* react-big-calendar's own month-view date number defaults to text-align:
+   right with only a 5px padding-right (see node_modules/react-big-calendar/
+   lib/css/react-big-calendar.css) — with this app drawing no strong cell
+   borders, that reads as if the date number belongs to the NEXT day's
+   column instead of its own. Left-aligning it keeps it unambiguously
+   inside its own cell, next to that cell's own content. */
+.rbc-date-cell {
+  text-align: left;
+  padding-left: 8px;
+  padding-right: 0;
+}

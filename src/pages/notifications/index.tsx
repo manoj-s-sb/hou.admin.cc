@@ -119,7 +119,7 @@ function channelLabel(ch: Channel): string {
 
 const fieldClass =
   'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] text-gray-700 outline-none transition focus:border-[#21295A] focus:bg-white focus:ring-2 focus:ring-[#21295A]/10';
-const labelClass = 'mb-1.5 block text-[13px] font-medium text-gray-500';
+const labelClass = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-500';
 const eyebrowClass = 'mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400';
 
 const segBtn = (active: boolean) =>
@@ -397,7 +397,7 @@ const Notifications = () => {
 
                 <div>
                   <div className={eyebrowClass}>
-                    Email attachment <span className="normal-case text-gray-400">· optional · PDF or image</span>
+                    Email attachment <span className="normal-case text-gray-400">(optional — PDF or image)</span>
                   </div>
                   {compose.attachment ? (
                     <div className="flex max-w-sm items-center gap-3 rounded-lg border border-gray-200 bg-white p-2.5">

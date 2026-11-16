@@ -772,7 +772,7 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
         <div style={{ padding: 16 }}>
           <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
             <span className={FIELD_LABEL}>
-              Facility type <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+              Booking Model <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
             </span>
             <select
               className={FF_INPUT}
@@ -791,9 +791,15 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
 
           <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
             <span className={FIELD_LABEL}>
-              Facility name <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+              Display Name <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
             </span>
-            <input className={FF_INPUT} type="text" value={name} onChange={e => setName(e.target.value)} />
+            <input
+              className={FF_INPUT}
+              placeholder={isGym ? 'e.g. Gym Access, Pool Access' : 'e.g. Podcast Room, Meeting Room, Yoga Room'}
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
             {showErr('name')}
             {codeCollision && (
               <span className={FIELD_ERROR}>A facility with this name already exists — choose a different name.</span>

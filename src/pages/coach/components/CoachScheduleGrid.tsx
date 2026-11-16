@@ -995,8 +995,11 @@ const CoachScheduleGrid: React.FC<{
                       </option>
                     ))}
                   </select>
-                  <label className="mt-3 block text-[11px] font-semibold text-gray-600" htmlFor="day-off-reason">
-                    Reason (optional)
+                  <label
+                    className="mt-3 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                    htmlFor="day-off-reason"
+                  >
+                    Reason <span className="font-normal normal-case text-gray-400">(optional)</span>
                   </label>
                   <input
                     className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] outline-none transition focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"

@@ -9,6 +9,7 @@ import { enUS } from 'date-fns/locale';
 import { Calendar, dateFnsLocalizer, View, Views } from 'react-big-calendar';
 import { useDispatch, useSelector } from 'react-redux';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import './calendar-overrides.css';
 
 import { Loader } from '../../components/Loader';
 import { getFacilityCode } from '../../constants/user';
@@ -66,9 +67,18 @@ const CalendarPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facilityCode]);
 
+  // react-big-calendar's own "+N more" popover is a one-time snapshot taken
+  // when it's opened -- it never picks up a later events update, and nothing
+  // closes it either. Bumping this on every range change remounts <Calendar>
+  // (via the key prop below), which drops that internal popover state for
+  // free -- simplest reliable way to guarantee a stale popover never survives
+  // past the events it was showing.
+  const [rangeKey, setRangeKey] = useState(0);
+
   const handleRangeChange = useCallback(
     (range: Date[] | { start: Date; end: Date }) => {
       const { start, end } = getRangeBounds(range);
+      setRangeKey(k => k + 1);
       loadRange(start, end);
     },
     [loadRange]
@@ -124,6 +134,7 @@ const CalendarPage = () => {
       <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
         {isLoading && <Loader variant="overlay" />}
         <Calendar<RBCEvent>
+          key={rangeKey}
           popup
           components={calendarComponents}
           endAccessor="end"
