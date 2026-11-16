@@ -778,7 +778,6 @@ export interface WizardPlanRow {
   annualPrice: number;
   allocatedSlots: number;
   joiningFee: number;
-  memberCap: number | null;
   isFoundationEligible: boolean;
   /** Country codes the plan is available in; ['all'] = everywhere. */
   availableCountries: string[];

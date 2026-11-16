@@ -257,7 +257,7 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
 
           <div className="mb-4">
             <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="wallet-credit-amount">
-              Amount (USD) *
+              Amount (USD) <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[14px] text-gray-400">$</span>
@@ -281,7 +281,7 @@ const CreditWalletModal = ({ isOpen, onClose, onCredited, presetMember, facility
 
           <div className="mb-1">
             <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="wallet-credit-reason">
-              Reason *
+              Reason <span className="text-red-500">*</span>
             </label>
             <textarea
               className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"

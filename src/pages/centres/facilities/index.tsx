@@ -46,6 +46,21 @@ const money = (amount?: number, currency?: string): string => {
   }
 };
 
+/** "HH:MM"–"HH:MM" (24h) → a readable range, e.g. "5:00 AM – 10:00 PM" — or
+ * "24 Hours" for the all-day sentinel FacilityProductModal's 24-hour toggle writes. */
+const formatHoursRange = (open?: string, close?: string): string | null => {
+  if (!open || !close) return null;
+  if (open === '00:00' && close === '23:59') return '24 Hours';
+  const fmt = (t: string) => {
+    const [hStr, mStr] = t.split(':');
+    let h = parseInt(hStr, 10);
+    const period = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${mStr ?? '00'} ${period}`;
+  };
+  return `${fmt(open)} – ${fmt(close)}`;
+};
+
 /** True when a value is set (not null/undefined) — so a legit 0 still renders. */
 /** Build the label/value rows for one product, skipping fields the doc doesn't set.
  * The Gym is a membership add-on (bookingModel="membership_addon"), billed with the
@@ -71,6 +86,19 @@ const detailRows = (p: ApiProduct): [string, string][] => {
     if (has(p.ageRules?.minAge)) {
       rows.push(['Minimum age', `${p.ageRules?.minAge}`]);
     }
+    if (has(p.annualDiscountPct) && Number(p.annualDiscountPct) > 0) {
+      rows.push(['Annual discount', `${p.annualDiscountPct}%`]);
+    }
+    if (has(p.totalCapacity)) rows.push(['Total capacity', `${p.totalCapacity} members`]);
+    if (has(p.concurrentCapacity)) rows.push(['Max concurrent', `${p.concurrentCapacity} users at a time`]);
+    if (has(p.guestPolicy?.additionalGuestPrice) && Number(p.guestPolicy?.additionalGuestPrice) > 0) {
+      rows.push(['Guest price', money(p.guestPolicy?.additionalGuestPrice)]);
+    }
+    if (has(p.guestPolicy?.freeGuestsPerBillingCycle)) {
+      rows.push(['Free guest visits', `${p.guestPolicy?.freeGuestsPerBillingCycle} / month`]);
+    }
+    const gymHours = formatHoursRange(p.openTime, p.closeTime);
+    if (gymHours) rows.push(['Operating hours', gymHours]);
     return rows;
   }
 
@@ -87,6 +115,11 @@ const detailRows = (p: ApiProduct): [string, string][] => {
   if (has(p.guestPolicy?.additionalGuestPrice) && Number(p.guestPolicy?.additionalGuestPrice) > 0) {
     rows.push(['Extra guest price', money(p.guestPolicy?.additionalGuestPrice)]);
   }
+  if (has(p.totalCapacity)) rows.push(['Total capacity', `${p.totalCapacity} people`]);
+  if (has(p.concurrentCapacity)) rows.push(['Max concurrent', `${p.concurrentCapacity} people at a time`]);
+  if (has(p.freeGuestVisits)) rows.push(['Free guest visits', `${p.freeGuestVisits} / month`]);
+  const hours = formatHoursRange(p.openTime, p.closeTime);
+  if (hours) rows.push(['Operating hours', hours]);
   return rows;
 };
 
@@ -303,16 +336,37 @@ const Facilities: React.FC = () => {
                     Edit
                   </button>
                 </div>
-                {rows.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px', padding: 16 }}>
-                    {rows.map(([label, value]) => (
-                      <div key={label}>
-                        <div style={{ fontSize: 11, color: 'var(--sub)' }}>{label}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginTop: 2 }}>{value}</div>
+                {rows.length > 0 &&
+                  Array.from({ length: Math.ceil(rows.length / 2) }, (_, i) => rows.slice(i * 2, i * 2 + 2)).map(
+                    (pair, i, pairs) => (
+                      <div
+                        key={pair[0][0]}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: 20,
+                          padding: '14px 16px',
+                          borderBottom: i < pairs.length - 1 ? '1px solid var(--border)' : 'none',
+                        }}
+                      >
+                        {pair.map(([label, value], j) => (
+                          <div
+                            key={label}
+                            style={
+                              j === 0 && pair.length === 2
+                                ? { paddingRight: 20, borderRight: '1px solid var(--border)' }
+                                : undefined
+                            }
+                          >
+                            <div style={{ fontSize: 11, color: 'var(--sub)' }}>{label}</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginTop: 2 }}>
+                              {value}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )
+                  )}
               </div>
             );
           })}

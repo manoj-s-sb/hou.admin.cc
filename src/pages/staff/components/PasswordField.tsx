@@ -4,7 +4,7 @@ import { INPUT_CLASS, LABEL_CLASS } from '../utils';
 
 interface PasswordFieldProps {
   id: string;
-  label: string;
+  label: React.ReactNode;
   value: string;
   onChange: (value: string) => void;
 }
