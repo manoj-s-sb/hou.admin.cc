@@ -95,7 +95,7 @@ const Maintenance: React.FC = () => {
   const [showArchived, setShowArchived] = useState(false);
   // Task Library lane filter (centre) -- 'all' shows every task once with a
   // badge per lane it's scheduled on, instead of one lane's view at a time.
-  const [libLane, setLibLane] = useState<number | 'all'>(1);
+  const [libLane, setLibLane] = useState<number | 'all'>('all');
   // "My Schedule" view mode: day-tabs + list (existing), or the month-grid calendar
   // (reuses the same react-big-calendar UI as the unified Calendar page) — see
   // MaintenanceCalendarView. Purely a client-side re-view of already-loaded `schedules`.
