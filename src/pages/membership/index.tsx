@@ -368,6 +368,7 @@ const FortnightlyTab: React.FC<{
   onEdit?: (p: MembershipPlan) => void;
 }> = ({ plans, currency, rateOf, onEdit }) => (
   <div>
+    {/* Static billing-cycle info banner — hidden for now, revisit later.
     <div
       style={{
         background: '#ecedf4',
@@ -382,6 +383,7 @@ const FortnightlyTab: React.FC<{
       Fortnightly billing cycle — charged every 2 weeks from the membership activation date. Minimum period: 1 month.
       Cancellation notice: 2 weeks.
     </div>
+    */}
     <div className="overflow-x-auto rounded-[10px] border border-cmx-border bg-white" style={{ marginBottom: 20 }}>
       <table className="w-full border-collapse text-[13px]">
         <PlanHead plans={plans} />
@@ -691,8 +693,8 @@ const AnnualTab: React.FC<{
         max).
       </div>
       <div style={{ marginTop: 4 }}>
-        Example — Standard annual with 2 carried: effective limit = 3 + 2 ={' '}
-        <strong style={{ color: 'var(--navy)' }}>5 slots</strong> that fortnight.
+        Example — Standard annual with 1 carried: effective limit = 3 + 1 ={' '}
+        <strong style={{ color: 'var(--navy)' }}>4 slots</strong> that fortnight.
       </div>
       <div style={{ marginTop: 4 }}>
         <strong style={{ color: '#dc2626' }}>Note:</strong> When the fortnightly limit is hit on an annual plan, no

@@ -231,15 +231,35 @@ const is24x7Hours = (hours: OperatingHoursMap | undefined): boolean =>
  * shows the right option when editing an existing centre. */
 const fromIso3 = (code: string): string => COUNTRY_ISO3_TO_CODE[code.toUpperCase()] ?? code;
 
-const guestRulesOf = (m: ApiMembership): Record<string, unknown> =>
-  (m.bookingRules?.guestBookingRules as Record<string, unknown>) ?? {};
+/** Real membership docs nest guest pricing under guestBookingRules.pricing
+ * (firstGuest / additionalGuests.discount), and the extra-session cost under
+ * a SIBLING slotPurchaseRules.price — not flat fields directly on
+ * guestBookingRules. Matches the shape centres/plans/index.tsx, the
+ * Membership Plans "Guest Charges" tab, and mapApiPlan.ts all already read
+ * (see buildCreatePayload.ts's buildMemberships, which writes this same shape). */
+const guestRulesOf = (
+  m: ApiMembership
+): { firstGuestFee: unknown; additionalGuestDiscountPct: unknown; extraSessionCost: unknown } => {
+  const bookingRules = (m.bookingRules ?? {}) as {
+    guestBookingRules?: { pricing?: { firstGuest?: unknown; additionalGuests?: { discount?: unknown } } };
+    slotPurchaseRules?: { price?: unknown };
+  };
+  const pricing = bookingRules.guestBookingRules?.pricing ?? {};
+  return {
+    firstGuestFee: pricing.firstGuest,
+    additionalGuestDiscountPct: pricing.additionalGuests?.discount,
+    extraSessionCost: bookingRules.slotPurchaseRules?.price,
+  };
+};
 
 export function bundleToWizardState(bundle: CentreBundle): WizardState {
   const { facility, lanes, memberships, membershipSalesFlow } = bundle;
   const addr = facility.address;
   const slotCfg = (facility.slotScheduleConfig ?? {}) as Record<string, unknown>;
   const capacityPlans = membershipSalesFlow?.capacity?.plans ?? {};
-  const reg = memberships[0] ? guestRulesOf(memberships[0]) : {};
+  const reg = memberships[0]
+    ? guestRulesOf(memberships[0])
+    : { firstGuestFee: undefined, additionalGuestDiscountPct: undefined, extraSessionCost: undefined };
 
   const laneCount = (type: string) => lanes.filter(l => l.laneType === type).length;
   // Capacity source of truth is the sales-flow doc; fall back to the value mirrored
@@ -286,7 +306,6 @@ export function bundleToWizardState(bundle: CentreBundle): WizardState {
       // buildCreatePayload.ts's buildMemberships) — a bare number is only ever a
       // legacy/malformed doc, tolerated as a fallback.
       joiningFee: num((m.registrationFee as { amount?: unknown })?.amount ?? m.registrationFee),
-      memberCap: allocatedSlots,
       // Not carried on ApiMembership — best-effort default; user can re-set in step 4.
       isFoundationEligible: false,
       availableCountries: countries.length ? countries : ['all'],
