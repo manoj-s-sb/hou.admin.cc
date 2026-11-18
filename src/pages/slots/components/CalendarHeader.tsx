@@ -2,12 +2,12 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 
 import { CalendarHeader as CalendarHeaderType } from '../types';
 
-const TIMEZONE = 'America/Chicago';
-
-const getTodayInChicago = (): Date => {
+/** "Today" as a local-midnight Date, computed in the given IANA timezone (the
+ * centre's own), so the day strip reflects the centre's date — not a hardcoded one. */
+const getToday = (timeZone: string): Date => {
   const now = new Date();
   const dateFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: TIMEZONE,
+    timeZone,
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
@@ -22,7 +22,7 @@ const getTodayInChicago = (): Date => {
   return new Date(`${dateStr}T00:00:00`);
 };
 
-const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthName }: CalendarHeaderType) => {
+const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthName, timeZone }: CalendarHeaderType) => {
   const [dateOffset, setDateOffset] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -39,7 +39,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
 
   const displayedDates = useMemo(() => {
     const dates = [];
-    const today = getTodayInChicago();
+    const today = getToday(timeZone);
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + dateOffset);
 
@@ -54,7 +54,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
       });
     }
     return dates;
-  }, [dateOffset, isMobile]);
+  }, [dateOffset, isMobile, timeZone]);
 
   const today = nextSevenDates?.[0];
   const isTodaySelected = Boolean(today && selectedDate?.day === today.day && selectedDate?.month === today.month);
@@ -69,7 +69,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
   // `selectedDate` directly, not by looking up a stale array index.)
 
   const handleNavigatePrevious = () => {
-    const base = selectedDate?.fullDate ?? getTodayInChicago();
+    const base = selectedDate?.fullDate ?? getToday(timeZone);
     const previousDate = new Date(base);
     previousDate.setDate(previousDate.getDate() - 1);
 
@@ -85,7 +85,7 @@ const CalendarHeader = ({ selectedDate, setSelectedDate, nextSevenDates, monthNa
   };
 
   const handleNavigateNext = () => {
-    const base = selectedDate?.fullDate ?? getTodayInChicago();
+    const base = selectedDate?.fullDate ?? getToday(timeZone);
     const nextDate = new Date(base);
     nextDate.setDate(nextDate.getDate() + 1);
 

@@ -11,6 +11,8 @@ export interface CalendarHeader {
     fullDate: Date;
   }[];
   monthName: string;
+  /** IANA timezone of the centre — "today" is computed in this zone, not a hardcoded one. */
+  timeZone: string;
 }
 
 export interface Lane {

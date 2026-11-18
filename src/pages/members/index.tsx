@@ -603,7 +603,7 @@ const Members = () => {
                 {selectedUserIds.size} member{selectedUserIds.size === 1 ? '' : 's'} selected
               </span>
             ) : (
-              <span className="font-medium text-gray-600">Select all {pageMemberIds.length} on this page</span>
+              <span className="font-medium text-gray-600">Select the members to send an email</span>
             )}
           </label>
           {selectedUserIds.size > 0 && (
