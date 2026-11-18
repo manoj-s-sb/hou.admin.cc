@@ -702,7 +702,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
         {formatTimeSlot(slot)}
       </span>
       <span
-        className="absolute right-0.5 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer px-0.5 text-[15px] font-bold text-gray-400 opacity-0 transition hover:text-[#21295A] group-hover:opacity-100"
+        className="absolute right-0.5 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer px-0.5 text-[15px] font-bold text-gray-400 transition hover:text-[#21295A]"
         role="button"
         tabIndex={0}
         title="Block/unblock this time slot across all lanes"

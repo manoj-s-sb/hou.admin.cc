@@ -194,7 +194,7 @@ const StaffManagement: React.FC = () => {
   // current page instead of restarting at 1 on every page — same pattern
   // src/pages/members/index.tsx and src/pages/induction/index.tsx already use.
   const [staffPage, setStaffPage] = useState(0);
-  const [staffRowsPerPage, setStaffRowsPerPage] = useState(10);
+  const [staffRowsPerPage, setStaffRowsPerPage] = useState(20);
   const { staffList, isListLoading, listError, staffConfig, isConfigLoading, configError } = useSelector(
     (state: RootState) => state.staff
   );

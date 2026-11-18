@@ -354,7 +354,7 @@ const Members = () => {
 
   const buildRequestPayload = useCallback(
     (overrides?: Partial<MemberRequest>, appliedFilters: FilterState = filters): MemberRequest => {
-      const limit = overrides?.limit ?? (membersListData.limit || 15);
+      const limit = overrides?.limit ?? (membersListData.limit || 20);
       const payload: MemberRequest = {
         skip: overrides?.skip ?? 0,
         limit,
@@ -440,6 +440,32 @@ const Members = () => {
     setSearchParams(params, { replace: true });
   };
 
+  // A Subscription Overview stat card acts like picking that status in the
+  // Status dropdown below + hitting Apply — computes the next filters object
+  // directly (rather than setFilters then a separate handleApplyFilters call)
+  // since the latter would read the STALE `filters` closure before the state
+  // update from setFilters had actually applied.
+  const handleStatCardClick = (status: string) => {
+    // Same loose string -> FilterState['status'] trust the Status dropdown's
+    // own onChange already relies on (handleFilterChange takes a plain
+    // string too) -- 'past_due' in particular is a real, working filter
+    // value the dropdown already sends, just outside FilterState['status']'s
+    // own narrower literal union.
+    const nextFilters: FilterState = { ...filters, status: status as FilterState['status'] };
+    setFilters(nextFilters);
+    setSearchParams(filtersToSearchParams(nextFilters), { replace: true });
+  };
+
+  // Keyboard-activates a stat card the same way a click does (Enter/Space) —
+  // these divs are role="button" + tabIndex, so they need an explicit key
+  // handler to be genuinely keyboard-operable, not just visually focusable.
+  const onStatCardKeyDown = (status: string) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleStatCardClick(status);
+    }
+  };
+
   const handleClearFilters = () => {
     setFilters(defaultFilters);
     setSearchParams({}, { replace: true });
@@ -464,29 +490,65 @@ const Members = () => {
             Subscription Overview
           </p>
 
-          <div className="flex flex-col gap-1 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+          <div
+            className="flex cursor-pointer flex-col gap-1 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 transition hover:border-indigo-300"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleStatCardClick('')}
+            onKeyDown={onStatCardKeyDown('')}
+          >
             <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-600">Total</p>
             <p className="text-[22px] font-bold text-indigo-700">{membersCount.total.toLocaleString()}</p>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl border border-green-100 bg-green-50 px-4 py-3">
+          <div
+            className="flex cursor-pointer flex-col gap-1 rounded-xl border border-green-100 bg-green-50 px-4 py-3 transition hover:border-green-300"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleStatCardClick('active')}
+            onKeyDown={onStatCardKeyDown('active')}
+          >
             <p className="text-[10px] font-semibold uppercase tracking-widest text-green-600">Active</p>
             <p className="text-[22px] font-bold text-green-700">{membersCount.activeMembersCount.toLocaleString()}</p>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+          <div
+            className="flex cursor-pointer flex-col gap-1 rounded-xl border border-red-100 bg-red-50 px-4 py-3 transition hover:border-red-300"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleStatCardClick('canceled')}
+            onKeyDown={onStatCardKeyDown('canceled')}
+          >
             <p className="text-[10px] font-semibold uppercase tracking-widest text-red-500">Cancelled</p>
             <p className="text-[22px] font-bold text-red-600">{membersCount.inactiveMembersCount.toLocaleString()}</p>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+          <div
+            className="flex cursor-pointer flex-col gap-1 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 transition hover:border-amber-300"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleStatCardClick('pendingactivation')}
+            onKeyDown={onStatCardKeyDown('pendingactivation')}
+          >
             <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">Pending</p>
             <p className="text-[22px] font-bold text-amber-700">
               {membersCount.pendingActivationCount.toLocaleString()}
             </p>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3">
+          <div
+            className="flex cursor-pointer flex-col gap-1 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 transition hover:border-orange-300"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleStatCardClick('paused')}
+            onKeyDown={onStatCardKeyDown('paused')}
+          >
             <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-500">On Hold</p>
             <p className="text-[22px] font-bold text-orange-600">{(membersCount.pausedCount ?? 0).toLocaleString()}</p>
           </div>
-          <div className="flex flex-col gap-1 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+          <div
+            className="flex cursor-pointer flex-col gap-1 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 transition hover:border-rose-400"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleStatCardClick('past_due')}
+            onKeyDown={onStatCardKeyDown('past_due')}
+          >
             <p className="text-[10px] font-semibold uppercase tracking-widest text-rose-600">Payment Failed</p>
             <p className="text-[22px] font-bold text-rose-700">{(membersCount.pastDueCount ?? 0).toLocaleString()}</p>
           </div>
@@ -647,12 +709,12 @@ const Members = () => {
           data={membersListData.members}
           getRowId={row => row.userId}
           loading={isLoading}
-          page={Math.floor(membersListData.skip / (membersListData.limit || 15))}
-          rowsPerPage={membersListData.limit || 15}
+          page={Math.floor(membersListData.skip / (membersListData.limit || 20))}
+          rowsPerPage={membersListData.limit || 20}
           serverSide={true}
           totalRows={membersListData.total}
           onPageChange={(page: number) => {
-            const limit = membersListData.limit || 15;
+            const limit = membersListData.limit || 20;
             const newSkip = page * limit;
             if (newSkip !== membersListData.skip) {
               dispatch(getMembers(buildRequestPayload({ skip: newSkip })));
