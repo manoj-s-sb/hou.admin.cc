@@ -262,7 +262,6 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
 
         <div style={{ padding: 26 }}>
           {/* Identity */}
-          <div className="text-xs font-bold uppercase tracking-[0.06em] text-sub">Plan Identity</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
@@ -374,23 +373,43 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
 
           {/* Access */}
           <div className="text-xs font-bold uppercase tracking-[0.06em] text-sub">Access Hours</div>
-          <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-              Access Type <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
-            </span>
-            <select
-              className={FIELD}
-              value={form.accessType}
-              onChange={e => set('accessType', e.target.value as AccessType)}
-            >
-              <option value="24/7">Full 24/7 access</option>
-              <option value="offpeak">Off-Peak only — 9am–3pm Mon–Fri &amp; 11pm–6am Mon–Sun</option>
-              <option value="nightowl">Night Owl only — 11pm–6am (all days)</option>
-              <option value="custom">Custom hours</option>
-            </select>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 14,
+              marginBottom: form.accessType === 'custom' ? 14 : 20,
+            }}
+          >
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
+                Access Type <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}>*</span>
+              </span>
+              <select
+                className={FIELD}
+                value={form.accessType}
+                onChange={e => set('accessType', e.target.value as AccessType)}
+              >
+                <option value="24/7">Full 24/7 access</option>
+                <option value="offpeak">Off-Peak only — 9am–3pm Mon–Fri &amp; 11pm–6am Mon–Sun</option>
+                <option value="nightowl">Night Owl only — 11pm–6am (all days)</option>
+                <option value="custom">Custom hours</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Peak Hours Access</span>
+              <select
+                className={FIELD}
+                value={form.peakAccess ? 'yes' : 'no'}
+                onChange={e => set('peakAccess', e.target.value === 'yes')}
+              >
+                <option value="yes">Yes — full peak hours access</option>
+                <option value="no">No — off-peak / restricted hours only</option>
+              </select>
+            </div>
           </div>
           {form.accessType === 'custom' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
               <div className="flex flex-col gap-1">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Start Time</span>
                 <input
@@ -406,17 +425,6 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
               </div>
             </div>
           )}
-          <div className="flex flex-col gap-1" style={{ marginBottom: 20 }}>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">Peak Hours Access</span>
-            <select
-              className={FIELD}
-              value={form.peakAccess ? 'yes' : 'no'}
-              onChange={e => set('peakAccess', e.target.value === 'yes')}
-            >
-              <option value="yes">Yes — full peak hours access</option>
-              <option value="no">No — off-peak / restricted hours only</option>
-            </select>
-          </div>
 
           {/* Booking limits */}
           <div className="text-xs font-bold uppercase tracking-[0.06em] text-sub">
@@ -625,7 +633,7 @@ const PlanDrawer: React.FC<Props> = ({ mode, plan, onClose, onSaved }) => {
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-sub">
-                Network-wide Member Cap
+                Member Cap <span className="font-normal normal-case text-gray-400">(global)</span>
               </span>
               <NumberInput
                 className={FIELD}

@@ -1026,7 +1026,7 @@ const FacilityProductModal: React.FC<Props> = ({ centreCode, product, existingCo
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className={FIELD_LABEL}>Free guests per billing cycle</span>
+              <span className={FIELD_LABEL}>{isGym ? 'Free guests per billing cycle' : 'Free guest visits'}</span>
               <NumberInput className={FF_INPUT} min={0} value={freeGuestVisits} onValueChange={setFreeGuestVisits} />
               {isGym && <span className={HELPER_TEXT}>Billing cycle is fortnightly.</span>}
             </label>
