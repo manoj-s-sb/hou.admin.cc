@@ -190,7 +190,6 @@ const ProfileStep: React.FC<ProfileStepProps> = ({
               <option value="Full-time">Full-time</option>
               <option value="Part-time">Part-time</option>
               <option value="Contract">Contract</option>
-              <option value="Casual">Casual</option>
             </select>
           </div>
           <div>
