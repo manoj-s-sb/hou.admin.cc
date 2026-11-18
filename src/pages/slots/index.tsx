@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useDispatch, useSelector } from 'react-redux';
 
 import LoaderComponent from '../../components/Loader';
 import endpoints from '../../constants/endpoints';
+import { useCentreNav } from '../../contexts/CentreNavContext';
 import { useScopedFacilityCode } from '../../hooks/useScopedFacilityCode';
 import { canEditModule } from '../../rbac';
 import { MODULES } from '../../rbac/constants';
@@ -17,16 +18,32 @@ import ConflictsModal from './components/ConflictsModal';
 import NewSeriesModal from './components/NewSeriesModal';
 import SeriesListModal from './components/SeriesListModal';
 
-const TIMEZONE = 'America/Chicago';
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const getNextSevenDates = () => {
+// Validate the centre's stored IANA zone before anything formats with it — an invalid
+// value would make Intl.DateTimeFormat throw and crash the page. Fall back to the
+// admin's own browser timezone (always valid) when it's missing or malformed.
+const resolveTimeZone = (tz?: string): string => {
+  const fallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!tz) return fallback;
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: tz }); // throws RangeError on a bad zone
+    return tz;
+  } catch {
+    return fallback;
+  }
+};
+
+// Built in the centre's own timezone so day 0 is the centre's "today", not a hardcoded
+// zone's — previously this was pinned to America/Chicago, so e.g. an India centre opened
+// on the wrong day whenever Chicago was still on the previous calendar date.
+const getNextSevenDates = (timeZone: string) => {
   const dates = [];
   const now = new Date();
   for (let i = 0; i < 7; i++) {
     const targetDate = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
     const dateFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
+      timeZone,
       year: 'numeric',
       month: 'numeric',
       day: 'numeric',
@@ -77,6 +94,10 @@ const SlotBookings: React.FC = () => {
   const { slots, isLoading } = useSelector((state: RootState) => state.slots);
   const dispatch = useDispatch<AppDispatch>();
   const facilityCode = useScopedFacilityCode();
+  const { activeCentre } = useCentreNav();
+  // The centre's own timezone drives the day strip's "today". Falls back to the admin's
+  // local zone until the facility (and its timezone) resolves, or if it's invalid.
+  const centreTz = useMemo(() => resolveTimeZone(activeCentre?.timezone), [activeCentre?.timezone]);
   // Folded into Slot Bookings' own write permission — "recurringblocks" was a
   // separate module ID with no Staff Management toggle to ever grant it, so
   // Series was unreachable for every non-superadmin login. Per product
@@ -87,12 +108,26 @@ const SlotBookings: React.FC = () => {
   const [showConflictsModal, setShowConflictsModal] = useState(false);
   const [conflictsCount, setConflictsCount] = useState(0);
 
-  const nextSevenDates = useMemo(() => getNextSevenDates(), []);
+  const nextSevenDates = useMemo(() => getNextSevenDates(centreTz), [centreTz]);
   const [selectedDate, setSelectedDate] = useState<{ day: number; month: number; fullDate?: Date }>({
     day: nextSevenDates[0].day,
     month: nextSevenDates[0].month,
     fullDate: nextSevenDates[0].fullDate,
   });
+
+  // On a deep link the centre's timezone resolves after first render, which can shift
+  // "today" — keep the default pointed at the centre's today until the admin picks a
+  // day themselves (tracked via the ref, set by handleSelectDate below).
+  const hasUserPickedDateRef = useRef(false);
+  const handleSelectDate = useCallback((date: { day: number; month: number; fullDate?: Date }) => {
+    hasUserPickedDateRef.current = true;
+    setSelectedDate(date);
+  }, []);
+  useEffect(() => {
+    if (hasUserPickedDateRef.current) return;
+    const [today] = nextSevenDates;
+    setSelectedDate({ day: today.day, month: today.month, fullDate: today.fullDate });
+  }, [nextSevenDates]);
 
   const formattedDate = useMemo(() => {
     let year: number;
@@ -300,7 +335,8 @@ const SlotBookings: React.FC = () => {
             monthName={selectedMonthName}
             nextSevenDates={nextSevenDates}
             selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
+            setSelectedDate={handleSelectDate}
+            timeZone={centreTz}
           />
         </div>
 
@@ -327,7 +363,7 @@ const SlotBookings: React.FC = () => {
             isOpen={showNewSeriesModal}
             lanes={slots?.lanes || []}
             timeSlots={slots?.timeSlots || []}
-            timezone={TIMEZONE}
+            timezone={centreTz}
             onClose={() => setShowNewSeriesModal(false)}
             onCreated={() => dispatch(getSlots({ date: formattedDate, facilityCode }))}
           />

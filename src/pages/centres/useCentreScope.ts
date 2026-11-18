@@ -30,12 +30,14 @@ export const useCentreScope = (facilityCode: string): void => {
       name: resolved?.name ?? facilityCode,
       countryCode: resolved?.countryCode ?? '',
       status: resolved?.status ?? 'active',
+      timezone: resolved?.timezone ?? '',
     };
     const isSame =
       activeCentre?.code === next.code &&
       activeCentre?.name === next.name &&
       activeCentre?.countryCode === next.countryCode &&
-      activeCentre?.status === next.status;
+      activeCentre?.status === next.status &&
+      activeCentre?.timezone === next.timezone;
 
     if (!isSame) openCentre(next);
   }, [facilityCode, activeCentre, facilities, details, openCentre]);
