@@ -13,7 +13,7 @@ import { countryFlag } from '../centres/constants';
 import AllLogsTable from './components/AllLogsTable';
 import LogFilters from './components/LogFilters';
 import ReviewModal from './components/ReviewModal';
-import StatsCards from './components/StatsCards';
+import StatsCards, { TailgateStatCard } from './components/StatsCards';
 import Toast from './components/Toast';
 import UnidentifiedTab from './components/UnidentifiedTab';
 import VideoModal from './components/VideoModal';
@@ -65,7 +65,7 @@ const Tailgate = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'danger' } | null>(null);
   const [timeSortDir, setTimeSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
   const silentRefresh = useRef(false);
 
   // Centre filter — global-scope viewers (superadmin, country/regional managers) see
@@ -144,6 +144,42 @@ const Tailgate = () => {
     setDraftFilters(DEFAULT_FILTERS);
     setFilters(DEFAULT_FILTERS);
     setPage(0);
+  };
+
+  // A stat card acts like picking that scope below + hitting Apply (same
+  // click-to-filter pattern as the Members page's Subscription Overview
+  // cards). Unidentified/Violations are all-time totals, not "today" —
+  // clicking them just jumps to that tab with filters cleared, instead of
+  // pinning the date range.
+  const handleStatCardClick = (card: TailgateStatCard) => {
+    if (card === 'unid' || card === 'viol') {
+      setDraftFilters(DEFAULT_FILTERS);
+      setFilters(DEFAULT_FILTERS);
+      setActiveTab(card);
+      setPage(0);
+      return;
+    }
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: FACILITY_TZ });
+    const nextFilters: TailgateFilters = {
+      ...DEFAULT_FILTERS,
+      from: today,
+      to: today,
+      type: card === 'entries' ? 'Entry' : card === 'tailgates' ? 'Tailgate' : '',
+    };
+    setDraftFilters(nextFilters);
+    setFilters(nextFilters);
+    setActiveTab('logs');
+    setPage(0);
+  };
+
+  // Keyboard-activates a stat card the same way a click does (Enter/Space) —
+  // the cards are role="button" + tabIndex, so they need an explicit key
+  // handler to be genuinely keyboard-operable, not just visually focusable.
+  const onStatCardKeyDown = (card: TailgateStatCard) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleStatCardClick(card);
+    }
   };
 
   const buildStatsPayload = useCallback(() => {
@@ -346,7 +382,12 @@ const Tailgate = () => {
           {/* All Logs tab */}
           {activeTab === 'logs' && (
             <>
-              <StatsCards {...apiStats} filterSubtitle={filterSubtitle} />
+              <StatsCards
+                {...apiStats}
+                filterSubtitle={filterSubtitle}
+                onCardClick={handleStatCardClick}
+                onCardKeyDown={onStatCardKeyDown}
+              />
               <LogFilters
                 activeFilterCount={activeFilterCount}
                 filters={draftFilters}

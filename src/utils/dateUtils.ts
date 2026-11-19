@@ -285,3 +285,25 @@ export const formatDateAsAuthored = (dateValue: string | null | undefined): stri
   const month = dateForNames.toLocaleDateString(DEFAULT_LOCALE, { month: 'short' });
   return `${weekday}, ${month} ${p.day}, ${p.year}`;
 };
+
+/**
+ * Build a `Date` from the wall-clock numbers already embedded in an "as
+ * authored" ISO string (e.g. "...T12:00:00-06:00" → a Date whose
+ * getFullYear/getMonth/getDate/getHours/getMinutes are exactly 2026-11-18
+ * 12:00), discarding the real UTC offset entirely.
+ *
+ * `new Date(isoString)` instead converts to the correct absolute instant,
+ * which is right for math but wrong for day-grid calendars like
+ * react-big-calendar's month view: that library buckets/spans events by the
+ * BROWSER's own local timezone, so a facility-local time that happens to
+ * roll past midnight once reinterpreted in the viewer's timezone gets drawn
+ * spanning into the next day, even though nothing about the actual booking
+ * crosses midnight in the facility's own time. Feeding it a Date built from
+ * these raw wall-clock numbers instead means its local getters already match
+ * the authored day/time, so it lands in exactly one day cell everywhere.
+ */
+export const toAuthoredDate = (dateValue: string | null | undefined): Date | null => {
+  const p = dateValue ? parseIsoLocal(dateValue) : null;
+  if (!p) return null;
+  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute);
+};

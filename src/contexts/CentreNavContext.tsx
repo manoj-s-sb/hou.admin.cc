@@ -29,6 +29,9 @@ export interface ActiveCentre {
   name: string;
   countryCode: string;
   status: CentreApiStatus;
+  /** IANA timezone of the centre (e.g. "Asia/Kolkata") — drives date/time defaults
+   * like the Slot Bookings day strip. Optional: empty until the facility resolves. */
+  timezone?: string;
 }
 
 interface CentreNavContextValue {

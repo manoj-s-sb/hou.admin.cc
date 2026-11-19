@@ -29,6 +29,12 @@ interface BarChartProps {
   colorByPoint?: boolean;
   showLegend?: boolean;
   showValueLabels?: boolean;
+  // Every series bar is present in each data row (defaulted to 0 when a
+  // category doesn't have it), so the default tooltip lists every series
+  // for every category -- e.g. a centre that only offers 3 of 5 plans still
+  // shows the other 2 at "0". Set this to only list the series that
+  // actually have a non-zero value for the hovered category.
+  hideZeroSeriesInTooltip?: boolean;
 }
 
 const tooltipStyle = {
@@ -38,6 +44,36 @@ const tooltipStyle = {
   boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
   fontSize: '13px',
 } as const;
+
+interface TooltipPayloadEntry {
+  name?: string;
+  value?: number;
+  color?: string;
+}
+
+const NonZeroTooltip = ({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean;
+  label?: string;
+  payload?: TooltipPayloadEntry[];
+}) => {
+  if (!active || !payload?.length) return null;
+  const nonZero = payload.filter(p => (p.value ?? 0) > 0);
+  if (nonZero.length === 0) return null;
+  return (
+    <div style={{ ...tooltipStyle, padding: '10px 12px' }}>
+      <p style={{ margin: '0 0 6px', fontWeight: 700, color: '#111827' }}>{label}</p>
+      {nonZero.map(p => (
+        <p key={p.name} style={{ margin: '2px 0', color: p.color ?? '#374151' }}>
+          {p.name} : {p.value}
+        </p>
+      ))}
+    </div>
+  );
+};
 
 const axisStyle = { fontSize: '12px', fontWeight: 600 } as const;
 
@@ -74,6 +110,7 @@ const BarChart: React.FC<BarChartProps> = ({
   colorByPoint = false,
   showLegend = true,
   showValueLabels = false,
+  hideZeroSeriesInTooltip = false,
 }) => {
   const rotate = data.length > ROTATE_THRESHOLD;
   return (
@@ -89,7 +126,11 @@ const BarChart: React.FC<BarChartProps> = ({
           tickLine={false}
         />
         <YAxis allowDecimals={false} stroke="#6b7280" style={axisStyle} tickLine={false} />
-        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
+        <Tooltip
+          content={hideZeroSeriesInTooltip ? <NonZeroTooltip /> : undefined}
+          contentStyle={tooltipStyle}
+          cursor={{ fill: 'rgba(99,102,241,0.06)' }}
+        />
         {showLegend && bars.length > 1 && <Legend wrapperStyle={{ fontSize: '13px', fontWeight: 600 }} />}
         {bars.map(series => (
           <Bar

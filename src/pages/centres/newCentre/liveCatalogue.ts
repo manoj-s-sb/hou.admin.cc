@@ -52,7 +52,6 @@ export const defaultPlanRow = (meta: PlanMeta): WizardPlanRow => ({
   annualPrice: meta.offersAnnual ? meta.annual : 0,
   allocatedSlots: meta.defaultSlots,
   joiningFee: 0,
-  memberCap: meta.defaultSlots,
   isFoundationEligible: meta.defaultFoundation,
   availableCountries: ['all'],
   firstGuestFee: null,

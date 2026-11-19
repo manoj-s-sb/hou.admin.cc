@@ -1,3 +1,7 @@
+import type { ReactElement } from 'react';
+
+export type TailgateStatCard = 'today' | 'entries' | 'tailgates' | 'unid' | 'viol';
+
 interface StatsCardsProps {
   today_total: number;
   today_date: string;
@@ -6,6 +10,8 @@ interface StatsCardsProps {
   total_unidentified: number;
   total_violations: number;
   filterSubtitle: string | null;
+  onCardClick: (card: TailgateStatCard) => void;
+  onCardKeyDown: (card: TailgateStatCard) => (e: React.KeyboardEvent) => void;
 }
 
 const StatsCards = ({
@@ -16,9 +22,20 @@ const StatsCards = ({
   total_unidentified,
   total_violations,
   filterSubtitle,
+  onCardClick,
+  onCardKeyDown,
 }: StatsCardsProps) => {
-  const cards = [
+  const cards: {
+    key: TailgateStatCard;
+    label: string;
+    value: number;
+    sub: string;
+    color: string;
+    border: string;
+    icon: ReactElement;
+  }[] = [
     {
+      key: 'today',
       label: "Today's Events",
       value: today_total,
       sub: today_date,
@@ -36,6 +53,7 @@ const StatsCards = ({
       ),
     },
     {
+      key: 'entries',
       label: 'Entries',
       value: today_entries,
       sub: 'Lane door entries',
@@ -53,6 +71,7 @@ const StatsCards = ({
       ),
     },
     {
+      key: 'tailgates',
       label: 'Tailgates',
       value: today_tailgates,
       sub: 'Detected today',
@@ -70,6 +89,7 @@ const StatsCards = ({
       ),
     },
     {
+      key: 'unid',
       label: 'Unidentified',
       value: total_unidentified,
       sub: filterSubtitle ?? 'Across all dates',
@@ -87,6 +107,7 @@ const StatsCards = ({
       ),
     },
     {
+      key: 'viol',
       label: 'Violations',
       value: total_violations,
       sub: filterSubtitle ?? 'All time',
@@ -108,7 +129,14 @@ const StatsCards = ({
   return (
     <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {cards.map(s => (
-        <div key={s.label} className={`rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 ${s.border}`}>
+        <div
+          key={s.key}
+          className={`cursor-pointer rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 transition hover:border-gray-300 ${s.border}`}
+          role="button"
+          tabIndex={0}
+          onClick={() => onCardClick(s.key)}
+          onKeyDown={onCardKeyDown(s.key)}
+        >
           <div className="mb-1.5 flex items-center gap-1.5">
             {s.icon}
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{s.label}</p>

@@ -398,9 +398,7 @@ const NewSeriesModal = ({
         <div className="flex items-center justify-between border-b border-[#B3DADA] bg-gradient-to-r from-[#F8FAFA] to-[#EDF5F5] px-6 py-5">
           <div>
             <h2 className="text-[18px] font-semibold text-[#21295A]">New Recurring Block</h2>
-            <p className="mt-0.5 text-[13px] text-gray-500">
-              Reserve one or more lanes on a weekly schedule, e.g. for a clinic
-            </p>
+            <p className="mt-0.5 text-[13px] text-gray-500">Reserve lanes for a recurring event</p>
           </div>
           <button
             className="rounded-full p-1 text-[#21295A] transition-all hover:bg-white hover:shadow-md"

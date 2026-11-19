@@ -574,8 +574,11 @@ const SlotDetailsModal = ({
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-first-name">
-                      First Name *
+                    <label
+                      className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                      htmlFor="book-first-name"
+                    >
+                      First Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
@@ -586,7 +589,10 @@ const SlotDetailsModal = ({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-last-name">
+                    <label
+                      className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                      htmlFor="book-last-name"
+                    >
                       Last Name
                     </label>
                     <input
@@ -599,8 +605,11 @@ const SlotDetailsModal = ({
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-email">
-                    Email *
+                  <label
+                    className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                    htmlFor="book-email"
+                  >
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
@@ -618,8 +627,11 @@ const SlotDetailsModal = ({
                   )}
                 </div>
                 <div>
-                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-dob">
-                    Date of Birth *
+                  <label
+                    className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                    htmlFor="book-dob"
+                  >
+                    Date of Birth <span className="text-red-500">*</span>
                   </label>
                   <input
                     className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
@@ -631,8 +643,11 @@ const SlotDetailsModal = ({
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="book-notes">
-                    Notes <span className="font-normal text-gray-400">(optional)</span>
+                  <label
+                    className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                    htmlFor="book-notes"
+                  >
+                    Notes <span className="font-normal normal-case text-gray-400">(optional)</span>
                   </label>
                   <textarea
                     className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
@@ -685,7 +700,10 @@ const SlotDetailsModal = ({
                       )}
                     </div>
                     <div>
-                      <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="blocked-by-name">
+                      <label
+                        className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                        htmlFor="blocked-by-name"
+                      >
                         Blocked By
                       </label>
                       <input
@@ -708,11 +726,13 @@ const SlotDetailsModal = ({
           {/* Cancellation Reason - shown after "Cancel Booking" is clicked, in place of the action buttons */}
           {showCancelReason && (
             <div className="mb-5">
-              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">Cancellation Reason</h3>
+              <h3 className="mb-3 text-[15px] font-semibold text-[#21295A]">
+                Cancellation Reason <span className="text-[13px] font-normal text-gray-400">(optional)</span>
+              </h3>
               <textarea
                 className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"
                 maxLength={500}
-                placeholder="Why is this booking being cancelled? (optional)"
+                placeholder="Why is this booking being cancelled?"
                 rows={3}
                 value={cancelReason}
                 onChange={e => setCancelReason(e.target.value)}
@@ -746,8 +766,11 @@ const SlotDetailsModal = ({
                   ))}
                 </div>
               )}
-              <label className="mb-1 block text-[13px] font-medium text-gray-600" htmlFor="shift-reason">
-                Reason *
+              <label
+                className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                htmlFor="shift-reason"
+              >
+                Reason <span className="text-red-500">*</span>
               </label>
               <textarea
                 className="w-full rounded-xl border border-[#B3DADA] bg-white px-4 py-3 text-[14px] text-[#21295A] outline-none transition-all focus:border-[#21295A] focus:ring-2 focus:ring-[#21295A]/10"

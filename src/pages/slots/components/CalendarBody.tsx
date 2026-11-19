@@ -44,6 +44,8 @@ const isSlotStartInThePast = (startTime: string): boolean => {
   return !Number.isNaN(start.getTime()) && start.getTime() < Date.now();
 };
 
+// Shown only when a "Book for Someone" modal was left open across the slot's start
+// time and the admin then submits — the grid itself blocks past slots up front.
 const TIME_UP_MESSAGE = "Can't book this slot — its start time has already passed.";
 
 const getDisplayName = (user?: BookingUser) => {
@@ -224,12 +226,10 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
       handleMultiSlotToggle(slot);
       return;
     }
-    // An available slot whose start time has already passed can't be booked —
-    // say so right on click instead of opening the Book for Someone form for a
-    // slot that would just fail (or silently book the wrong, already-elapsed
-    // time). A slot that's booked/disabled still opens normally (view/manage).
+    // An available slot whose start time has already passed can't be booked. It's
+    // rendered disabled (greyed, non-clickable) in the grid, so this is just a
+    // defensive guard — a booked/disabled slot still opens normally (view/manage).
     if (!slot.isBooked && slot.status?.toLowerCase() === 'available' && isSlotStartInThePast(slot.startTime)) {
-      toast.error(TIME_UP_MESSAGE, { duration: 4000, id: 'slot-time-up' });
       return;
     }
     setSelectedSlot({ slot, laneNo: lane.laneNo, laneCode: lane.laneCode, slotIndex });
@@ -495,6 +495,13 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
     const zebraBg = slotIdx % 2 === 0 ? AVAILABLE_ODD : AVAILABLE_EVEN;
     const minH = isMobile ? 'min-h-[60px] min-w-[95px]' : 'min-h-[68px] min-w-[110px]';
     const isSelected = isMultiSelect && currentSlot?.slotCode && selectedSlotCodes.includes(currentSlot.slotCode);
+    // An available slot whose start time has already passed can't be booked — render it
+    // disabled (greyed, non-clickable) instead of erroring on click. Booked/blocked
+    // past slots still open normally so admins can view/manage them.
+    const isPastAvailable =
+      !currentSlot?.isBooked &&
+      currentSlot?.status?.toLowerCase() === 'available' &&
+      isSlotStartInThePast(currentSlot.startTime);
 
     return (
       <button
@@ -503,8 +510,11 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
           `relative flex ${minH} items-center justify-center border-b border-r border-gray-200 bg-transparent p-1 transition`,
           slotIdx === 0 && 'border-t-0',
           laneIdx === 0 && 'border-l-0',
-          !isSelected && 'hover:brightness-95'
+          !isSelected && !isPastAvailable && 'hover:brightness-95',
+          isPastAvailable && 'cursor-not-allowed'
         )}
+        disabled={isPastAvailable}
+        title={isPastAvailable ? 'Time has passed — this slot can no longer be booked' : undefined}
         type="button"
         onClick={() => handleSlotClick(currentSlot, lane, slotIdx)}
       >
@@ -628,6 +638,17 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
               style={{ backgroundImage: "url('/assets/svg/slot_bg.svg')" }}
             />
           )
+        ) : isPastAvailable ? (
+          // Past-start available slot — intentionally blocked (not an error).
+          <div
+            className="flex h-full w-full items-center justify-center rounded-sm bg-gray-100"
+            title="Time has passed — this slot can no longer be booked"
+          >
+            <svg className="h-4 w-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9" strokeWidth={2} />
+              <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+            </svg>
+          </div>
         ) : (
           <div className={composeClasses('h-full w-full rounded-sm', zebraBg)} />
         )}
@@ -681,7 +702,7 @@ const CalendarBody = ({ lanes, timeSlots, date, facilityCode, planByUserId = {} 
         {formatTimeSlot(slot)}
       </span>
       <span
-        className="absolute right-0.5 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer px-0.5 text-[15px] font-bold text-gray-400 opacity-0 transition hover:text-[#21295A] group-hover:opacity-100"
+        className="absolute right-0.5 top-1/2 -translate-y-1/2 rotate-90 cursor-pointer px-0.5 text-[15px] font-bold text-gray-400 transition hover:text-[#21295A]"
         role="button"
         tabIndex={0}
         title="Block/unblock this time slot across all lanes"

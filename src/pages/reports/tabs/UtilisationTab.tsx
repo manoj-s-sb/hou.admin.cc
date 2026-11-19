@@ -22,7 +22,7 @@ const UtilisationTab: React.FC<{ data: UtilisationData }> = ({ data }) => {
           accent="from-violet-500 to-purple-500"
           subtitle="busiest slot"
           title="Peak Hour"
-          value={stats.peakHourPct === null ? stats.peakHour : `${stats.peakHour} · ${stats.peakHourPct}%`}
+          value={stats.peakHourPct === null ? stats.peakHour : `${stats.peakHourPct}%`}
         />
         <StatCard
           accent="from-emerald-500 to-teal-500"

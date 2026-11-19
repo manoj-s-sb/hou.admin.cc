@@ -88,14 +88,14 @@ const Maintenance: React.FC = () => {
   // the global task library (no centre context) is unaffected, since this state is
   // only ever read when isCentre is true.
   const [centreModule, setCentreModule] = useState<CentreModule>('schedule');
-  const [globalTab, setGlobalTab] = useState<GlobalBucket>('daily');
-  const [centreTab, setCentreTab] = useState<CentreBucket>('daily');
-  const [scheduleDay, setScheduleDay] = useState<string>(toISODate(new Date())); // ISO date | 'overdue'
+  const [globalTab, setGlobalTab] = useState<GlobalBucket>('all');
+  const [centreTab, setCentreTab] = useState<CentreBucket>('all');
+  const [scheduleDay, setScheduleDay] = useState<string>('all'); // ISO date | 'overdue' | 'all'
   const scheduleDateInputRef = useRef<HTMLInputElement>(null);
   const [showArchived, setShowArchived] = useState(false);
   // Task Library lane filter (centre) -- 'all' shows every task once with a
   // badge per lane it's scheduled on, instead of one lane's view at a time.
-  const [libLane, setLibLane] = useState<number | 'all'>(1);
+  const [libLane, setLibLane] = useState<number | 'all'>('all');
   // "My Schedule" view mode: day-tabs + list (existing), or the month-grid calendar
   // (reuses the same react-big-calendar UI as the unified Calendar page) — see
   // MaintenanceCalendarView. Purely a client-side re-view of already-loaded `schedules`.

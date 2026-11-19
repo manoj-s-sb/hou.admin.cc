@@ -407,7 +407,7 @@ const AdditionalFacilitiesStep: React.FC<Props> = ({ facilities, onChange, facil
     // offers — this selector drives which config form (below) renders.
     const facilityTypeSelector = f.type === 'custom' && (
       <label className="flex flex-col gap-1" style={{ marginBottom: 12 }}>
-        <span className={FIELD_LABEL}>Facility type</span>
+        <span className={FIELD_LABEL}>Booking Model</span>
         <select
           className={FF_INPUT}
           value={f.bookingModel ?? 'pay_per_slot'}

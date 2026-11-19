@@ -46,48 +46,79 @@ const money = (amount?: number, currency?: string): string => {
   }
 };
 
-/** True when a value is set (not null/undefined) — so a legit 0 still renders. */
-/** Build the label/value rows for one product, skipping fields the doc doesn't set.
- * The Gym is a membership add-on (bookingModel="membership_addon"), billed with the
- * member's plan rather than paid per slot — "Price per slot" never applied to it and
- * showed a misleading $0.00; it gets its own distinct row set instead. */
+/** "HH:MM"–"HH:MM" (24h) → a readable range, e.g. "5:00 AM – 10:00 PM" — or
+ * "24 Hours" for the all-day sentinel FacilityProductModal's 24-hour toggle writes. */
+const formatHoursRange = (open?: string, close?: string): string | null => {
+  if (!open || !close) return null;
+  if (open === '00:00' && close === '23:59') return '24 Hours';
+  const fmt = (t: string) => {
+    const [hStr, mStr] = t.split(':');
+    let h = parseInt(hStr, 10);
+    const period = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${mStr ?? '00'} ${period}`;
+  };
+  return `${fmt(open)} – ${fmt(close)}`;
+};
+
+/** True when a value is set (not null/undefined) — so a legit 0 still renders
+ * rather than being mistaken for "unset". */
+const val = (ok: boolean, text: string): string => (ok ? text : '—');
+
+/** Build the label/value rows for one product — always the SAME fixed field
+ * list, in the same order, for every card of a given booking model, with "—"
+ * for anything that specific product hasn't set. Previously a row was simply
+ * omitted when its backing field was unset, so two cards of the same type
+ * (e.g. two pay-per-slot rooms) could show a different NUMBER of fields
+ * depending on what happened to be filled in — Podcast showing "Price per
+ * hour" while Meeting Room, missing that one field, showed no price line at
+ * all instead of "Price per hour: —".
+ *
+ * The Gym is a membership add-on (bookingModel="membership_addon"), billed
+ * with the member's plan rather than paid per slot — it gets its own fixed
+ * field list since "Price per hour" has no meaning for it; every OTHER
+ * product (Podcast, Meeting Room, Yoga Room, Gaming, Custom, …) shares the
+ * one pay-per-slot list below. */
 const detailRows = (p: ApiProduct): [string, string][] => {
-  const rows: [string, string][] = [];
+  const hours = formatHoursRange(p.openTime, p.closeTime);
 
   if (p.bookingModel === 'membership_addon') {
     const gymPricing = p.pricing as { individual?: { fortnightly?: number } } | undefined;
-    if (has(gymPricing?.individual?.fortnightly)) {
-      rows.push(['Fortnightly price', money(gymPricing?.individual?.fortnightly)]);
-    }
-    if (has(p.sessionRules?.slotCapacity)) {
-      rows.push(['Max members / slot', `${p.sessionRules?.slotCapacity}`]);
-    }
-    if (has(p.sessionRules?.durationMinutes)) {
-      rows.push(['Session duration', `${p.sessionRules?.durationMinutes} min`]);
-    }
-    if (has(p.freeTrial?.slotsPerMembershipLifetime)) {
-      rows.push(['Free trial slots', `${p.freeTrial?.slotsPerMembershipLifetime}`]);
-    }
-    if (has(p.ageRules?.minAge)) {
-      rows.push(['Minimum age', `${p.ageRules?.minAge}`]);
-    }
-    return rows;
+    const fortnightly = gymPricing?.individual?.fortnightly;
+    const guestPrice = p.guestPolicy?.additionalGuestPrice;
+    return [
+      ['Fortnightly price', val(has(fortnightly), money(fortnightly))],
+      ['Max members / slot', val(has(p.sessionRules?.slotCapacity), `${p.sessionRules?.slotCapacity}`)],
+      ['Session duration', val(has(p.sessionRules?.durationMinutes), `${p.sessionRules?.durationMinutes} min`)],
+      [
+        'Free trial slots',
+        val(has(p.freeTrial?.slotsPerMembershipLifetime), `${p.freeTrial?.slotsPerMembershipLifetime}`),
+      ],
+      ['Minimum age', val(has(p.ageRules?.minAge), `${p.ageRules?.minAge}`)],
+      ['Annual discount', val(has(p.annualDiscountPct) && Number(p.annualDiscountPct) > 0, `${p.annualDiscountPct}%`)],
+      ['Total capacity', val(has(p.totalCapacity), `${p.totalCapacity} members`)],
+      ['Guest price', val(has(guestPrice) && Number(guestPrice) > 0, money(guestPrice))],
+      [
+        'Free guest visits',
+        val(has(p.guestPolicy?.freeGuestsPerBillingCycle), `${p.guestPolicy?.freeGuestsPerBillingCycle} / month`),
+      ],
+      ['Operating hours', hours ?? '—'],
+    ];
   }
 
   const pricing = p.pricing as { perHour?: number; currency?: string } | undefined;
-  if (has(pricing?.perHour)) rows.push(['Price per hour', money(pricing?.perHour, pricing?.currency)]);
-  if (has(p.sessionRules?.minHours) && has(p.sessionRules?.maxHours)) {
-    rows.push(['Booking length', `${p.sessionRules?.minHours}–${p.sessionRules?.maxHours} hrs`]);
-  }
-  if (has(p.sessionRules?.slotCapacity)) rows.push(['Capacity per slot', `${p.sessionRules?.slotCapacity}`]);
-  if (has(p.sessionRules?.maxBookingsPerDay)) rows.push(['Max bookings / day', `${p.sessionRules?.maxBookingsPerDay}`]);
-  if (has(p.sessionRules?.advanceBookingDays))
-    rows.push(['Advance booking', `${p.sessionRules?.advanceBookingDays} days`]);
-  if (has(p.guestPolicy?.maxGuestsPerSlot)) rows.push(['Max guests / slot', `${p.guestPolicy?.maxGuestsPerSlot}`]);
-  if (has(p.guestPolicy?.additionalGuestPrice) && Number(p.guestPolicy?.additionalGuestPrice) > 0) {
-    rows.push(['Extra guest price', money(p.guestPolicy?.additionalGuestPrice)]);
-  }
-  return rows;
+  const extraGuestPrice = p.guestPolicy?.additionalGuestPrice;
+  return [
+    ['Price per hour', val(has(pricing?.perHour), money(pricing?.perHour, pricing?.currency))],
+    ['Seating capacity', val(has(p.totalCapacity), `Up to ${p.totalCapacity} per room`)],
+    ['Capacity per slot', val(has(p.sessionRules?.slotCapacity), `${p.sessionRules?.slotCapacity}`)],
+    ['Max bookings / day', val(has(p.sessionRules?.maxBookingsPerDay), `${p.sessionRules?.maxBookingsPerDay}`)],
+    ['Advance booking', val(has(p.sessionRules?.advanceBookingDays), `${p.sessionRules?.advanceBookingDays} days`)],
+    ['Max guests / slot', val(has(p.guestPolicy?.maxGuestsPerSlot), `${p.guestPolicy?.maxGuestsPerSlot}`)],
+    ['Extra guest price', val(has(extraGuestPrice) && Number(extraGuestPrice) > 0, money(extraGuestPrice))],
+    ['Free guest visits', val(has(p.freeGuestVisits), `${p.freeGuestVisits} / month`)],
+    ['Operating hours', hours ?? '—'],
+  ];
 };
 
 const sectionLabel: React.CSSProperties = {
@@ -303,16 +334,37 @@ const Facilities: React.FC = () => {
                     Edit
                   </button>
                 </div>
-                {rows.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px', padding: 16 }}>
-                    {rows.map(([label, value]) => (
-                      <div key={label}>
-                        <div style={{ fontSize: 11, color: 'var(--sub)' }}>{label}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginTop: 2 }}>{value}</div>
+                {rows.length > 0 &&
+                  Array.from({ length: Math.ceil(rows.length / 2) }, (_, i) => rows.slice(i * 2, i * 2 + 2)).map(
+                    (pair, i, pairs) => (
+                      <div
+                        key={pair[0][0]}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: 20,
+                          padding: '14px 16px',
+                          borderBottom: i < pairs.length - 1 ? '1px solid var(--border)' : 'none',
+                        }}
+                      >
+                        {pair.map(([label, value], j) => (
+                          <div
+                            key={label}
+                            style={
+                              j === 0 && pair.length === 2
+                                ? { paddingRight: 20, borderRight: '1px solid var(--border)' }
+                                : undefined
+                            }
+                          >
+                            <div style={{ fontSize: 11, color: 'var(--sub)' }}>{label}</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginTop: 2 }}>
+                              {value}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )
+                  )}
               </div>
             );
           })}

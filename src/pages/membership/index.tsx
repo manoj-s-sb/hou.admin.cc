@@ -26,6 +26,11 @@ const TABS: { key: PlanTab; label: string }[] = [
 ];
 
 const TD = 'border-b border-gray-100 px-3.5 py-[11px] align-middle';
+// An archived plan's whole column is tinted (not just its Status-row pill) so
+// it's visually distinct from an active plan's column at a glance, not just
+// on close reading of one row.
+const ARCHIVED_TD = `${TD} bg-gray-50 text-gray-400`;
+const tdFor = (status?: string): string => (status === 'archived' ? ARCHIVED_TD : TD);
 
 // Each country/centre filter maps to the currency its prices should display
 // in — keyed on PLAN_COUNTRY_CHIPS's own codes (src/pages/centres/constants.ts),
@@ -81,14 +86,14 @@ const FeatureLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 const SlotsCell: React.FC<{ plan: MembershipPlan; suffix?: string }> = ({ plan, suffix = '/ 2 weeks' }) =>
   plan.slotsPerCycle === 0 ? (
-    <td className={TD}>
+    <td className={tdFor(plan.status)}>
       <Pill tone="green">Unlimited</Pill>{' '}
       <span style={{ fontSize: 11, color: 'var(--sub)' }}>
         {plan.accessType === 'nightowl' ? 'nights' : 'off-peak'}
       </span>
     </td>
   ) : (
-    <td className={TD}>
+    <td className={tdFor(plan.status)}>
       <strong>{plan.slotsPerCycle} slots</strong> <span style={{ fontSize: 11, color: 'var(--sub)' }}>{suffix}</span>
     </td>
   );
@@ -104,8 +109,8 @@ const PlanHead: React.FC<{ plans: MembershipPlan[] }> = ({ plans }) => (
       {plans.map(p => (
         <th
           key={p.id}
-          className="border-b border-cmx-border bg-gray-50 px-3.5 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.04em] text-sub"
-          style={{ color: p.colour }}
+          className={`border-b border-cmx-border px-3.5 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.04em] text-sub ${p.status === 'archived' ? 'bg-gray-100' : 'bg-gray-50'}`}
+          style={{ color: p.status === 'archived' ? undefined : p.colour }}
         >
           {p.name}
         </th>
@@ -259,7 +264,47 @@ const MembershipPlans: React.FC = () => {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="text-xs font-bold uppercase tracking-[0.06em] text-sub" style={{ margin: 0 }}>
+            Currency:
+          </span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {currencyOptions.map(c => (
+              <button
+                key={c.code}
+                className={`cursor-pointer whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${currency.code === c.code ? 'border-navy bg-navy text-white' : 'border-cmx-border bg-white text-sub'}`}
+                type="button"
+                onClick={() => setCurrencyCode(c.code)}
+              >
+                {c.code}
+              </button>
+            ))}
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--sub)' }}>
+            {currency.code === 'USD' ? 'Base currency' : `1 USD ≈ ${currency.rate.toFixed(3)} ${currency.code}`}
+            {currency.code !== 'USD' && fx.status === 'live' && fx.asOf && ` · rates as of ${fx.asOf}`}
+            {currency.code !== 'USD' && fx.status === 'fallback' && (
+              <span style={{ color: 'var(--cmx-amber, #d97706)' }}> · ⚠ offline — reference rate, may be outdated</span>
+            )}
+          </span>
+        </div>
+      </div>
+
+      {/* Tabs + Show archived + New Plan */}
+      <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+        <div className="mb-6 flex gap-0 border-b border-cmx-border" style={{ marginBottom: 0 }}>
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              className={`-mb-px flex cursor-pointer items-center gap-[7px] whitespace-nowrap border-b-2 border-transparent bg-transparent px-[18px] py-3 text-[13px] font-medium transition-all hover:text-cmx-text ${tab === t.key ? 'border-b-cmx-blue font-semibold text-cmx-blue' : 'text-sub'}`}
+              type="button"
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {archivedCount > 0 && (
             <label
               className="inline-flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-sub"
@@ -274,59 +319,16 @@ const MembershipPlans: React.FC = () => {
               Show archived ({archivedCount})
             </label>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="text-xs font-bold uppercase tracking-[0.06em] text-sub" style={{ margin: 0 }}>
-              Currency:
-            </span>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {currencyOptions.map(c => (
-                <button
-                  key={c.code}
-                  className={`cursor-pointer whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${currency.code === c.code ? 'border-navy bg-navy text-white' : 'border-cmx-border bg-white text-sub'}`}
-                  type="button"
-                  onClick={() => setCurrencyCode(c.code)}
-                >
-                  {c.code}
-                </button>
-              ))}
-            </div>
-            <span style={{ fontSize: 11, color: 'var(--sub)' }}>
-              {currency.code === 'USD' ? 'Base currency' : `1 USD ≈ ${currency.rate.toFixed(3)} ${currency.code}`}
-              {currency.code !== 'USD' && fx.status === 'live' && fx.asOf && ` · rates as of ${fx.asOf}`}
-              {currency.code !== 'USD' && fx.status === 'fallback' && (
-                <span style={{ color: 'var(--cmx-amber, #d97706)' }}>
-                  {' '}
-                  · ⚠ offline — reference rate, may be outdated
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs + New Plan */}
-      <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-        <div className="mb-6 flex gap-0 border-b border-cmx-border" style={{ marginBottom: 0 }}>
-          {TABS.map(t => (
+          {canEdit && (
             <button
-              key={t.key}
-              className={`-mb-px flex cursor-pointer items-center gap-[7px] whitespace-nowrap border-b-2 border-transparent bg-transparent px-[18px] py-3 text-[13px] font-medium transition-all hover:text-cmx-text ${tab === t.key ? 'border-b-cmx-blue font-semibold text-cmx-blue' : 'text-sub'}`}
+              className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:opacity-90"
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={openCreate}
             >
-              {t.label}
+              New Plan
             </button>
-          ))}
+          )}
         </div>
-        {canEdit && (
-          <button
-            className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] bg-navy px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:opacity-90"
-            type="button"
-            onClick={openCreate}
-          >
-            New Plan
-          </button>
-        )}
       </div>
 
       {isLoading ? (
@@ -368,6 +370,7 @@ const FortnightlyTab: React.FC<{
   onEdit?: (p: MembershipPlan) => void;
 }> = ({ plans, currency, rateOf, onEdit }) => (
   <div>
+    {/* Static billing-cycle info banner — hidden for now, revisit later.
     <div
       style={{
         background: '#ecedf4',
@@ -382,6 +385,7 @@ const FortnightlyTab: React.FC<{
       Fortnightly billing cycle — charged every 2 weeks from the membership activation date. Minimum period: 1 month.
       Cancellation notice: 2 weeks.
     </div>
+    */}
     <div className="overflow-x-auto rounded-[10px] border border-cmx-border bg-white" style={{ marginBottom: 20 }}>
       <table className="w-full border-collapse text-[13px]">
         <PlanHead plans={plans} />
@@ -389,7 +393,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Fortnightly Price</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 <strong>{money(p.fortnightlyPrice, currency, rateOf(p.currency))}</strong>
               </td>
             ))}
@@ -397,7 +401,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Access Hours</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.accessHours}
               </td>
             ))}
@@ -405,7 +409,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Daily Booking Limit</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.dailyBookingLimit} per day
               </td>
             ))}
@@ -419,7 +423,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Carryover per cycle</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.carryover > 0 ? `Up to ${p.carryover} unused → next cycle` : <Pill tone="gray">No</Pill>}
               </td>
             ))}
@@ -427,7 +431,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Max accumulated (carry cap)</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.carryCap > 0 ? <strong>{p.carryCap} slots max</strong> : <Pill tone="gray">N/A</Pill>}
               </td>
             ))}
@@ -435,7 +439,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Extra session purchase</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.extraSessionEnabled ? (
                   <Pill tone="blue">{money(p.extraSessionPrice, currency, rateOf(p.currency))} · 1/day max</Pill>
                 ) : (
@@ -447,7 +451,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Peak Hours Access</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.peakAccess ? <Pill tone="green">Yes</Pill> : <Pill tone="red">No</Pill>}
               </td>
             ))}
@@ -455,7 +459,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Additional Member Fee</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.additionalMemberFee !== null ? (
                   `${money(p.additionalMemberFee, currency, rateOf(p.currency))} per member`
                 ) : (
@@ -467,7 +471,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Centres Active</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 <Pill tone="blue">{p.centresActive} centres</Pill>
               </td>
             ))}
@@ -475,7 +479,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <FeatureLabel>Status</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.status === 'active' ? <Pill tone="green">Active</Pill> : <Pill tone="gray">Archived</Pill>}
               </td>
             ))}
@@ -483,7 +487,7 @@ const FortnightlyTab: React.FC<{
           <tr>
             <td className={TD} />
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 <button
                   className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
                   style={{ fontSize: 11, padding: '4px 9px' }}
@@ -534,7 +538,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Annual Price (billed once)</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {/* MP-8: a plan with no annual option shows "Not offered", never
                     $0.00 — $0 used to be the only (wrong) way this was representable. */}
                 <strong>{p.offersAnnual ? money(p.annualPrice, currency, rateOf(p.currency)) : 'Not offered'}</strong>
@@ -544,7 +548,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Equiv. per fortnight</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD} style={{ color: 'var(--sub)', fontSize: 12 }}>
+              <td key={p.id} className={tdFor(p.status)} style={{ color: 'var(--sub)', fontSize: 12 }}>
                 {p.offersAnnual ? `~${money(p.annualPrice / 26, currency, rateOf(p.currency))}` : '—'}
               </td>
             ))}
@@ -555,7 +559,7 @@ const AnnualTab: React.FC<{
               const yearly = p.fortnightlyPrice * 26;
               const pct = p.offersAnnual && yearly > 0 ? Math.round((1 - p.annualPrice / yearly) * 100) : 0;
               return (
-                <td key={p.id} className={TD}>
+                <td key={p.id} className={tdFor(p.status)}>
                   {p.offersAnnual && pct > 0 ? <Pill tone="green">~{pct}% off</Pill> : <Pill tone="gray">—</Pill>}
                 </td>
               );
@@ -564,7 +568,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Cancellation</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 Any time before next annual date
               </td>
             ))}
@@ -572,7 +576,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Membership Hold</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 Up to 8 weeks/year · {money(5, currency)}
               </td>
             ))}
@@ -598,7 +602,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Daily booking limit</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.dailyBookingLimit} per day
               </td>
             ))}
@@ -606,7 +610,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Carryover per cycle</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.carryover > 0 ? `Up to ${p.carryover} unused → next cycle` : <Pill tone="gray">No</Pill>}
               </td>
             ))}
@@ -614,7 +618,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Max active future bookings</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.maxFutureBookings}
               </td>
             ))}
@@ -622,7 +626,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Advance booking window</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.advanceWindowDays} days
               </td>
             ))}
@@ -630,7 +634,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Extra session purchase</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 <span
                   className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-500"
                   title="Extra session purchase is not available on annual plans"
@@ -646,7 +650,7 @@ const AnnualTab: React.FC<{
           <tr>
             <FeatureLabel>Peak hours access</FeatureLabel>
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 {p.peakAccess ? <Pill tone="green">Yes</Pill> : <Pill tone="red">No</Pill>}
               </td>
             ))}
@@ -654,7 +658,7 @@ const AnnualTab: React.FC<{
           <tr>
             <td className={TD} />
             {plans.map(p => (
-              <td key={p.id} className={TD}>
+              <td key={p.id} className={tdFor(p.status)}>
                 <button
                   className="inline-flex cursor-pointer items-center gap-[5px] rounded-[7px] border border-cmx-border bg-white px-3 py-1.5 text-[12.5px] font-semibold text-sub transition-all hover:bg-gray-50"
                   style={{ fontSize: 11, padding: '4px 9px' }}
@@ -691,13 +695,8 @@ const AnnualTab: React.FC<{
         max).
       </div>
       <div style={{ marginTop: 4 }}>
-        Example — Standard annual with 2 carried: effective limit = 3 + 2 ={' '}
-        <strong style={{ color: 'var(--navy)' }}>5 slots</strong> that fortnight.
-      </div>
-      <div style={{ marginTop: 4 }}>
-        <strong style={{ color: '#dc2626' }}>Note:</strong> When the fortnightly limit is hit on an annual plan, no
-        extra session purchase option is shown — members get a standard “booking limit reached” message until the next
-        2-week cycle resets.
+        Example — Standard annual with 1 carried: effective limit = 3 + 1 ={' '}
+        <strong style={{ color: 'var(--navy)' }}>4 slots</strong> that fortnight.
       </div>
     </div>
   </div>
@@ -770,7 +769,7 @@ const BookingAccessTab: React.FC<{ plans: MembershipPlan[] }> = ({ plans }) => {
               <tr key={k}>
                 <FeatureLabel>{humanizeKey(k)}</FeatureLabel>
                 {rows.map(r => (
-                  <td key={r.plan.id} className={TD}>
+                  <td key={r.plan.id} className={tdFor(r.plan.status)}>
                     {r.flat[k] === undefined ? '—' : fmt(r.flat[k])}
                   </td>
                 ))}

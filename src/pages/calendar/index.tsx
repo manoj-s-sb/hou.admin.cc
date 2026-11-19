@@ -6,15 +6,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 /* eslint-enable import/no-duplicates */
-import { Calendar, DateCellWrapperProps, dateFnsLocalizer, View, Views } from 'react-big-calendar';
+import { Calendar, dateFnsLocalizer, View, Views } from 'react-big-calendar';
 import { useDispatch, useSelector } from 'react-redux';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import './calendar-overrides.css';
 
 import { Loader } from '../../components/Loader';
 import { getFacilityCode } from '../../constants/user';
 import { fetchCalendarEvents } from '../../store/calendar/api';
 import { CalendarEvent } from '../../store/calendar/types';
 import { AppDispatch, RootState } from '../../store/store';
+import { toAuthoredDate } from '../../utils/dateUtils';
 
 import CalendarLegend from './components/CalendarLegend';
 import CalendarToolbar from './components/CalendarToolbar';
@@ -40,32 +42,6 @@ interface RBCEvent {
 
 const toDateKey = (date: Date) => format(date, 'yyyy-MM-dd');
 
-/** Day-level count badge for Gym/Podcast bookings, shown top-right of a month-view
- * date cell — on top of the per-booking colour pills already rendered as events, not
- * instead of them (see "yes, both colour pills and count number"). Built per-render
- * via a factory (not a module-level component) so it can close over the current
- * day -> count map without threading extra props through react-big-calendar's own
- * `components` contract, which only passes {range, value, children}. */
-const makeGymPodcastDateCellWrapper = (countsByDay: Record<string, number>) => {
-  const GymPodcastDateCellWrapper = ({ value, children }: DateCellWrapperProps) => {
-    const count = countsByDay[toDateKey(value)] ?? 0;
-    return (
-      <div className="relative h-full w-full">
-        {children}
-        {count > 0 && (
-          <span
-            aria-label={`${count} gym/podcast booking${count === 1 ? '' : 's'}`}
-            className="pointer-events-none absolute right-1 top-1 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#db2777] px-1 text-[10px] font-bold text-white"
-          >
-            {count}
-          </span>
-        )}
-      </div>
-    );
-  };
-  return GymPodcastDateCellWrapper;
-};
-
 /** onRangeChange reports either an array of visible days (week/day/agenda) or a {start,end} object (month). */
 const getRangeBounds = (range: Date[] | { start: Date; end: Date }): { start: Date; end: Date } =>
   Array.isArray(range) ? { start: range[0], end: range[range.length - 1] } : range;
@@ -76,6 +52,10 @@ const CalendarPage = () => {
   const facilityCode = getFacilityCode();
 
   const [view, setView] = useState<View>(Views.MONTH);
+  // Controlled current date. MUST be controlled: the `key={rangeKey}` below remounts
+  // <Calendar> on every range change, and an uncontrolled calendar would reset to
+  // today on remount — so prev/next/month navigation appeared to do nothing.
+  const [date, setDate] = useState<Date>(() => new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   const loadRange = useCallback(
@@ -92,21 +72,35 @@ const CalendarPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facilityCode]);
 
+  // react-big-calendar's own "+N more" popover is a one-time snapshot taken
+  // when it's opened -- it never picks up a later events update, and nothing
+  // closes it either. Bumping this on every range change remounts <Calendar>
+  // (via the key prop below), which drops that internal popover state for
+  // free -- simplest reliable way to guarantee a stale popover never survives
+  // past the events it was showing.
+  const [rangeKey, setRangeKey] = useState(0);
+
   const handleRangeChange = useCallback(
     (range: Date[] | { start: Date; end: Date }) => {
       const { start, end } = getRangeBounds(range);
+      setRangeKey(k => k + 1);
       loadRange(start, end);
     },
     [loadRange]
   );
 
+  // Built from the facility-local wall-clock numbers already embedded in
+  // e.start/e.end (see toAuthoredDate's doc comment) — NOT `new Date(e.start)`,
+  // which react-big-calendar's month view would then re-bucket by the
+  // viewer's own browser timezone, spilling a same-day facility booking into
+  // the next day's cell whenever that reinterpretation crosses midnight.
   const calendarEvents: RBCEvent[] = useMemo(
     () =>
       events.map(e => ({
         id: e.id,
         title: e.title,
-        start: new Date(e.start),
-        end: new Date(e.end),
+        start: toAuthoredDate(e.start) ?? new Date(e.start),
+        end: toAuthoredDate(e.end) ?? new Date(e.end),
         resource: e,
       })),
     [events]
@@ -124,21 +118,7 @@ const CalendarPage = () => {
     []
   );
 
-  // Per-day Gym/Podcast/Meeting Room booking count, for the month-view date-cell badge.
-  const gymPodcastCountsByDay = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const e of events) {
-      if (e.type !== 'gym_booking' && e.type !== 'podcast_booking' && e.type !== 'meeting_booking') continue;
-      const key = toDateKey(new Date(e.start));
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-    return counts;
-  }, [events]);
-
-  const calendarComponents = useMemo(
-    () => ({ toolbar: CalendarToolbar, dateCellWrapper: makeGymPodcastDateCellWrapper(gymPodcastCountsByDay) }),
-    [gymPodcastCountsByDay]
-  );
+  const calendarComponents = useMemo(() => ({ toolbar: CalendarToolbar }), []);
 
   return (
     <div className="w-full">
@@ -164,8 +144,10 @@ const CalendarPage = () => {
       <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
         {isLoading && <Loader variant="overlay" />}
         <Calendar<RBCEvent>
+          key={rangeKey}
           popup
           components={calendarComponents}
+          date={date}
           endAccessor="end"
           eventPropGetter={eventPropGetter}
           events={calendarEvents}
@@ -174,6 +156,7 @@ const CalendarPage = () => {
           style={{ height: 720 }}
           view={view}
           views={[Views.MONTH, Views.WEEK, Views.DAY]}
+          onNavigate={setDate}
           onRangeChange={handleRangeChange}
           onSelectEvent={event => setSelectedEvent(event.resource)}
           onView={setView}

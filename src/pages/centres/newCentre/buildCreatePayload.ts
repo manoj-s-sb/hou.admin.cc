@@ -177,14 +177,25 @@ const buildMemberships = (state: WizardState, catalogue: PlanMeta[]): ApiMembers
         bookingRules: {
           ...DEFAULT_BOOKING_RULES,
           // Only persist guest-pricing fields that were actually set — blank stays absent
-          // (so the centre shows "—" rather than a hardcoded value).
+          // (so the centre shows "—" rather than a hardcoded value). Real docs nest these
+          // under guestBookingRules.pricing (firstGuest / additionalGuests.discount) and
+          // a SIBLING slotPurchaseRules.price for the extra-session cost — not flat fields
+          // directly on guestBookingRules. Matches the shape centres/plans/index.tsx, the
+          // Membership Plans "Guest Charges" tab, and mapApiPlan.ts all already read —
+          // writing the old flat shape here silently orphaned every value an admin typed in.
           guestBookingRules: {
-            ...(p.firstGuestFee !== null ? { firstGuestFee: p.firstGuestFee } : {}),
-            ...(p.additionalGuestDiscountPct !== null
-              ? { additionalGuestDiscountPct: p.additionalGuestDiscountPct }
+            ...(p.firstGuestFee !== null || p.additionalGuestDiscountPct !== null
+              ? {
+                  pricing: {
+                    ...(p.firstGuestFee !== null ? { firstGuest: p.firstGuestFee } : {}),
+                    ...(p.additionalGuestDiscountPct !== null
+                      ? { additionalGuests: { type: 'percentage', discount: p.additionalGuestDiscountPct } }
+                      : {}),
+                  },
+                }
               : {}),
-            ...(p.extraSessionCost !== null ? { extraSessionCost: p.extraSessionCost } : {}),
           },
+          slotPurchaseRules: p.extraSessionCost !== null ? { price: p.extraSessionCost } : {},
           roomSlotRules: {},
         },
         memberTypes: {},

@@ -984,10 +984,12 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                 />
               </div>
               <div className="flex flex-col gap-1" style={{ marginBottom: 14 }}>
-                <span className="cmx-field-label">Address Line 2</span>
+                <span className="cmx-field-label">
+                  Address Line 2 <span className="font-normal normal-case text-gray-400">(optional)</span>
+                </span>
                 <input
                   className="cmx-field"
-                  placeholder="Suite, unit, floor (optional)"
+                  placeholder="Suite, unit, floor"
                   type="text"
                   value={s.addressLine2}
                   onChange={e => set({ addressLine2: e.target.value })}
@@ -1008,7 +1010,10 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="cmx-field-label">State / Province{stateRequired ? ' *' : ''}</span>
+                  <span className="cmx-field-label">
+                    State / Province
+                    {stateRequired && <span style={{ color: '#d42b2b', fontSize: '14px', fontWeight: 700 }}> *</span>}
+                  </span>
                   <input
                     className="cmx-field"
                     placeholder="e.g. TX"
@@ -1851,29 +1856,7 @@ const NewCentreWizard: React.FC<Props> = ({ onClose, onSaved, initialBundle }) =
                               </select>
                             </div>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 10 }}>
-                            <div className="flex flex-col gap-1">
-                              <span className="cmx-field-label">Member Cap</span>
-                              <input
-                                className="cmx-field"
-                                min={1}
-                                placeholder="Blank = plan cap"
-                                type="number"
-                                value={row.memberCap ?? ''}
-                                onChange={e =>
-                                  setPlan(meta.id, {
-                                    memberCap: e.target.value === '' ? null : Math.max(1, Number(e.target.value)),
-                                  })
-                                }
-                              />
-                              {row.memberCap !== null &&
-                                row.memberCap !== undefined &&
-                                row.memberCap > row.allocatedSlots && (
-                                  <div style={{ fontSize: 11, color: '#d97706' }}>
-                                    Cap exceeds allocated slots ({row.allocatedSlots}).
-                                  </div>
-                                )}
-                            </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 10 }}>
                             <div className="flex flex-col gap-1">
                               <span className="cmx-field-label">First Guest Fee (USD)</span>
                               <input
