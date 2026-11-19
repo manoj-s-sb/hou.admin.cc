@@ -51,6 +51,10 @@ const CalendarPage = () => {
   const facilityCode = getFacilityCode();
 
   const [view, setView] = useState<View>(Views.MONTH);
+  // Controlled current date. MUST be controlled: the `key={rangeKey}` below remounts
+  // <Calendar> on every range change, and an uncontrolled calendar would reset to
+  // today on remount — so prev/next/month navigation appeared to do nothing.
+  const [date, setDate] = useState<Date>(() => new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   const loadRange = useCallback(
@@ -137,6 +141,7 @@ const CalendarPage = () => {
           key={rangeKey}
           popup
           components={calendarComponents}
+          date={date}
           endAccessor="end"
           eventPropGetter={eventPropGetter}
           events={calendarEvents}
@@ -145,6 +150,7 @@ const CalendarPage = () => {
           style={{ height: 720 }}
           view={view}
           views={[Views.MONTH, Views.WEEK, Views.DAY]}
+          onNavigate={setDate}
           onRangeChange={handleRangeChange}
           onSelectEvent={event => setSelectedEvent(event.resource)}
           onView={setView}
