@@ -16,6 +16,7 @@ import { getFacilityCode } from '../../constants/user';
 import { fetchCalendarEvents } from '../../store/calendar/api';
 import { CalendarEvent } from '../../store/calendar/types';
 import { AppDispatch, RootState } from '../../store/store';
+import { toAuthoredDate } from '../../utils/dateUtils';
 
 import CalendarLegend from './components/CalendarLegend';
 import CalendarToolbar from './components/CalendarToolbar';
@@ -88,13 +89,18 @@ const CalendarPage = () => {
     [loadRange]
   );
 
+  // Built from the facility-local wall-clock numbers already embedded in
+  // e.start/e.end (see toAuthoredDate's doc comment) — NOT `new Date(e.start)`,
+  // which react-big-calendar's month view would then re-bucket by the
+  // viewer's own browser timezone, spilling a same-day facility booking into
+  // the next day's cell whenever that reinterpretation crosses midnight.
   const calendarEvents: RBCEvent[] = useMemo(
     () =>
       events.map(e => ({
         id: e.id,
         title: e.title,
-        start: new Date(e.start),
-        end: new Date(e.end),
+        start: toAuthoredDate(e.start) ?? new Date(e.start),
+        end: toAuthoredDate(e.end) ?? new Date(e.end),
         resource: e,
       })),
     [events]
